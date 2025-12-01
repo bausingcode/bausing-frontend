@@ -1,3 +1,5 @@
+import React from "react";
+
 export default function ProductosPromos() {
   const products = [
     {
@@ -171,14 +173,14 @@ export default function ProductosPromos() {
                             );
                           } else if (estado === "Promo Billetera") {
                             return (
-                              <>
-                                <span key={`${idx}-promo`} className="px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                              <React.Fragment key={idx}>
+                                <span className="px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
                                   Promo
                                 </span>
-                                <span key={`${idx}-billetera`} className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                                <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
                                   Billetera
                                 </span>
-                              </>
+                              </React.Fragment>
                             );
                           }
                           return null;

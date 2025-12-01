@@ -115,11 +115,11 @@ export default function Reportes() {
           </div>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={ventasPorDia}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-              <XAxis dataKey="fecha" stroke="#6B7280" fontSize={12} />
-              <YAxis stroke="#6B7280" fontSize={12} domain={[0, 8000]} ticks={[0, 2000, 4000, 6000, 8000]} />
-              <Tooltip />
-              <Line type="monotone" dataKey="ventas" stroke="#155DFC" strokeWidth={2} dot={{ fill: '#155DFC' }} />
+              <CartesianGrid key="grid" strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis key="xaxis" dataKey="fecha" stroke="#6B7280" fontSize={12} />
+              <YAxis key="yaxis" stroke="#6B7280" fontSize={12} domain={[0, 8000]} ticks={[0, 2000, 4000, 6000, 8000]} />
+              <Tooltip key="tooltip" />
+              <Line key="line" type="monotone" dataKey="ventas" stroke="#155DFC" strokeWidth={2} dot={{ fill: '#155DFC' }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -136,11 +136,11 @@ export default function Reportes() {
           </div>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={ventasPorModelo}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-              <XAxis dataKey="modelo" stroke="#6B7280" fontSize={12} />
-              <YAxis stroke="#6B7280" fontSize={12} domain={[0, 240000]} ticks={[0, 60000, 120000, 180000, 240000]} />
-              <Tooltip />
-              <Bar dataKey="ventas" fill="#155DFC" />
+              <CartesianGrid key="grid" strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis key="xaxis" dataKey="modelo" stroke="#6B7280" fontSize={12} />
+              <YAxis key="yaxis" stroke="#6B7280" fontSize={12} domain={[0, 240000]} ticks={[0, 60000, 120000, 180000, 240000]} />
+              <Tooltip key="tooltip" />
+              <Bar key="bar" dataKey="ventas" fill="#155DFC" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -161,6 +161,7 @@ export default function Reportes() {
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
+                key="pie"
                 data={ventasPorProvincia}
                 cx="50%"
                 cy="50%"
@@ -171,10 +172,10 @@ export default function Reportes() {
                 dataKey="value"
               >
                 {ventasPorProvincia.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+                  <Cell key={`cell-${index}-${entry.name}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip key="tooltip" />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -191,14 +192,14 @@ export default function Reportes() {
           </div>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={usoBilletera}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-              <XAxis dataKey="mes" stroke="#6B7280" fontSize={12} />
-              <YAxis stroke="#6B7280" fontSize={12} domain={[0, 10000]} ticks={[0, 2500, 5000, 7500, 10000]} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="Otorgado" fill="#3B82F6" />
-              <Bar dataKey="Pendiente" fill="#F59E0B" />
-              <Bar dataKey="Usado" fill="#10B981" />
+              <CartesianGrid key="grid" strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis key="xaxis" dataKey="mes" stroke="#6B7280" fontSize={12} />
+              <YAxis key="yaxis" stroke="#6B7280" fontSize={12} domain={[0, 10000]} ticks={[0, 2500, 5000, 7500, 10000]} />
+              <Tooltip key="tooltip" />
+              <Legend key="legend" />
+              <Bar key="bar-otorgado" dataKey="Otorgado" fill="#3B82F6" />
+              <Bar key="bar-pendiente" dataKey="Pendiente" fill="#F59E0B" />
+              <Bar key="bar-usado" dataKey="Usado" fill="#10B981" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -234,8 +235,8 @@ export default function Reportes() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {topClientes.map((cliente, index) => (
-                <tr key={index} className="hover:bg-gray-50">
+              {topClientes.map((cliente) => (
+                <tr key={cliente.posicion} className="hover:bg-gray-50">
                   <td className="px-4 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
                     {cliente.posicion}
                   </td>
