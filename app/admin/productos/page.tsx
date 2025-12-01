@@ -3,9 +3,12 @@
 import { useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { Plus, Edit, Trash2, FolderTree } from "lucide-react";
+import CreateCategoryModal from "@/components/CreateCategoryModal";
 
 export default function Productos() {
   const [activeTab, setActiveTab] = useState<"productos" | "categorias">("productos");
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const products = [
     {
@@ -119,10 +122,6 @@ export default function Productos() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-normal" style={{ color: '#484848' }}>Productos</h2>
-            <button className="px-4 py-2 text-white rounded-[6px] text-sm font-medium hover:opacity-90 transition-colors flex items-center gap-2 cursor-pointer" style={{ backgroundColor: '#155DFC' }}>
-              <Plus className="w-4 h-4" />
-              Nuevo Producto
-            </button>
           </div>
 
           <div className="bg-white rounded-[14px] border border-gray-200 overflow-hidden">
@@ -231,7 +230,11 @@ export default function Productos() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-normal" style={{ color: '#484848' }}>Categorías y Subcategorías</h2>
-            <button className="px-4 py-2 text-white rounded-[6px] text-sm font-medium hover:opacity-90 transition-colors flex items-center gap-2 cursor-pointer" style={{ backgroundColor: '#155DFC' }}>
+            <button 
+              onClick={() => setIsCategoryModalOpen(true)}
+              className="px-4 py-2 text-white rounded-[6px] text-sm font-medium hover:opacity-90 transition-colors flex items-center gap-2 cursor-pointer" 
+              style={{ backgroundColor: '#155DFC' }}
+            >
               <Plus className="w-4 h-4" />
               Nueva Categoría
             </button>
@@ -307,6 +310,15 @@ export default function Productos() {
           </div>
         </div>
       )}
+
+      {/* Modals */}
+      <CreateCategoryModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        onSuccess={() => {
+          setRefreshKey((prev) => prev + 1);
+        }}
+      />
     </div>
   );
 }

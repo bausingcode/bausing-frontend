@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import PageHeader from "@/components/PageHeader";
-import { Plus, Edit, Trash2, CreditCard, X } from "lucide-react";
+import { Edit, Trash2, CreditCard, X } from "lucide-react";
 
 export default function Promos() {
+  const [refreshKey, setRefreshKey] = useState(0);
   const [promotions] = useState([
     {
       titulo: "Black Friday 2025",
@@ -44,10 +45,6 @@ export default function Promos() {
 
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-lg font-normal" style={{ color: '#484848' }}>Promociones Activas</h2>
-        <button className="px-4 py-2 bg-orange-500 text-white rounded-[6px] text-sm font-medium hover:bg-orange-600 transition-colors flex items-center gap-2 cursor-pointer">
-          <Plus className="w-4 h-4" />
-          Nueva Promoción
-        </button>
       </div>
 
       <div className="space-y-4">
