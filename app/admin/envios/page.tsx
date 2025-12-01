@@ -44,7 +44,8 @@ export default function EnviosLogistica() {
     {
       pedido: "#001234",
       cliente: "Juan Pérez",
-      zona: "Buenos Aires, CABA",
+      provincia: "Buenos Aires",
+      localidad: "CABA",
       direccion: "Av. Corrientes 1234",
       estado: "En Camino",
       estadoColor: "purple",
@@ -55,7 +56,8 @@ export default function EnviosLogistica() {
     {
       pedido: "#001235",
       cliente: "María González",
-      zona: "Córdoba Capital",
+      provincia: "Córdoba",
+      localidad: "Capital",
       direccion: "San Martín 567",
       estado: "Pendiente",
       estadoColor: "yellow",
@@ -66,7 +68,8 @@ export default function EnviosLogistica() {
     {
       pedido: "#001236",
       cliente: "Carlos Rodríguez",
-      zona: "Rosario - Santa Fe",
+      provincia: "Santa Fe",
+      localidad: "Rosario",
       direccion: "Pellegrini 890",
       estado: "Entregado",
       estadoColor: "green",
@@ -77,7 +80,8 @@ export default function EnviosLogistica() {
     {
       pedido: "#001237",
       cliente: "Ana Martínez",
-      zona: "Mendoza Capital",
+      provincia: "Mendoza",
+      localidad: "Capital",
       direccion: "Las Heras 345",
       estado: "Retrasado",
       estadoColor: "red",
@@ -88,7 +92,8 @@ export default function EnviosLogistica() {
     {
       pedido: "#001238",
       cliente: "Luis Fernández",
-      zona: "Buenos Aires - Zona Norte",
+      provincia: "Buenos Aires",
+      localidad: "Zona Norte",
       direccion: "Libertador 2345",
       estado: "Preparando",
       estadoColor: "blue",
@@ -299,8 +304,11 @@ export default function EnviosLogistica() {
                     <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-700">
                       {envio.cliente}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-700">
-                      {envio.zona}
+                    <td className="px-4 py-2 text-xs text-gray-700">
+                      <div className="flex flex-col">
+                        <span className="font-medium">{envio.provincia}</span>
+                        <span className="text-gray-600">{envio.localidad}</span>
+                      </div>
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-700">
                       {envio.direccion}

@@ -16,7 +16,7 @@ export default function NavLink({ href, children, icon }: NavLinkProps) {
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 px-3 py-3 rounded-[6px] transition-colors ${
+      className={`flex items-center gap-3 px-3 py-2.5 rounded-[6px] transition-colors ${
         isActive
           ? "bg-blue-50 text-blue-600"
           : "text-[#636363] hover:bg-gray-50"

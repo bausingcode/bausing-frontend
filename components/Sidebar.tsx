@@ -16,9 +16,9 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-72 flex flex-col gap-4">
+    <aside className="w-72 flex flex-col gap-3">
       {/* Tarjeta de usuario */}
-      <div className="bg-white rounded-[14px] p-4">
+      <div className="bg-white rounded-[14px] px-4 py-3.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -50,9 +50,9 @@ export default function Sidebar() {
       </div>
 
       {/* Tarjeta del menú de navegación */}
-      <div className="bg-white rounded-[14px] p-4 text-[14.5px] flex-1">
+      <div className="bg-white rounded-[14px] px-4 py-3 text-[14.5px] flex-1">
         <nav>
-          <ul className="space-y-3 pt-4">
+          <ul className="space-y-2.5 py-3">
             <li key="inicio">
               <NavLink
                 href="/admin"
