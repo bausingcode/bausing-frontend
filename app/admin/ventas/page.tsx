@@ -1,3 +1,6 @@
+import { Search, SlidersHorizontal, Eye, Edit } from "lucide-react";
+import PageHeader from "@/components/PageHeader";
+
 export default function VentasPedidos() {
   const orders = [
     {
@@ -57,56 +60,31 @@ export default function VentasPedidos() {
 
   return (
     <div className="px-8 pt-6 pb-8 min-h-screen">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-gray-900 mb-1">Ventas & Pedidos</h1>
-        <p className="text-gray-600">Gestiona todos los pedidos de tu tienda</p>
-      </div>
+      <PageHeader 
+        title="Ventas" 
+        description="Gestiona todos los pedidos de tu tienda" 
+      />
 
       {/* Search and Filter Section */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6" style={{ borderRadius: '14px' }}>
+      <div className="bg-white rounded-[10px] border border-gray-200 p-4 mb-6" style={{ borderRadius: '14px' }}>
         <div className="flex gap-4">
           <div className="flex-1 relative">
-            <svg
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
               placeholder="Buscar por nombre, DNI, teléfono o número de pedido..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
+              className="w-full pl-10 text-sm pr-4 py-3 border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
             />
           </div>
-          <button className="px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition-colors flex items-center gap-2" style={{ backgroundColor: '#155DFC' }}>
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              {/* Slider superior */}
-              <line x1="4" y1="8" x2="20" y2="8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              <circle cx="12" cy="8" r="3" fill="currentColor" />
-              {/* Slider inferior */}
-              <line x1="4" y1="16" x2="20" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              <circle cx="12" cy="16" r="3" fill="currentColor" />
-            </svg>
+          <button className="px-4 py-2 cursor-pointer text-white rounded-[6px] font-medium hover:opacity-90 transition-colors flex items-center gap-2" style={{ backgroundColor: '#155DFC' }}>
+            <SlidersHorizontal className="w-5 h-5" />
             Filtros
           </button>
         </div>
       </div>
 
       {/* Orders Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden" style={{ borderRadius: '14px' }}>
+      <div className="bg-white rounded-[10px] border border-gray-200 overflow-hidden" style={{ borderRadius: '14px' }}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -161,41 +139,11 @@ export default function VentasPedidos() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center gap-3">
-                      <button className="text-gray-600 hover:text-blue-600 transition-colors">
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                          />
-                        </svg>
+                      <button className="text-gray-600 cursor-pointer hover:text-blue-600 transition-colors">
+                        <Eye className="w-5 h-5" />
                       </button>
-                      <button className="text-gray-600 hover:text-blue-600 transition-colors">
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                          />
-                        </svg>
+                      <button className="text-gray-600 cursor-pointer hover:text-blue-600 transition-colors">
+                        <Edit className="w-5 h-5" />
                       </button>
                     </div>
                   </td>

@@ -1,6 +1,7 @@
 "use client";
 
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import PageHeader from "@/components/PageHeader";
 
 export default function Reportes() {
   // Datos para Ventas por Día (últimos 7 días)
@@ -50,15 +51,14 @@ export default function Reportes() {
 
   return (
     <div className="px-8 pt-6 pb-8 min-h-screen">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-gray-900 mb-1">Estadísticas</h1>
-        <p className="text-gray-600">Analiza el rendimiento de tu negocio</p>
-      </div>
+      <PageHeader 
+        title="Estadísticas" 
+        description="Analiza el rendimiento de tu negocio" 
+      />
 
       {/* Top Row Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg border border-gray-200 p-4" style={{ borderRadius: '14px' }}>
+        <div className="bg-white rounded-[10px] border border-gray-200 p-4" style={{ borderRadius: '14px' }}>
           <h3 className="text-xs font-medium mb-2" style={{ color: '#484848' }}>Ventas del Mes</h3>
           <p className="text-2xl font-normal text-gray-900 mb-2">$995,000</p>
           <div className="flex items-center gap-1 text-xs">
@@ -70,7 +70,7 @@ export default function Reportes() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-4" style={{ borderRadius: '14px' }}>
+        <div className="bg-white rounded-[10px] border border-gray-200 p-4" style={{ borderRadius: '14px' }}>
           <h3 className="text-xs font-medium mb-2" style={{ color: '#484848' }}>Pedidos del Mes</h3>
           <p className="text-2xl font-normal text-gray-900 mb-2">323</p>
           <div className="flex items-center gap-1 text-xs">
@@ -82,7 +82,7 @@ export default function Reportes() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-4" style={{ borderRadius: '14px' }}>
+        <div className="bg-white rounded-[10px] border border-gray-200 p-4" style={{ borderRadius: '14px' }}>
           <h3 className="text-xs font-medium mb-2" style={{ color: '#484848' }}>Ticket Promedio</h3>
           <p className="text-2xl font-normal text-gray-900 mb-2">$3,080</p>
           <div className="flex items-center gap-1 text-xs">
@@ -94,7 +94,7 @@ export default function Reportes() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-4" style={{ borderRadius: '14px' }}>
+        <div className="bg-white rounded-[10px] border border-gray-200 p-4" style={{ borderRadius: '14px' }}>
           <h3 className="text-xs font-medium mb-2" style={{ color: '#484848' }}>Tasa de Recompra</h3>
           <p className="text-2xl font-normal text-gray-900 mb-2">27.5%</p>
           <p className="text-xs text-gray-500">89 de 323</p>
@@ -104,7 +104,7 @@ export default function Reportes() {
       {/* Middle Row Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Ventas por Día */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 relative" style={{ borderRadius: '14px' }}>
+        <div className="bg-white rounded-[10px] border border-gray-200 p-6 relative" style={{ borderRadius: '14px' }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-normal" style={{ color: '#484848' }}>Ventas por Día (Últimos 7 días)</h2>
             <button className="text-gray-400 hover:text-gray-600">
@@ -125,7 +125,7 @@ export default function Reportes() {
         </div>
 
         {/* Ventas por Modelo */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 relative" style={{ borderRadius: '14px' }}>
+        <div className="bg-white rounded-[10px] border border-gray-200 p-6 relative" style={{ borderRadius: '14px' }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-normal" style={{ color: '#484848' }}>Ventas por Modelo</h2>
             <button className="text-gray-400 hover:text-gray-600">
@@ -149,7 +149,7 @@ export default function Reportes() {
       {/* Lower Middle Row Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Ventas por Provincia */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 relative" style={{ borderRadius: '14px' }}>
+        <div className="bg-white rounded-[10px] border border-gray-200 p-6 relative" style={{ borderRadius: '14px' }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-normal" style={{ color: '#484848' }}>Ventas por Provincia</h2>
             <button className="text-gray-400 hover:text-gray-600">
@@ -181,7 +181,7 @@ export default function Reportes() {
         </div>
 
         {/* Uso de Billetera Bausing */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 relative" style={{ borderRadius: '14px' }}>
+        <div className="bg-white rounded-[10px] border border-gray-200 p-6 relative" style={{ borderRadius: '14px' }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-normal" style={{ color: '#484848' }}>Uso de Billetera Bausing</h2>
             <button className="text-gray-400 hover:text-gray-600">
@@ -206,10 +206,10 @@ export default function Reportes() {
       </div>
 
       {/* Top 5 Mejores Clientes */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-8" style={{ borderRadius: '14px' }}>
+      <div className="bg-white rounded-[10px] border border-gray-200 p-6 mb-8" style={{ borderRadius: '14px' }}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-normal" style={{ color: '#484848' }}>Top 5 Mejores Clientes</h2>
-          <button className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors flex items-center gap-2">
+          <button className="px-4 py-2 bg-green-500 text-white rounded-[10px] text-sm font-medium hover:bg-green-600 transition-colors flex items-center gap-2">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
@@ -258,26 +258,26 @@ export default function Reportes() {
 
       {/* Exportar Reportes Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-6" style={{ borderRadius: '14px' }}>
+        <div className="bg-white rounded-[10px] border border-gray-200 p-6" style={{ borderRadius: '14px' }}>
           <h3 className="text-base font-medium text-gray-900 mb-2">Reporte Completo de Ventas</h3>
           <p className="text-sm text-gray-600 mb-4">Incluye todos los datos de ventas del período</p>
-          <button className="w-full px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-colors" style={{ backgroundColor: '#155DFC' }}>
+          <button className="w-full px-4 py-2 text-white rounded-[10px] text-sm font-medium hover:opacity-90 transition-colors" style={{ backgroundColor: '#155DFC' }}>
             Exportar Excel
           </button>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-6" style={{ borderRadius: '14px' }}>
+        <div className="bg-white rounded-[10px] border border-gray-200 p-6" style={{ borderRadius: '14px' }}>
           <h3 className="text-base font-medium text-gray-900 mb-2">Reporte de Billetera</h3>
           <p className="text-sm text-gray-600 mb-4">Movimientos y estadísticas de Pesos Bausing</p>
-          <button className="w-full px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-colors" style={{ backgroundColor: '#155DFC' }}>
+          <button className="w-full px-4 py-2 text-white rounded-[10px] text-sm font-medium hover:opacity-90 transition-colors" style={{ backgroundColor: '#155DFC' }}>
             Exportar Excel
           </button>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-6" style={{ borderRadius: '14px' }}>
+        <div className="bg-white rounded-[10px] border border-gray-200 p-6" style={{ borderRadius: '14px' }}>
           <h3 className="text-base font-medium text-gray-900 mb-2">Reporte de Clientes</h3>
           <p className="text-sm text-gray-600 mb-4">Base de datos completa con historial</p>
-          <button className="w-full px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-colors" style={{ backgroundColor: '#155DFC' }}>
+          <button className="w-full px-4 py-2 text-white rounded-[10px] text-sm font-medium hover:opacity-90 transition-colors" style={{ backgroundColor: '#155DFC' }}>
             Exportar CSV
           </button>
         </div>

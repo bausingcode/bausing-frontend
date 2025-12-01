@@ -27,7 +27,7 @@ export default function QuickActions() {
         {actions.map((action, index) => (
           <button
             key={index}
-            className={`px-6 py-3 ${colorClasses[action.color]} text-white rounded-lg font-medium transition-colors`}
+            className={`px-6 py-3 ${colorClasses[action.color]} text-white rounded-[10px] font-medium transition-colors`}
           >
             {action.text}
           </button>

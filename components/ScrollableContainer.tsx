@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 
 export default function ScrollableContainer({
   children,
@@ -51,7 +52,7 @@ export default function ScrollableContainer({
       {/* Contenedor con scroll */}
       <div
         ref={containerRef}
-        className="h-full overflow-y-auto"
+        className="h-full overflow-y-auto scrollbar-hide"
       >
         {children}
       </div>
@@ -59,6 +60,15 @@ export default function ScrollableContainer({
       {/* Sombra inferior */}
       {showBottomShadow && (
         <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none z-10" />
+      )}
+      
+      {/* Flecha indicadora de scroll */}
+      {showBottomShadow && (
+        <div className="absolute bottom-4 right-4 z-20 pointer-events-none">
+          <div className="bg-white rounded-full p-2 shadow-lg border border-gray-200 animate-bounce">
+            <ChevronDown className="w-5 h-5 text-gray-600" />
+          </div>
+        </div>
       )}
     </div>
   );

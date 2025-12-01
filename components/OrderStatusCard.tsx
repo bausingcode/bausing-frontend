@@ -46,7 +46,7 @@ export default function OrderStatusCard({
 
   return (
     <div
-      className={`${colors.bg} p-6 ${colors.border} border`}
+      className={`${colors.bg} p-4 ${colors.border} border`}
       style={{ borderRadius: '14px' }}
     >
       <div className="flex items-center justify-between mb-4">

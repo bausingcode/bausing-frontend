@@ -1,3 +1,5 @@
+import PageHeader from "@/components/PageHeader";
+
 export default function EnviosLogistica() {
   const zonas = [
     {
@@ -163,18 +165,17 @@ export default function EnviosLogistica() {
 
   return (
     <div className="px-8 pt-6 pb-8 min-h-screen">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-gray-900 mb-1">Envíos & Logística</h1>
-        <p className="text-gray-600">Gestiona las entregas y rutas de envío</p>
-      </div>
+      <PageHeader 
+        title="Envíos & Logística" 
+        description="Gestiona las entregas y rutas de envío" 
+      />
 
       {/* Envíos por Zona Section */}
       <div className="mb-8">
         <h2 className="text-lg font-normal mb-4" style={{ color: '#484848' }}>Envíos por Zona</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {zonas.map((zona, index) => (
-            <div key={index} className="bg-white rounded-lg border border-gray-200 p-4" style={{ borderRadius: '14px' }}>
+            <div key={index} className="bg-white rounded-[10px] border border-gray-200 p-4" style={{ borderRadius: '14px' }}>
               <div className="flex items-start gap-3 mb-3">
                 <svg
                   className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5"
@@ -214,7 +215,7 @@ export default function EnviosLogistica() {
       </div>
 
       {/* Search and Filter Section */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6" style={{ borderRadius: '14px' }}>
+      <div className="bg-white rounded-[10px] border border-gray-200 p-4 mb-6" style={{ borderRadius: '14px' }}>
         <div className="flex gap-4">
           <div className="flex-1 relative">
             <svg
@@ -233,10 +234,10 @@ export default function EnviosLogistica() {
             <input
               type="text"
               placeholder="Buscar por nombre, dirección o número de pedido..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
             />
           </div>
-          <button className="px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition-colors flex items-center gap-2" style={{ backgroundColor: '#155DFC' }}>
+          <button className="px-4 py-2 text-white rounded-[10px] font-medium hover:opacity-90 transition-colors flex items-center gap-2" style={{ backgroundColor: '#155DFC' }}>
             <svg
               className="w-5 h-5"
               fill="none"
@@ -256,7 +257,7 @@ export default function EnviosLogistica() {
       </div>
 
       {/* Envíos Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-8" style={{ borderRadius: '14px' }}>
+      <div className="bg-white rounded-[10px] border border-gray-200 overflow-hidden mb-8" style={{ borderRadius: '14px' }}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -328,7 +329,7 @@ export default function EnviosLogistica() {
       </div>
 
       {/* Alertas de Retrasos Section */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6" style={{ borderRadius: '14px' }}>
+      <div className="bg-white rounded-[10px] border border-gray-200 p-6" style={{ borderRadius: '14px' }}>
         <div className="flex items-center gap-2 mb-4">
           <svg
             className="w-5 h-5 text-red-600"
@@ -349,7 +350,7 @@ export default function EnviosLogistica() {
           {alertas.map((alerta, index) => (
             <div
               key={index}
-              className={`border-l-4 rounded-lg p-3 flex items-center justify-between ${
+              className={`border-l-4 rounded-[10px] p-3 flex items-center justify-between ${
                 alerta.color === 'red'
                   ? 'bg-red-50 border-red-400'
                   : 'bg-yellow-50 border-yellow-400'
