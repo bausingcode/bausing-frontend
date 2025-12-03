@@ -42,7 +42,7 @@ export default function Sidebar() {
           </div>
           <button 
             onClick={handleLogout}
-            className="text-gray-400 cursor-pointer hover:text-gray-600 ml-2 flex-shrink-0"
+            className="text-gray-400 cursor-pointer hover:text-red-500 ml-2 flex-shrink-0"
           >
             <LogOut className="w-5 h-5" />
           </button>
