@@ -79,7 +79,7 @@ export default function Sidebar() {
                 href="/admin"
                 icon={<Home className="w-5 h-5" />}
               >
-                Inicio (DEV)
+                Inicio
               </NavLink>
             </li>
             <li key="ventas">
@@ -87,7 +87,7 @@ export default function Sidebar() {
                 href="/admin/ventas"
                 icon={<ShoppingCart className="w-5 h-5" />}
               >
-                Ventas (DEV)
+                Ventas (X)
               </NavLink>
             </li>
             <li key="clientes">
@@ -95,7 +95,7 @@ export default function Sidebar() {
                 href="/admin/clientes"
                 icon={<Users className="w-5 h-5" />}
               >
-                Clientes (DEV)
+                Clientes (X)
               </NavLink>
             </li>
             <li key="billetera">
@@ -103,7 +103,7 @@ export default function Sidebar() {
                 href="/admin/billetera"
                 icon={<CreditCard className="w-5 h-5" />}
               >
-                Billetera Bausing (DEV)
+                Billetera Bausing (X)
               </NavLink>
             </li>
             <li key="productos">
@@ -111,7 +111,7 @@ export default function Sidebar() {
                 href="/admin/productos"
                 icon={<Package className="w-5 h-5" />}
               >
-                Productos
+                Productos (X)
               </NavLink>
             </li>
             <li key="promos">
@@ -119,7 +119,7 @@ export default function Sidebar() {
                 href="/admin/promos"
                 icon={<Tag className="w-5 h-5" />}
               >
-                Promos
+                Promos (X)
               </NavLink>
             </li>
             <li key="envios">
@@ -127,7 +127,7 @@ export default function Sidebar() {
                 href="/admin/envios"
                 icon={<Truck className="w-5 h-5" />}
               >
-                Logística (DEV)
+                Logística (X)
               </NavLink>
             </li>
             <li key="reportes">
@@ -135,7 +135,7 @@ export default function Sidebar() {
                 href="/admin/reportes"
                 icon={<BarChart3 className="w-5 h-5" />}
               >
-                Reportes (DEV)
+                Reportes (X)
               </NavLink>
             </li>
             <li key="usuarios">
