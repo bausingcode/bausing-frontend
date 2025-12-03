@@ -58,7 +58,7 @@ export default function Sidebar() {
                 href="/admin"
                 icon={<Home className="w-5 h-5" />}
               >
-                Inicio
+                Inicio (Desarrollo)
               </NavLink>
             </li>
             <li key="ventas">
@@ -66,7 +66,7 @@ export default function Sidebar() {
                 href="/admin/ventas"
                 icon={<ShoppingCart className="w-5 h-5" />}
               >
-                Ventas
+                Ventas (Desarrollo)
               </NavLink>
             </li>
             <li key="clientes">
@@ -74,7 +74,7 @@ export default function Sidebar() {
                 href="/admin/clientes"
                 icon={<Users className="w-5 h-5" />}
               >
-                Clientes
+                Clientes (Desarrollo)
               </NavLink>
             </li>
             <li key="billetera">
@@ -82,7 +82,7 @@ export default function Sidebar() {
                 href="/admin/billetera"
                 icon={<CreditCard className="w-5 h-5" />}
               >
-                Billetera Bausing
+                Billetera Bausing (Desarrollo)
               </NavLink>
             </li>
             <li key="productos">
@@ -106,7 +106,7 @@ export default function Sidebar() {
                 href="/admin/envios"
                 icon={<Truck className="w-5 h-5" />}
               >
-                Envíos & Logística
+                Logística (Desarrollo)
               </NavLink>
             </li>
             <li key="reportes">
@@ -114,7 +114,7 @@ export default function Sidebar() {
                 href="/admin/reportes"
                 icon={<BarChart3 className="w-5 h-5" />}
               >
-                Reportes
+                Reportes (Desarrollo)
               </NavLink>
             </li>
             <li key="usuarios">
@@ -122,7 +122,7 @@ export default function Sidebar() {
                 href="/admin/usuarios"
                 icon={<UserCog className="w-5 h-5" />}
               >
-                Usuarios & Permisos
+                Usuarios & Permisos 
               </NavLink>
             </li>
             <li key="configuracion">
