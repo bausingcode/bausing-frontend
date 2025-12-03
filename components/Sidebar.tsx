@@ -1,12 +1,31 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import NavLink from "./NavLink";
-import { LogOut, Home, ShoppingCart, Users, CreditCard, Package, Truck, BarChart3, UserCog, Settings, Tag } from "lucide-react";
+import { LogOut, Home, ShoppingCart, Users, CreditCard, Package, Truck, BarChart3, UserCog, Settings, Tag, User } from "lucide-react";
+import { getCurrentAdminUser, AdminUser } from "@/lib/api";
 
 export default function Sidebar() {
   const router = useRouter();
+  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const user = await getCurrentAdminUser();
+        setAdminUser(user);
+        console.log(user);
+      } catch (error) {
+        console.error("Error fetching admin user:", error);
+      } finally {
+        setIsLoadingUser(false);
+      }
+    };
+
+    fetchCurrentUser();
+  }, []);
 
   const handleLogout = () => {
     // Eliminar cookie
@@ -17,26 +36,30 @@ export default function Sidebar() {
 
   return (
     <aside className="w-72 flex flex-col gap-3">
-      {/* Tarjeta de usuario */}
-      <div className="bg-white rounded-[14px] px-4 py-3.5">
-        <div className="flex items-center justify-between">
+      {/* Logo */}
+      <div className="bg-white rounded-[14px] px-4 py-6 flex items-center justify-center">
+        <div className="text-2xl font-bold" style={{ color: '#155DFC' }}>
+          Bausing
+        </div>
+      </div>
+
+      {/* Tarjeta del menú de navegación con datos de usuario */}
+      <div className="bg-white rounded-[14px] px-5 py-6 text-[14.5px] flex-1 flex flex-col">
+        {/* Datos del usuario */}
+        <div className="flex items-center justify-between pb-4 border-b border-gray-200 mb-4">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <Image
-                src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face"
-                alt="Jorge Lopez"
-                width={40}
-                height={40}
-                className="w-10 h-10 rounded-full object-cover"
-              />
+              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                <User className="w-6 h-6 text-gray-500" />
+              </div>
               <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-normal text-sm text-gray-900 truncate">
-                Alejo Vaquero
+                Administrador
               </p>
               <p className="text-xs text-gray-500 truncate">
-                alejo@gmail.com
+                {isLoadingUser ? "Cargando..." : (adminUser?.email || "Usuario")}
               </p>
             </div>
           </div>
@@ -47,18 +70,16 @@ export default function Sidebar() {
             <LogOut className="w-5 h-5" />
           </button>
         </div>
-      </div>
 
-      {/* Tarjeta del menú de navegación */}
-      <div className="bg-white rounded-[14px] px-4 py-3 text-[14.5px] flex-1">
-        <nav>
-          <ul className="space-y-2.5 py-3">
+        {/* Menú de navegación */}
+        <nav className="flex-1">
+          <ul className="space-y-2.5">
             <li key="inicio">
               <NavLink
                 href="/admin"
                 icon={<Home className="w-5 h-5" />}
               >
-                Inicio (Desarrollo)
+                Inicio (DEV)
               </NavLink>
             </li>
             <li key="ventas">
@@ -66,7 +87,7 @@ export default function Sidebar() {
                 href="/admin/ventas"
                 icon={<ShoppingCart className="w-5 h-5" />}
               >
-                Ventas (Desarrollo)
+                Ventas (DEV)
               </NavLink>
             </li>
             <li key="clientes">
@@ -74,7 +95,7 @@ export default function Sidebar() {
                 href="/admin/clientes"
                 icon={<Users className="w-5 h-5" />}
               >
-                Clientes (Desarrollo)
+                Clientes (DEV)
               </NavLink>
             </li>
             <li key="billetera">
@@ -82,7 +103,7 @@ export default function Sidebar() {
                 href="/admin/billetera"
                 icon={<CreditCard className="w-5 h-5" />}
               >
-                Billetera Bausing (Desarrollo)
+                Billetera Bausing (DEV)
               </NavLink>
             </li>
             <li key="productos">
@@ -106,7 +127,7 @@ export default function Sidebar() {
                 href="/admin/envios"
                 icon={<Truck className="w-5 h-5" />}
               >
-                Logística (Desarrollo)
+                Logística (DEV)
               </NavLink>
             </li>
             <li key="reportes">
@@ -114,7 +135,7 @@ export default function Sidebar() {
                 href="/admin/reportes"
                 icon={<BarChart3 className="w-5 h-5" />}
               >
-                Reportes (Desarrollo)
+                Reportes (DEV)
               </NavLink>
             </li>
             <li key="usuarios">
@@ -122,7 +143,7 @@ export default function Sidebar() {
                 href="/admin/usuarios"
                 icon={<UserCog className="w-5 h-5" />}
               >
-                Usuarios & Permisos 
+                Usuarios 
               </NavLink>
             </li>
             <li key="configuracion">

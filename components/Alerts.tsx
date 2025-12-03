@@ -9,19 +9,19 @@ interface Alert {
 const colorClasses = {
   red: {
     bg: "bg-red-50",
-    border: "border-l-4 border-red-500",
+    border: "border-l-3 border-red-500",
     text: "text-gray-700",
     badge: "bg-red-100 text-red-700",
   },
   yellow: {
     bg: "bg-yellow-50",
-    border: "border-l-4 border-yellow-500",
+    border: "border-l-3 border-yellow-500",
     text: "text-gray-700",
     badge: "bg-yellow-100 text-yellow-700",
   },
   blue: {
     bg: "bg-blue-50",
-    border: "border-l-4 border-blue-500",
+    border: "border-l-3 border-blue-500",
     text: "text-gray-700",
     badge: "bg-blue-100 text-blue-700",
   },
