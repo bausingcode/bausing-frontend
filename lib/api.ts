@@ -238,3 +238,56 @@ export async function deleteAdminUser(userId: string): Promise<void> {
   }
 }
 
+/**
+ * Admin Role interface
+ */
+export interface AdminRole {
+  id: string;
+  name: string;
+}
+
+/**
+ * Fetch all admin roles
+ */
+export async function fetchAdminRoles(): Promise<AdminRole[]> {
+  const url = `/api/admin/auth/roles`;
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch admin roles: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.success ? data.data : [];
+}
+
+/**
+ * Create a new admin user
+ */
+export async function createAdminUser(userData: {
+  email: string;
+  password: string;
+  role_id: string;
+}): Promise<AdminUser> {
+  const url = `/api/admin/auth/register`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(userData),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to create admin user: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data || !data.data.admin_user) {
+    throw new Error("Failed to create admin user: Invalid response");
+  }
+  return data.data.admin_user;
+}
+

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import PageHeader from "@/components/PageHeader";
 import { Plus, Trash2, User, UserX } from "lucide-react";
-import { AdminUser, fetchAdminUsers, deleteAdminUser, getCurrentAdminUser } from "@/lib/api";
+import { AdminUser, fetchAdminUsers, deleteAdminUser, getCurrentAdminUser, fetchAdminRoles, createAdminUser, AdminRole } from "@/lib/api";
 
 interface UsuariosClientProps {
   initialUsers?: AdminUser[];
@@ -14,6 +14,12 @@ export default function UsuariosClient({ initialUsers = [] }: UsuariosClientProp
   const [isLoading, setIsLoading] = useState(false);
   const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [adminRoleId, setAdminRoleId] = useState<string | null>(null);
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   // Función para refrescar usuarios desde el backend
   const refreshUsers = async () => {
@@ -34,6 +40,15 @@ export default function UsuariosClient({ initialUsers = [] }: UsuariosClientProp
     refreshUsers();
     // Obtener el usuario actual
     getCurrentAdminUser().then(setCurrentUser);
+    // Obtener roles y encontrar el rol "Administrador"
+    fetchAdminRoles().then((roles) => {
+      const adminRole = roles.find((role) => role.name === "Administrador");
+      if (adminRole) {
+        setAdminRoleId(adminRole.id);
+      }
+    }).catch((error) => {
+      console.error("Error fetching roles:", error);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -74,6 +89,40 @@ export default function UsuariosClient({ initialUsers = [] }: UsuariosClientProp
     }
   };
 
+  // Función para manejar la creación de usuario
+  const handleCreateUser = async () => {
+    if (!adminRoleId) {
+      setCreateError("No se pudo obtener el rol de Administrador");
+      return;
+    }
+
+    if (!newUserEmail || !newUserPassword) {
+      setCreateError("Email y contraseña son requeridos");
+      return;
+    }
+
+    try {
+      setIsCreating(true);
+      setCreateError(null);
+      await createAdminUser({
+        email: newUserEmail,
+        password: newUserPassword,
+        role_id: adminRoleId,
+      });
+      // Limpiar formulario
+      setNewUserEmail("");
+      setNewUserPassword("");
+      setShowCreateModal(false);
+      // Refrescar lista de usuarios
+      await refreshUsers();
+    } catch (error) {
+      console.error("Error creating user:", error);
+      setCreateError(error instanceof Error ? error.message : "Error al crear el usuario");
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
     <div className="px-8 pt-6 pb-8 min-h-screen">
       <PageHeader 
@@ -84,11 +133,8 @@ export default function UsuariosClient({ initialUsers = [] }: UsuariosClientProp
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-normal" style={{ color: '#484848' }}>Usuarios</h2>
         <button
-          onClick={() => {
-            // TODO: Implementar modal de creación
-            console.log("Crear nuevo usuario");
-          }}
-          className="px-4 py-2 text-white rounded-[6px] text-sm font-medium hover:opacity-90 transition-colors flex items-center gap-2 cursor-pointer"
+          onClick={() => setShowCreateModal(true)}
+          className="px-4 py-2 text-white cursor-pointer rounded-[6px] text-sm font-medium hover:opacity-90 transition-colors flex items-center gap-2 cursor-pointer"
           style={{ backgroundColor: '#155DFC' }}
         >
           <Plus className="w-4 h-4" />
@@ -123,11 +169,8 @@ export default function UsuariosClient({ initialUsers = [] }: UsuariosClientProp
               Comienza agregando usuarios administradores al sistema. Cada usuario puede tener diferentes roles y permisos.
             </p>
             <button
-              onClick={() => {
-                // TODO: Implementar modal de creación
-                console.log("Crear primer usuario");
-              }}
-              className="px-6 py-3 text-white rounded-[6px] text-sm font-medium hover:opacity-90 transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
+              onClick={() => setShowCreateModal(true)}
+              className="px-6 py-3 text-white rounded-[6px] cursor-pointer text-sm font-medium hover:opacity-90 transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
               style={{ backgroundColor: '#155DFC' }}
             >
               <Plus className="w-5 h-5" />
@@ -214,7 +257,7 @@ export default function UsuariosClient({ initialUsers = [] }: UsuariosClientProp
                 <div className="flex gap-3 justify-end">
                   <button
                     onClick={() => setUserToDelete(null)}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-[6px] text-sm font-medium hover:bg-gray-200 transition-colors"
+                    className="px-4 py-2 text-gray-700 cursor-pointer bg-gray-100 rounded-[6px] text-sm font-medium hover:bg-gray-200 transition-colors"
                   >
                     Cerrar
                   </button>
@@ -231,14 +274,14 @@ export default function UsuariosClient({ initialUsers = [] }: UsuariosClientProp
                 <div className="flex gap-3 justify-end">
                   <button
                     onClick={() => setUserToDelete(null)}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-[6px] text-sm font-medium hover:bg-gray-200 transition-colors"
+                    className="px-4 py-2 text-gray-700 bg-gray-100 cursor-pointer rounded-[6px] text-sm font-medium hover:bg-gray-200 transition-colors"
                     disabled={isLoading}
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={() => handleDeleteUser(userToDelete)}
-                    className="px-4 py-2 text-white bg-red-600 rounded-[6px] text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 text-white bg-red-600 cursor-pointer rounded-[6px] text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={isLoading || !!(currentUser && currentUser.id === userToDelete.id)}
                   >
                     {isLoading ? "Eliminando..." : "Eliminar"}
@@ -246,6 +289,82 @@ export default function UsuariosClient({ initialUsers = [] }: UsuariosClientProp
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de creación de usuario */}
+      {showCreateModal && (
+        <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowCreateModal(false)}>
+          <div className="bg-white rounded-[14px] p-6 max-w-md w-full mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Crear nuevo usuario
+            </h3>
+            
+            {createError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-[6px]">
+                <p className="text-sm text-red-600">{createError}</p>
+              </div>
+            )}
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={newUserEmail}
+                  onChange={(e) => setNewUserEmail(e.target.value)}
+                  className="w-full px-3 py-2 text-black border border-gray-300 rounded-[6px] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray"
+                  placeholder="usuario@ejemplo.com"
+                  disabled={isCreating}
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                  Contraseña
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={newUserPassword}
+                  onChange={(e) => setNewUserPassword(e.target.value)}
+                  className="w-full px-3 py-2 text-black border border-gray-300 rounded-[6px] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray"
+                  placeholder="••••••••"
+                  disabled={isCreating}
+                />
+              </div>
+
+              <div className="text-xs text-gray-500">
+                El usuario se creará con el rol de <strong>Administrador</strong>
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setNewUserEmail("");
+                  setNewUserPassword("");
+                  setCreateError(null);
+                }}
+                className="px-4 py-2 text-gray-700 cursor-pointer bg-gray-100 rounded-[6px] text-sm font-medium hover:bg-gray-200 transition-colors"
+                disabled={isCreating}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreateUser}
+                className="px-4 py-2 text-white cursor-pointer rounded-[6px] text-sm font-medium hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: '#155DFC' }}
+                disabled={isCreating || !adminRoleId}
+              >
+                {isCreating ? "Creando..." : "Crear usuario"}
+              </button>
+            </div>
           </div>
         </div>
       )}
