@@ -1,6 +1,11 @@
+"use client";
+
+import { useState } from "react";
+import { Search, SlidersHorizontal } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 
 export default function EnviosLogistica() {
+  const [searchTerm, setSearchTerm] = useState("");
   const zonas = [
     {
       nombre: "Buenos Aires - CABA",
@@ -168,6 +173,15 @@ export default function EnviosLogistica() {
     },
   };
 
+  // Filtrar envíos por número de pedido, nombre del cliente o dirección
+  const filteredEnvios = envios.filter((envio) => {
+    const searchLower = searchTerm.toLowerCase();
+    const pedidoId = envio.pedido.toLowerCase();
+    const clienteName = envio.cliente.toLowerCase();
+    const direccion = envio.direccion.toLowerCase();
+    return pedidoId.includes(searchLower) || clienteName.includes(searchLower) || direccion.includes(searchLower);
+  });
+
   return (
     <div className="px-8 pt-6 pb-8 min-h-screen">
       <PageHeader 
@@ -223,39 +237,17 @@ export default function EnviosLogistica() {
       <div className="bg-white rounded-[10px] border border-gray-200 p-4 mb-6" style={{ borderRadius: '14px' }}>
         <div className="flex gap-4">
           <div className="flex-1 relative">
-            <svg
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
               placeholder="Buscar por nombre, dirección o número de pedido..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
+              className="w-full pl-10 text-sm pr-4 py-3 border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button className="px-4 py-2 text-white rounded-[10px] font-medium hover:opacity-90 transition-colors flex items-center gap-2" style={{ backgroundColor: '#155DFC' }}>
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              {/* Slider superior */}
-              <line x1="4" y1="8" x2="20" y2="8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              <circle cx="12" cy="8" r="3" fill="currentColor" />
-              {/* Slider inferior */}
-              <line x1="4" y1="16" x2="20" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              <circle cx="12" cy="16" r="3" fill="currentColor" />
-            </svg>
+          <button className="px-4 py-2 cursor-pointer text-white rounded-[6px] font-medium hover:opacity-90 transition-colors flex items-center gap-2" style={{ backgroundColor: '#155DFC' }}>
+            <SlidersHorizontal className="w-5 h-5" />
             Filtros
           </button>
         </div>
@@ -294,7 +286,7 @@ export default function EnviosLogistica() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {envios.map((envio, index) => {
+              {filteredEnvios.map((envio, index) => {
                 const estado = estadoConfig[envio.estadoColor as keyof typeof estadoConfig];
                 return (
                   <tr key={index} className="hover:bg-gray-50">
