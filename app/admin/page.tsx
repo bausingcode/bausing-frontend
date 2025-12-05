@@ -11,7 +11,7 @@ export default function AdminDashboard() {
     <div className="px-8 pt-6 pb-8 min-h-screen">
       <PageHeader 
         title="Inicio" 
-        description="¡Bienvenido de vuelta, Alejo!" 
+        description="¡Bienvenido de vuelta!" 
       />
 
       {/* Key Metrics Cards */}
