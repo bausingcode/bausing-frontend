@@ -1,24 +1,35 @@
 "use client";
 
 import PageHeader from "@/components/PageHeader";
+import Loader from "@/components/Loader";
 import { Wallet, Bell, Mail, Shield, Save } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { 
+  getAppSettings, 
+  updateWalletSettings, 
+  updateMessageTemplates, 
+  updateNotificationSettings 
+} from "@/lib/api";
 
 export default function Configuracion() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
   const [walletConfig, setWalletConfig] = useState({
-    porcentajeEstandar: "10",
-    montoMinimo: "10000",
-    porcentajeMaximo: "50",
-    vencimiento: "365",
-    permitirAcumulacion: true,
+    porcentajeEstandar: "",
+    montoMinimo: "",
+    porcentajeMaximo: "",
+    vencimiento: "",
+    permitirAcumulacion: false,
   });
 
   const [notificaciones, setNotificaciones] = useState({
-    nuevosPedidos: true,
-    erroresPagos: true,
-    stockBajo: true,
-    movimientosInusuales: true,
-    reclamosClientes: true,
+    nuevosPedidos: false,
+    erroresPagos: false,
+    stockBajo: false,
+    movimientosInusuales: false,
+    reclamosClientes: false,
   });
 
   const [mensajes, setMensajes] = useState({
@@ -28,24 +39,177 @@ export default function Configuracion() {
   });
 
   const [seguridad, setSeguridad] = useState({
-    montoMaximoCarga: "50000",
-    registrarCambios: true,
-    comentarioObligatorio: true,
+    montoMaximoCarga: "",
+    registrarCambios: false,
+    comentarioObligatorio: false,
   });
 
-  const handleSave = () => {
-    // Aquí iría la lógica para guardar la configuración
-    console.log("Guardando configuración...");
+  // Estados originales para comparar cambios
+  const [originalWalletConfig, setOriginalWalletConfig] = useState(walletConfig);
+  const [originalNotificaciones, setOriginalNotificaciones] = useState(notificaciones);
+  const [originalMensajes, setOriginalMensajes] = useState(mensajes);
+  const [originalSeguridad, setOriginalSeguridad] = useState(seguridad);
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      setLoading(true);
+      const settings = await getAppSettings();
+      
+      // Crear objetos con los valores cargados
+      const newWalletConfig = {
+        porcentajeEstandar: settings.wallet.porcentajeEstandar !== undefined ? String(settings.wallet.porcentajeEstandar) : "",
+        montoMinimo: settings.wallet.montoMinimo !== undefined ? String(settings.wallet.montoMinimo) : "",
+        porcentajeMaximo: settings.wallet.porcentajeMaximo !== undefined ? String(settings.wallet.porcentajeMaximo) : "",
+        vencimiento: settings.wallet.vencimiento !== undefined ? String(settings.wallet.vencimiento) : "",
+        permitirAcumulacion: settings.wallet.permitirAcumulacion ?? false,
+      };
+      const newNotificaciones = {
+        nuevosPedidos: settings.notifications.nuevosPedidos ?? false,
+        erroresPagos: settings.notifications.erroresPagos ?? false,
+        stockBajo: settings.notifications.stockBajo ?? false,
+        movimientosInusuales: settings.notifications.movimientosInusuales ?? false,
+        reclamosClientes: settings.notifications.reclamosClientes ?? false,
+      };
+      const newMensajes = {
+        acreditacion: settings.messages.acreditacion || "",
+        confirmacion: settings.messages.confirmacion || "",
+        enCamino: settings.messages.enCamino || "",
+      };
+      const newSeguridad = {
+        montoMaximoCarga: settings.security.montoMaximoCarga !== undefined ? String(settings.security.montoMaximoCarga) : "",
+        registrarCambios: settings.security.registrarCambios ?? false,
+        comentarioObligatorio: settings.security.comentarioObligatorio ?? false,
+      };
+
+      // Establecer valores actuales y originales (son iguales al cargar)
+      setWalletConfig(newWalletConfig);
+      setNotificaciones(newNotificaciones);
+      setMensajes(newMensajes);
+      setSeguridad(newSeguridad);
+      
+      setOriginalWalletConfig(newWalletConfig);
+      setOriginalNotificaciones(newNotificaciones);
+      setOriginalMensajes(newMensajes);
+      setOriginalSeguridad(newSeguridad);
+    } catch (error) {
+      console.error("Error loading settings:", error);
+      setMessage({ type: 'error', text: 'Error al cargar la configuración' });
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // Función para detectar si hay cambios sin guardar
+  const hasUnsavedChanges = () => {
+    return (
+      JSON.stringify(walletConfig) !== JSON.stringify(originalWalletConfig) ||
+      JSON.stringify(notificaciones) !== JSON.stringify(originalNotificaciones) ||
+      JSON.stringify(mensajes) !== JSON.stringify(originalMensajes) ||
+      JSON.stringify(seguridad) !== JSON.stringify(originalSeguridad)
+    );
+  };
+
+  // Función para validar y actualizar valores numéricos
+  const handleNumberChange = (value: string, min: number = 0, max?: number) => {
+    // Permitir campo vacío mientras se escribe
+    if (value === '') {
+      return value;
+    }
+    
+    // Convertir a número
+    const numValue = parseFloat(value);
+    
+    // Si no es un número válido, retornar vacío
+    if (isNaN(numValue)) {
+      return '';
+    }
+    
+    // Aplicar límites
+    if (numValue < min) {
+      return String(min);
+    }
+    if (max !== undefined && numValue > max) {
+      return String(max);
+    }
+    
+    return value;
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      setMessage(null);
+
+      // Convertir valores a números donde sea necesario, solo si tienen valor
+      const walletData: any = {};
+      if (walletConfig.porcentajeEstandar && !isNaN(parseFloat(walletConfig.porcentajeEstandar))) {
+        walletData.porcentajeEstandar = parseFloat(walletConfig.porcentajeEstandar);
+      }
+      if (walletConfig.montoMinimo && !isNaN(parseFloat(walletConfig.montoMinimo))) {
+        walletData.montoMinimo = parseFloat(walletConfig.montoMinimo);
+      }
+      if (walletConfig.porcentajeMaximo && !isNaN(parseFloat(walletConfig.porcentajeMaximo))) {
+        walletData.porcentajeMaximo = parseFloat(walletConfig.porcentajeMaximo);
+      }
+      if (walletConfig.vencimiento && !isNaN(parseFloat(walletConfig.vencimiento))) {
+        walletData.vencimiento = parseFloat(walletConfig.vencimiento);
+      }
+      walletData.permitirAcumulacion = walletConfig.permitirAcumulacion;
+
+      // Guardar cada sección
+      await updateWalletSettings(walletData);
+      await updateMessageTemplates(mensajes);
+      await updateNotificationSettings(notificaciones);
+
+      // Actualizar valores originales después de guardar
+      setOriginalWalletConfig(walletConfig);
+      setOriginalNotificaciones(notificaciones);
+      setOriginalMensajes(mensajes);
+      setOriginalSeguridad(seguridad);
+
+      setMessage({ type: 'success', text: 'Configuración guardada correctamente' });
+      
+      // Ocultar mensaje después de 3 segundos
+      setTimeout(() => setMessage(null), 3000);
+    } catch (error: any) {
+      console.error("Error saving settings:", error);
+      setMessage({ type: 'error', text: error.message || 'Error al guardar la configuración' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="px-8 pt-6 pb-8 min-h-screen">
+        <Loader message="Cargando configuración..." fullScreen={false} />
+      </div>
+    );
+  }
+
   return (
-    <div className="px-8 pt-6 pb-8 min-h-screen">
+    <div className="px-8 pt-6 pb-8 min-h-screen relative">
       <div className="mb-6">
         <h1 className="text-lg font-semibold text-gray-900 mb-1">Configuración</h1>
         <p className="text-sm text-gray-600">Ajusta las preferencias de tu panel</p>
       </div>
 
-      <div className="space-y-6">
+      {/* Mensaje de éxito/error */}
+      {message && (
+        <div className={`mb-4 p-4 rounded-lg ${
+          message.type === 'success' 
+            ? 'bg-green-50 text-green-800 border border-green-200' 
+            : 'bg-red-50 text-red-800 border border-red-200'
+        }`}>
+          {message.text}
+        </div>
+      )}
+
+      <div className="space-y-6 pb-4">
         {/* Configuración de Billetera */}
         <div className="bg-white rounded-[14px] border border-gray-200 p-6">
           <div className="flex items-center gap-3 mb-6">
@@ -64,8 +228,13 @@ export default function Configuracion() {
               <div className="flex items-center gap-2">
                 <input
                   type="number"
+                  min="0"
+                  max="100"
                   value={walletConfig.porcentajeEstandar}
-                  onChange={(e) => setWalletConfig({ ...walletConfig, porcentajeEstandar: e.target.value })}
+                  onChange={(e) => {
+                    const validated = handleNumberChange(e.target.value, 0, 100);
+                    setWalletConfig({ ...walletConfig, porcentajeEstandar: validated });
+                  }}
                   className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
                 />
                 <span className="text-gray-600">%</span>
@@ -84,8 +253,13 @@ export default function Configuracion() {
                 <span className="text-gray-600">$</span>
                 <input
                   type="number"
+                  min="0"
+                  step="0.01"
                   value={walletConfig.montoMinimo}
-                  onChange={(e) => setWalletConfig({ ...walletConfig, montoMinimo: e.target.value })}
+                  onChange={(e) => {
+                    const validated = handleNumberChange(e.target.value, 0);
+                    setWalletConfig({ ...walletConfig, montoMinimo: validated });
+                  }}
                   className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
                 />
               </div>
@@ -102,8 +276,13 @@ export default function Configuracion() {
               <div className="flex items-center gap-2">
                 <input
                   type="number"
+                  min="0"
+                  max="100"
                   value={walletConfig.porcentajeMaximo}
-                  onChange={(e) => setWalletConfig({ ...walletConfig, porcentajeMaximo: e.target.value })}
+                  onChange={(e) => {
+                    const validated = handleNumberChange(e.target.value, 0, 100);
+                    setWalletConfig({ ...walletConfig, porcentajeMaximo: validated });
+                  }}
                   className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
                 />
                 <span className="text-gray-600">%</span>
@@ -121,8 +300,12 @@ export default function Configuracion() {
               <div className="flex items-center gap-2">
                 <input
                   type="number"
+                  min="0"
                   value={walletConfig.vencimiento}
-                  onChange={(e) => setWalletConfig({ ...walletConfig, vencimiento: e.target.value })}
+                  onChange={(e) => {
+                    const validated = handleNumberChange(e.target.value, 0);
+                    setWalletConfig({ ...walletConfig, vencimiento: validated });
+                  }}
                   className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
                 />
                 <span className="text-gray-600">días</span>
@@ -196,7 +379,7 @@ export default function Configuracion() {
                 placeholder="Escribe tu mensaje aquí..."
               />
               <p className="text-sm text-gray-500 mt-1">
-                Variables disponibles: (nombre), (monto), (pedido)
+                Variables disponibles: <span className="font-mono text-gray-700">(nombre)</span>, <span className="font-mono text-gray-700">(monto)</span>, <span className="font-mono text-gray-700">(pedido)</span>
               </p>
             </div>
 
@@ -212,6 +395,9 @@ export default function Configuracion() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-gray-800"
                 placeholder="Escribe tu mensaje aquí..."
               />
+              <p className="text-sm text-gray-500 mt-1">
+                Variables disponibles: <span className="font-mono text-gray-700">(nombre)</span>, <span className="font-mono text-gray-700">(pedido)</span>, <span className="font-mono text-gray-700">(total)</span>
+              </p>
             </div>
 
             {/* Pedido en camino */}
@@ -226,6 +412,9 @@ export default function Configuracion() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-gray-800"
                 placeholder="Escribe tu mensaje aquí..."
               />
+              <p className="text-sm text-gray-500 mt-1">
+                Variables disponibles: <span className="font-mono text-gray-700">(nombre)</span>, <span className="font-mono text-gray-700">(pedido)</span>, <span className="font-mono text-gray-700">(tracking)</span>
+              </p>
             </div>
           </div>
         </div>
@@ -248,8 +437,13 @@ export default function Configuracion() {
                 <span className="text-gray-600">$</span>
                 <input
                   type="number"
+                  min="0"
+                  step="0.01"
                   value={seguridad.montoMaximoCarga}
-                  onChange={(e) => setSeguridad({ ...seguridad, montoMaximoCarga: e.target.value })}
+                  onChange={(e) => {
+                    const validated = handleNumberChange(e.target.value, 0);
+                    setSeguridad({ ...seguridad, montoMaximoCarga: validated });
+                  }}
                   className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
                 />
               </div>
@@ -293,18 +487,30 @@ export default function Configuracion() {
             </div>
           </div>
         </div> */}
+
       </div>
 
-      {/* Botón Guardar */}
-      <div className="flex justify-end mt-8 mb-4">
-        <button
-          onClick={handleSave}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
-        >
-          <Save className="w-4 h-4" />
-          Guardar Configuración
-        </button>
-      </div>
+      {/* Barra flotante para cambios sin guardar */}
+      {hasUnsavedChanges() && (
+        <div className="sticky bottom-6 bg-white border border-gray-200 shadow-2xl rounded-lg px-6 py-4 z-50 mt-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium text-gray-700">Tienes cambios sin guardar</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

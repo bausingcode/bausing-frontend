@@ -90,3 +90,18 @@ body {
 .animate-slideOutRight {
   animation: slideOutRight 0.4s ease-out;
 }
+
+@keyframes gentleBounce {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(4px);
+    opacity: 1;
+  }
+}
+
+.animate-gentleBounce {
+  animation: gentleBounce 2s ease-in-out infinite;
+}

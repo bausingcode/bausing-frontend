@@ -4,6 +4,7 @@ interface MetricCardProps {
   change: string;
   changeType: "positive" | "negative";
   icon: React.ReactNode;
+  comparisonText?: string; // Texto de comparación personalizado
 }
 
 export default function MetricCard({
@@ -12,6 +13,7 @@ export default function MetricCard({
   change,
   changeType,
   icon,
+  comparisonText = "vs mes anterior",
 }: MetricCardProps) {
   return (
     <div className="bg-white p-3 border border-gray-200" style={{ borderRadius: '14px' }}>
@@ -54,7 +56,7 @@ export default function MetricCard({
         >
           {change}
         </span>
-        <span className="text-gray-500">vs mes anterior</span>
+        <span className="text-gray-500">{comparisonText}</span>
       </div>
     </div>
   );

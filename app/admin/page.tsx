@@ -22,6 +22,7 @@ export default function AdminDashboard() {
           change="+12.5%"
           changeType="positive"
           icon={<DollarSign className="w-5 h-5" />}
+          comparisonText="vs día anterior"
         />
         <MetricCard
           title="Ventas semanales"
@@ -29,6 +30,7 @@ export default function AdminDashboard() {
           change="-8.2%"
           changeType="negative"
           icon={<FileText className="w-4 h-4" />}
+          comparisonText="vs semana anterior"
         />
         <MetricCard
           title="Ventas mensuales"
@@ -36,6 +38,7 @@ export default function AdminDashboard() {
           change="+3.1%"
           changeType="positive"
           icon={<TrendingUp className="w-4 h-4" />}
+          comparisonText="vs mes anterior"
         />
         <MetricCard
           title="Total de pedidos"
@@ -43,6 +46,7 @@ export default function AdminDashboard() {
           change="+2"
           changeType="positive"
           icon={<Package className="w-4 h-4" />}
+          comparisonText="vs mes anterior"
         />
       </div>
 

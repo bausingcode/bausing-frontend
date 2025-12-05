@@ -1,15 +1,17 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import NavLink from "./NavLink";
-import { LogOut, Home, ShoppingCart, Users, CreditCard, Package, Truck, BarChart3, UserCog, Settings, Tag, User } from "lucide-react";
+import { LogOut, Home, ShoppingCart, Users, CreditCard, Package, Truck, BarChart3, UserCog, Settings, Tag, User, ChevronDown } from "lucide-react";
 import { getCurrentAdminUser, AdminUser } from "@/lib/api";
 
 export default function Sidebar() {
   const router = useRouter();
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [showScrollIndicator, setShowScrollIndicator] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
@@ -26,6 +28,67 @@ export default function Sidebar() {
 
     fetchCurrentUser();
   }, []);
+
+  useEffect(() => {
+    const checkScrollable = () => {
+      if (navRef.current) {
+        const element = navRef.current;
+        // Usar requestAnimationFrame para asegurar que las dimensiones estén actualizadas
+        requestAnimationFrame(() => {
+          if (element) {
+            // Mostrar flecha si hay más contenido que el área visible
+            const hasScroll = element.scrollHeight > element.clientHeight + 2; // +2 para evitar problemas de redondeo
+            const isScrolledToBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 15;
+            const shouldShow = hasScroll && !isScrolledToBottom;
+            setShowScrollIndicator(shouldShow);
+          }
+        });
+      }
+    };
+
+    // Ejecutar después de que el DOM se renderice completamente
+    const timeoutId = setTimeout(() => {
+      checkScrollable();
+    }, 100);
+    
+    // También usar requestAnimationFrame múltiples veces para asegurar
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        checkScrollable();
+      });
+    });
+    
+    window.addEventListener('resize', checkScrollable);
+    
+    const navElement = navRef.current;
+    if (navElement) {
+      navElement.addEventListener('scroll', checkScrollable);
+      
+      // Usar ResizeObserver para detectar cambios en el tamaño
+      const resizeObserver = new ResizeObserver(() => {
+        setTimeout(checkScrollable, 50);
+      });
+      resizeObserver.observe(navElement);
+
+      // También observar el contenedor padre
+      const parentElement = navElement.parentElement;
+      if (parentElement) {
+        resizeObserver.observe(parentElement);
+      }
+
+      return () => {
+        clearTimeout(timeoutId);
+        window.removeEventListener('resize', checkScrollable);
+        navElement.removeEventListener('scroll', checkScrollable);
+        resizeObserver.disconnect();
+      };
+    }
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('resize', checkScrollable);
+    };
+  }, [isLoadingUser]);
 
   const handleLogout = () => {
     // Eliminar cookie
@@ -44,9 +107,9 @@ export default function Sidebar() {
       </div>
 
       {/* Tarjeta del menú de navegación con datos de usuario */}
-      <div className="bg-white rounded-[14px] px-5 py-6 text-[14.5px] flex-1 flex flex-col">
+      <div className="bg-white rounded-[14px] px-5 py-6 text-[14.5px] flex flex-col max-h-[calc(100vh-139px)]">
         {/* Datos del usuario */}
-        <div className="flex items-center justify-between pb-4 border-b border-gray-200 mb-4">
+        <div className="flex items-center justify-between pb-4 border-b border-gray-200 mb-4 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="relative">
               <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
@@ -71,91 +134,107 @@ export default function Sidebar() {
           </button>
         </div>
 
-        {/* Menú de navegación */}
-        <nav className="flex-1">
-          <ul className="space-y-2.5">
-            <li key="inicio">
-              <NavLink
-                href="/admin"
-                icon={<Home className="w-5 h-5" />}
-              >
-                Inicio
-              </NavLink>
-            </li>
-            <li key="ventas">
-              <NavLink
-                href="/admin/ventas"
-                icon={<ShoppingCart className="w-5 h-5" />}
-              >
-                Ventas (X)
-              </NavLink>
-            </li>
-            <li key="clientes">
-              <NavLink
-                href="/admin/clientes"
-                icon={<Users className="w-5 h-5" />}
-              >
-                Clientes (X)
-              </NavLink>
-            </li>
-            <li key="billetera">
-              <NavLink
-                href="/admin/billetera"
-                icon={<CreditCard className="w-5 h-5" />}
-              >
-                Billetera Bausing (X)
-              </NavLink>
-            </li>
-            <li key="productos">
-              <NavLink
-                href="/admin/productos"
-                icon={<Package className="w-5 h-5" />}
-              >
-                Productos (X)
-              </NavLink>
-            </li>
-            <li key="promos">
-              <NavLink
-                href="/admin/promos"
-                icon={<Tag className="w-5 h-5" />}
-              >
-                Promos (X)
-              </NavLink>
-            </li>
-            <li key="envios">
-              <NavLink
-                href="/admin/envios"
-                icon={<Truck className="w-5 h-5" />}
-              >
-                Logística (X)
-              </NavLink>
-            </li>
-            <li key="reportes">
-              <NavLink
-                href="/admin/reportes"
-                icon={<BarChart3 className="w-5 h-5" />}
-              >
-                Reportes (X)
-              </NavLink>
-            </li>
-            <li key="usuarios">
-              <NavLink
-                href="/admin/usuarios"
-                icon={<UserCog className="w-5 h-5" />}
-              >
-                Usuarios 
-              </NavLink>
-            </li>
-            <li key="configuracion">
-              <NavLink
-                href="/admin/configuracion"
-                icon={<Settings className="w-5 h-5" />}
-              >
-                Configuración
-              </NavLink>
-            </li>
-          </ul>
-        </nav>
+        {/* Menú de navegación con scroll */}
+        <div className="relative flex-1 overflow-hidden min-h-0">
+          <nav 
+            ref={navRef} 
+            className="h-full overflow-y-auto pr-2 scrollbar-hide"
+            style={{ maxHeight: '100%' }}
+          >
+            <ul className="space-y-2.5 pb-2">
+              <li key="inicio">
+                <NavLink
+                  href="/admin"
+                  icon={<Home className="w-5 h-5" />}
+                >
+                  Inicio
+                </NavLink>
+              </li>
+              <li key="ventas">
+                <NavLink
+                  href="/admin/ventas"
+                  icon={<ShoppingCart className="w-5 h-5" />}
+                >
+                  Ventas (X)
+                </NavLink>
+              </li>
+              <li key="clientes">
+                <NavLink
+                  href="/admin/clientes"
+                  icon={<Users className="w-5 h-5" />}
+                >
+                  Clientes (X)
+                </NavLink>
+              </li>
+              <li key="billetera">
+                <NavLink
+                  href="/admin/billetera"
+                  icon={<CreditCard className="w-5 h-5" />}
+                >
+                  Billetera Bausing (X)
+                </NavLink>
+              </li>
+              <li key="productos">
+                <NavLink
+                  href="/admin/productos"
+                  icon={<Package className="w-5 h-5" />}
+                >
+                  Productos (X)
+                </NavLink>
+              </li>
+              <li key="promos">
+                <NavLink
+                  href="/admin/promos"
+                  icon={<Tag className="w-5 h-5" />}
+                >
+                  Promos (X)
+                </NavLink>
+              </li>
+              <li key="envios">
+                <NavLink
+                  href="/admin/envios"
+                  icon={<Truck className="w-5 h-5" />}
+                >
+                  Logística (X)
+                </NavLink>
+              </li>
+              <li key="reportes">
+                <NavLink
+                  href="/admin/reportes"
+                  icon={<BarChart3 className="w-5 h-5" />}
+                >
+                  Reportes (X)
+                </NavLink>
+              </li>
+              <li key="usuarios">
+                <NavLink
+                  href="/admin/usuarios"
+                  icon={<UserCog className="w-5 h-5" />}
+                >
+                  Usuarios 
+                </NavLink>
+              </li>
+              <li key="configuracion">
+                <NavLink
+                  href="/admin/configuracion"
+                  icon={<Settings className="w-5 h-5" />}
+                >
+                  Configuración
+                </NavLink>
+              </li>
+            </ul>
+          </nav>
+          {/* Flecha indicadora de scroll */}
+          {showScrollIndicator && (
+            <div className="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-white via-white/85 to-transparent pointer-events-none flex items-end justify-center pb-3 z-10">
+              <div className="flex flex-col items-center gap-1.5 animate-gentleBounce">
+                <div className="w-7 h-7 rounded-full bg-white shadow-md border border-gray-200/50 flex items-center justify-center backdrop-blur-sm hover:shadow-lg transition-shadow">
+                  <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </aside>
   );
