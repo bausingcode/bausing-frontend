@@ -6,60 +6,17 @@ export default function Footer() {
   return (
     <footer className="bg-[#FAFAFA] text-gray-800" style={{ fontFamily: 'DM Sans, sans-serif' }}>
       <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-5 gap-2 mb-12">
-          {/* Productos */}
+        <div className="grid grid-cols-4 gap-2 mb-12">
+          {/* Categorías */}
           <div>
-            <div className="space-y-3">
-              <div>
-                <p className="font-semibold text-gray-900 mb-2 capitalize">Colchones</p>
-                <ul className="space-y-1.5 text-sm text-gray-700">
-                  <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Ejemplo 1</a></li>
-                  <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Ejemplo 2</a></li>
-                  <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Ejemplo 3</a></li>
-                  <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Ejemplo 4</a></li>
-                </ul>
-              </div>
-              <div className="mt-2">
-                <p className="font-semibold text-gray-900 mb-2">Sommiers y Bases</p>
-                <ul className="space-y-1.5 text-sm text-gray-700">
-                  <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Ejemplo 1</a></li>
-                  <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Ejemplo 2</a></li>
-                </ul>
-              </div>
-              <div className="mt-2">
-                <p className="font-semibold text-gray-900 mb-2 capitalize">Accesorios de descanso</p>
-                <ul className="space-y-1.5 text-sm text-gray-700">
-                  <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Ejemplo 1</a></li>
-                  <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Ejemplo 2</a></li>
-                  <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Ejemplo 3</a></li>
-                  <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Ejemplo 4</a></li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          {/* Electrodomésticos */}
-          <div>
-            <div className="space-y-3">
-              <div>
-                <p className="font-semibold text-gray-900 mb-2 capitalize">Electrodomésticos</p>
-                <ul className="space-y-1.5 text-sm text-gray-700">
-                  <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Ejemplo 1</a></li>
-                  <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Ejemplo 2</a></li>
-                  <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Ejemplo 3</a></li>
-                  <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Ejemplo 4</a></li>
-                </ul>
-              </div>
-              <div className="mt-2">
-                <p className="font-semibold text-gray-900 mb-2">Muebles de Cocina</p>
-                <ul className="space-y-1.5 text-sm text-gray-700">
-                  <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Ejemplo 1</a></li>
-                  <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Ejemplo 2</a></li>
-                  <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Ejemplo 3</a></li>
-                  <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Ejemplo 4</a></li>
-                </ul>
-              </div>
-            </div>
+            <h4 className="font-semibold text-gray-900 mb-4 capitalize">Categorías</h4>
+            <ul className="space-y-1.5 text-sm text-gray-700">
+              <li><a href="#" className="hover:text-gray-900 transition-colors">Colchones</a></li>
+              <li><a href="#" className="hover:text-gray-900 transition-colors">Sommiers y Bases</a></li>
+              <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Accesorios de descanso</a></li>
+              <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Electrodomésticos</a></li>
+              <li><a href="#" className="hover:text-gray-900 transition-colors">Muebles de Cocina</a></li>
+            </ul>
           </div>
 
           {/* Nosotros */}
@@ -71,8 +28,7 @@ export default function Footer() {
               <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Opiniones</a></li>
               <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Blog</a></li>
               <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Donde Encontrarnos</a></li>
-              <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Promociones</a></li>
-              <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Bausing Mayorista</a></li>
+              <li><a href="#" className="hover:text-gray-900 transition-colors">Términos y Condiciones</a></li>
             </ul>
           </div>
 
@@ -82,7 +38,7 @@ export default function Footer() {
             <ul className="space-y-1.5 text-sm text-gray-700">
               <li>+54 9 11 4049-0344</li>
               <li><a href="mailto:hola@bausing.com" className="hover:text-gray-900 transition-colors">hola@bausing.com</a></li>
-              <li className="pt-2"><a href="#" className="hover:text-gray-900 transition-colors">Términos y Condiciones</a></li>
+              <li>Av. Corrientes 1234, Córdoba, Argentina</li>
             </ul>
           </div>
 

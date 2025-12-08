@@ -11,7 +11,6 @@ const wsrvLoader = ({ src, width }: ImageLoaderProps) => {
     `&w=${width}` +
     `&q=${q}` +
     `&fit=inside` +
-    `&trim=1` +
     `&output=webp` +    // forzá WebP
     `&n=1` +            // no upscale
     `&maxage=31536000`

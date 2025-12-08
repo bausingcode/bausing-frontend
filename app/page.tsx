@@ -12,6 +12,7 @@ import ProductCard from "@/components/ProductCard";
 import BannerCarousel from "@/components/BannerCarousel";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import ReviewsSection from "@/components/ReviewsSection";
 import wsrvLoader from "@/lib/wsrvLoader";
 import { fetchHeroImages, HeroImage } from "@/lib/api";
 
@@ -136,9 +137,10 @@ const sommiers = [
 ];
 
 export default async function Home() {
-  // Fetch hero images (position 1) and info banner (position 2) from server
+  // Fetch hero images (position 1), info banner (position 2), and descuentazos banner (position 3) from server
   let heroImages: HeroImage[] = [];
   let infoBanner: HeroImage | null = null;
+  let descuentazosBanner: HeroImage | null = null;
 
   try {
     // Fetch active hero images (position 1)
@@ -147,6 +149,10 @@ export default async function Home() {
     // Fetch active info banner (position 2)
     const infoBanners = await fetchHeroImages(2, true);
     infoBanner = infoBanners.length > 0 ? infoBanners[0] : null;
+    
+    // Fetch active descuentazos banner (position 3)
+    const descuentazosBanners = await fetchHeroImages(3, true);
+    descuentazosBanner = descuentazosBanners.length > 0 ? descuentazosBanners[0] : null;
   } catch (error) {
     console.error("Error fetching images:", error);
     // Continue with empty arrays if fetch fails
@@ -277,6 +283,63 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {/* Descuentazos Section */}
+      <section className="bg-[#fafafa]  py-12">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-4 gap-6">
+            {/* Banner Descuentazos */}
+            {descuentazosBanner ? (
+              <div className="rounded-[10px] overflow-hidden" style={{ width: '300px', height: '400px' }}>
+                <img
+                  src={wsrvLoader({ src: descuentazosBanner.image_url, width: 300 })}
+                  alt={descuentazosBanner.title || descuentazosBanner.subtitle || "Descuentazos"}
+                  className="w-full h-full"
+                  loading="eager"
+                />
+              </div>
+            ) : (
+              <div className="bg-black rounded-[10px] flex items-center justify-center" style={{ width: '300px', height: '400px' }}>
+                <div className="text-white font-bold text-5xl leading-tight text-center" style={{ fontFamily: 'DM Sans, sans-serif' }}>
+                  <div>DES</div>
+                  <div>CUEN</div>
+                  <div>TAZOS</div>
+                </div>
+              </div>
+            )}
+
+            {/* Productos */}
+            {products.slice(0, 3).map((product) => (
+              <div key={product.id} className="bg-white p-4 rounded-[20px]" style={{ height: '400px' }}>
+                <div className="cursor-pointer h-full flex flex-col" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  <div className="relative w-full flex-1 rounded-[10px] overflow-hidden">
+                    <img
+                      src={product.image}
+                      alt={product.alt}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-2 right-2 bg-[#00C1A7] text-white px-2 py-1 rounded-[4px] font-semibold text-xs">
+                      %50 OFF
+                    </div>
+                  </div>
+                  <div className="pt-3">
+                    <div className="mb-1">
+                      <h4 className="text-sm font-normal text-gray-900 leading-tight">
+                        Colchón Lumma 2 plazas (140×190cm) de resortes
+                      </h4>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xl font-semibold text-gray-900">$400.000</span>
+                      <span className="text-sm text-gray-400 line-through">$800.000</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Promotional Offers Section */}
       <section className="bg-white py-12">
         <div className="container mx-auto px-4">
@@ -377,6 +440,8 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      <ReviewsSection />
 
       <Footer />
     </div>

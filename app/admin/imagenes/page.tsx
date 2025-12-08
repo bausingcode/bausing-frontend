@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import PageHeader from "@/components/PageHeader";
 import Loader from "@/components/Loader";
+import Spinner from "@/components/Spinner";
 import { 
   fetchHeroImages, 
   uploadHeroImageFile,
@@ -10,6 +11,7 @@ import {
   deleteHeroImage,
   HeroImage 
 } from "@/lib/api";
+import wsrvLoader from "@/lib/wsrvLoader";
 import { 
   Image as ImageIcon, 
   Upload, 
@@ -193,7 +195,7 @@ export default function ImagenesPage() {
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
           <AlertCircle className="w-5 h-5" />
           <span>{error}</span>
-          <button onClick={() => setError("")} className="ml-auto">
+          <button onClick={() => setError("")} className="ml-auto cursor-pointer">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -203,7 +205,7 @@ export default function ImagenesPage() {
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-green-700">
           <Check className="w-5 h-5" />
           <span>{success}</span>
-          <button onClick={() => setSuccess("")} className="ml-auto">
+          <button onClick={() => setSuccess("")} className="ml-auto cursor-pointer">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -236,7 +238,7 @@ export default function ImagenesPage() {
               />
               <label
                 htmlFor="hero-file-input"
-                className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors cursor-pointer ${
+                className={`px-3 py-2 text-sm rounded-lg flex items-center gap-2 transition-colors cursor-pointer ${
                   heroImages.filter(img => !imagesToDelete.has(img.id)).length + pendingHeroFiles.length >= MAX_HERO_IMAGES
                     ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                     : "bg-blue-600 text-white hover:bg-blue-700"
@@ -305,6 +307,13 @@ export default function ImagenesPage() {
                         src={image.image_url}
                         alt={image.title || "Hero image"}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Fallback a wsrvLoader si la imagen directa falla
+                          const target = e.target as HTMLImageElement;
+                          if (target.src !== wsrvLoader({ src: image.image_url, width: 800 })) {
+                            target.src = wsrvLoader({ src: image.image_url, width: 800 });
+                          }
+                        }}
                       />
                       {isMarkedForDelete && (
                         <div className="absolute inset-0 bg-red-500 bg-opacity-20 flex items-center justify-center">
@@ -318,8 +327,15 @@ export default function ImagenesPage() {
                       )}
                       <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
+                          onClick={() => setPreviewImage(image.image_url)}
+                          className="p-2 rounded-full cursor-pointer bg-blue-500 text-white hover:bg-blue-600"
+                          title="Visualizar imagen"
+                        >
+                          <Maximize2 className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => handleToggleActive(image)}
-                          className={`p-2 rounded-full ${
+                          className={`p-2 rounded-full cursor-pointer ${
                             image.is_active
                               ? "bg-green-500 text-white"
                               : "bg-gray-500 text-white"
@@ -341,7 +357,7 @@ export default function ImagenesPage() {
                         </h3>
                         <button
                           onClick={() => toggleImageDelete(image.id)}
-                          className={`p-1.5 rounded transition-colors ${
+                          className={`p-1.5 rounded transition-colors cursor-pointer ${
                             isMarkedForDelete
                               ? "bg-red-100 text-red-700"
                               : "text-red-600 hover:bg-red-50"
@@ -376,7 +392,7 @@ export default function ImagenesPage() {
                 Imagen Informativa
               </h2>
               <p className="text-sm text-gray-600">
-                Una sola imagen. Se reemplazará la actual si existe. Recomendado: 1200x400px, formato JPG/PNG
+                Una sola imagen. Se reemplazará la actual si existe. Recomendado: 1650x350px, formato JPG/PNG
               </p>
             </div>
             <div>
@@ -393,7 +409,7 @@ export default function ImagenesPage() {
               />
               <label
                 htmlFor="info-file-input"
-                className="px-4 py-2 rounded-lg flex items-center gap-2 transition-colors cursor-pointer bg-blue-600 text-white hover:bg-blue-700"
+                className="px-3 py-2 text-sm rounded-lg flex items-center gap-2 transition-colors cursor-pointer bg-blue-600 text-white hover:bg-blue-700"
               >
                 <Upload className="w-4 h-4" />
                 <span>Agregar</span>
@@ -407,7 +423,7 @@ export default function ImagenesPage() {
                 <span className="text-sm font-medium text-blue-900">Nueva imagen pendiente de subir</span>
                 <button
                   onClick={() => setPendingInfoFile(null)}
-                  className="text-blue-600 hover:text-blue-800"
+                  className="text-blue-600 hover:text-blue-800 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -429,11 +445,19 @@ export default function ImagenesPage() {
             <div className={`border rounded-lg overflow-hidden ${
               imagesToDelete.has(infoImage.id) ? "border-red-300 opacity-50" : "border-gray-200"
             }`}>
-              <div className="aspect-[3/1] bg-gray-100 relative">
+              <div className="bg-gray-100 relative flex items-center justify-center" style={{ width: '1650px', maxWidth: '100%', height: '350px' }}>
                 <img
                   src={infoImage.image_url}
                   alt={infoImage.title || "Imagen informativa"}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
+                  style={{ maxWidth: '1650px', maxHeight: '350px' }}
+                  onError={(e) => {
+                    // Fallback a wsrvLoader si la imagen directa falla
+                    const target = e.target as HTMLImageElement;
+                    if (target.src !== wsrvLoader({ src: infoImage.image_url, width: 1650 })) {
+                      target.src = wsrvLoader({ src: infoImage.image_url, width: 1650 });
+                    }
+                  }}
                 />
                 {imagesToDelete.has(infoImage.id) && (
                   <div className="absolute inset-0 bg-red-500 bg-opacity-20 flex items-center justify-center">
@@ -446,17 +470,26 @@ export default function ImagenesPage() {
                   <h3 className="font-medium text-gray-900">
                     {infoImage.title || "Sin título"}
                   </h3>
-                  <button
-                    onClick={() => toggleImageDelete(infoImage.id)}
-                    className={`p-1.5 rounded transition-colors ${
-                      imagesToDelete.has(infoImage.id)
-                        ? "bg-red-100 text-red-700"
-                        : "text-red-600 hover:bg-red-50"
-                    }`}
-                    title={imagesToDelete.has(infoImage.id) ? "Cancelar eliminación" : "Marcar para eliminar"}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setPreviewImage(infoImage.image_url)}
+                      className="p-1.5 rounded transition-colors cursor-pointer text-blue-600 hover:bg-blue-50"
+                      title="Visualizar imagen"
+                    >
+                      <Maximize2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => toggleImageDelete(infoImage.id)}
+                      className={`p-1.5 rounded transition-colors cursor-pointer ${
+                        imagesToDelete.has(infoImage.id)
+                          ? "bg-red-100 text-red-700"
+                          : "text-red-600 hover:bg-red-50"
+                      }`}
+                      title={imagesToDelete.has(infoImage.id) ? "Cancelar eliminación" : "Marcar para eliminar"}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
                 {infoImage.subtitle && (
                   <p className="text-sm text-gray-500">{infoImage.subtitle}</p>
@@ -479,7 +512,7 @@ export default function ImagenesPage() {
                 Imagen de Descuentos
               </h2>
               <p className="text-sm text-gray-600">
-                Una sola imagen. Se reemplazará la actual si existe. Recomendado: 1200x400px, formato JPG/PNG
+                Una sola imagen. Se reemplazará la actual si existe. Recomendado: 300x400px, formato JPG/PNG
               </p>
             </div>
             <div>
@@ -496,7 +529,7 @@ export default function ImagenesPage() {
               />
               <label
                 htmlFor="discount-file-input"
-                className="px-4 py-2 rounded-lg flex items-center gap-2 transition-colors cursor-pointer bg-blue-600 text-white hover:bg-blue-700"
+                className="px-3 py-2 text-sm rounded-lg flex items-center gap-2 transition-colors cursor-pointer bg-blue-600 text-white hover:bg-blue-700"
               >
                 <Upload className="w-4 h-4" />
                 <span>Agregar</span>
@@ -511,7 +544,7 @@ export default function ImagenesPage() {
                 <span className="text-sm font-medium text-blue-900">Nueva imagen pendiente de subir</span>
                 <button
                   onClick={() => setPendingDiscountFile(null)}
-                  className="text-blue-600 hover:text-blue-800"
+                  className="text-blue-600 hover:text-blue-800 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -533,11 +566,19 @@ export default function ImagenesPage() {
             <div className={`border rounded-lg overflow-hidden ${
               imagesToDelete.has(discountImage.id) ? "border-red-300 opacity-50" : "border-gray-200"
             }`}>
-              <div className="aspect-[3/1] bg-gray-100 relative">
+              <div className="bg-gray-100 relative flex items-center justify-center" style={{ width: '300px', height: '400px' }}>
                 <img
                   src={discountImage.image_url}
                   alt={discountImage.title || "Imagen de descuentos"}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
+                  style={{ maxWidth: '300px', maxHeight: '400px' }}
+                  onError={(e) => {
+                    // Fallback a wsrvLoader si la imagen directa falla
+                    const target = e.target as HTMLImageElement;
+                    if (target.src !== wsrvLoader({ src: discountImage.image_url, width: 300 })) {
+                      target.src = wsrvLoader({ src: discountImage.image_url, width: 300 });
+                    }
+                  }}
                 />
                 {imagesToDelete.has(discountImage.id) && (
                   <div className="absolute inset-0 bg-red-500 bg-opacity-20 flex items-center justify-center">
@@ -550,17 +591,26 @@ export default function ImagenesPage() {
                   <h3 className="font-medium text-gray-900">
                     {discountImage.title || "Sin título"}
                   </h3>
-                  <button
-                    onClick={() => toggleImageDelete(discountImage.id)}
-                    className={`p-1.5 rounded transition-colors ${
-                      imagesToDelete.has(discountImage.id)
-                        ? "bg-red-100 text-red-700"
-                        : "text-red-600 hover:bg-red-50"
-                    }`}
-                    title={imagesToDelete.has(discountImage.id) ? "Cancelar eliminación" : "Marcar para eliminar"}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setPreviewImage(discountImage.image_url)}
+                      className="p-1.5 rounded transition-colors cursor-pointer text-blue-600 hover:bg-blue-50"
+                      title="Visualizar imagen"
+                    >
+                      <Maximize2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => toggleImageDelete(discountImage.id)}
+                      className={`p-1.5 rounded transition-colors cursor-pointer ${
+                        imagesToDelete.has(discountImage.id)
+                          ? "bg-red-100 text-red-700"
+                          : "text-red-600 hover:bg-red-50"
+                      }`}
+                      title={imagesToDelete.has(discountImage.id) ? "Cancelar eliminación" : "Marcar para eliminar"}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
                 {discountImage.subtitle && (
                   <p className="text-sm text-gray-500">{discountImage.subtitle}</p>
@@ -608,8 +658,8 @@ export default function ImagenesPage() {
               >
                 {submitting ? (
                   <>
-                    <Loader message="" fullScreen={false} />
-                    Guardando...
+                    <Spinner size="sm" />
+                    <span className="text-sm">Guardando...</span>
                   </>
                 ) : (
                   "Guardar Cambios"
@@ -629,7 +679,7 @@ export default function ImagenesPage() {
           <div className="relative max-w-7xl max-h-[90vh] w-full h-full flex items-center justify-center">
             <button
               onClick={() => setPreviewImage(null)}
-              className="absolute top-4 right-4 text-white bg-black/50 hover:bg-black/70 rounded-full p-2 transition-colors z-10"
+              className="absolute top-4 right-4 text-white bg-black/50 hover:bg-black/70 rounded-full p-2 transition-colors z-10 cursor-pointer"
             >
               <X className="w-6 h-6" />
             </button>
