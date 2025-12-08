@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { 
   Truck, 
@@ -10,8 +11,11 @@ import {
   ShoppingCart,
   Tag
 } from "lucide-react";
+import Cart from "./Cart";
 
 export default function Navbar() {
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
   return (
     <>
       {/* Top Header - Light Green Bar */}
@@ -71,7 +75,14 @@ export default function Navbar() {
                 </div>
               </div>
               <Heart className="w-6 h-6 text-gray-700 cursor-pointer hover:text-gray-900" />
-              <ShoppingCart className="w-6 h-6 text-gray-700 cursor-pointer hover:text-gray-900" />
+              <div 
+                className="cursor-pointer group"
+                onClick={() => setIsCartOpen(true)}
+              >
+                <ShoppingCart 
+                  className="w-6 h-6 text-gray-700 fill-transparent group-hover:text-black group-hover:fill-black transition-[color,fill] duration-300 ease-in-out" 
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -89,6 +100,9 @@ export default function Navbar() {
           </div>
         </div>
       </nav>
+
+      {/* Cart Overlay */}
+      <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </>
   );
 }

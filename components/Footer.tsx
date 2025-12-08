@@ -4,7 +4,7 @@ import { ArrowRight, Instagram, Facebook, Twitter } from "lucide-react";
 
 export default function Footer() {
   return (
-    <footer className="bg-gray-100 text-gray-800" style={{ fontFamily: 'DM Sans, sans-serif' }}>
+    <footer className="bg-[#FAFAFA] text-gray-800" style={{ fontFamily: 'DM Sans, sans-serif' }}>
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-5 gap-2 mb-12">
           {/* Productos */}
@@ -64,7 +64,7 @@ export default function Footer() {
 
           {/* Nosotros */}
           <div>
-            <h4 className="font-bold text-gray-900 mb-4 capitalize">Nosotros</h4>
+            <h4 className="font-semibold text-gray-900 mb-4 capitalize">Nosotros</h4>
             <ul className="space-y-1.5 text-sm text-gray-700">
               <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">¿Qué Es Bausing?</a></li>
               <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Preguntas Frecuentes</a></li>
@@ -78,7 +78,7 @@ export default function Footer() {
 
           {/* Contacto */}
           <div>
-            <h4 className="font-bold text-gray-900 mb-4 capitalize">Contacto</h4>
+            <h4 className="font-semibold text-gray-900 mb-4 capitalize">Contacto</h4>
             <ul className="space-y-1.5 text-sm text-gray-700">
               <li>+54 9 11 4049-0344</li>
               <li><a href="mailto:hola@bausing.com" className="hover:text-gray-900 transition-colors">hola@bausing.com</a></li>
@@ -88,7 +88,7 @@ export default function Footer() {
 
           {/* Newsletter y Redes Sociales */}
           <div className="-ml-2">
-            <h4 className="font-bold text-gray-900 mb-4 whitespace-nowrap">Suscribite a nuestro newsletter!</h4>
+            <h4 className="font-semibold text-gray-900 mb-4 whitespace-nowrap">Suscribite a nuestro newsletter!</h4>
             <form className="mb-6">
               <div className="relative">
                 <input

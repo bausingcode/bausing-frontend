@@ -29,13 +29,13 @@ export default function ProductCard({
           className="object-cover"
         />
         {discount && (
-          <div className="absolute top-2 right-2 bg-[#00C1A7] text-white px-2 py-1 rounded-[4px] font-bold text-xs">
+          <div className="absolute top-2 right-2 bg-[#00C1A7] text-white px-2 py-1 rounded-[4px] font-semibold text-xs">
             {discount}
           </div>
         )}
       </div>
       <div className="pt-3">
-        <div className="mb-3">
+        <div className="mb-1">
           <h4 className="text-sm font-normal text-gray-900 leading-tight">
             {name}
           </h4>
