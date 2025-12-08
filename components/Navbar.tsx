@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { 
   Truck, 
   CreditCard, 
@@ -40,11 +39,9 @@ export default function Navbar() {
           <div className="flex items-center justify-between gap-8">
             {/* Logo */}
             <div className="flex items-center flex-shrink-0">
-              <Image
+              <img
                 src="/images/logo/logo.svg"
                 alt="BAUSING Logo"
-                width={298}
-                height={48}
                 className="h-10 w-auto"
               />
             </div>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import wsrvLoader from "@/lib/wsrvLoader";
 
 interface BannerImage {
   id: number;
@@ -59,22 +59,25 @@ export default function BannerCarousel({
 
       {/* Carousel Images */}
       <div className="relative w-full h-full min-h-[450px]">
-        {images.map((image, index) => (
-          <div
-            key={image.id}
-            className={`absolute inset-0 transition-opacity duration-1000 ${
-              index === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
-            }`}
-          >
-            <Image
-              src={image.url}
-              alt={image.alt}
-              fill
-              className="object-cover"
-              priority={index === 0}
-            />
-          </div>
-        ))}
+        {images.map((image, index) => {
+          // Generar URL optimizada con wsrv (usando ancho de 1920px para banners hero)
+          const optimizedUrl = wsrvLoader({ src: image.url, width: 1920 });
+          return (
+            <div
+              key={image.id}
+              className={`absolute inset-0 transition-opacity duration-1000 ${
+                index === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
+              }`}
+            >
+              <img
+                src={optimizedUrl}
+                alt={image.alt}
+                className="w-full h-full object-cover"
+                loading={index === 0 ? "eager" : "lazy"}
+              />
+            </div>
+          );
+        })}
       </div>
 
       {/* Navigation Arrows */}
