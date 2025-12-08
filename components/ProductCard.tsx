@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import wsrvLoader from "@/lib/wsrvLoader";
 
 interface ProductCardProps {
   image: string;
@@ -19,14 +19,16 @@ export default function ProductCard({
   originalPrice,
   discount,
 }: ProductCardProps) {
+  // Generar URL optimizada con wsrv (usando ancho de 400px para productos)
+  const optimizedUrl = wsrvLoader({ src: image, width: 400 });
+
   return (
     <div className="cursor-pointer" style={{ fontFamily: 'Inter, sans-serif' }}>
       <div className="relative w-full h-80 rounded-[10px] overflow-hidden">
-        <Image
-          src={image}
+        <img
+          src={optimizedUrl}
           alt={alt}
-          fill
-          className="object-cover"
+          className="w-full h-full object-cover"
         />
         {discount && (
           <div className="absolute top-2 right-2 bg-[#00C1A7] text-white px-2 py-1 rounded-[4px] font-semibold text-xs">

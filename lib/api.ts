@@ -444,3 +444,197 @@ export async function updateSecuritySettings(security: SecuritySettings): Promis
   }
 }
 
+// Hero Images API
+export interface HeroImage {
+  id: string;
+  image_url: string;
+  title?: string;
+  subtitle?: string;
+  cta_text?: string;
+  cta_link?: string;
+  position: number;
+  is_active: boolean;
+  created_at?: string;
+}
+
+
+// Hero Images API
+export interface HeroImage {
+  id: string;
+  image_url: string;
+  title?: string;
+  subtitle?: string;
+  cta_text?: string;
+  cta_link?: string;
+  position: number;
+  is_active: boolean;
+  created_at?: string;
+}
+
+/**
+ * Fetch hero images from the backend (server-side compatible)
+ * @param position - Optional position filter (1, 2, or 3)
+ * @param activeOnly - Only fetch active images
+ * @param cookieHeader - Cookie header for server-side requests
+ */
+export async function fetchHeroImages(
+  position?: number,
+  activeOnly = false,
+  cookieHeader?: string | null
+): Promise<HeroImage[]> {
+  const params = new URLSearchParams();
+  if (position !== undefined) {
+    params.append('position', position.toString());
+  }
+  if (activeOnly) {
+    params.append('active', 'true');
+  }
+
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/hero-images?${params.toString()}`
+    : `/api/hero-images?${params.toString()}`;
+
+  const headers = typeof window === "undefined"
+    ? getAuthHeadersServer(cookieHeader)
+    : getAuthHeaders();
+
+  const response = await fetch(url, { headers, cache: "no-store" });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch hero images: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.success ? data.data : [];
+}
+
+/**
+ * Upload a hero image file directly to Supabase and save to database
+ */
+export async function uploadHeroImageFile(file: File, position: number): Promise<HeroImage> {
+  // Import compression function
+  const { compressToWebp } = await import("@/lib/image");
+  
+  // Compress image
+  const compressedFile = await compressToWebp(file, {
+    maxSide: 2048,
+    quality: 0.86,
+  });
+
+  // Upload to Supabase Storage using client
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error("Supabase configuration is missing. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  }
+
+  // Generate unique filename
+  const fileExt = compressedFile.name.split('.').pop();
+  const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+  const folder = `position-${position}`;
+  const filePath = `${folder}/${fileName}`;
+
+  // Upload to Supabase Storage using REST API
+  const uploadResponse = await fetch(
+    `${supabaseUrl}/storage/v1/object/hero-images/${filePath}`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${supabaseKey}`,
+        "Content-Type": compressedFile.type,
+        "x-upsert": "true",
+      },
+      body: compressedFile,
+    }
+  );
+
+  if (!uploadResponse.ok) {
+    const errorText = await uploadResponse.text();
+    let errorMessage = `Failed to upload to Supabase: ${uploadResponse.statusText}`;
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.message || errorJson.error || errorMessage;
+    } catch {
+      errorMessage = errorText || errorMessage;
+    }
+    throw new Error(errorMessage);
+  }
+
+  // Get public URL
+  const publicUrl = `${supabaseUrl}/storage/v1/object/public/hero-images/${filePath}`;
+
+  // Save to database via backend
+  const url = `/api/hero-images`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      image_url: publicUrl,
+      position: position,
+      is_active: true,
+    }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to save hero image: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to save hero image: Invalid response");
+  }
+  return data.data;
+}
+
+/**
+ * Update a hero image
+ */
+export async function updateHeroImage(
+  imageId: string,
+  imageData: Partial<{
+    image_url: string;
+    title: string;
+    subtitle: string;
+    cta_text: string;
+    cta_link: string;
+    position: number;
+    is_active: boolean;
+  }>
+): Promise<HeroImage> {
+  const url = `/api/hero-images/${imageId}`;
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(imageData),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to update hero image: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to update hero image: Invalid response");
+  }
+  return data.data;
+}
+
+/**
+ * Delete a hero image
+ */
+export async function deleteHeroImage(imageId: string): Promise<void> {
+  const url = `/api/hero-images/${imageId}`;
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to delete hero image: ${response.statusText}`);
+  }
+}
+

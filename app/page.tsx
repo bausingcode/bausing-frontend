@@ -1,5 +1,3 @@
-"use client";
-
 import { 
   Bed,
   Sofa,
@@ -14,26 +12,8 @@ import ProductCard from "@/components/ProductCard";
 import BannerCarousel from "@/components/BannerCarousel";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import Image from "next/image";
-
-// Mock data for banner images
-const bannerImages = [
-  {
-    id: 1,
-    url: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=1200&h=600&fit=crop",
-    alt: "Black Friday Banner 1"
-  },
-  {
-    id: 2,
-    url: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=1200&h=600&fit=crop",
-    alt: "Black Friday Banner 2"
-  },
-  {
-    id: 3,
-    url: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=1200&h=600&fit=crop",
-    alt: "Black Friday Banner 3"
-  }
-];
+import wsrvLoader from "@/lib/wsrvLoader";
+import { fetchHeroImages, HeroImage } from "@/lib/api";
 
 // Mock data for products
 const products = [
@@ -155,13 +135,38 @@ const sommiers = [
   }
 ];
 
-export default function Home() {
+export default async function Home() {
+  // Fetch hero images (position 1) and info banner (position 2) from server
+  let heroImages: HeroImage[] = [];
+  let infoBanner: HeroImage | null = null;
+
+  try {
+    // Fetch active hero images (position 1)
+    heroImages = await fetchHeroImages(1, true);
+    
+    // Fetch active info banner (position 2)
+    const infoBanners = await fetchHeroImages(2, true);
+    infoBanner = infoBanners.length > 0 ? infoBanners[0] : null;
+  } catch (error) {
+    console.error("Error fetching images:", error);
+    // Continue with empty arrays if fetch fails
+  }
+
+  // Transform hero images for BannerCarousel
+  const bannerImages = heroImages.map((img) => ({
+    id: parseInt(img.id.slice(0, 8), 16) || img.id.charCodeAt(0),
+    url: img.image_url,
+    alt: img.title || img.subtitle || "Banner"
+  }));
+
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
 
-      {/* Hero Section - Black Friday Banner Carousel */}
-      <BannerCarousel images={bannerImages} autoPlayInterval={5000} />
+      {/* Hero Section - Banner Carousel */}
+      {bannerImages.length > 0 && (
+        <BannerCarousel images={bannerImages} autoPlayInterval={5000} />
+      )}
 
       {/* Categories Section */}
       <section className="bg-white py-16">
@@ -226,21 +231,23 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Black Friday Banner */}
-      <section className="bg-white">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-center">
-            <div className="relative rounded-[10px] overflow-hidden" style={{ width: '1650px', height: '350px' }}>
-              <Image
-                src="https://images.unsplash.com/photo-1607082349566-187342175e2f?w=1660&h=490&fit=crop"
-                alt="Black Friday"
-                fill
-                className="object-cover"
-              />
+      {/* Info Banner (position 2) */}
+      {infoBanner && (
+        <section className="bg-white">
+          <div className="container mx-auto px-4">
+            <div className="flex justify-center">
+              <div className="relative rounded-[10px] overflow-hidden" style={{ width: '1650px', height: '350px' }}>
+                <img
+                  src={wsrvLoader({ src: infoBanner.image_url, width: 1650 })}
+                  alt={infoBanner.title || infoBanner.subtitle || "Banner informativo"}
+                  className="w-full h-full object-cover"
+                  loading="eager"
+                />
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Nuestros Colchones Section */}
       <section className="bg-white py-12">
