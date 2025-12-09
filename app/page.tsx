@@ -260,7 +260,7 @@ export default async function Home() {
         <div className="container mx-auto px-4">
           {/* Section Header */}
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-xl font-semibold text-gray-800">Nuestros Colchones</h3>
+            <h3 className="text-xl font-semibold text-gray-800">Productos Destacados</h3>
             <a href="#" className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors">
               <span className="font-medium">Ver todos</span>
               <ArrowRight className="w-5 h-5" />
@@ -311,7 +311,7 @@ export default async function Home() {
             {/* Productos */}
             {products.slice(0, 3).map((product) => (
               <div key={product.id} className="bg-white p-4 rounded-[20px]" style={{ height: '400px' }}>
-                <div className="cursor-pointer h-full flex flex-col" style={{ fontFamily: 'Inter, sans-serif' }}>
+                <div className="cursor-pointer h-full flex flex-col" style={{ fontFamily: 'DM Sans, sans-serif' }}>
                   <div className="relative w-full flex-1 rounded-[10px] overflow-hidden">
                     <img
                       src={product.image}
@@ -388,7 +388,7 @@ export default async function Home() {
         <div className="container mx-auto px-4">
           {/* Section Header */}
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-xl font-semibold text-gray-800">Nuestras Almohadas</h3>
+            <h3 className="text-xl font-semibold text-gray-800">Nuestros Colchones</h3>
             <a href="#" className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors">
               <span className="font-medium">Ver todos</span>
               <ArrowRight className="w-5 h-5" />
@@ -417,7 +417,7 @@ export default async function Home() {
         <div className="container mx-auto px-4">
           {/* Section Header */}
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-xl font-semibold text-gray-800">Nuestros Sommiers</h3>
+            <h3 className="text-xl font-semibold text-gray-800">Nuestros Productos</h3>
             <a href="#" className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors">
               <span className="font-medium">Ver todos</span>
               <ArrowRight className="w-5 h-5" />

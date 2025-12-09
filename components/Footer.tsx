@@ -48,7 +48,7 @@ export default function Footer() {
               <div className="relative">
                 <input
                   type="email"
-                  placeholder="Ingresá tu E-mail"
+                  placeholder="Ingresá tu email"
                   className="w-full px-6 py-3.5 pr-12 bg-white border border-gray-300 rounded-full text-sm font-normal text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7]"
                 />
                 <button
