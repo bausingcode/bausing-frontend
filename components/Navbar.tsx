@@ -12,10 +12,237 @@ import {
   Package,
   ArrowRight,
   Bed,
-  Sofa
+  Sofa,
+  LucideIcon
 } from "lucide-react";
 import Cart from "./Cart";
 import Image from "next/image";
+
+// Tipos para la estructura de datos
+interface SubcategoryItem {
+  name: string;
+  href: string;
+}
+
+interface CategoryItem {
+  name: string;
+  icon?: LucideIcon;
+  iconSize?: { width: string; height: string };
+  description?: string;
+  href?: string;
+  subcategories?: SubcategoryItem[];
+}
+
+interface CategoryData {
+  name: string;
+  columns: {
+    left: CategoryItem[];
+    middle?: CategoryItem[];
+  };
+  imageUrl?: string;
+  imageAlt?: string;
+}
+
+// Estructura de datos escalable - Aquí puedes modificar fácilmente las categorías y subcategorías
+const categoriesData: Record<string, CategoryData> = {
+  "Colchones": {
+    name: "Colchones",
+    columns: {
+      left: [
+        {
+          name: "1 Plaza",
+          icon: CreditCard,
+          iconSize: { width: '32px', height: '40px' },
+          description: "80x190 cm",
+          subcategories: [
+            { name: "Espuma alta densidad", href: "/colchones/1-plaza/espuma-alta-densidad" },
+            { name: "Resortes", href: "/colchones/1-plaza/resortes" }
+          ]
+        },
+        {
+          name: "1 1/2 Plaza",
+          icon: CreditCard,
+          iconSize: { width: '40px', height: '40px' },
+          description: "90x190 / 100x200 cm",
+          subcategories: [
+            { name: "Espuma alta densidad", href: "/colchones/1-5-plaza/espuma-alta-densidad" },
+            { name: "Resortes", href: "/colchones/1-5-plaza/resortes" }
+          ]
+        },
+        {
+          name: "2 Plazas",
+          icon: CreditCard,
+          iconSize: { width: '56px', height: '40px' },
+          description: "140x190 cm",
+          subcategories: [
+            { name: "Espuma alta densidad", href: "/colchones/2-plazas/espuma-alta-densidad" },
+            { name: "Resortes", href: "/colchones/2-plazas/resortes" }
+          ]
+        }
+      ],
+      middle: [
+        {
+          name: "Queen",
+          icon: CreditCard,
+          iconSize: { width: '64px', height: '40px' },
+          description: "160x200 cm",
+          subcategories: [
+            { name: "Espuma alta densidad", href: "/colchones/queen/espuma-alta-densidad" },
+            { name: "Resortes", href: "/colchones/queen/resortes" }
+          ]
+        },
+        {
+          name: "Extra-Queen",
+          icon: CreditCard,
+          iconSize: { width: '72px', height: '40px' },
+          description: "180x200 cm",
+          subcategories: [
+            { name: "Espuma alta densidad", href: "/colchones/extra-queen/espuma-alta-densidad" },
+            { name: "Resortes", href: "/colchones/extra-queen/resortes" }
+          ]
+        },
+        {
+          name: "King",
+          icon: CreditCard,
+          iconSize: { width: '80px', height: '40px' },
+          description: "200x200 cm",
+          subcategories: [
+            { name: "Espuma alta densidad", href: "/colchones/king/espuma-alta-densidad" },
+            { name: "Resortes", href: "/colchones/king/resortes" }
+          ]
+        }
+      ]
+    },
+    imageUrl: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
+    imageAlt: "Colchón"
+  },
+  "Sommiers y bases": {
+    name: "Sommiers y bases",
+    columns: {
+      left: [
+        {
+          name: "Sommier (colchón + base)",
+          icon: Sofa,
+          iconSize: { width: '48px', height: '40px' },
+          href: "/sommiers/sommier-completo"
+        },
+        {
+          name: "Bases",
+          icon: Sofa,
+          iconSize: { width: '48px', height: '40px' },
+          href: "/sommiers/bases"
+        }
+      ],
+      middle: [
+        {
+          name: "Sommier + respaldo",
+          icon: Sofa,
+          iconSize: { width: '48px', height: '40px' },
+          href: "/sommiers/sommier-respaldo"
+        },
+        {
+          name: "Respaldos",
+          icon: Sofa,
+          iconSize: { width: '48px', height: '40px' },
+          href: "/sommiers/respaldos"
+        }
+      ]
+    },
+    imageUrl: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
+    imageAlt: "Sommier"
+  },
+  "Accesorios": {
+    name: "Accesorios",
+    columns: {
+      left: [
+        {
+          name: "Sábanas",
+          icon: Package,
+          iconSize: { width: '40px', height: '40px' },
+          href: "/accesorios/sabanas"
+        },
+        {
+          name: "Cubre colchón",
+          icon: Package,
+          iconSize: { width: '40px', height: '40px' },
+          href: "/accesorios/cubre-colchon"
+        }
+      ],
+      middle: [
+        {
+          name: "Almohadas",
+          icon: Package,
+          iconSize: { width: '40px', height: '40px' },
+          href: "/accesorios/almohadas"
+        },
+        {
+          name: "Acolchados",
+          icon: Package,
+          iconSize: { width: '40px', height: '40px' },
+          href: "/accesorios/acolchados"
+        }
+      ]
+    },
+    imageUrl: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
+    imageAlt: "Accesorios"
+  },
+  "Electrodomésticos": {
+    name: "Electrodomésticos",
+    columns: {
+      left: [
+        {
+          name: "Grandes electros",
+          icon: Package,
+          iconSize: { width: '40px', height: '40px' },
+          subcategories: [
+            { name: "Heladeras", href: "/electrodomesticos/grandes/heladeras" },
+            { name: "Lavarropas", href: "/electrodomesticos/grandes/lavarropas" },
+            { name: "Aires acondicionados", href: "/electrodomesticos/grandes/aires-acondicionados" },
+            { name: "Cocinas", href: "/electrodomesticos/grandes/cocinas" },
+            { name: "Smart TV", href: "/electrodomesticos/grandes/smart-tv" }
+          ]
+        },
+        {
+          name: "Pequeños electros",
+          icon: Package,
+          iconSize: { width: '40px', height: '40px' },
+          subcategories: [
+            { name: "Pava electrica", href: "/electrodomesticos/pequenos/pava-electrica" },
+            { name: "Vaporera", href: "/electrodomesticos/pequenos/vaporera" },
+            { name: "Sandwuchera", href: "/electrodomesticos/pequenos/sandwuchera" },
+            { name: "Anafe", href: "/electrodomesticos/pequenos/anafe" }
+          ]
+        }
+      ]
+    },
+    imageUrl: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
+    imageAlt: "Electrodomésticos"
+  },
+  "Muebles de cocina": {
+    name: "Muebles de cocina",
+    columns: {
+      left: [
+        {
+          name: "Bajo mesada 120 cm",
+          icon: Package,
+          iconSize: { width: '40px', height: '40px' },
+          href: "/muebles-cocina/bajo-mesada-120"
+        },
+        {
+          name: "Bajo mesada 140 cm",
+          icon: Package,
+          iconSize: { width: '40px', height: '40px' },
+          href: "/muebles-cocina/bajo-mesada-140"
+        }
+      ]
+    },
+    imageUrl: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
+    imageAlt: "Muebles de cocina"
+  }
+};
+
+// Lista de categorías principales para el menú
+const mainCategories = Object.keys(categoriesData);
 
 export default function Navbar() {
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -103,575 +330,258 @@ export default function Navbar() {
         >
           <div className="container mx-auto px-4">
             <div className="flex items-center justify-center gap-8 py-3">
-              <a 
-                href="#" 
-                className="text-black hover:text-gray-600 font-medium"
-                onMouseEnter={() => {
-                  const wasOpen = hoveredCategory !== null;
-                  setPreviousCategory(hoveredCategory);
-                  setHoveredCategory("Colchones");
-                  if (wasOpen) {
-                    setHoveredSubcategory(null);
-                  }
-                }}
-              >
-                Colchones
-              </a>
-              <a 
-                href="#" 
-                className="text-black hover:text-gray-600 font-medium"
-                onMouseEnter={() => {
-                  const wasOpen = hoveredCategory !== null;
-                  setPreviousCategory(hoveredCategory);
-                  setHoveredCategory("Sommiers y bases");
-                  if (wasOpen) {
-                    setHoveredSubcategory(null);
-                  }
-                }}
-              >
-                Sommiers y bases
-              </a>
-              <a 
-                href="#" 
-                className="text-black hover:text-gray-600 font-medium"
-                onMouseEnter={() => {
-                  const wasOpen = hoveredCategory !== null;
-                  setPreviousCategory(hoveredCategory);
-                  setHoveredCategory("Accesorios");
-                  if (wasOpen) {
-                    setHoveredSubcategory(null);
-                  }
-                }}
-              >
-                Accesorios
-              </a>
-              <a 
-                href="#" 
-                className="text-black hover:text-gray-600 font-medium"
-                onMouseEnter={() => {
-                  const wasOpen = hoveredCategory !== null;
-                  setPreviousCategory(hoveredCategory);
-                  setHoveredCategory("Electrodomésticos");
-                  if (wasOpen) {
-                    setHoveredSubcategory(null);
-                  }
-                }}
-              >
-                Electrodomésticos
-              </a>
-              <a 
-                href="#" 
-                className="text-black hover:text-gray-600 font-medium"
-                onMouseEnter={() => {
-                  const wasOpen = hoveredCategory !== null;
-                  setPreviousCategory(hoveredCategory);
-                  setHoveredCategory("Muebles de cocina");
-                  if (wasOpen) {
-                    setHoveredSubcategory(null);
-                  }
-                }}
-              >
-                Muebles de cocina
-              </a>
+              {mainCategories.map((categoryName) => (
+                <a 
+                  key={categoryName}
+                  href="#" 
+                  className="text-black hover:text-gray-600 font-medium"
+                  onMouseEnter={() => {
+                    const wasOpen = hoveredCategory !== null;
+                    setPreviousCategory(hoveredCategory);
+                    setHoveredCategory(categoryName);
+                    if (wasOpen) {
+                      setHoveredSubcategory(null);
+                    }
+                  }}
+                >
+                  {categoryName}
+                </a>
+              ))}
             </div>
           </div>
 
-          {/* Dropdown Menu - Full Width */}
-          {(hoveredCategory === "Colchones" || closingCategory === "Colchones") && (
-            <div 
-              className={`absolute top-full left-0 w-full bg-white shadow-lg border-t border-gray-200 z-50 ${previousCategory === null && !isClosing ? 'animate-slideInFromTop' : ''} ${isClosing && closingCategory === "Colchones" ? 'animate-slideOutToTop' : ''}`}
-              onMouseEnter={() => {
-                if (isClosing) {
-                  setIsClosing(false);
-                  setClosingCategory(null);
-                }
-              }}
-              onMouseLeave={() => {
-                setIsClosing(true);
-                setClosingCategory("Colchones");
-                setTimeout(() => {
-                  setHoveredCategory(null);
-                  setHoveredSubcategory(null);
-                  setPreviousCategory(null);
-                  setIsClosing(false);
-                  setClosingCategory(null);
-                }, 200);
-              }}
-            >
-              <div className="container mx-auto px-4 py-6">
-                <div className="grid grid-cols-3 gap-8">
-                  {/* Left Column - Sizes */}
-                  <div className="space-y-4">
-                    <div 
-                      className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all"
-                      onMouseEnter={() => setHoveredSubcategory("1 Plaza")}
-                    >
-                      <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <CreditCard className="text-blue-600" strokeWidth={1.5} style={{ width: '32px', height: '40px' }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">1 Plaza</p>
-                        <p className="text-sm text-gray-600 mt-0.5">80x190 cm</p>
-                      </div>
-                    </div>
-                    <div 
-                      className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all"
-                      onMouseEnter={() => setHoveredSubcategory("1 1/2 Plaza")}
-                    >
-                      <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <CreditCard className="text-blue-600" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">1 1/2 Plaza</p>
-                        <p className="text-sm text-gray-600 mt-0.5">90x190 / 100x200 cm</p>
-                      </div>
-                    </div>
-                    <div 
-                      className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all"
-                      onMouseEnter={() => setHoveredSubcategory("2 Plazas")}
-                    >
-                      <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <CreditCard className="text-blue-600" strokeWidth={1.5} style={{ width: '56px', height: '40px' }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">2 Plazas</p>
-                        <p className="text-sm text-gray-600 mt-0.5">140x190 cm</p>
-                      </div>
-                    </div>
-                  </div>
+          {/* Dropdown Menus - Generated from data */}
+          {mainCategories.map((categoryName) => {
+            const categoryData = categoriesData[categoryName];
+            if (!categoryData) return null;
+            
+            const isActive = hoveredCategory === categoryName || closingCategory === categoryName;
+            if (!isActive) return null;
 
-                  {/* Middle Column - Sizes or Subcategories */}
-                  <div 
-                    className="space-y-4"
-                    onMouseEnter={() => {
-                      // Keep subcategories open when entering this column
-                    }}
-                    onMouseLeave={() => {
-                      // Only close if we're leaving to go outside the dropdown area
-                      // Don't close if moving to another column
-                    }}
-                  >
-                    {hoveredSubcategory && ["1 Plaza", "1 1/2 Plaza", "2 Plazas"].includes(hoveredSubcategory) ? (
-                      // Show subcategories when hovering first column
-                      <div className="animate-slideInFromTop">
-                        <h3 className="font-semibold text-lg text-gray-900 mb-4">{hoveredSubcategory}</h3>
-                        <div className="space-y-3">
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Espuma alta densidad</a>
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Resortes</a>
-                          <button
-                            onClick={() => setHoveredSubcategory(null)}
-                            className="block text-base text-gray-500 hover:text-gray-700 transition-colors py-2 text-left w-full"
-                          >
-                            ← Volver atrás
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      // Show second column sizes
-                      <div
-                        onMouseEnter={() => {
-                          // Keep subcategories open when entering this column
-                        }}
-                        onMouseLeave={() => {
-                          // Only close if we're leaving to go outside the dropdown area
-                          // Don't close if moving to another column
-                        }}
-                      >
-                        <div 
-                          className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all"
-                          onMouseEnter={() => setHoveredSubcategory("Queen")}
-                        >
-                          <div className="flex-shrink-0" style={{ width: '80px' }}>
-                            <CreditCard className="text-blue-600" strokeWidth={1.5} style={{ width: '64px', height: '40px' }} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Queen</p>
-                            <p className="text-sm text-gray-600 mt-0.5">160x200 cm</p>
-                          </div>
-                        </div>
-                        <div 
-                          className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all"
-                          onMouseEnter={() => setHoveredSubcategory("Extra-Queen")}
-                        >
-                          <div className="flex-shrink-0" style={{ width: '80px' }}>
-                            <CreditCard className="text-blue-600" strokeWidth={1.5} style={{ width: '72px', height: '40px' }} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Extra-Queen</p>
-                            <p className="text-sm text-gray-600 mt-0.5">180x200 cm</p>
-                          </div>
-                        </div>
-                        <div 
-                          className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all"
-                          onMouseEnter={() => setHoveredSubcategory("King")}
-                        >
-                          <div className="flex-shrink-0" style={{ width: '80px' }}>
-                            <CreditCard className="text-blue-600" strokeWidth={1.5} style={{ width: '80px', height: '40px' }} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">King</p>
-                            <p className="text-sm text-gray-600 mt-0.5">200x200 cm</p>
-                          </div>
-                        </div>
+            // Encontrar el item activo que tiene el submenu abierto
+            const activeItem = categoryData.columns.left
+              .concat(categoryData.columns.middle || [])
+              .find(item => item.name === hoveredSubcategory);
+
+            // El grid siempre tiene 3 columnas: izquierda, medio (puede estar vacía), y derecha (imagen)
+            const gridCols = 'grid-cols-3';
+
+            // Obtener nombres de items de la columna izquierda para mostrar subcategorías en la columna del medio
+            const leftColumnItemNames = categoryData.columns.left
+              .filter(item => item.subcategories && item.subcategories.length > 0)
+              .map(item => item.name);
+
+            // Obtener nombres de items de la columna del medio para mostrar subcategorías en la columna derecha
+            const middleColumnItemNames = categoryData.columns.middle
+              ?.filter(item => item.subcategories && item.subcategories.length > 0)
+              .map(item => item.name) || [];
+
+            return (
+              <div 
+                key={categoryName}
+                className={`absolute top-full left-0 w-full bg-white shadow-lg border-t border-gray-200 z-50 ${previousCategory === null && !isClosing ? 'animate-slideInFromTop' : ''} ${isClosing && closingCategory === categoryName ? 'animate-slideOutToTop' : ''}`}
+                onMouseEnter={() => {
+                  if (isClosing) {
+                    setIsClosing(false);
+                    setClosingCategory(null);
+                  }
+                }}
+                onMouseLeave={() => {
+                  setIsClosing(true);
+                  setClosingCategory(categoryName);
+                  setTimeout(() => {
+                    setHoveredCategory(null);
+                    setHoveredSubcategory(null);
+                    setPreviousCategory(null);
+                    setIsClosing(false);
+                    setClosingCategory(null);
+                  }, 200);
+                }}
+              >
+                <div className="container mx-auto px-4 py-6">
+                  <div className={`grid ${gridCols} gap-8`}>
+                    {/* Columna izquierda */}
+                    {categoryData.columns.left && categoryData.columns.left.length > 0 && (
+                      <div className="space-y-4">
+                        {categoryData.columns.left.map((item, idx) => {
+                          const Icon = item.icon || Package;
+                          const hasSubcategories = item.subcategories && item.subcategories.length > 0;
+                          
+                          const ItemWrapper = item.href ? 'a' : 'div';
+                          const itemProps = item.href ? { href: item.href } : {};
+
+                          return (
+                            <ItemWrapper
+                              key={idx}
+                              {...itemProps}
+                              className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all"
+                              onMouseEnter={() => {
+                                if (hasSubcategories) {
+                                  setHoveredSubcategory(item.name);
+                                } else {
+                                  setHoveredSubcategory(null);
+                                }
+                              }}
+                              onMouseLeave={() => {
+                                if (hasSubcategories) {
+                                  setHoveredSubcategory(null);
+                                }
+                              }}
+                            >
+                              {item.icon && (
+                                <div className="flex-shrink-0" style={{ width: '80px' }}>
+                                  <Icon 
+                                    className="text-blue-600" 
+                                    strokeWidth={1.5} 
+                                    style={item.iconSize || { width: '40px', height: '40px' }} 
+                                  />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">
+                                  {item.name}
+                                </p>
+                                {item.description && (
+                                  <p className="text-sm text-gray-600 mt-0.5">{item.description}</p>
+                                )}
+                              </div>
+                            </ItemWrapper>
+                          );
+                        })}
                       </div>
                     )}
-                  </div>
 
-                  {/* Right Side - Image or Subcategories */}
-                  <div className="flex flex-col items-end">
-                    {hoveredSubcategory && ["Queen", "Extra-Queen", "King"].includes(hoveredSubcategory) ? (
-                      // Show subcategories when hovering second column
-                      <div className="w-full h-80 animate-slideInFromTop flex flex-col justify-start">
-                        <h3 className="font-semibold text-lg text-gray-900 mb-4">{hoveredSubcategory}</h3>
-                        <div className="space-y-3">
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Espuma alta densidad</a>
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Resortes</a>
-                          <button
-                            onClick={() => setHoveredSubcategory(null)}
-                            className="block text-base text-gray-500 hover:text-gray-700 transition-colors py-2 text-left w-full"
-                          >
-                            ← Volver atrás
-                          </button>
-                        </div>
+                    {/* Columna del medio */}
+                    {categoryData.columns.middle && categoryData.columns.middle.length > 0 ? (
+                      <div className="space-y-4">
+                        {hoveredSubcategory && leftColumnItemNames.includes(hoveredSubcategory) ? (
+                          // Mostrar subcategorías cuando se hace hover sobre un item de la columna izquierda
+                          activeItem && activeItem.subcategories ? (
+                            <div 
+                              className="animate-slideInFromTop"
+                              onMouseEnter={() => setHoveredSubcategory(activeItem.name)}
+                              onMouseLeave={() => setHoveredSubcategory(null)}
+                            >
+                              <h3 className="font-semibold text-lg text-gray-900 mb-4">{activeItem.name}</h3>
+                              <div className="space-y-3">
+                                {activeItem.subcategories.map((subcat, subIdx) => (
+                                  <a 
+                                    key={subIdx}
+                                    href={subcat.href} 
+                                    className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100"
+                                  >
+                                    {subcat.name}
+                                  </a>
+                                ))}
+                                <button
+                                  onClick={() => setHoveredSubcategory(null)}
+                                  className="block text-base text-gray-500 hover:text-gray-700 transition-colors py-2 text-left w-full"
+                                >
+                                  ← Volver atrás
+                                </button>
+                              </div>
+                            </div>
+                          ) : null
+                        ) : (
+                          // Mostrar items normales de la columna del medio
+                          categoryData.columns.middle.map((item, idx) => {
+                            const Icon = item.icon || Package;
+                            const hasSubcategories = item.subcategories && item.subcategories.length > 0;
+                            
+                            const ItemWrapper = item.href ? 'a' : 'div';
+                            const itemProps = item.href ? { href: item.href } : {};
+
+                            return (
+                              <ItemWrapper
+                                key={idx}
+                                {...itemProps}
+                                className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all"
+                                onMouseEnter={() => {
+                                  if (hasSubcategories) {
+                                    setHoveredSubcategory(item.name);
+                                  } else {
+                                    setHoveredSubcategory(null);
+                                  }
+                                }}
+                                onMouseLeave={() => {
+                                  if (hasSubcategories) {
+                                    setHoveredSubcategory(null);
+                                  }
+                                }}
+                              >
+                                {item.icon && (
+                                  <div className="flex-shrink-0" style={{ width: '80px' }}>
+                                    <Icon 
+                                      className="text-blue-600" 
+                                      strokeWidth={1.5} 
+                                      style={item.iconSize || { width: '40px', height: '40px' }} 
+                                    />
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">
+                                    {item.name}
+                                  </p>
+                                  {item.description && (
+                                    <p className="text-sm text-gray-600 mt-0.5">{item.description}</p>
+                                  )}
+                                </div>
+                              </ItemWrapper>
+                            );
+                          })
+                        )}
                       </div>
                     ) : (
-                      // Show image
-                      <div className="relative w-full h-80 rounded-lg overflow-hidden">
-                        <img
-                          src="https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop"
-                          alt="Colchón"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
+                      // Columna vacía para mantener el grid cuando no hay columna del medio
+                      <div></div>
                     )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
-          {/* Dropdown Menu for Sommiers y bases */}
-          {(hoveredCategory === "Sommiers y bases" || closingCategory === "Sommiers y bases") && (
-            <div 
-              className={`absolute top-full left-0 w-full bg-white shadow-lg border-t border-gray-200 z-50 ${previousCategory === null && !isClosing ? 'animate-slideInFromTop' : ''} ${isClosing && closingCategory === "Sommiers y bases" ? 'animate-slideOutToTop' : ''}`}
-              onMouseEnter={() => {
-                if (isClosing) {
-                  setIsClosing(false);
-                  setClosingCategory(null);
-                }
-              }}
-              onMouseLeave={() => {
-                setIsClosing(true);
-                setClosingCategory("Sommiers y bases");
-                setTimeout(() => {
-                  setHoveredCategory(null);
-                  setHoveredSubcategory(null);
-                  setPreviousCategory(null);
-                  setIsClosing(false);
-                  setClosingCategory(null);
-                }, 200);
-              }}
-            >
-              <div className="container mx-auto px-4 py-6">
-                <div className="grid grid-cols-3 gap-8">
-                  {/* Left Column - Categories */}
-                  <div className="space-y-4">
-                    <a href="#" className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all">
-                      <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Sofa className="text-blue-600" strokeWidth={1.5} style={{ width: '48px', height: '40px' }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Sommier (colchón + base)</p>
-                      </div>
-                    </a>
-                    <a href="#" className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all">
-                      <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Sofa className="text-blue-600" strokeWidth={1.5} style={{ width: '48px', height: '40px' }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Bases</p>
-                      </div>
-                    </a>
-                  </div>
-
-                  {/* Middle Column - Categories */}
-                  <div className="space-y-4">
-                    <a href="#" className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all">
-                      <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Sofa className="text-blue-600" strokeWidth={1.5} style={{ width: '48px', height: '40px' }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Sommier + respaldo</p>
-                      </div>
-                    </a>
-                    <a href="#" className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all">
-                      <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Sofa className="text-blue-600" strokeWidth={1.5} style={{ width: '48px', height: '40px' }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Respaldos</p>
-                      </div>
-                    </a>
-                  </div>
-
-                  {/* Right Side - Image */}
-                  <div className="flex flex-col items-end">
-                    <div className="relative w-full h-80 rounded-lg overflow-hidden">
-                      <img
-                        src="https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop"
-                        alt="Sommier"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Dropdown Menu for Accesorios */}
-          {(hoveredCategory === "Accesorios" || closingCategory === "Accesorios") && (
-            <div 
-              className={`absolute top-full left-0 w-full bg-white shadow-lg border-t border-gray-200 z-50 ${previousCategory === null && !isClosing ? 'animate-slideInFromTop' : ''} ${isClosing && closingCategory === "Accesorios" ? 'animate-slideOutToTop' : ''}`}
-              onMouseEnter={() => {
-                if (isClosing) {
-                  setIsClosing(false);
-                  setClosingCategory(null);
-                }
-              }}
-              onMouseLeave={() => {
-                setIsClosing(true);
-                setClosingCategory("Accesorios");
-                setTimeout(() => {
-                  setHoveredCategory(null);
-                  setHoveredSubcategory(null);
-                  setPreviousCategory(null);
-                  setIsClosing(false);
-                  setClosingCategory(null);
-                }, 200);
-              }}
-            >
-              <div className="container mx-auto px-4 py-6">
-                <div className="grid grid-cols-3 gap-8">
-                  {/* Left Column - Categories */}
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all">
-                      <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Package className="text-blue-600" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Sábanas</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all">
-                      <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Package className="text-blue-600" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Cubre colchón</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right Column - Categories */}
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all">
-                      <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Package className="text-blue-600" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Almohadas</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all">
-                      <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Package className="text-blue-600" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Acolchados</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right Side - Image */}
-                  <div className="flex flex-col items-end">
-                    <div className="relative w-full h-80 rounded-lg overflow-hidden">
-                      <img
-                        src="https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop"
-                        alt="Accesorios"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Dropdown Menu for Electrodomésticos */}
-          {(hoveredCategory === "Electrodomésticos" || closingCategory === "Electrodomésticos") && (
-            <div 
-              className={`absolute top-full left-0 w-full bg-white shadow-lg border-t border-gray-200 z-50 ${previousCategory === null && !isClosing ? 'animate-slideInFromTop' : ''} ${isClosing && closingCategory === "Electrodomésticos" ? 'animate-slideOutToTop' : ''}`}
-              onMouseEnter={() => {
-                if (isClosing) {
-                  setIsClosing(false);
-                  setClosingCategory(null);
-                }
-              }}
-              onMouseLeave={() => {
-                setHoveredSubcategory(null);
-                setIsClosing(true);
-                setClosingCategory("Electrodomésticos");
-                setTimeout(() => {
-                  setHoveredCategory(null);
-                  setHoveredSubcategory(null);
-                  setPreviousCategory(null);
-                  setIsClosing(false);
-                  setClosingCategory(null);
-                }, 200);
-              }}
-            >
-              <div className="container mx-auto px-4 py-6">
-                <div className="grid grid-cols-3 gap-8">
-                  {/* Left Column - Categories */}
-                  <div className="space-y-4">
-                    <div 
-                      className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all"
-                      onMouseEnter={() => setHoveredSubcategory("Grandes electros")}
-                    >
-                      <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Package className="text-blue-600" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Grandes electros</p>
-                      </div>
-                    </div>
-                    <div 
-                      className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all"
-                      onMouseEnter={() => setHoveredSubcategory("Pequeños electros")}
-                    >
-                      <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Package className="text-blue-600" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Pequeños electros</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Middle Column - Subcategories */}
-                  <div 
-                    className="space-y-4"
-                    onMouseEnter={() => {
-                      // Keep subcategories open when entering this column
-                    }}
-                    onMouseLeave={() => {
-                      // Only close if we're leaving to go outside the dropdown area
-                      // Don't close if moving to another column
-                    }}
-                  >
-                    {hoveredSubcategory === "Grandes electros" ? (
-                      // Show subcategories when hovering Grandes electros
-                      <div className="animate-slideInFromTop">
-                        <h3 className="font-semibold text-lg text-gray-900 mb-4">Grandes electros</h3>
-                        <div className="space-y-3">
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Heladeras</a>
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Lavarropas</a>
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Aires acondicionados</a>
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Cocinas</a>
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Smart TV</a>
+                    {/* Columna derecha - Imagen o subcategorías */}
+                    <div className="flex flex-col">
+                      {hoveredSubcategory && middleColumnItemNames.includes(hoveredSubcategory) ? (
+                        // Mostrar subcategorías cuando se hace hover sobre un item de la columna del medio
+                        activeItem && activeItem.subcategories ? (
+                          <div 
+                            className="w-full h-80 animate-slideInFromTop flex flex-col justify-start"
+                            onMouseEnter={() => setHoveredSubcategory(activeItem.name)}
+                            onMouseLeave={() => setHoveredSubcategory(null)}
+                          >
+                            <h3 className="font-semibold text-lg text-gray-900 mb-4">{activeItem.name}</h3>
+                            <div className="space-y-3">
+                              {activeItem.subcategories.map((subcat, subIdx) => (
+                                <a 
+                                  key={subIdx}
+                                  href={subcat.href} 
+                                  className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100"
+                                >
+                                  {subcat.name}
+                                </a>
+                              ))}
+                              <button
+                                onClick={() => setHoveredSubcategory(null)}
+                                className="block text-base text-gray-500 hover:text-gray-700 transition-colors py-2 text-left w-full"
+                              >
+                                ← Volver atrás
+                              </button>
+                            </div>
+                          </div>
+                        ) : null
+                      ) : categoryData.imageUrl ? (
+                        // Mostrar imagen
+                        <div className="relative w-full h-80 rounded-lg overflow-hidden">
+                          <img
+                            src={categoryData.imageUrl}
+                            alt={categoryData.imageAlt || categoryData.name}
+                            className="w-full h-full object-cover"
+                          />
                         </div>
-                      </div>
-                    ) : hoveredSubcategory === "Pequeños electros" ? (
-                      // Show subcategories when hovering Pequeños electros
-                      <div className="animate-slideInFromTop">
-                        <h3 className="font-semibold text-lg text-gray-900 mb-4">Pequeños electros</h3>
-                        <div className="space-y-3">
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Pava electrica</a>
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Vaporera</a>
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Sandwuchera</a>
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Anafe</a>
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {/* Right Side - Image */}
-                  <div className="flex flex-col items-end">
-                    <div className="relative w-full h-80 rounded-lg overflow-hidden">
-                      <img
-                        src="https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop"
-                        alt="Electrodomésticos"
-                        className="w-full h-full object-cover"
-                      />
+                      ) : null}
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Dropdown Menu for Muebles de cocina */}
-          {(hoveredCategory === "Muebles de cocina" || closingCategory === "Muebles de cocina") && (
-            <div 
-              className={`absolute top-full left-0 w-full bg-white shadow-lg border-t border-gray-200 z-50 ${previousCategory === null && !isClosing ? 'animate-slideInFromTop' : ''} ${isClosing && closingCategory === "Muebles de cocina" ? 'animate-slideOutToTop' : ''}`}
-              onMouseEnter={() => {
-                if (isClosing) {
-                  setIsClosing(false);
-                  setClosingCategory(null);
-                }
-              }}
-              onMouseLeave={() => {
-                setIsClosing(true);
-                setClosingCategory("Muebles de cocina");
-                setTimeout(() => {
-                  setHoveredCategory(null);
-                  setHoveredSubcategory(null);
-                  setPreviousCategory(null);
-                  setIsClosing(false);
-                  setClosingCategory(null);
-                }, 200);
-              }}
-            >
-              <div className="container mx-auto px-4 py-6">
-                <div className="grid grid-cols-3 gap-8">
-                  {/* Left Column - Categories */}
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all">
-                      <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Package className="text-blue-600" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Bajo mesada 120 cm</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all">
-                      <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Package className="text-blue-600" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Bajo mesada 140 cm</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Empty column for spacing */}
-                  <div></div>
-
-                  {/* Right Side - Image */}
-                  <div className="flex flex-col items-end">
-                    <div className="relative w-full h-80 rounded-lg overflow-hidden">
-                      <img
-                        src="https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop"
-                        alt="Muebles de cocina"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+            );
+          })}
         </nav>
       </div>
 
