@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { 
   Truck, 
   CreditCard, 
@@ -13,7 +13,22 @@ import {
   ArrowRight,
   Bed,
   Sofa,
-  LucideIcon
+  LucideIcon,
+  Microwave,
+  Refrigerator,
+  WashingMachine,
+  AirVent,
+  ChefHat,
+  Tv,
+  Coffee,
+  UtensilsCrossed,
+  Flame,
+  Ruler,
+  Layers,
+  Combine,
+  Sheet,
+  Droplets,
+  Sandwich
 } from "lucide-react";
 import Cart from "./Cart";
 import Image from "next/image";
@@ -22,6 +37,7 @@ import Image from "next/image";
 interface SubcategoryItem {
   name: string;
   href: string;
+  icon?: LucideIcon;
 }
 
 interface CategoryItem {
@@ -35,6 +51,7 @@ interface CategoryItem {
 
 interface CategoryData {
   name: string;
+  icon?: LucideIcon;
   columns: {
     left: CategoryItem[];
     middle?: CategoryItem[];
@@ -50,70 +67,70 @@ const categoriesData: Record<string, CategoryData> = {
     columns: {
       left: [
         {
-          name: "1 Plaza",
-          icon: CreditCard,
-          iconSize: { width: '32px', height: '40px' },
+          name: "Una plaza",
+          icon: Bed,
+          iconSize: { width: '40px', height: '40px' },
           description: "80x190 cm",
           subcategories: [
-            { name: "Espuma alta densidad", href: "/colchones/1-plaza/espuma-alta-densidad" },
-            { name: "Resortes", href: "/colchones/1-plaza/resortes" }
+            { name: "Espuma alta densidad", href: "/colchones/una-plaza/espuma-alta-densidad", icon: Bed },
+            { name: "Resortes", href: "/colchones/una-plaza/resortes", icon: Bed }
           ]
         },
         {
-          name: "1 1/2 Plaza",
-          icon: CreditCard,
+          name: "Plaza y media",
+          icon: Bed,
           iconSize: { width: '40px', height: '40px' },
           description: "90x190 / 100x200 cm",
           subcategories: [
-            { name: "Espuma alta densidad", href: "/colchones/1-5-plaza/espuma-alta-densidad" },
-            { name: "Resortes", href: "/colchones/1-5-plaza/resortes" }
+            { name: "Espuma alta densidad", href: "/colchones/plaza-y-media/espuma-alta-densidad", icon: Bed },
+            { name: "Resortes", href: "/colchones/plaza-y-media/resortes", icon: Bed }
           ]
         },
         {
-          name: "2 Plazas",
-          icon: CreditCard,
-          iconSize: { width: '56px', height: '40px' },
+          name: "Dos plazas",
+          icon: Bed,
+          iconSize: { width: '40px', height: '40px' },
           description: "140x190 cm",
           subcategories: [
-            { name: "Espuma alta densidad", href: "/colchones/2-plazas/espuma-alta-densidad" },
-            { name: "Resortes", href: "/colchones/2-plazas/resortes" }
+            { name: "Espuma alta densidad", href: "/colchones/dos-plazas/espuma-alta-densidad", icon: Bed },
+            { name: "Resortes", href: "/colchones/dos-plazas/resortes", icon: Bed }
           ]
         }
       ],
       middle: [
         {
           name: "Queen",
-          icon: CreditCard,
-          iconSize: { width: '64px', height: '40px' },
+          icon: Bed,
+          iconSize: { width: '40px', height: '40px' },
           description: "160x200 cm",
           subcategories: [
-            { name: "Espuma alta densidad", href: "/colchones/queen/espuma-alta-densidad" },
-            { name: "Resortes", href: "/colchones/queen/resortes" }
+            { name: "Espuma alta densidad", href: "/colchones/queen/espuma-alta-densidad", icon: Bed },
+            { name: "Resortes", href: "/colchones/queen/resortes", icon: Bed }
           ]
         },
         {
-          name: "Extra-Queen",
-          icon: CreditCard,
-          iconSize: { width: '72px', height: '40px' },
+          name: "Extra-queen",
+          icon: Bed,
+          iconSize: { width: '40px', height: '40px' },
           description: "180x200 cm",
           subcategories: [
-            { name: "Espuma alta densidad", href: "/colchones/extra-queen/espuma-alta-densidad" },
-            { name: "Resortes", href: "/colchones/extra-queen/resortes" }
+            { name: "Espuma alta densidad", href: "/colchones/extra-queen/espuma-alta-densidad", icon: Bed },
+            { name: "Resortes", href: "/colchones/extra-queen/resortes", icon: Bed }
           ]
         },
         {
           name: "King",
-          icon: CreditCard,
-          iconSize: { width: '80px', height: '40px' },
+          icon: Bed,
+          iconSize: { width: '40px', height: '40px' },
           description: "200x200 cm",
           subcategories: [
-            { name: "Espuma alta densidad", href: "/colchones/king/espuma-alta-densidad" },
-            { name: "Resortes", href: "/colchones/king/resortes" }
+            { name: "Espuma alta densidad", href: "/colchones/king/espuma-alta-densidad", icon: Bed },
+            { name: "Resortes", href: "/colchones/king/resortes", icon: Bed }
           ]
         }
       ]
     },
-    imageUrl: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
+    imageUrl: "/images/home/4.png",
     imageAlt: "Colchón"
   },
   "Sommiers y bases": {
@@ -148,22 +165,22 @@ const categoriesData: Record<string, CategoryData> = {
         }
       ]
     },
-    imageUrl: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
+    imageUrl: "/images/home/4.png",
     imageAlt: "Sommier"
   },
   "Accesorios": {
-    name: "Accesorios",
+    name: "Accesorios de descanso",
     columns: {
       left: [
         {
           name: "Sábanas",
-          icon: Package,
+          icon: Bed,
           iconSize: { width: '40px', height: '40px' },
           href: "/accesorios/sabanas"
         },
         {
           name: "Cubre colchón",
-          icon: Package,
+          icon: Bed,
           iconSize: { width: '40px', height: '40px' },
           href: "/accesorios/cubre-colchon"
         }
@@ -171,19 +188,19 @@ const categoriesData: Record<string, CategoryData> = {
       middle: [
         {
           name: "Almohadas",
-          icon: Package,
+          icon: Bed,
           iconSize: { width: '40px', height: '40px' },
           href: "/accesorios/almohadas"
         },
         {
           name: "Acolchados",
-          icon: Package,
+          icon: Bed,
           iconSize: { width: '40px', height: '40px' },
           href: "/accesorios/acolchados"
         }
       ]
     },
-    imageUrl: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
+    imageUrl: "/images/home/4.png",
     imageAlt: "Accesorios"
   },
   "Electrodomésticos": {
@@ -192,30 +209,30 @@ const categoriesData: Record<string, CategoryData> = {
       left: [
         {
           name: "Grandes electros",
-          icon: Package,
+          icon: Refrigerator,
           iconSize: { width: '40px', height: '40px' },
           subcategories: [
-            { name: "Heladeras", href: "/electrodomesticos/grandes/heladeras" },
-            { name: "Lavarropas", href: "/electrodomesticos/grandes/lavarropas" },
-            { name: "Aires acondicionados", href: "/electrodomesticos/grandes/aires-acondicionados" },
-            { name: "Cocinas", href: "/electrodomesticos/grandes/cocinas" },
-            { name: "Smart TV", href: "/electrodomesticos/grandes/smart-tv" }
+            { name: "Heladeras", href: "/electrodomesticos/grandes/heladeras", icon: Refrigerator },
+            { name: "Lavarropas", href: "/electrodomesticos/grandes/lavarropas", icon: WashingMachine },
+            { name: "Aires acondicionados", href: "/electrodomesticos/grandes/aires-acondicionados", icon: AirVent },
+            { name: "Cocinas", href: "/electrodomesticos/grandes/cocinas", icon: ChefHat },
+            { name: "Smart TV", href: "/electrodomesticos/grandes/smart-tv", icon: Tv }
           ]
         },
         {
           name: "Pequeños electros",
-          icon: Package,
+          icon: Microwave,
           iconSize: { width: '40px', height: '40px' },
           subcategories: [
-            { name: "Pava electrica", href: "/electrodomesticos/pequenos/pava-electrica" },
-            { name: "Vaporera", href: "/electrodomesticos/pequenos/vaporera" },
-            { name: "Sandwuchera", href: "/electrodomesticos/pequenos/sandwuchera" },
-            { name: "Anafe", href: "/electrodomesticos/pequenos/anafe" }
+            { name: "Pava electrica", href: "/electrodomesticos/pequenos/pava-electrica", icon: Coffee },
+            { name: "Vaporera", href: "/electrodomesticos/pequenos/vaporera", icon: Droplets },
+            { name: "Sandwuchera", href: "/electrodomesticos/pequenos/sandwuchera", icon: Sandwich },
+            { name: "Anafe", href: "/electrodomesticos/pequenos/anafe", icon: Flame }
           ]
         }
       ]
     },
-    imageUrl: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
+    imageUrl: "/images/home/4.png",
     imageAlt: "Electrodomésticos"
   },
   "Muebles de cocina": {
@@ -224,19 +241,19 @@ const categoriesData: Record<string, CategoryData> = {
       left: [
         {
           name: "Bajo mesada 120 cm",
-          icon: Package,
+          icon: Sofa,
           iconSize: { width: '40px', height: '40px' },
           href: "/muebles-cocina/bajo-mesada-120"
         },
         {
           name: "Bajo mesada 140 cm",
-          icon: Package,
+          icon: Sofa,
           iconSize: { width: '40px', height: '40px' },
           href: "/muebles-cocina/bajo-mesada-140"
         }
       ]
     },
-    imageUrl: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
+    imageUrl: "/images/home/4.png",
     imageAlt: "Muebles de cocina"
   }
 };
@@ -251,6 +268,7 @@ export default function Navbar() {
   const [previousCategory, setPreviousCategory] = useState<string | null>(null);
   const [isClosing, setIsClosing] = useState(false);
   const [closingCategory, setClosingCategory] = useState<string | null>(null);
+  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   return (
     <>
@@ -326,27 +344,65 @@ export default function Navbar() {
         {/* Navigation Bar */}
         <nav 
           className="bg-white border-b border-gray-200 relative"
-          onMouseLeave={() => setHoveredCategory(null)}
+          onMouseLeave={(e) => {
+            // Verificar si el cursor va hacia un dropdown
+            const relatedTarget = e.relatedTarget as HTMLElement;
+            const isGoingToDropdown = relatedTarget?.closest('.absolute') !== null;
+            
+            // Solo cerrar si el cursor sale completamente (no hacia un dropdown)
+            if (!isGoingToDropdown) {
+              // Agregar un pequeño delay antes de cerrar para evitar cierres accidentales
+              if (closeTimeoutRef.current) {
+                clearTimeout(closeTimeoutRef.current);
+              }
+              closeTimeoutRef.current = setTimeout(() => {
+                setHoveredCategory(null);
+                setHoveredSubcategory(null);
+                setPreviousCategory(null);
+                setIsClosing(false);
+                setClosingCategory(null);
+              }, 200);
+            }
+          }}
         >
           <div className="container mx-auto px-4">
             <div className="flex items-center justify-center gap-8 py-3">
-              {mainCategories.map((categoryName) => (
-                <a 
-                  key={categoryName}
-                  href="#" 
-                  className="text-black hover:text-gray-600 font-medium"
-                  onMouseEnter={() => {
-                    const wasOpen = hoveredCategory !== null;
-                    setPreviousCategory(hoveredCategory);
-                    setHoveredCategory(categoryName);
-                    if (wasOpen) {
-                      setHoveredSubcategory(null);
-                    }
-                  }}
-                >
-                  {categoryName}
-                </a>
-              ))}
+              {mainCategories.map((categoryName) => {
+                const categoryData = categoriesData[categoryName];
+                const CategoryIcon = categoryData?.icon;
+                return (
+                  <a 
+                    key={categoryName}
+                    href="#" 
+                    className="flex items-center gap-2 text-black hover:text-gray-600 font-medium"
+                    onMouseEnter={() => {
+                      // Cancelar cualquier cierre pendiente cuando cambias de categoría
+                      if (closeTimeoutRef.current) {
+                        clearTimeout(closeTimeoutRef.current);
+                        closeTimeoutRef.current = null;
+                      }
+                      
+                      const wasOpen = hoveredCategory !== null;
+                      const isDifferentCategory = hoveredCategory !== categoryName;
+                      
+                      // Si cambias a una categoría diferente, resetear el estado de cierre
+                      if (isDifferentCategory) {
+                        setIsClosing(false);
+                        setClosingCategory(null);
+                        setHoveredSubcategory(null);
+                      }
+                      
+                      setPreviousCategory(hoveredCategory);
+                      setHoveredCategory(categoryName);
+                    }}
+                  >
+                    {CategoryIcon && (
+                      <CategoryIcon className="w-5 h-5 text-[#00C1A7]" />
+                    )}
+                    <span>{categoryName}</span>
+                  </a>
+                );
+              })}
             </div>
           </div>
 
@@ -380,16 +436,35 @@ export default function Navbar() {
               <div 
                 key={categoryName}
                 className={`absolute top-full left-0 w-full bg-white shadow-lg border-t border-gray-200 z-50 ${previousCategory === null && !isClosing ? 'animate-slideInFromTop' : ''} ${isClosing && closingCategory === categoryName ? 'animate-slideOutToTop' : ''}`}
+                style={{ marginTop: '-1px' }}
                 onMouseEnter={() => {
+                  // Cancelar cualquier cierre pendiente
+                  if (closeTimeoutRef.current) {
+                    clearTimeout(closeTimeoutRef.current);
+                    closeTimeoutRef.current = null;
+                  }
                   if (isClosing) {
                     setIsClosing(false);
                     setClosingCategory(null);
                   }
                 }}
-                onMouseLeave={() => {
+                onMouseLeave={(e) => {
+                  // Verificar si el cursor va hacia el nav o hacia fuera
+                  const relatedTarget = e.relatedTarget as HTMLElement;
+                  const isGoingToNav = relatedTarget?.closest('nav') !== null;
+                  
+                  // Si va hacia el nav, no cerrar (el nav manejará el cierre)
+                  if (isGoingToNav) {
+                    return;
+                  }
+                  
+                  // Si sale completamente, iniciar el cierre
+                  if (closeTimeoutRef.current) {
+                    clearTimeout(closeTimeoutRef.current);
+                  }
                   setIsClosing(true);
                   setClosingCategory(categoryName);
-                  setTimeout(() => {
+                  closeTimeoutRef.current = setTimeout(() => {
                     setHoveredCategory(null);
                     setHoveredSubcategory(null);
                     setPreviousCategory(null);
@@ -431,14 +506,14 @@ export default function Navbar() {
                               {item.icon && (
                                 <div className="flex-shrink-0" style={{ width: '80px' }}>
                                   <Icon 
-                                    className="text-blue-600" 
+                                    className="text-[#00C1A7]" 
                                     strokeWidth={1.5} 
                                     style={item.iconSize || { width: '40px', height: '40px' }} 
                                   />
                                 </div>
                               )}
                               <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">
+                                <p className="font-semibold text-base text-gray-900 group-hover:text-[#00C1A7] transition-colors">
                                   {item.name}
                                 </p>
                                 {item.description && (
@@ -464,15 +539,21 @@ export default function Navbar() {
                             >
                               <h3 className="font-semibold text-lg text-gray-900 mb-4">{activeItem.name}</h3>
                               <div className="space-y-3">
-                                {activeItem.subcategories.map((subcat, subIdx) => (
-                                  <a 
-                                    key={subIdx}
-                                    href={subcat.href} 
-                                    className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100"
-                                  >
-                                    {subcat.name}
-                                  </a>
-                                ))}
+                                {activeItem.subcategories.map((subcat, subIdx) => {
+                                  const SubIcon = subcat.icon;
+                                  return (
+                                    <a 
+                                      key={subIdx}
+                                      href={subcat.href} 
+                                      className="flex items-center gap-3 text-base text-gray-700 hover:text-[#00C1A7] transition-colors py-2 border-b border-gray-100"
+                                    >
+                                      {SubIcon && (
+                                        <SubIcon className="w-5 h-5 text-[#00C1A7] flex-shrink-0" />
+                                      )}
+                                      <span>{subcat.name}</span>
+                                    </a>
+                                  );
+                                })}
                                 <button
                                   onClick={() => setHoveredSubcategory(null)}
                                   className="block text-base text-gray-500 hover:text-gray-700 transition-colors py-2 text-left w-full"
@@ -512,14 +593,14 @@ export default function Navbar() {
                                 {item.icon && (
                                   <div className="flex-shrink-0" style={{ width: '80px' }}>
                                     <Icon 
-                                      className="text-blue-600" 
+                                      className="text-[#00C1A7]" 
                                       strokeWidth={1.5} 
                                       style={item.iconSize || { width: '40px', height: '40px' }} 
                                     />
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">
+                                  <p className="font-semibold text-base text-gray-900 group-hover:text-[#00C1A7] transition-colors">
                                     {item.name}
                                   </p>
                                   {item.description && (
@@ -532,8 +613,44 @@ export default function Navbar() {
                         )}
                       </div>
                     ) : (
-                      // Columna vacía para mantener el grid cuando no hay columna del medio
-                      <div></div>
+                      // Mostrar subcategorías cuando no hay columna del medio pero hay items con subcategorías en la izquierda
+                      hoveredSubcategory && leftColumnItemNames.includes(hoveredSubcategory) && activeItem && activeItem.subcategories ? (
+                        <div className="space-y-4">
+                          <div 
+                            className="animate-slideInFromTop"
+                            onMouseEnter={() => setHoveredSubcategory(activeItem.name)}
+                            onMouseLeave={() => setHoveredSubcategory(null)}
+                          >
+                            <h3 className="font-semibold text-lg text-gray-900 mb-4">{activeItem.name}</h3>
+                            <div className="space-y-3">
+                              {activeItem.subcategories.map((subcat, subIdx) => {
+                                const SubIcon = subcat.icon;
+                                return (
+                                  <a 
+                                    key={subIdx}
+                                    href={subcat.href} 
+                                    className="flex items-center gap-3 text-base text-gray-700 hover:text-[#00C1A7] transition-colors py-2 border-b border-gray-100"
+                                  >
+                                    {SubIcon && (
+                                      <SubIcon className="w-5 h-5 text-[#00C1A7] flex-shrink-0" />
+                                    )}
+                                    <span>{subcat.name}</span>
+                                  </a>
+                                );
+                              })}
+                              <button
+                                onClick={() => setHoveredSubcategory(null)}
+                                className="block text-base text-gray-500 hover:text-gray-700 transition-colors py-2 text-left w-full"
+                              >
+                                ← Volver atrás
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        // Columna vacía para mantener el grid cuando no hay columna del medio ni subcategorías
+                        <div></div>
+                      )
                     )}
 
                     {/* Columna derecha - Imagen o subcategorías */}
@@ -548,15 +665,21 @@ export default function Navbar() {
                           >
                             <h3 className="font-semibold text-lg text-gray-900 mb-4">{activeItem.name}</h3>
                             <div className="space-y-3">
-                              {activeItem.subcategories.map((subcat, subIdx) => (
-                                <a 
-                                  key={subIdx}
-                                  href={subcat.href} 
-                                  className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100"
-                                >
-                                  {subcat.name}
-                                </a>
-                              ))}
+                              {activeItem.subcategories.map((subcat, subIdx) => {
+                                const SubIcon = subcat.icon;
+                                return (
+                                  <a 
+                                    key={subIdx}
+                                    href={subcat.href} 
+                                    className="flex items-center gap-3 text-base text-gray-700 hover:text-[#00C1A7] transition-colors py-2 border-b border-gray-100"
+                                  >
+                                    {SubIcon && (
+                                      <SubIcon className="w-5 h-5 text-[#00C1A7] flex-shrink-0" />
+                                    )}
+                                    <span>{subcat.name}</span>
+                                  </a>
+                                );
+                              })}
                               <button
                                 onClick={() => setHoveredSubcategory(null)}
                                 className="block text-base text-gray-500 hover:text-gray-700 transition-colors py-2 text-left w-full"

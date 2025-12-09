@@ -174,23 +174,19 @@ export default async function Home() {
         <BannerCarousel images={bannerImages} autoPlayInterval={5000} />
       )}
 
-      {/* Categories Section */}
-      <section className="bg-white py-16">
+      {/* <section className="bg-white py-16">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-5 gap-6">
-            {/* Colchones */}
             <div className="bg-white border border-gray-200 rounded-lg p-10 flex flex-col items-center justify-center min-h-[220px] cursor-pointer hover:shadow-lg hover:border-gray-300 transition-all group">
               <Bed className="w-20 h-20 text-[#00C1A7] mb-5 group-hover:text-[#00A892] transition-colors" strokeWidth={1.5} />
               <span className="text-black font-semibold text-center">Colchones</span>
             </div>
 
-            {/* Sommiers y Bases */}
             <div className="bg-white border border-gray-200 rounded-lg p-10 flex flex-col items-center justify-center min-h-[220px] cursor-pointer hover:shadow-lg hover:border-gray-300 transition-all group">
               <Sofa className="w-20 h-20 text-[#00C1A7] mb-5 group-hover:text-[#00A892] transition-colors" strokeWidth={1.5} />
               <span className="text-black font-semibold text-center">Sommiers y Bases</span>
             </div>
 
-            {/* Accesorios */}
             <div className="bg-white border border-gray-200 rounded-lg p-10 flex flex-col items-center justify-center min-h-[220px] cursor-pointer hover:shadow-lg hover:border-gray-300 transition-all group">
               <svg 
                 className="w-20 h-20 text-[#00C1A7] mb-5 group-hover:text-[#00A892] transition-colors" 
@@ -207,13 +203,11 @@ export default async function Home() {
               <span className="text-black font-semibold text-center">Accesorios</span>
             </div>
 
-            {/* Electrodomésticos */}
             <div className="bg-white border border-gray-200 rounded-lg p-10 flex flex-col items-center justify-center min-h-[220px] cursor-pointer hover:shadow-lg hover:border-gray-300 transition-all group">
               <Microwave className="w-20 h-20 text-[#00C1A7] mb-5 group-hover:text-[#00A892] transition-colors" strokeWidth={1.5} />
               <span className="text-black font-semibold text-center">Electrodomésticos</span>
             </div>
 
-            {/* Muebles de cocina */}
             <div className="bg-white border border-gray-200 rounded-lg p-10 flex flex-col items-center justify-center min-h-[220px] cursor-pointer hover:shadow-lg hover:border-gray-300 transition-all group">
               <svg 
                 className="w-20 h-20 text-[#00C1A7] mb-5 group-hover:text-[#00A892] transition-colors" 
@@ -235,25 +229,8 @@ export default async function Home() {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
 
-      {/* Info Banner (position 2) */}
-      {infoBanner && (
-        <section className="bg-white">
-          <div className="container mx-auto px-4">
-            <div className="flex justify-center">
-              <div className="relative rounded-[10px] overflow-hidden" style={{ width: '1650px', height: '350px' }}>
-                <img
-                  src={wsrvLoader({ src: infoBanner.image_url, width: 1650 })}
-                  alt={infoBanner.title || infoBanner.subtitle || "Banner informativo"}
-                  className="w-full h-full object-cover"
-                  loading="eager"
-                />
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Nuestros Colchones Section */}
       <section className="bg-white py-12">
@@ -283,6 +260,24 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {/* Info Banner (position 2) */}
+      {infoBanner && (
+        <section className="bg-white">
+          <div className="container mx-auto px-4">
+            <div className="flex justify-center">
+              <div className="relative rounded-[10px] overflow-hidden" style={{ width: '1650px', height: '350px' }}>
+                <img
+                  src={wsrvLoader({ src: infoBanner.image_url, width: 1650 })}
+                  alt={infoBanner.title || infoBanner.subtitle || "Banner informativo"}
+                  className="w-full h-full object-cover"
+                  loading="eager"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Descuentazos Section */}
       <section className="bg-[#fafafa]  py-12">
