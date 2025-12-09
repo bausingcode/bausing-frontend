@@ -12,7 +12,9 @@ import {
   Package,
   ArrowRight,
   Bed,
-  Sofa
+  Sofa,
+  Microwave,
+  ChefHat
 } from "lucide-react";
 import Cart from "./Cart";
 import Image from "next/image";
@@ -207,10 +209,10 @@ export default function Navbar() {
                       onMouseEnter={() => setHoveredSubcategory("1 Plaza")}
                     >
                       <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <CreditCard className="text-blue-600" strokeWidth={1.5} style={{ width: '32px', height: '40px' }} />
+                        <CreditCard className="text-[#00C1A7]" strokeWidth={1.5} style={{ width: '32px', height: '40px' }} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">1 Plaza</p>
+                        <p className="font-semibold text-base text-gray-900 group-hover:text-[#00C1A7] transition-colors">1 Plaza</p>
                         <p className="text-sm text-gray-600 mt-0.5">80x190 cm</p>
                       </div>
                     </div>
@@ -219,10 +221,10 @@ export default function Navbar() {
                       onMouseEnter={() => setHoveredSubcategory("1 1/2 Plaza")}
                     >
                       <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <CreditCard className="text-blue-600" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
+                        <CreditCard className="text-[#00C1A7]" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">1 1/2 Plaza</p>
+                        <p className="font-semibold text-base text-gray-900 group-hover:text-[#00C1A7] transition-colors">1 1/2 Plaza</p>
                         <p className="text-sm text-gray-600 mt-0.5">90x190 / 100x200 cm</p>
                       </div>
                     </div>
@@ -231,10 +233,10 @@ export default function Navbar() {
                       onMouseEnter={() => setHoveredSubcategory("2 Plazas")}
                     >
                       <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <CreditCard className="text-blue-600" strokeWidth={1.5} style={{ width: '56px', height: '40px' }} />
+                        <CreditCard className="text-[#00C1A7]" strokeWidth={1.5} style={{ width: '56px', height: '40px' }} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">2 Plazas</p>
+                        <p className="font-semibold text-base text-gray-900 group-hover:text-[#00C1A7] transition-colors">2 Plazas</p>
                         <p className="text-sm text-gray-600 mt-0.5">140x190 cm</p>
                       </div>
                     </div>
@@ -256,8 +258,8 @@ export default function Navbar() {
                       <div className="animate-slideInFromTop">
                         <h3 className="font-semibold text-lg text-gray-900 mb-4">{hoveredSubcategory}</h3>
                         <div className="space-y-3">
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Espuma alta densidad</a>
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Resortes</a>
+                          <a href="#" className="block text-base text-gray-700 hover:text-[#00C1A7] transition-colors py-2 border-b border-gray-100">Espuma alta densidad</a>
+                          <a href="#" className="block text-base text-gray-700 hover:text-[#00C1A7] transition-colors py-2 border-b border-gray-100">Resortes</a>
                           <button
                             onClick={() => setHoveredSubcategory(null)}
                             className="block text-base text-gray-500 hover:text-gray-700 transition-colors py-2 text-left w-full"
@@ -282,10 +284,10 @@ export default function Navbar() {
                           onMouseEnter={() => setHoveredSubcategory("Queen")}
                         >
                           <div className="flex-shrink-0" style={{ width: '80px' }}>
-                            <CreditCard className="text-blue-600" strokeWidth={1.5} style={{ width: '64px', height: '40px' }} />
+                            <CreditCard className="text-[#00C1A7]" strokeWidth={1.5} style={{ width: '64px', height: '40px' }} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Queen</p>
+                            <p className="font-semibold text-base text-gray-900 group-hover:text-[#00C1A7] transition-colors">Queen</p>
                             <p className="text-sm text-gray-600 mt-0.5">160x200 cm</p>
                           </div>
                         </div>
@@ -294,10 +296,10 @@ export default function Navbar() {
                           onMouseEnter={() => setHoveredSubcategory("Extra-Queen")}
                         >
                           <div className="flex-shrink-0" style={{ width: '80px' }}>
-                            <CreditCard className="text-blue-600" strokeWidth={1.5} style={{ width: '72px', height: '40px' }} />
+                            <CreditCard className="text-[#00C1A7]" strokeWidth={1.5} style={{ width: '72px', height: '40px' }} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Extra-Queen</p>
+                            <p className="font-semibold text-base text-gray-900 group-hover:text-[#00C1A7] transition-colors">Extra-Queen</p>
                             <p className="text-sm text-gray-600 mt-0.5">180x200 cm</p>
                           </div>
                         </div>
@@ -306,10 +308,10 @@ export default function Navbar() {
                           onMouseEnter={() => setHoveredSubcategory("King")}
                         >
                           <div className="flex-shrink-0" style={{ width: '80px' }}>
-                            <CreditCard className="text-blue-600" strokeWidth={1.5} style={{ width: '80px', height: '40px' }} />
+                            <CreditCard className="text-[#00C1A7]" strokeWidth={1.5} style={{ width: '80px', height: '40px' }} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">King</p>
+                            <p className="font-semibold text-base text-gray-900 group-hover:text-[#00C1A7] transition-colors">King</p>
                             <p className="text-sm text-gray-600 mt-0.5">200x200 cm</p>
                           </div>
                         </div>
@@ -324,8 +326,8 @@ export default function Navbar() {
                       <div className="w-full h-80 animate-slideInFromTop flex flex-col justify-start">
                         <h3 className="font-semibold text-lg text-gray-900 mb-4">{hoveredSubcategory}</h3>
                         <div className="space-y-3">
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Espuma alta densidad</a>
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Resortes</a>
+                          <a href="#" className="block text-base text-gray-700 hover:text-[#00C1A7] transition-colors py-2 border-b border-gray-100">Espuma alta densidad</a>
+                          <a href="#" className="block text-base text-gray-700 hover:text-[#00C1A7] transition-colors py-2 border-b border-gray-100">Resortes</a>
                           <button
                             onClick={() => setHoveredSubcategory(null)}
                             className="block text-base text-gray-500 hover:text-gray-700 transition-colors py-2 text-left w-full"
@@ -378,18 +380,18 @@ export default function Navbar() {
                   <div className="space-y-4">
                     <a href="#" className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all">
                       <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Sofa className="text-blue-600" strokeWidth={1.5} style={{ width: '48px', height: '40px' }} />
+                        <Sofa className="text-[#00C1A7]" strokeWidth={1.5} style={{ width: '48px', height: '40px' }} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Sommier (colchón + base)</p>
+                        <p className="font-semibold text-base text-gray-900 group-hover:text-[#00C1A7] transition-colors">Sommier (colchón + base)</p>
                       </div>
                     </a>
                     <a href="#" className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all">
                       <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Sofa className="text-blue-600" strokeWidth={1.5} style={{ width: '48px', height: '40px' }} />
+                        <Sofa className="text-[#00C1A7]" strokeWidth={1.5} style={{ width: '48px', height: '40px' }} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Bases</p>
+                        <p className="font-semibold text-base text-gray-900 group-hover:text-[#00C1A7] transition-colors">Bases</p>
                       </div>
                     </a>
                   </div>
@@ -398,18 +400,18 @@ export default function Navbar() {
                   <div className="space-y-4">
                     <a href="#" className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all">
                       <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Sofa className="text-blue-600" strokeWidth={1.5} style={{ width: '48px', height: '40px' }} />
+                        <Sofa className="text-[#00C1A7]" strokeWidth={1.5} style={{ width: '48px', height: '40px' }} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Sommier + respaldo</p>
+                        <p className="font-semibold text-base text-gray-900 group-hover:text-[#00C1A7] transition-colors">Sommier + respaldo</p>
                       </div>
                     </a>
                     <a href="#" className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all">
                       <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Sofa className="text-blue-600" strokeWidth={1.5} style={{ width: '48px', height: '40px' }} />
+                        <Sofa className="text-[#00C1A7]" strokeWidth={1.5} style={{ width: '48px', height: '40px' }} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Respaldos</p>
+                        <p className="font-semibold text-base text-gray-900 group-hover:text-[#00C1A7] transition-colors">Respaldos</p>
                       </div>
                     </a>
                   </div>
@@ -457,18 +459,18 @@ export default function Navbar() {
                   <div className="space-y-4">
                     <div className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all">
                       <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Package className="text-blue-600" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
+                        <Package className="text-[#00C1A7]" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Sábanas</p>
+                        <p className="font-semibold text-base text-gray-900 group-hover:text-[#00C1A7] transition-colors">Sábanas</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all">
                       <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Package className="text-blue-600" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
+                        <Package className="text-[#00C1A7]" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Cubre colchón</p>
+                        <p className="font-semibold text-base text-gray-900 group-hover:text-[#00C1A7] transition-colors">Cubre colchón</p>
                       </div>
                     </div>
                   </div>
@@ -477,18 +479,18 @@ export default function Navbar() {
                   <div className="space-y-4">
                     <div className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all">
                       <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Package className="text-blue-600" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
+                        <Package className="text-[#00C1A7]" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Almohadas</p>
+                        <p className="font-semibold text-base text-gray-900 group-hover:text-[#00C1A7] transition-colors">Almohadas</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all">
                       <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Package className="text-blue-600" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
+                        <Package className="text-[#00C1A7]" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Acolchados</p>
+                        <p className="font-semibold text-base text-gray-900 group-hover:text-[#00C1A7] transition-colors">Acolchados</p>
                       </div>
                     </div>
                   </div>
@@ -540,10 +542,10 @@ export default function Navbar() {
                       onMouseEnter={() => setHoveredSubcategory("Grandes electros")}
                     >
                       <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Package className="text-blue-600" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
+                        <Microwave className="text-[#00C1A7]" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Grandes electros</p>
+                        <p className="font-semibold text-base text-gray-900 group-hover:text-[#00C1A7] transition-colors">Grandes electros</p>
                       </div>
                     </div>
                     <div 
@@ -551,10 +553,10 @@ export default function Navbar() {
                       onMouseEnter={() => setHoveredSubcategory("Pequeños electros")}
                     >
                       <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Package className="text-blue-600" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
+                        <Microwave className="text-[#00C1A7]" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Pequeños electros</p>
+                        <p className="font-semibold text-base text-gray-900 group-hover:text-[#00C1A7] transition-colors">Pequeños electros</p>
                       </div>
                     </div>
                   </div>
@@ -575,11 +577,11 @@ export default function Navbar() {
                       <div className="animate-slideInFromTop">
                         <h3 className="font-semibold text-lg text-gray-900 mb-4">Grandes electros</h3>
                         <div className="space-y-3">
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Heladeras</a>
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Lavarropas</a>
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Aires acondicionados</a>
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Cocinas</a>
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Smart TV</a>
+                          <a href="#" className="block text-base text-gray-700 hover:text-[#00C1A7] transition-colors py-2 border-b border-gray-100">Heladeras</a>
+                          <a href="#" className="block text-base text-gray-700 hover:text-[#00C1A7] transition-colors py-2 border-b border-gray-100">Lavarropas</a>
+                          <a href="#" className="block text-base text-gray-700 hover:text-[#00C1A7] transition-colors py-2 border-b border-gray-100">Aires acondicionados</a>
+                          <a href="#" className="block text-base text-gray-700 hover:text-[#00C1A7] transition-colors py-2 border-b border-gray-100">Cocinas</a>
+                          <a href="#" className="block text-base text-gray-700 hover:text-[#00C1A7] transition-colors py-2 border-b border-gray-100">Smart TV</a>
                         </div>
                       </div>
                     ) : hoveredSubcategory === "Pequeños electros" ? (
@@ -587,10 +589,10 @@ export default function Navbar() {
                       <div className="animate-slideInFromTop">
                         <h3 className="font-semibold text-lg text-gray-900 mb-4">Pequeños electros</h3>
                         <div className="space-y-3">
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Pava electrica</a>
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Vaporera</a>
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Sandwuchera</a>
-                          <a href="#" className="block text-base text-gray-700 hover:text-blue-600 transition-colors py-2 border-b border-gray-100">Anafe</a>
+                          <a href="#" className="block text-base text-gray-700 hover:text-[#00C1A7] transition-colors py-2 border-b border-gray-100">Pava electrica</a>
+                          <a href="#" className="block text-base text-gray-700 hover:text-[#00C1A7] transition-colors py-2 border-b border-gray-100">Vaporera</a>
+                          <a href="#" className="block text-base text-gray-700 hover:text-[#00C1A7] transition-colors py-2 border-b border-gray-100">Sandwuchera</a>
+                          <a href="#" className="block text-base text-gray-700 hover:text-[#00C1A7] transition-colors py-2 border-b border-gray-100">Anafe</a>
                         </div>
                       </div>
                     ) : null}
@@ -638,19 +640,51 @@ export default function Navbar() {
                   {/* Left Column - Categories */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all">
-                      <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Package className="text-blue-600" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
+                      <div className="flex-shrink-0 flex items-center justify-center" style={{ width: '80px' }}>
+                        <svg 
+                          className="text-[#00C1A7] group-hover:text-[#00A892] transition-colors" 
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="1.5" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                          style={{ width: '40px', height: '40px' }}
+                        >
+                          <rect x="3" y="5" width="18" height="14" rx="1" />
+                          <path d="M3 9H21" />
+                          <path d="M8 5V9" />
+                          <path d="M16 5V9" />
+                          <circle cx="9" cy="13" r="1" />
+                          <circle cx="15" cy="13" r="1" />
+                        </svg>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Bajo mesada 120 cm</p>
+                        <p className="font-semibold text-base text-gray-900 group-hover:text-[#00C1A7] transition-colors">Bajo mesada 120 cm</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all">
-                      <div className="flex-shrink-0" style={{ width: '80px' }}>
-                        <Package className="text-blue-600" strokeWidth={1.5} style={{ width: '40px', height: '40px' }} />
+                      <div className="flex-shrink-0 flex items-center justify-center" style={{ width: '80px' }}>
+                        <svg 
+                          className="text-[#00C1A7] group-hover:text-[#00A892] transition-colors" 
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="1.5" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                          style={{ width: '40px', height: '40px' }}
+                        >
+                          <rect x="3" y="5" width="18" height="14" rx="1" />
+                          <path d="M3 9H21" />
+                          <path d="M8 5V9" />
+                          <path d="M16 5V9" />
+                          <circle cx="9" cy="13" r="1" />
+                          <circle cx="15" cy="13" r="1" />
+                        </svg>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base text-gray-900 group-hover:text-blue-600 transition-colors">Bajo mesada 140 cm</p>
+                        <p className="font-semibold text-base text-gray-900 group-hover:text-[#00C1A7] transition-colors">Bajo mesada 140 cm</p>
                       </div>
                     </div>
                   </div>
