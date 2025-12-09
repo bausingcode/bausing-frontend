@@ -179,19 +179,19 @@ export default async function Home() {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-5 gap-6">
             {/* Colchones */}
-            <div className="bg-white border border-gray-200 rounded-lg p-10 flex flex-col items-center justify-center min-h-[220px] cursor-pointer hover:shadow-lg hover:border-gray-300 transition-all group">
+            <div className="bg-white border border-gray-200 rounded-lg p-10 flex flex-col items-center justify-center min-h-[220px] cursor-pointer hover:bg-gray-100 transition-all duration-300 group">
               <Bed className="w-20 h-20 text-[#00C1A7] mb-5 group-hover:text-[#00A892] transition-colors" strokeWidth={1.5} />
               <span className="text-black font-semibold text-center">Colchones</span>
             </div>
 
             {/* Sommiers y Bases */}
-            <div className="bg-white border border-gray-200 rounded-lg p-10 flex flex-col items-center justify-center min-h-[220px] cursor-pointer hover:shadow-lg hover:border-gray-300 transition-all group">
+            <div className="bg-white border border-gray-200 rounded-lg p-10 flex flex-col items-center justify-center min-h-[220px] cursor-pointer hover:bg-gray-100 transition-all duration-300 group">
               <Sofa className="w-20 h-20 text-[#00C1A7] mb-5 group-hover:text-[#00A892] transition-colors" strokeWidth={1.5} />
               <span className="text-black font-semibold text-center">Sommiers y Bases</span>
             </div>
 
             {/* Accesorios */}
-            <div className="bg-white border border-gray-200 rounded-lg p-10 flex flex-col items-center justify-center min-h-[220px] cursor-pointer hover:shadow-lg hover:border-gray-300 transition-all group">
+            <div className="bg-white border border-gray-200 rounded-lg p-10 flex flex-col items-center justify-center min-h-[220px] cursor-pointer hover:bg-gray-100 transition-all duration-300 group">
               <svg 
                 className="w-20 h-20 text-[#00C1A7] mb-5 group-hover:text-[#00A892] transition-colors" 
                 viewBox="0 0 24 24" 
@@ -208,13 +208,13 @@ export default async function Home() {
             </div>
 
             {/* Electrodomésticos */}
-            <div className="bg-white border border-gray-200 rounded-lg p-10 flex flex-col items-center justify-center min-h-[220px] cursor-pointer hover:shadow-lg hover:border-gray-300 transition-all group">
+            <div className="bg-white border border-gray-200 rounded-lg p-10 flex flex-col items-center justify-center min-h-[220px] cursor-pointer hover:bg-gray-100 transition-all duration-300 group">
               <Microwave className="w-20 h-20 text-[#00C1A7] mb-5 group-hover:text-[#00A892] transition-colors" strokeWidth={1.5} />
               <span className="text-black font-semibold text-center">Electrodomésticos</span>
             </div>
 
             {/* Muebles de cocina */}
-            <div className="bg-white border border-gray-200 rounded-lg p-10 flex flex-col items-center justify-center min-h-[220px] cursor-pointer hover:shadow-lg hover:border-gray-300 transition-all group">
+            <div className="bg-white border border-gray-200 rounded-lg p-10 flex flex-col items-center justify-center min-h-[220px] cursor-pointer hover:bg-gray-100 transition-all duration-300 group">
               <svg 
                 className="w-20 h-20 text-[#00C1A7] mb-5 group-hover:text-[#00A892] transition-colors" 
                 viewBox="0 0 24 24" 
