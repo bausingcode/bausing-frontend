@@ -26,6 +26,23 @@ import {
 
 const MAX_HERO_IMAGES = 5;
 
+// Función para formatear la fecha de creación
+const formatDate = (dateString?: string): string => {
+  if (!dateString) return "Fecha no disponible";
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-AR', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch {
+    return "Fecha no disponible";
+  }
+};
+
 export default function ImagenesPage() {
   const [heroImages, setHeroImages] = useState<HeroImage[]>([]);
   const [infoImage, setInfoImage] = useState<HeroImage | null>(null);
@@ -353,7 +370,7 @@ export default function ImagenesPage() {
                     <div className="p-3 bg-white">
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="text-sm font-medium text-gray-900 truncate">
-                          {image.title || "Sin título"}
+                          {image.title || formatDate(image.created_at)}
                         </h3>
                         <button
                           onClick={() => toggleImageDelete(image.id)}
@@ -468,7 +485,7 @@ export default function ImagenesPage() {
               <div className="p-4 bg-white">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-medium text-gray-900">
-                    {infoImage.title || "Sin título"}
+                    {infoImage.title || formatDate(infoImage.created_at)}
                   </h3>
                   <div className="flex items-center gap-2">
                     <button
@@ -589,7 +606,7 @@ export default function ImagenesPage() {
               <div className="p-4 bg-white">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-medium text-gray-900">
-                    {discountImage.title || "Sin título"}
+                    {discountImage.title || formatDate(discountImage.created_at)}
                   </h3>
                   <div className="flex items-center gap-2">
                     <button
