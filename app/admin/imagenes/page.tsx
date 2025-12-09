@@ -7,7 +7,6 @@ import Spinner from "@/components/Spinner";
 import { 
   fetchHeroImages, 
   uploadHeroImageFile,
-  updateHeroImage,
   deleteHeroImage,
   HeroImage 
 } from "@/lib/api";
@@ -177,16 +176,6 @@ export default function ImagenesPage() {
 
 
 
-  const handleToggleActive = async (image: HeroImage) => {
-    try {
-      await updateHeroImage(image.id, {
-        is_active: !image.is_active,
-      });
-      await loadImages();
-    } catch (err: any) {
-      setError(err.message || "Error al actualizar la imagen");
-    }
-  };
 
   if (loading) {
     return (
@@ -337,11 +326,6 @@ export default function ImagenesPage() {
                           <span className="text-red-700 font-semibold bg-white px-3 py-1 rounded">Se eliminará</span>
                         </div>
                       )}
-                      {!image.is_active && !isMarkedForDelete && (
-                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                          <span className="text-white font-semibold">Inactiva</span>
-                        </div>
-                      )}
                       <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => setPreviewImage(image.image_url)}
@@ -349,21 +333,6 @@ export default function ImagenesPage() {
                           title="Visualizar imagen"
                         >
                           <Maximize2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleToggleActive(image)}
-                          className={`p-2 rounded-full cursor-pointer ${
-                            image.is_active
-                              ? "bg-green-500 text-white"
-                              : "bg-gray-500 text-white"
-                          }`}
-                          title={image.is_active ? "Desactivar" : "Activar"}
-                        >
-                          {image.is_active ? (
-                            <Check className="w-4 h-4" />
-                          ) : (
-                            <X className="w-4 h-4" />
-                          )}
                         </button>
                       </div>
                     </div>

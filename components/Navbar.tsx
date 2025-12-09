@@ -346,8 +346,10 @@ export default function Navbar() {
           className="bg-white border-b border-gray-200 relative"
           onMouseLeave={(e) => {
             // Verificar si el cursor va hacia un dropdown
-            const relatedTarget = e.relatedTarget as HTMLElement;
-            const isGoingToDropdown = relatedTarget?.closest('.absolute') !== null;
+            const relatedTarget = e.relatedTarget;
+            const isGoingToDropdown = relatedTarget && 
+              relatedTarget instanceof HTMLElement && 
+              relatedTarget.closest('.absolute') !== null;
             
             // Solo cerrar si el cursor sale completamente (no hacia un dropdown)
             if (!isGoingToDropdown) {
@@ -450,8 +452,10 @@ export default function Navbar() {
                 }}
                 onMouseLeave={(e) => {
                   // Verificar si el cursor va hacia el nav o hacia fuera
-                  const relatedTarget = e.relatedTarget as HTMLElement;
-                  const isGoingToNav = relatedTarget?.closest('nav') !== null;
+                  const relatedTarget = e.relatedTarget;
+                  const isGoingToNav = relatedTarget && 
+                    relatedTarget instanceof HTMLElement && 
+                    relatedTarget.closest('nav') !== null;
                   
                   // Si va hacia el nav, no cerrar (el nav manejará el cierre)
                   if (isGoingToNav) {

@@ -7,7 +7,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="h-screen flex items-stretch py-6 px-6 overflow-hidden" style={{ backgroundColor: '#f3f3f3', fontFamily: 'Inter, sans-serif' }}>
+    <div className="h-screen flex items-stretch py-6 px-6 overflow-hidden" style={{ backgroundColor: '#f3f3f3', fontFamily: 'var(--font-dm-sans), DM Sans, sans-serif' }}>
       {/* Contenedor principal alineado a la izquierda sobre el fondo gris */}
       <div className="flex w-full gap-6">
         <Sidebar />
