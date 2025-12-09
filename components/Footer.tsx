@@ -25,7 +25,6 @@ export default function Footer() {
             <ul className="space-y-1.5 text-sm text-gray-700">
               <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">¿Qué Es Bausing?</a></li>
               <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Preguntas Frecuentes</a></li>
-              <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Opiniones</a></li>
               <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Blog</a></li>
               <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Donde Encontrarnos</a></li>
               <li><a href="#" className="hover:text-gray-900 transition-colors">Términos y Condiciones</a></li>
