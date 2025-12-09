@@ -340,7 +340,7 @@ export default function Navbar() {
                       // Show image
                       <div className="relative w-full h-80 rounded-lg overflow-hidden">
                         <img
-                          src="https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop"
+                          src="/Frame 6.png"
                           alt="Colchón"
                           className="w-full h-full object-cover"
                         />
@@ -420,7 +420,7 @@ export default function Navbar() {
                   <div className="flex flex-col items-end">
                     <div className="relative w-full h-80 rounded-lg overflow-hidden">
                       <img
-                        src="https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop"
+                        src="/Frame 6.png"
                         alt="Sommier"
                         className="w-full h-full object-cover"
                       />
@@ -499,7 +499,7 @@ export default function Navbar() {
                   <div className="flex flex-col items-end">
                     <div className="relative w-full h-80 rounded-lg overflow-hidden">
                       <img
-                        src="https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop"
+                        src="/Frame 6.png"
                         alt="Accesorios"
                         className="w-full h-full object-cover"
                       />
@@ -602,7 +602,7 @@ export default function Navbar() {
                   <div className="flex flex-col items-end">
                     <div className="relative w-full h-80 rounded-lg overflow-hidden">
                       <img
-                        src="https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop"
+                        src="/Frame 6.png"
                         alt="Electrodomésticos"
                         className="w-full h-full object-cover"
                       />
@@ -696,7 +696,7 @@ export default function Navbar() {
                   <div className="flex flex-col items-end">
                     <div className="relative w-full h-80 rounded-lg overflow-hidden">
                       <img
-                        src="https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop"
+                        src="/Frame 6.png"
                         alt="Muebles de cocina"
                         className="w-full h-full object-cover"
                       />
