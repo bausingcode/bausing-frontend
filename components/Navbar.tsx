@@ -274,7 +274,7 @@ export default function Navbar() {
     <>
       <div className="sticky top-0 z-50 bg-white shadow-sm">
         {/* Top Header - Light Green Bar */}
-        <div className="bg-[#88CAC2] py-1.5">
+        <div className="bg-[#00C1A7] py-1.5">
           <div className="container mx-auto px-4">
             <div className="flex items-center justify-center gap-6 text-sm text-white">
               <div className="flex items-center gap-2">

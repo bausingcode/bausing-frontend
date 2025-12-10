@@ -93,7 +93,7 @@ export default function Sidebar() {
   const handleLogout = () => {
     // Eliminar cookie
     document.cookie = "admin_token=; path=/; max-age=0";
-    router.push("/admin-login");
+    router.push("/login-admin");
     router.refresh();
   };
 
@@ -109,7 +109,7 @@ export default function Sidebar() {
       </div>
 
       {/* Tarjeta del menú de navegación con datos de usuario */}
-      <div className="bg-white rounded-[14px] px-5 py-6 text-[14.5px] flex flex-col max-h-[calc(100vh-139px)]">
+      <div className="bg-white rounded-[14px] px-5 py-6 text-[14.5px] flex flex-col max-h-[calc(100vh-127px)]">
         {/* Datos del usuario */}
         <div className="flex items-center justify-between pb-4 border-b border-gray-200 mb-4 flex-shrink-0">
           <div className="flex items-center gap-3">
