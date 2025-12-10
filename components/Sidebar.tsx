@@ -93,7 +93,7 @@ export default function Sidebar() {
   const handleLogout = () => {
     // Eliminar cookie
     document.cookie = "admin_token=; path=/; max-age=0";
-    router.push("/admin/login");
+    router.push("/admin-login");
     router.refresh();
   };
 

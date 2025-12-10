@@ -7,11 +7,11 @@ export function middleware(request: NextRequest) {
                   request.headers.get("authorization")?.replace("Bearer ", "");
 
     if (!token) {
-      return NextResponse.redirect(new URL("/login", request.url));
+      return NextResponse.redirect(new URL("/admin-login", request.url));
     }
   }
 
-  if (request.nextUrl.pathname === "/login") {
+  if (request.nextUrl.pathname === "/admin-login") {
     const token = request.cookies.get("admin_token")?.value || 
                   request.headers.get("authorization")?.replace("Bearer ", "");
 
@@ -24,6 +24,6 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/login"],
+  matcher: ["/admin/:path*", "/admin-login"],
 };
 
