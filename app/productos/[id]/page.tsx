@@ -357,7 +357,7 @@ export default function ProductDetailPage() {
           {/* Right: Product Info */}
           <div className="flex flex-col h-[520px] col-span-3">
             <div className="flex-1">
-              <h1 className="text-3xl font-semibold text-gray-900 mb-6">{product.name}</h1>
+              <h1 className="text-2xl font-semibold text-gray-900 mb-6">{product.name}</h1>
 
               {/* Pricing */}
               <div className="mb-6">
