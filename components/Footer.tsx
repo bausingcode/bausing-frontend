@@ -12,7 +12,7 @@ export default function Footer() {
             <h4 className="font-semibold text-gray-900 mb-4 capitalize">Categorías</h4>
             <ul className="space-y-1.5 text-sm text-gray-700">
               <li><a href="#" className="hover:text-gray-900 transition-colors">Colchones</a></li>
-              <li><a href="#" className="hover:text-gray-900 transition-colors">Sommiers y Bases</a></li>
+              <li><a href="#" className="hover:text-gray-900 transition-colors">Sommiers</a></li>
               <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Accesorios de descanso</a></li>
               <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Electrodomésticos</a></li>
               <li><a href="#" className="hover:text-gray-900 transition-colors">Muebles de Cocina</a></li>

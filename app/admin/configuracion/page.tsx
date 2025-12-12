@@ -2,13 +2,14 @@
 
 import PageHeader from "@/components/PageHeader";
 import Loader from "@/components/Loader";
-import { Wallet, Bell, Mail, Shield, Save } from "lucide-react";
+import { Wallet, Bell, Mail, Shield, Save, Phone } from "lucide-react";
 import { useState, useEffect } from "react";
 import { 
   getAppSettings, 
   updateWalletSettings, 
   updateMessageTemplates, 
-  updateNotificationSettings 
+  updateNotificationSettings,
+  updateGeneralSettings
 } from "@/lib/api";
 
 export default function Configuracion() {
@@ -17,7 +18,7 @@ export default function Configuracion() {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   const [walletConfig, setWalletConfig] = useState({
-    porcentajeEstandar: "",
+    montoFijo: "",
     montoMinimo: "",
     porcentajeMaximo: "",
     vencimiento: "",
@@ -44,11 +45,16 @@ export default function Configuracion() {
     comentarioObligatorio: false,
   });
 
+  const [general, setGeneral] = useState({
+    telefono: "",
+  });
+
   // Estados originales para comparar cambios
   const [originalWalletConfig, setOriginalWalletConfig] = useState(walletConfig);
   const [originalNotificaciones, setOriginalNotificaciones] = useState(notificaciones);
   const [originalMensajes, setOriginalMensajes] = useState(mensajes);
   const [originalSeguridad, setOriginalSeguridad] = useState(seguridad);
+  const [originalGeneral, setOriginalGeneral] = useState(general);
 
   useEffect(() => {
     loadSettings();
@@ -61,7 +67,7 @@ export default function Configuracion() {
       
       // Crear objetos con los valores cargados
       const newWalletConfig = {
-        porcentajeEstandar: settings.wallet.porcentajeEstandar !== undefined ? String(settings.wallet.porcentajeEstandar) : "",
+        montoFijo: settings.wallet.montoFijo !== undefined ? String(settings.wallet.montoFijo) : "",
         montoMinimo: settings.wallet.montoMinimo !== undefined ? String(settings.wallet.montoMinimo) : "",
         porcentajeMaximo: settings.wallet.porcentajeMaximo !== undefined ? String(settings.wallet.porcentajeMaximo) : "",
         vencimiento: settings.wallet.vencimiento !== undefined ? String(settings.wallet.vencimiento) : "",
@@ -84,17 +90,22 @@ export default function Configuracion() {
         registrarCambios: settings.security.registrarCambios ?? false,
         comentarioObligatorio: settings.security.comentarioObligatorio ?? false,
       };
+      const newGeneral = {
+        telefono: settings.general?.telefono || "",
+      };
 
       // Establecer valores actuales y originales (son iguales al cargar)
       setWalletConfig(newWalletConfig);
       setNotificaciones(newNotificaciones);
       setMensajes(newMensajes);
       setSeguridad(newSeguridad);
+      setGeneral(newGeneral);
       
       setOriginalWalletConfig(newWalletConfig);
       setOriginalNotificaciones(newNotificaciones);
       setOriginalMensajes(newMensajes);
       setOriginalSeguridad(newSeguridad);
+      setOriginalGeneral(newGeneral);
     } catch (error) {
       console.error("Error loading settings:", error);
       setMessage({ type: 'error', text: 'Error al cargar la configuración' });
@@ -109,7 +120,8 @@ export default function Configuracion() {
       JSON.stringify(walletConfig) !== JSON.stringify(originalWalletConfig) ||
       JSON.stringify(notificaciones) !== JSON.stringify(originalNotificaciones) ||
       JSON.stringify(mensajes) !== JSON.stringify(originalMensajes) ||
-      JSON.stringify(seguridad) !== JSON.stringify(originalSeguridad)
+      JSON.stringify(seguridad) !== JSON.stringify(originalSeguridad) ||
+      JSON.stringify(general) !== JSON.stringify(originalGeneral)
     );
   };
 
@@ -146,8 +158,8 @@ export default function Configuracion() {
 
       // Convertir valores a números donde sea necesario, solo si tienen valor
       const walletData: any = {};
-      if (walletConfig.porcentajeEstandar && !isNaN(parseFloat(walletConfig.porcentajeEstandar))) {
-        walletData.porcentajeEstandar = parseFloat(walletConfig.porcentajeEstandar);
+      if (walletConfig.montoFijo && !isNaN(parseFloat(walletConfig.montoFijo))) {
+        walletData.montoFijo = parseFloat(walletConfig.montoFijo);
       }
       if (walletConfig.montoMinimo && !isNaN(parseFloat(walletConfig.montoMinimo))) {
         walletData.montoMinimo = parseFloat(walletConfig.montoMinimo);
@@ -164,12 +176,14 @@ export default function Configuracion() {
       await updateWalletSettings(walletData);
       await updateMessageTemplates(mensajes);
       await updateNotificationSettings(notificaciones);
+      await updateGeneralSettings(general);
 
       // Actualizar valores originales después de guardar
       setOriginalWalletConfig(walletConfig);
       setOriginalNotificaciones(notificaciones);
       setOriginalMensajes(mensajes);
       setOriginalSeguridad(seguridad);
+      setOriginalGeneral(general);
 
       setMessage({ type: 'success', text: 'Configuración guardada correctamente' });
       
@@ -220,27 +234,27 @@ export default function Configuracion() {
           </div>
 
           <div className="space-y-6">
-            {/* Porcentaje estándar */}
+            {/* Monto fijo */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Porcentaje estándar de Pesos Bausing por compra
+                Monto fijo de Pesos Bausing por compra
               </label>
               <div className="flex items-center gap-2">
+                <span className="text-gray-600">$</span>
                 <input
                   type="number"
                   min="0"
-                  max="100"
-                  value={walletConfig.porcentajeEstandar}
+                  step="0.01"
+                  value={walletConfig.montoFijo}
                   onChange={(e) => {
-                    const validated = handleNumberChange(e.target.value, 0, 100);
-                    setWalletConfig({ ...walletConfig, porcentajeEstandar: validated });
+                    const validated = handleNumberChange(e.target.value, 0);
+                    setWalletConfig({ ...walletConfig, montoFijo: validated });
                   }}
-                  className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                  className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
                 />
-                <span className="text-gray-600">%</span>
               </div>
               <p className="text-sm text-gray-500 mt-1">
-                Los clientes recibirán este % del valor de su compra en Pesos Bausing
+                Los clientes recibirán este monto fijo en Pesos Bausing por cada compra
               </p>
             </div>
 
@@ -315,6 +329,35 @@ export default function Configuracion() {
               </p>
             </div>
 
+          </div>
+        </div>
+
+        {/* Configuración General */}
+        <div className="bg-white rounded-[14px] border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100">
+              <Phone className="w-5 h-5 text-gray-700" />
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900">Configuración General</h2>
+          </div>
+
+          <div className="space-y-6">
+            {/* Teléfono */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Número de teléfono de Bausing
+              </label>
+              <input
+                type="tel"
+                value={general.telefono}
+                onChange={(e) => setGeneral({ ...general, telefono: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                placeholder="Ej: +54 11 1234-5678"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Número de teléfono que se mostrará a los clientes para contacto
+              </p>
+            </div>
           </div>
         </div>
 

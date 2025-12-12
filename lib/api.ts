@@ -107,6 +107,71 @@ export async function fetchCategories(includeOptions = false, cookieHeader?: str
   return data.success ? data.data : [];
 }
 
+// Products API
+export interface Product {
+  id: string;
+  name: string;
+  description?: string;
+  sku?: string;
+  category_id?: string;
+  category_name?: string;
+  is_active: boolean;
+  min_price?: number;
+  max_price?: number;
+  price_range?: string;
+  main_image?: string;
+  images?: Array<{
+    id: string;
+    image_url: string;
+    alt_text?: string;
+    position: number;
+  }>;
+  variants?: Array<{
+    id: string;
+    name: string;
+    sku?: string;
+    stock: number;
+    attributes?: Record<string, string>;
+    prices?: Array<{
+      id: string;
+      price: number;
+      locality_id: string;
+      locality_name?: string;
+    }>;
+  }>;
+  promos?: Array<{
+    id: string;
+    name: string;
+    discount_percentage?: number;
+    discount_amount?: number;
+  }>;
+}
+
+/**
+ * Fetch a single product by ID
+ */
+export async function fetchProductById(productId: string): Promise<Product | null> {
+  try {
+    const url = `/api/products/${productId}?include_variants=true&include_images=true&include_promos=true`;
+    const response = await fetch(url, {
+      cache: "no-store",
+    });
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error(`Failed to fetch product: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return data.success ? data.data : null;
+  } catch (error) {
+    console.error("Error fetching product:", error);
+    return null;
+  }
+}
+
 /**
  * Create a new category
  */
@@ -293,7 +358,7 @@ export async function createAdminUser(userData: {
 
 // Settings API
 export interface WalletConfig {
-  porcentajeEstandar?: number;
+  montoFijo?: number;
   montoMinimo?: number;
   porcentajeMaximo?: number;
   vencimiento?: number;
@@ -320,11 +385,16 @@ export interface SecuritySettings {
   comentarioObligatorio?: boolean;
 }
 
+export interface GeneralSettings {
+  telefono?: string;
+}
+
 export interface AppSettings {
   wallet: WalletConfig;
   messages: MessageTemplates;
   notifications: NotificationSettings;
   security: SecuritySettings;
+  general: GeneralSettings;
 }
 
 /**
@@ -350,7 +420,7 @@ export async function getAppSettings(): Promise<AppSettings> {
   const settings = data.data;
   return {
     wallet: {
-      porcentajeEstandar: settings.wallet?.standard_percentage,
+      montoFijo: settings.wallet?.fixed_amount,
       montoMinimo: settings.wallet?.min_amount,
       porcentajeMaximo: settings.wallet?.max_usage_percentage,
       vencimiento: settings.wallet?.expiration_days,
@@ -372,6 +442,9 @@ export async function getAppSettings(): Promise<AppSettings> {
       montoMaximoCarga: settings.security?.max_manual_wallet_load,
       registrarCambios: settings.security?.require_audit_log,
       comentarioObligatorio: settings.security?.require_comment_on_adjustments,
+    },
+    general: {
+      telefono: settings.general?.phone || "",
     },
   };
 }
@@ -424,6 +497,23 @@ export async function updateNotificationSettings(notifications: NotificationSett
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || `Failed to update notification settings: ${response.statusText}`);
+  }
+}
+
+/**
+ * Update general settings
+ */
+export async function updateGeneralSettings(general: GeneralSettings): Promise<void> {
+  const url = `/api/admin/settings/general`;
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(general),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to update general settings: ${response.statusText}`);
   }
 }
 

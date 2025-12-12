@@ -181,7 +181,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
     
     // Respaldos - modelos y colores
     const respaldosOption = selectedOptions["direct"] || Object.values(selectedOptions)[0];
-    if (categoryName === "Sommier y Bases" && respaldosOption === "Respaldos") {
+    if (categoryName === "Sommier" && respaldosOption === "Respaldos") {
       return [
         {
           id: "modelo-respaldo",

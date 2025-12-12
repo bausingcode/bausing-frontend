@@ -133,8 +133,8 @@ const categoriesData: Record<string, CategoryData> = {
     imageUrl: "/images/home/4.png",
     imageAlt: "Colchón"
   },
-  "Sommiers y bases": {
-    name: "Sommiers y bases",
+  "Sommiers": {
+    name: "Sommiers",
     columns: {
       left: [
         {

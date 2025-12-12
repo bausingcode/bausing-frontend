@@ -184,7 +184,7 @@ export default async function Home() {
 
             <div className="bg-white border border-gray-200 rounded-lg p-10 flex flex-col items-center justify-center min-h-[220px] cursor-pointer hover:shadow-lg hover:border-gray-300 transition-all group">
               <Sofa className="w-20 h-20 text-[#00C1A7] mb-5 group-hover:text-[#00A892] transition-colors" strokeWidth={1.5} />
-              <span className="text-black font-semibold text-center">Sommiers y Bases</span>
+              <span className="text-black font-semibold text-center">Sommiers</span>
             </div>
 
             <div className="bg-white border border-gray-200 rounded-lg p-10 flex flex-col items-center justify-center min-h-[220px] cursor-pointer hover:shadow-lg hover:border-gray-300 transition-all group">
@@ -249,6 +249,7 @@ export default async function Home() {
             {products.map((product) => (
               <ProductCard
                 key={product.id}
+                id={String(product.id)}
                 image={product.image}
                 alt={product.alt}
                 name={product.name}
@@ -305,29 +306,17 @@ export default async function Home() {
 
             {/* Productos */}
             {products.slice(0, 3).map((product) => (
-              <div key={product.id} className="bg-white p-4 rounded-[20px]" style={{ height: '400px' }}>
-                <div className="cursor-pointer h-full flex flex-col" style={{ fontFamily: 'DM Sans, sans-serif' }}>
-                  <div className="relative w-full flex-1 rounded-[10px] overflow-hidden">
-                    <img
-                      src={product.image}
-                      alt={product.alt}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute top-2 right-2 bg-[#00C1A7] text-white px-2 py-1 rounded-[4px] font-semibold text-xs">
-                      %50 OFF
-                    </div>
-                  </div>
-                  <div className="pt-3">
-                    <div className="mb-1">
-                      <h4 className="text-sm font-normal text-gray-900 leading-tight">
-                        Colchón Lumma 2 plazas (140×190cm) de resortes
-                      </h4>
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-xl font-semibold text-gray-900">$400.000</span>
-                      <span className="text-sm text-gray-400 line-through">$800.000</span>
-                    </div>
-                  </div>
+              <div key={product.id} className="bg-white p-4 rounded-[20px] h-full cursor-pointer">
+                <div className="h-full flex flex-col">
+                  <ProductCard
+                    id={String(product.id)}
+                    image={product.image}
+                    alt={product.alt}
+                    name={product.name}
+                    currentPrice={product.currentPrice}
+                    originalPrice={product.originalPrice}
+                    discount={product.discount}
+                  />
                 </div>
               </div>
             ))}
@@ -395,6 +384,7 @@ export default async function Home() {
             {pillows.map((product) => (
               <ProductCard
                 key={product.id}
+                id={String(product.id)}
                 image={product.image}
                 alt={product.alt}
                 name={product.name}
@@ -412,7 +402,7 @@ export default async function Home() {
         <div className="container mx-auto px-4">
           {/* Section Header */}
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-xl font-semibold text-gray-800">Nuestros Productos</h3>
+            <h3 className="text-xl font-semibold text-gray-800">Completa tu compra</h3>
             <a href="#" className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors">
               <span className="font-medium">Ver todos</span>
               <ArrowRight className="w-5 h-5" />
@@ -424,6 +414,7 @@ export default async function Home() {
             {sommiers.map((product) => (
               <ProductCard
                 key={product.id}
+                id={String(product.id)}
                 image={product.image}
                 alt={product.alt}
                 name={product.name}
