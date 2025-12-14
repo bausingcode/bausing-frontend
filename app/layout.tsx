@@ -3,6 +3,7 @@ import { DM_Sans } from "next/font/google";
 import "./globals.css";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import { CartProvider } from "./contexts/CartContext";
+import { AuthProvider } from "./contexts/AuthContext";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -24,10 +25,12 @@ export default function RootLayout({
   return (
     <html lang="en" className={dmSans.variable}>
       <body className={dmSans.className}>
-        <CartProvider>
-          {children}
-          <WhatsAppButton />
-        </CartProvider>
+        <AuthProvider>
+          <CartProvider>
+            {children}
+            <WhatsAppButton />
+          </CartProvider>
+        </AuthProvider>
       </body>
     </html>
   );

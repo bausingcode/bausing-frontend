@@ -58,6 +58,7 @@ export default function ProductCard({
   const priceIn12Installments = calculatePriceInInstallments(currentPrice);
 
   const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     addToCart({
       id: productId,
@@ -71,6 +72,7 @@ export default function ProductCard({
   };
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     if (isFavorite) {
       removeFromFavorites(productId);
@@ -103,11 +105,21 @@ export default function ProductCard({
         )}
         
         {/* Botones de acción */}
-        <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
+        <div 
+          className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+        >
           {/* Botón de favoritos */}
           <button
             onClick={handleToggleFavorite}
-            className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 cursor-pointer ${
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 cursor-pointer relative z-30 ${
               isFavorite
                 ? "bg-red-500 text-white hover:bg-red-600"
                 : "bg-white text-gray-700 hover:bg-gray-50"
@@ -120,7 +132,11 @@ export default function ProductCard({
           {/* Botón de carrito */}
           <button
             onClick={handleAddToCart}
-            className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 cursor-pointer bg-white text-gray-700 hover:bg-gray-50 ${showCartAnimation ? "scale-125" : ""}`}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 cursor-pointer bg-white text-gray-700 hover:bg-gray-50 relative z-30 ${showCartAnimation ? "scale-125" : ""}`}
             aria-label="Agregar al carrito"
           >
             <ShoppingCart className="w-5 h-5" />

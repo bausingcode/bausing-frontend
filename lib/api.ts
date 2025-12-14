@@ -728,3 +728,167 @@ export async function deleteHeroImage(imageId: string): Promise<void> {
   }
 }
 
+// ============================================
+// USER AUTHENTICATION API
+// ============================================
+
+export interface User {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+  dni?: string;
+  email_verified: boolean;
+  created_at?: string;
+}
+
+export interface LoginResponse {
+  success: boolean;
+  data: {
+    user: User;
+    token: string;
+    email_verified: boolean;
+  };
+  error?: string;
+}
+
+export interface RegisterResponse {
+  success: boolean;
+  data: {
+    user: User;
+    token: string;
+    message?: string;
+  };
+  error?: string;
+}
+
+/**
+ * Get user token from localStorage
+ */
+export function getUserToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("user_token");
+}
+
+/**
+ * Create headers with user token
+ */
+export function getUserAuthHeaders(): HeadersInit {
+  const token = getUserToken();
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+  
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  
+  return headers;
+}
+
+/**
+ * Login user
+ */
+export async function loginUser(email: string, password: string): Promise<LoginResponse> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/auth/login`
+    : `/api/auth/login`;
+  
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email, password }),
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.error || "Error al iniciar sesión");
+  }
+  
+  return data;
+}
+
+/**
+ * Register user
+ */
+export async function registerUser(userData: {
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+  dni?: string;
+}): Promise<RegisterResponse> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/auth/register`
+    : `/api/auth/register`;
+  
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(userData),
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.error || "Error al registrarse");
+  }
+  
+  return data;
+}
+
+/**
+ * Get current authenticated user
+ */
+export async function getCurrentUser(): Promise<User | null> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/auth/me`
+      : `/api/auth/me`;
+    
+    const response = await fetch(url, {
+      headers: getUserAuthHeaders(),
+      cache: "no-store",
+    });
+    
+    if (!response.ok) {
+      return null;
+    }
+    
+    const data = await response.json();
+    return data.success ? data.data : null;
+  } catch (error) {
+    console.error("Error fetching current user:", error);
+    return null;
+  }
+}
+
+/**
+ * Fetch all regular users (customers) - Admin only
+ */
+export async function fetchCustomers(cookieHeader?: string | null): Promise<User[]> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/customers`
+    : `/api/admin/customers`;
+  
+  const headers = typeof window === "undefined" 
+    ? getAuthHeadersServer(cookieHeader)
+    : getAuthHeaders();
+  
+  const response = await fetch(url, { headers, cache: "no-store" });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch customers: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.success ? data.data : [];
+}
+

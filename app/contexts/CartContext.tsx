@@ -1,6 +1,8 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "./AuthContext";
 
 interface CartItem {
   id: string;
@@ -34,6 +36,8 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [favorites, setFavorites] = useState<FavoritesItem[]>([]);
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
 
   // Cargar desde localStorage al montar
   useEffect(() => {
@@ -67,6 +71,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [favorites]);
 
   const addToCart = (item: Omit<CartItem, "quantity">) => {
+    if (!isAuthenticated) {
+      router.push("/login");
+      return;
+    }
     setCart((prev) => {
       const existing = prev.find((i) => i.id === item.id);
       if (existing) {
@@ -83,6 +91,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const addToFavorites = (item: FavoritesItem) => {
+    if (!isAuthenticated) {
+      router.push("/login");
+      return;
+    }
     setFavorites((prev) => {
       if (prev.find((i) => i.id === item.id)) {
         return prev;

@@ -1,50 +1,102 @@
+"use client";
+
+import { useState, useEffect, useMemo } from "react";
 import PageHeader from "@/components/PageHeader";
 import ClientsTable from "@/components/ClientsTable";
 import { Search, Download } from "lucide-react";
+import { fetchCustomers, User } from "@/lib/api";
+
+interface Client {
+  nombre: string;
+  telefono: string;
+  email: string;
+  localidad: string;
+  compras: number;
+  ultimaCompra: string;
+  saldoBilletera: string;
+  estado: string;
+}
 
 export default function Clientes() {
-  const clients = [
-    {
-      nombre: "Juan Pérez",
-      telefono: "+54 9 11 1234-5678",
-      email: "juan.perez@email.com",
-      localidad: "Buenos Aires, Buenos Aires",
-      compras: 5,
-      ultimaCompra: "2025-11-28",
-      saldoBilletera: "$12,500",
-      estado: "Activo",
-    },
-    {
-      nombre: "María González",
-      telefono: "+54 9 11 2345-6789",
-      email: "maria.gonzalez@email.com",
-      localidad: "Córdoba, Córdoba",
-      compras: 3,
-      ultimaCompra: "2025-11-27",
-      saldoBilletera: "$8,200",
-      estado: "Activo",
-    },
-    {
-      nombre: "Carlos Rodríguez",
-      telefono: "+54 9 11 3456-7890",
-      email: "carlos.rodriguez@email.com",
-      localidad: "Rosario, Santa Fe",
-      compras: 2,
-      ultimaCompra: "2025-11-28",
-      saldoBilletera: "$0",
-      estado: "Activo",
-    },
-    {
-      nombre: "Ana Martínez",
-      telefono: "+54 9 11 4567-8901",
-      email: "ana.martinez@email.com",
-      localidad: "Mendoza, Mendoza",
-      compras: 7,
-      ultimaCompra: "2025-11-26",
-      saldoBilletera: "$25,600",
-      estado: "Activo",
-    },
-  ];
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    const loadCustomers = async () => {
+      try {
+        setIsLoading(true);
+        const customers = await fetchCustomers();
+        setUsers(customers);
+      } catch (error) {
+        console.error("Error fetching customers:", error);
+        setUsers([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadCustomers();
+  }, []);
+
+  // Convert users to clients format
+  const clients: Client[] = useMemo(() => {
+    return users.map((user) => ({
+      nombre: `${user.first_name} ${user.last_name}`.trim(),
+      telefono: user.phone || "N/A",
+      email: user.email,
+      localidad: "N/A", // Not available in user model yet
+      compras: 0, // Not available in user model yet
+      ultimaCompra: "N/A", // Not available in user model yet
+      saldoBilletera: "$0", // Not available in user model yet
+      estado: user.email_verified ? "Activo" : "Inactivo",
+    }));
+  }, [users]);
+
+  // Filter clients based on search query
+  const filteredClients = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return clients;
+    }
+
+    const query = searchQuery.toLowerCase();
+    return clients.filter(
+      (client) =>
+        client.nombre.toLowerCase().includes(query) ||
+        client.telefono.toLowerCase().includes(query) ||
+        client.email.toLowerCase().includes(query)
+    );
+  }, [clients, searchQuery]);
+
+  // Export to CSV
+  const handleExport = () => {
+    const headers = ["Nombre", "Teléfono", "Email", "Localidad", "Compras", "Última Compra", "Saldo Billetera", "Estado"];
+    const rows = filteredClients.map((client) => [
+      client.nombre,
+      client.telefono,
+      client.email,
+      client.localidad,
+      client.compras.toString(),
+      client.ultimaCompra,
+      client.saldoBilletera,
+      client.estado,
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `clientes_${new Date().toISOString().split("T")[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="px-8 pt-6 pb-8 min-h-screen">
@@ -61,10 +113,16 @@ export default function Clientes() {
             <input
               type="text"
               placeholder="Buscar por nombre, teléfono o email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-3 text-sm border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
             />
           </div>
-          <button className="px-4 py-2 cursor-pointer text-white rounded-[6px] font-medium hover:opacity-90 transition-colors flex items-center gap-2" style={{ backgroundColor: '#155DFC' }}>
+          <button 
+            onClick={handleExport}
+            className="px-4 py-2 cursor-pointer text-white rounded-[6px] font-medium hover:opacity-90 transition-colors flex items-center gap-2" 
+            style={{ backgroundColor: '#155DFC' }}
+          >
             <Download className="w-5 h-5" />
             Exportar
           </button>
@@ -72,7 +130,19 @@ export default function Clientes() {
       </div>
 
       {/* Clients Table */}
-      <ClientsTable clients={clients} />
+      {isLoading ? (
+        <div className="bg-white rounded-[10px] border border-gray-200 p-8 text-center" style={{ borderRadius: '14px' }}>
+          <p className="text-gray-500">Cargando clientes...</p>
+        </div>
+      ) : filteredClients.length === 0 ? (
+        <div className="bg-white rounded-[10px] border border-gray-200 p-8 text-center" style={{ borderRadius: '14px' }}>
+          <p className="text-gray-500">
+            {searchQuery ? "No se encontraron clientes con ese criterio de búsqueda." : "No hay clientes registrados."}
+          </p>
+        </div>
+      ) : (
+        <ClientsTable clients={filteredClients} />
+      )}
     </div>
   );
 }

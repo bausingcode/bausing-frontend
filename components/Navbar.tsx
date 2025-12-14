@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { 
   Truck, 
   CreditCard, 
@@ -28,10 +29,12 @@ import {
   Combine,
   Sheet,
   Droplets,
-  Sandwich
+  Sandwich,
+  LogOut
 } from "lucide-react";
 import Cart from "./Cart";
 import Image from "next/image";
+import { useAuth } from "@/app/contexts/AuthContext";
 
 // Tipos para la estructura de datos
 interface SubcategoryItem {
@@ -268,7 +271,45 @@ export default function Navbar() {
   const [previousCategory, setPreviousCategory] = useState<string | null>(null);
   const [isClosing, setIsClosing] = useState(false);
   const [closingCategory, setClosingCategory] = useState<string | null>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const { user, isAuthenticated, logout } = useAuth();
+  const router = useRouter();
+
+  // Cerrar menú de usuario al hacer click fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showUserMenu && userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+
+    if (showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showUserMenu]);
+
+  const handleFavoritesClick = () => {
+    if (!isAuthenticated) {
+      router.push("/login");
+      return;
+    }
+    // TODO: Navegar a favoritos cuando esté implementado
+    console.log("Favoritos");
+  };
+
+  const handleCartClick = () => {
+    if (!isAuthenticated) {
+      router.push("/login");
+      return;
+    }
+    setIsCartOpen(true);
+  };
 
   return (
     <>
@@ -320,17 +361,73 @@ export default function Navbar() {
 
               {/* User and Cart Icons */}
               <div className="flex items-center justify-end gap-6 flex-shrink-0">
-                <div className="flex items-center gap-2 cursor-pointer group">
-                  <User className="w-7 h-7 text-gray-700 group-hover:text-gray-900" strokeWidth={1.5} />
-                  <div className="flex flex-col">
-                    <span className="text-xs text-gray-700 font-normal">Tu cuenta</span>
-                    <span className="text-xs text-[#000000] font-semibold">Ingresa a tu cuenta</span>
-                  </div>
+                {/* User Menu */}
+                <div 
+                  ref={userMenuRef}
+                  className="relative z-[60]"
+                >
+                  {isAuthenticated && user ? (
+                    <div 
+                      className="flex items-center gap-2 cursor-pointer group relative"
+                      onClick={() => setShowUserMenu(!showUserMenu)}
+                    >
+                      <User className="w-7 h-7 text-gray-700 group-hover:text-gray-900" strokeWidth={1.5} />
+                      <div className="flex flex-col">
+                        <span className="text-xs text-gray-700 font-normal">Mi cuenta</span>
+                        <span className="text-xs text-[#000000] font-semibold">
+                          {user.first_name} {user.last_name}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div 
+                      className="flex items-center gap-2 cursor-pointer group"
+                      onClick={() => router.push("/login")}
+                    >
+                      <User className="w-7 h-7 text-gray-700 group-hover:text-gray-900" strokeWidth={1.5} />
+                      <div className="flex flex-col">
+                        <span className="text-xs text-gray-700 font-normal">Tu cuenta</span>
+                        <span className="text-xs text-[#000000] font-semibold">Ingresa a tu cuenta</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* User Dropdown Menu */}
+                  {showUserMenu && isAuthenticated && (
+                    <div 
+                      className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-[60]"
+                    >
+                      <div className="px-4 py-2 border-b border-gray-100">
+                        <p className="text-sm font-semibold text-gray-900">
+                          {user?.first_name} {user?.last_name}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          logout();
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Cerrar sesión
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <Heart className="w-6 h-6 text-gray-700 cursor-pointer hover:text-gray-900" />
+                
+                {/* Favorites */}
+                <Heart 
+                  className="w-6 h-6 text-gray-700 cursor-pointer hover:text-gray-900 transition-colors" 
+                  onClick={handleFavoritesClick}
+                />
+                
+                {/* Cart */}
                 <div 
                   className="cursor-pointer group"
-                  onClick={() => setIsCartOpen(true)}
+                  onClick={handleCartClick}
                 >
                   <ShoppingCart 
                     className="w-6 h-6 text-gray-700 fill-transparent group-hover:text-black group-hover:fill-black transition-[color,fill] duration-300 ease-in-out" 
@@ -713,8 +810,9 @@ export default function Navbar() {
       </div>
 
       {/* Cart Overlay */}
-      <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
-    </>
-  );
+        <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+        
+      </>
+    );
 }
 

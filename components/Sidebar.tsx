@@ -165,7 +165,7 @@ export default function Sidebar() {
                   href="/admin/clientes"
                   icon={<Users className="w-5 h-5" />}
                 >
-                  Clientes (X)
+                  Clientes
                 </NavLink>
               </li>
               <li key="billetera">
