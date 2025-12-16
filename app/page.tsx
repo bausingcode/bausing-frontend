@@ -6,7 +6,11 @@ import {
   Award,
   Factory,
   Truck,
-  CreditCard
+  CreditCard,
+  BookOpen,
+  MessageCircle,
+  HelpCircle,
+  MapPin
 } from "lucide-react";
 import ProductCard from "@/components/ProductCard";
 import BannerCarousel from "@/components/BannerCarousel";
@@ -427,7 +431,97 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* Information Section */}
+      <section className="bg-white py-12">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-4 gap-8">
+            {/* Blog */}
+            <a 
+              href="/blog" 
+              className="bg-white border border-gray-200 rounded-lg p-8 flex flex-col items-center text-center cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all duration-300 group"
+            >
+              <div className="w-18 h-18 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300">
+                <BookOpen className="w-9 h-9 text-[#00C1A7] group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
+              </div>
+              <p className="text-[#101828] mb-1 font-semibold">Blog</p>
+              <p className="text-sm text-[#4A5565]">Consejos y guías para un mejor descanso</p>
+            </a>
+
+            {/* Asesoramiento Personalizado */}
+            <a 
+              href="/asesoramiento" 
+              className="bg-white border border-gray-200 rounded-lg p-8 flex flex-col items-center text-center cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all duration-300 group"
+            >
+              <div className="w-18 h-18 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300">
+                <MessageCircle className="w-9 h-9 text-[#00C1A7] group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
+              </div>
+              <p className="text-[#101828] mb-1 font-semibold">Asesoramiento</p>
+              <p className="text-sm text-[#4A5565]">Te ayudamos a encontrar el producto ideal</p>
+            </a>
+
+            {/* Preguntas Frecuentes */}
+            <a 
+              href="/preguntas-frecuentes" 
+              className="bg-white border border-gray-200 rounded-lg p-8 flex flex-col items-center text-center cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all duration-300 group"
+            >
+              <div className="w-18 h-18 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300">
+                <HelpCircle className="w-9 h-9 text-[#00C1A7] group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
+              </div>
+              <p className="text-[#101828] mb-1 font-semibold">Preguntas Frecuentes</p>
+              <p className="text-sm text-[#4A5565]">Resolvemos todas tus dudas</p>
+            </a>
+
+            {/* Nuestro Local */}
+            <a 
+              href="/nuestro-local" 
+              className="bg-white border border-gray-200 rounded-lg p-8 flex flex-col items-center text-center cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all duration-300 group"
+            >
+              <div className="w-18 h-18 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300">
+                <MapPin className="w-9 h-9 text-[#00C1A7] group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
+              </div>
+              <p className="text-[#101828] mb-1 font-semibold">Nuestro Local</p>
+              <p className="text-sm text-[#4A5565]">Visítanos y conoce nuestros productos</p>
+            </a>
+          </div>
+        </div>
+      </section>
+
       <ReviewsSection />
+
+      {/* Newsletter Section */}
+      <section className="bg-white py-16">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-gray-50 rounded-[20px] p-12 border border-gray-200">
+              <div className="text-center mb-8">
+                <h2 className="text-3xl font-bold text-[#101828] mb-3">
+                  ¡No te pierdas nuestras ofertas exclusivas!
+                </h2>
+                <p className="text-lg text-[#4A5565]">
+                  Suscríbete a nuestro newsletter y recibe descuentos especiales, novedades y consejos para un mejor descanso
+                </p>
+              </div>
+              <form className="flex flex-col sm:flex-row gap-4 max-w-2xl mx-auto">
+                <input
+                  type="email"
+                  placeholder="Ingresa tu email"
+                  className="flex-1 px-6 py-4 rounded-full bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-base"
+                  required
+                />
+                <button
+                  type="submit"
+                  className="bg-gray-900 text-white font-bold px-8 py-4 rounded-full hover:bg-gray-800 transition-colors duration-300 text-base whitespace-nowrap shadow-md hover:shadow-lg"
+                >
+                  Suscribirme
+                </button>
+              </form>
+              <p className="text-center text-sm text-[#4A5565] mt-4">
+                Al suscribirte, aceptas recibir comunicaciones de marketing. Puedes darte de baja en cualquier momento.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <Footer />
     </div>
