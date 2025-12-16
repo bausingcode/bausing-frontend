@@ -41,24 +41,9 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Newsletter y Redes Sociales */}
+          {/* Redes Sociales */}
           <div className="-ml-2">
-            <h4 className="font-semibold text-gray-900 mb-4 whitespace-nowrap">Suscribite a nuestro newsletter!</h4>
-            <form className="mb-6">
-              <div className="relative">
-                <input
-                  type="email"
-                  placeholder="Ingresá tu email"
-                  className="w-full px-6 py-3.5 pr-12 bg-white border border-gray-300 rounded-full text-sm font-normal text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7]"
-                />
-                <button
-                  type="submit"
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-900 hover:text-gray-700 transition-colors"
-                >
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-              </div>
-            </form>
+            <h4 className="font-semibold text-gray-900 mb-4 whitespace-nowrap">Seguinos</h4>
             
             {/* Social Media Icons */}
             <div className="flex gap-3">
