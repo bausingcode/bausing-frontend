@@ -75,8 +75,8 @@ const categoriesData: Record<string, CategoryData> = {
           iconSize: { width: '40px', height: '40px' },
           description: "80x190 cm",
           subcategories: [
-            { name: "Espuma alta densidad", href: "/colchones/una-plaza/espuma-alta-densidad", icon: Bed },
-            { name: "Resortes", href: "/colchones/una-plaza/resortes", icon: Bed }
+            { name: "Espuma alta densidad", href: "/catalogo/colchones/una-plaza/espuma-alta-densidad", icon: Bed },
+            { name: "Resortes", href: "/catalogo/colchones/una-plaza/resortes", icon: Bed }
           ]
         },
         {
@@ -85,8 +85,8 @@ const categoriesData: Record<string, CategoryData> = {
           iconSize: { width: '40px', height: '40px' },
           description: "90x190 / 100x200 cm",
           subcategories: [
-            { name: "Espuma alta densidad", href: "/colchones/plaza-y-media/espuma-alta-densidad", icon: Bed },
-            { name: "Resortes", href: "/colchones/plaza-y-media/resortes", icon: Bed }
+            { name: "Espuma alta densidad", href: "/catalogo/colchones/plaza-y-media/espuma-alta-densidad", icon: Bed },
+            { name: "Resortes", href: "/catalogo/colchones/plaza-y-media/resortes", icon: Bed }
           ]
         },
         {
@@ -95,8 +95,8 @@ const categoriesData: Record<string, CategoryData> = {
           iconSize: { width: '40px', height: '40px' },
           description: "140x190 cm",
           subcategories: [
-            { name: "Espuma alta densidad", href: "/colchones/dos-plazas/espuma-alta-densidad", icon: Bed },
-            { name: "Resortes", href: "/colchones/dos-plazas/resortes", icon: Bed }
+            { name: "Espuma alta densidad", href: "/catalogo/colchones/dos-plazas/espuma-alta-densidad", icon: Bed },
+            { name: "Resortes", href: "/catalogo/colchones/dos-plazas/resortes", icon: Bed }
           ]
         }
       ],
@@ -107,8 +107,8 @@ const categoriesData: Record<string, CategoryData> = {
           iconSize: { width: '40px', height: '40px' },
           description: "160x200 cm",
           subcategories: [
-            { name: "Espuma alta densidad", href: "/colchones/queen/espuma-alta-densidad", icon: Bed },
-            { name: "Resortes", href: "/colchones/queen/resortes", icon: Bed }
+            { name: "Espuma alta densidad", href: "/catalogo/colchones/queen/espuma-alta-densidad", icon: Bed },
+            { name: "Resortes", href: "/catalogo/colchones/queen/resortes", icon: Bed }
           ]
         },
         {
@@ -117,8 +117,8 @@ const categoriesData: Record<string, CategoryData> = {
           iconSize: { width: '40px', height: '40px' },
           description: "180x200 cm",
           subcategories: [
-            { name: "Espuma alta densidad", href: "/colchones/extra-queen/espuma-alta-densidad", icon: Bed },
-            { name: "Resortes", href: "/colchones/extra-queen/resortes", icon: Bed }
+            { name: "Espuma alta densidad", href: "/catalogo/colchones/extra-queen/espuma-alta-densidad", icon: Bed },
+            { name: "Resortes", href: "/catalogo/colchones/extra-queen/resortes", icon: Bed }
           ]
         },
         {
@@ -127,8 +127,8 @@ const categoriesData: Record<string, CategoryData> = {
           iconSize: { width: '40px', height: '40px' },
           description: "200x200 cm",
           subcategories: [
-            { name: "Espuma alta densidad", href: "/colchones/king/espuma-alta-densidad", icon: Bed },
-            { name: "Resortes", href: "/colchones/king/resortes", icon: Bed }
+            { name: "Espuma alta densidad", href: "/catalogo/colchones/king/espuma-alta-densidad", icon: Bed },
+            { name: "Resortes", href: "/catalogo/colchones/king/resortes", icon: Bed }
           ]
         }
       ]
@@ -144,13 +144,13 @@ const categoriesData: Record<string, CategoryData> = {
           name: "Sommier (colchón + base)",
           icon: Sofa,
           iconSize: { width: '48px', height: '40px' },
-          href: "/sommiers/sommier-completo"
+          href: "/catalogo/sommiers/sommier-completo"
         },
         {
           name: "Bases",
           icon: Sofa,
           iconSize: { width: '48px', height: '40px' },
-          href: "/sommiers/bases"
+          href: "/catalogo/sommiers/bases"
         }
       ],
       middle: [
@@ -158,13 +158,13 @@ const categoriesData: Record<string, CategoryData> = {
           name: "Sommier + respaldo",
           icon: Sofa,
           iconSize: { width: '48px', height: '40px' },
-          href: "/sommiers/sommier-respaldo"
+          href: "/catalogo/sommiers/sommier-respaldo"
         },
         {
           name: "Respaldos",
           icon: Sofa,
           iconSize: { width: '48px', height: '40px' },
-          href: "/sommiers/respaldos"
+          href: "/catalogo/sommiers/respaldos"
         }
       ]
     },
@@ -179,13 +179,13 @@ const categoriesData: Record<string, CategoryData> = {
           name: "Sábanas",
           icon: Bed,
           iconSize: { width: '40px', height: '40px' },
-          href: "/accesorios/sabanas"
+          href: "/catalogo/accesorios/sabanas"
         },
         {
           name: "Cubre colchón",
           icon: Bed,
           iconSize: { width: '40px', height: '40px' },
-          href: "/accesorios/cubre-colchon"
+          href: "/catalogo/accesorios/cubre-colchon"
         }
       ],
       middle: [
@@ -193,13 +193,13 @@ const categoriesData: Record<string, CategoryData> = {
           name: "Almohadas",
           icon: Bed,
           iconSize: { width: '40px', height: '40px' },
-          href: "/accesorios/almohadas"
+          href: "/catalogo/accesorios/almohadas"
         },
         {
           name: "Acolchados",
           icon: Bed,
           iconSize: { width: '40px', height: '40px' },
-          href: "/accesorios/acolchados"
+          href: "/catalogo/accesorios/acolchados"
         }
       ]
     },
@@ -215,11 +215,11 @@ const categoriesData: Record<string, CategoryData> = {
           icon: Refrigerator,
           iconSize: { width: '40px', height: '40px' },
           subcategories: [
-            { name: "Heladeras", href: "/electrodomesticos/grandes/heladeras", icon: Refrigerator },
-            { name: "Lavarropas", href: "/electrodomesticos/grandes/lavarropas", icon: WashingMachine },
-            { name: "Aires acondicionados", href: "/electrodomesticos/grandes/aires-acondicionados", icon: AirVent },
-            { name: "Cocinas", href: "/electrodomesticos/grandes/cocinas", icon: ChefHat },
-            { name: "Smart TV", href: "/electrodomesticos/grandes/smart-tv", icon: Tv }
+            { name: "Heladeras", href: "/catalogo/electrodomesticos/grandes/heladeras", icon: Refrigerator },
+            { name: "Lavarropas", href: "/catalogo/electrodomesticos/grandes/lavarropas", icon: WashingMachine },
+            { name: "Aires acondicionados", href: "/catalogo/electrodomesticos/grandes/aires-acondicionados", icon: AirVent },
+            { name: "Cocinas", href: "/catalogo/electrodomesticos/grandes/cocinas", icon: ChefHat },
+            { name: "Smart TV", href: "/catalogo/electrodomesticos/grandes/smart-tv", icon: Tv }
           ]
         },
         {
@@ -227,10 +227,10 @@ const categoriesData: Record<string, CategoryData> = {
           icon: Microwave,
           iconSize: { width: '40px', height: '40px' },
           subcategories: [
-            { name: "Pava electrica", href: "/electrodomesticos/pequenos/pava-electrica", icon: Coffee },
-            { name: "Vaporera", href: "/electrodomesticos/pequenos/vaporera", icon: Droplets },
-            { name: "Sandwuchera", href: "/electrodomesticos/pequenos/sandwuchera", icon: Sandwich },
-            { name: "Anafe", href: "/electrodomesticos/pequenos/anafe", icon: Flame }
+            { name: "Pava electrica", href: "/catalogo/electrodomesticos/pequenos/pava-electrica", icon: Coffee },
+            { name: "Vaporera", href: "/catalogo/electrodomesticos/pequenos/vaporera", icon: Droplets },
+            { name: "Sandwuchera", href: "/catalogo/electrodomesticos/pequenos/sandwuchera", icon: Sandwich },
+            { name: "Anafe", href: "/catalogo/electrodomesticos/pequenos/anafe", icon: Flame }
           ]
         }
       ]
@@ -246,13 +246,13 @@ const categoriesData: Record<string, CategoryData> = {
           name: "Bajo mesada 120 cm",
           icon: Sofa,
           iconSize: { width: '40px', height: '40px' },
-          href: "/muebles-cocina/bajo-mesada-120"
+          href: "/catalogo/muebles-cocina/bajo-mesada-120"
         },
         {
           name: "Bajo mesada 140 cm",
           icon: Sofa,
           iconSize: { width: '40px', height: '40px' },
-          href: "/muebles-cocina/bajo-mesada-140"
+          href: "/catalogo/muebles-cocina/bajo-mesada-140"
         }
       ]
     },
@@ -469,10 +469,17 @@ export default function Navbar() {
               {mainCategories.map((categoryName) => {
                 const categoryData = categoriesData[categoryName];
                 const CategoryIcon = categoryData?.icon;
+                // Mapear nombre de categoría a slug
+                const categorySlug = categoryName.toLowerCase()
+                  .replace(/\s+/g, "-")
+                  .replace("ó", "o")
+                  .replace("é", "e");
+                const categoryUrl = `/catalogo/${categorySlug}`;
+                
                 return (
                   <a 
                     key={categoryName}
-                    href="#" 
+                    href={categoryUrl}
                     className="flex items-center gap-2 text-black hover:text-gray-600 font-medium"
                     onMouseEnter={() => {
                       // Cancelar cualquier cierre pendiente cuando cambias de categoría

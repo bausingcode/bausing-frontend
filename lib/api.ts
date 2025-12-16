@@ -148,6 +148,76 @@ export interface Product {
 }
 
 /**
+ * Fetch products with filters
+ */
+export async function fetchProducts(params?: {
+  search?: string;
+  category_id?: string;
+  category_ids?: string;
+  is_active?: boolean;
+  min_price?: number;
+  max_price?: number;
+  locality_id?: string;
+  in_stock?: boolean;
+  sort?: string;
+  page?: number;
+  per_page?: number;
+  include_variants?: boolean;
+  include_images?: boolean;
+  include_promos?: boolean;
+}): Promise<{ products: Product[]; total: number; page: number; per_page: number; total_pages: number }> {
+  try {
+    const queryParams = new URLSearchParams();
+    
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.category_id) queryParams.append('category_id', params.category_id);
+    if (params?.category_ids) queryParams.append('category_ids', params.category_ids);
+    if (params?.is_active !== undefined) queryParams.append('is_active', params.is_active.toString());
+    if (params?.min_price !== undefined) queryParams.append('min_price', params.min_price.toString());
+    if (params?.max_price !== undefined) queryParams.append('max_price', params.max_price.toString());
+    if (params?.locality_id) queryParams.append('locality_id', params.locality_id);
+    if (params?.in_stock !== undefined) queryParams.append('in_stock', params.in_stock.toString());
+    if (params?.sort) queryParams.append('sort', params.sort);
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+    if (params?.include_variants !== undefined) queryParams.append('include_variants', params.include_variants.toString());
+    if (params?.include_images !== undefined) queryParams.append('include_images', params.include_images.toString());
+    if (params?.include_promos !== undefined) queryParams.append('include_promos', params.include_promos.toString());
+
+    const url = `/api/products?${queryParams.toString()}`;
+    const response = await fetch(url, {
+      cache: "no-store",
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch products: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || "Failed to fetch products");
+    }
+    
+    return {
+      products: data.data.items || [],
+      total: data.data.total || 0,
+      page: data.data.page || 1,
+      per_page: data.data.per_page || 20,
+      total_pages: data.data.total_pages || 1,
+    };
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    return {
+      products: [],
+      total: 0,
+      page: 1,
+      per_page: 20,
+      total_pages: 0,
+    };
+  }
+}
+
+/**
  * Fetch a single product by ID
  */
 export async function fetchProductById(productId: string): Promise<Product | null> {
