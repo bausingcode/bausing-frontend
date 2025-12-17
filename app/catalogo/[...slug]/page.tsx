@@ -80,6 +80,138 @@ const EXAMPLE_PRODUCTS: Record<string, Product[]> = {
       is_active: true,
       category_name: "Colchones",
     },
+    {
+      id: "example-colchon-7",
+      name: "Colchón Vitto Plaza y media (100×190cm) espuma alta densidad",
+      description: "Colchón plaza y media de espuma de alta densidad",
+      main_image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=400&h=400&fit=crop",
+      min_price: 420000,
+      max_price: 420000,
+      price_range: "$420.000",
+      is_active: true,
+      category_name: "Colchones",
+    },
+    {
+      id: "example-colchon-8",
+      name: "Colchón Lumma Queen (160×200cm) resortes pocket",
+      description: "Colchón queen con resortes pocket",
+      main_image: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
+      min_price: 780000,
+      max_price: 780000,
+      price_range: "$780.000",
+      is_active: true,
+      category_name: "Colchones",
+    },
+    {
+      id: "example-colchon-9",
+      name: "Colchón Vitto 2 plazas (140×190cm) resortes bicónicos",
+      description: "Colchón de resortes bicónicos premium",
+      main_image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=400&h=400&fit=crop",
+      min_price: 680000,
+      max_price: 680000,
+      price_range: "$680.000",
+      is_active: true,
+      category_name: "Colchones",
+    },
+    {
+      id: "example-colchon-10",
+      name: "Colchón Lumma King (200×200cm) espuma alta densidad",
+      description: "Colchón king size de espuma de alta densidad",
+      main_image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=400&h=400&fit=crop",
+      min_price: 950000,
+      max_price: 950000,
+      price_range: "$950.000",
+      is_active: true,
+      category_name: "Colchones",
+    },
+    {
+      id: "example-colchon-11",
+      name: "Colchón Vitto 1 plaza (80×190cm) resortes pocket",
+      description: "Colchón individual con resortes pocket",
+      main_image: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
+      min_price: 380000,
+      max_price: 380000,
+      price_range: "$380.000",
+      is_active: true,
+      category_name: "Colchones",
+    },
+    {
+      id: "example-colchon-12",
+      name: "Colchón Lumma Extra-Queen (180×200cm) espuma alta densidad",
+      description: "Colchón extra-queen de espuma de alta densidad",
+      main_image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=400&h=400&fit=crop",
+      min_price: 820000,
+      max_price: 820000,
+      price_range: "$820.000",
+      is_active: true,
+      category_name: "Colchones",
+    },
+    {
+      id: "example-colchon-13",
+      name: "Colchón Vitto Queen (160×200cm) resortes bicónicos",
+      description: "Colchón queen con resortes bicónicos",
+      main_image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=400&h=400&fit=crop",
+      min_price: 720000,
+      max_price: 720000,
+      price_range: "$720.000",
+      is_active: true,
+      category_name: "Colchones",
+    },
+    {
+      id: "example-colchon-14",
+      name: "Colchón Lumma Plaza y media (100×190cm) resortes pocket",
+      description: "Colchón plaza y media con resortes pocket",
+      main_image: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
+      min_price: 450000,
+      max_price: 450000,
+      price_range: "$450.000",
+      is_active: true,
+      category_name: "Colchones",
+    },
+    {
+      id: "example-colchon-15",
+      name: "Colchón Vitto 2 plazas (140×190cm) espuma alta densidad",
+      description: "Colchón dos plazas de espuma de alta densidad",
+      main_image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=400&h=400&fit=crop",
+      min_price: 580000,
+      max_price: 580000,
+      price_range: "$580.000",
+      is_active: true,
+      category_name: "Colchones",
+    },
+    {
+      id: "example-colchon-16",
+      name: "Colchón Lumma King (200×200cm) resortes bicónicos",
+      description: "Colchón king size con resortes bicónicos",
+      main_image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=400&h=400&fit=crop",
+      min_price: 980000,
+      max_price: 980000,
+      price_range: "$980.000",
+      is_active: true,
+      category_name: "Colchones",
+    },
+    {
+      id: "example-colchon-17",
+      name: "Colchón Vitto 1 plaza (80×190cm) resortes bicónicos",
+      description: "Colchón individual con resortes bicónicos",
+      main_image: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
+      min_price: 360000,
+      max_price: 360000,
+      price_range: "$360.000",
+      is_active: true,
+      category_name: "Colchones",
+    },
+    {
+      id: "example-colchon-18",
+      name: "Colchón Lumma Extra-Queen (180×200cm) resortes bicónicos",
+      description: "Colchón extra-queen con resortes bicónicos",
+      main_image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=400&h=400&fit=crop",
+      min_price: 880000,
+      max_price: 880000,
+      price_range: "$880.000",
+      is_active: true,
+      category_name: "Colchones",
+    },
   ],
   "Sommiers": [
     {
@@ -888,6 +1020,27 @@ export default function CatalogoPage() {
   
   return (
     <div className="min-h-screen bg-white">
+      <style jsx global>{`
+        /* Scrollbar estilizada y delgada para el contenedor de filtros */
+        .custom-scrollbar {
+          scrollbar-width: thin; /* Firefox */
+          scrollbar-color: #a8b1c2 #f4f5f7;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f4f5f7;
+          border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #a8b1c2;
+          border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #8a94a8;
+        }
+      `}</style>
       <Navbar />
       
       <div className="container mx-auto px-4 py-8">
@@ -922,17 +1075,18 @@ export default function CatalogoPage() {
         </div>
         
         {/* Barra superior con filtros y ordenar (sticky junto al navbar) */}
-        <div className="flex items-center justify-between mb-6 sticky top-[150px] z-30 bg-white pb-3 pt-4">
+        <div className="sticky top-[150px] z-30 bg-white -mx-4 px-4 pb-3 pt-4 mb-6">
+          <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2 w-full max-w-[290px]">
             <h2 className="text-lg font-semibold text-gray-900">Filtros</h2>
             <button
               onClick={() => setFiltersExpanded(!filtersExpanded)}
-              className="ml-auto text-gray-600 hover:text-gray-900 transition-colors"
+              className="ml-auto text-gray-600 hover:text-gray-900 transition-all duration-300"
             >
               {filtersExpanded ? (
-                <Minus className="w-4 h-4" />
+                <Minus className="w-4 h-4 transition-transform duration-300" />
               ) : (
-                <Plus className="w-4 h-4" />
+                <Plus className="w-4 h-4 transition-transform duration-300" />
               )}
             </button>
           </div>
@@ -941,7 +1095,7 @@ export default function CatalogoPage() {
           <div className="relative">
             <button
               onClick={() => setShowSortMenu(!showSortMenu)}
-              className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 transition-colors"
+              className="flex items-center gap-2 text-sm text-black hover:text-gray-900 transition-colors"
             >
               <span>
                 Ordenar por: {sortOptions.find(opt => opt.value === sortBy)?.label}
@@ -975,17 +1129,18 @@ export default function CatalogoPage() {
               </>
             )}
           </div>
+          </div>
         </div>
         
         {/* Main Content Grid: Sidebar + Products */}
         <div className="grid grid-cols-12 gap-6">
           {/* Sidebar de Filtros - 3 columnas, oculto cuando está cerrado */}
           {filtersExpanded && (
-            <aside className="col-span-12 lg:col-span-3">
-              <div className="bg-white rounded-[10px] border border-gray-200 p-6 lg:sticky lg:top-[200px] max-h-[calc(100vh-12rem)] overflow-y-auto">
+            <aside className="col-span-12 lg:col-span-3 transition-all duration-300 ease-in-out">
+              <div className="bg-white rounded-[10px] border border-gray-200 p-6 sticky top-[210px] max-h-[calc(100vh-12rem)] overflow-y-auto custom-scrollbar">
                 {/* Contenido de filtros - alineado con el grid de productos (después del mb-6 del dropdown) */}
                 {hasActiveFilters && (
-                  <div className="flex justify-end mb-4">
+                  <div className="flex justify-start mb-4">
                     <button
                       onClick={clearAllFilters}
                       className="text-sm text-[#00C1A7] hover:text-[#00A892] transition-colors"
@@ -1044,7 +1199,7 @@ export default function CatalogoPage() {
               </div>
             ) : (
               <>
-                <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 ${filtersExpanded ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
+                <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 transition-all duration-300 ease-in-out ${filtersExpanded ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
                   {products.map((product) => (
                     <ProductCard key={product.id} {...getProductCardProps(product)} />
                   ))}

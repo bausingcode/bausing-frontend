@@ -790,7 +790,7 @@ export default function Navbar() {
 
   return (
     <>
-      <div className="sticky top-0 z-50 bg-white shadow-sm">
+      <div className="sticky top-0 z-50 bg-white">
         {/* Top Header - Light Green Bar */}
         <div className="bg-[#00C1A7] py-1.5">
           <div className="container mx-auto px-4">
@@ -872,7 +872,7 @@ export default function Navbar() {
                   {/* User Dropdown Menu */}
                   {showUserMenu && isAuthenticated && (
                     <div 
-                      className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-[60]"
+                      className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg border border-gray-200 py-2 z-[60]"
                     >
                       <div className="px-4 py-2 border-b border-gray-100">
                         <p className="text-sm font-semibold text-gray-900">
@@ -1069,7 +1069,7 @@ export default function Navbar() {
             return (
               <div 
                 key={categoryName}
-                className={`absolute top-full left-0 w-full bg-white shadow-lg border-t border-gray-200 z-50 ${previousCategory === null && !isClosing ? 'animate-slideInFromTop' : ''} ${isClosing && closingCategory === categoryName ? 'animate-slideOutToTop' : ''}`}
+                className={`absolute top-full left-0 w-full bg-white border-t border-gray-200 z-50 ${previousCategory === null && !isClosing ? 'animate-slideInFromTop' : ''} ${isClosing && closingCategory === categoryName ? 'animate-slideOutToTop' : ''}`}
                 style={{ marginTop: '-1px' }}
                 onMouseEnter={() => {
                   // Si el mouse entra al dropdown, no está saliendo
