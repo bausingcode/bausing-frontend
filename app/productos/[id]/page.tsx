@@ -69,7 +69,7 @@ export default function ProductDetailPage() {
           description: "Colchón de alta calidad con resortes bonell de acero de alta resistencia. Diseñado para brindar el máximo confort y soporte durante toda la noche. Ideal para personas que buscan un descanso reparador.",
           currentPrice: "$400.000",
           originalPrice: "$800.000",
-          discount: "%50 OFF",
+          discount: "OFERTA",
           images: [
             { id: "1", url: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800&h=800&fit=crop" },
             { id: "2", url: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=800&h=800&fit=crop" },
@@ -113,7 +113,7 @@ export default function ProductDetailPage() {
         if (apiProduct.promos && apiProduct.promos.length > 0) {
           const promo = apiProduct.promos[0];
           if (promo.discount_percentage) {
-            discount = `%${promo.discount_percentage} OFF`;
+            discount = "OFERTA";
           }
         }
 
@@ -166,7 +166,7 @@ export default function ProductDetailPage() {
           description: "Colchón de alta calidad con resortes bonell de acero de alta resistencia. Diseñado para brindar el máximo confort y soporte durante toda la noche. Ideal para personas que buscan un descanso reparador.",
           currentPrice: "$400.000",
           originalPrice: "$800.000",
-          discount: "%50 OFF",
+          discount: "OFERTA",
           images: [
             { id: "1", url: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800&h=800&fit=crop" },
             { id: "2", url: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=800&h=800&fit=crop" },
@@ -524,7 +524,7 @@ export default function ProductDetailPage() {
                 name: "Colchón Lumma 2 plazas (140x190cm) de resortes",
                 currentPrice: "$400.000",
                 originalPrice: "$800.000",
-                discount: "%50 OFF",
+                discount: "OFERTA",
                 image: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
               },
               {
@@ -532,7 +532,7 @@ export default function ProductDetailPage() {
                 name: "Colchón Vitto 2 plazas (140x190cm) de resortes",
                 currentPrice: "$750.000",
                 originalPrice: "$1.500.000",
-                discount: "%50 OFF",
+                discount: "OFERTA",
                 image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=400&h=400&fit=crop",
               },
               {
@@ -540,7 +540,7 @@ export default function ProductDetailPage() {
                 name: "Colchón Lumma 2 plazas (140x190cm) de resortes",
                 currentPrice: "$650.000",
                 originalPrice: "$1.300.000",
-                discount: "%50 OFF",
+                discount: "OFERTA",
                 image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=400&h=400&fit=crop",
               },
               {

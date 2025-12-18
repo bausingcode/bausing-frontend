@@ -10,7 +10,7 @@ export default function Promos() {
     {
       titulo: "Black Friday 2025",
       estado: "activa",
-      tipo: "20% OFF",
+      tipo: "OFERTA",
       vigencia: "2025-11-20 - 2025-11-30",
       productos: "Fénix, Diamante",
       billetera: true,
@@ -28,7 +28,7 @@ export default function Promos() {
     {
       titulo: "Descuento Perla",
       estado: "activa",
-      tipo: "15% OFF",
+      tipo: "OFERTA",
       vigencia: "2025-11-15 - 2025-12-15",
       productos: "Perla",
       billetera: true,

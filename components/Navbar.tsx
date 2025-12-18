@@ -10,6 +10,7 @@ import {
   Heart, 
   ShoppingCart,
   Tag,
+  FactoryIcon,
   Package,
   ArrowRight,
   Bed,
@@ -797,15 +798,15 @@ export default function Navbar() {
             <div className="flex items-center justify-center gap-6 text-sm text-white">
               <div className="flex items-center gap-2">
                 <Truck className="w-4 h-4 text-white" />
-                <span className="font-semibold">Envíos gratis</span>
+                <span className="font-semibold">Envíos propios y gratis</span>
               </div>
               <div className="flex items-center gap-2">
-                <Tag className="w-4 h-4 text-white" />
-                <span className="font-semibold">Grandes descuentos</span>
+                <FactoryIcon className="w-4 h-4 text-white" />
+                <span className="font-semibold">Directo de fábrica</span>
               </div>
               <div className="flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-white" />
-                <span className="font-semibold">Cuotas sin interés</span>
+                <span className="font-semibold">Abonas al recibir</span>
               </div>
             </div>
           </div>

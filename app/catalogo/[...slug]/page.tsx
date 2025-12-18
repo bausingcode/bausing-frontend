@@ -549,7 +549,7 @@ type CategoryFilters = Record<string, FilterGroup[]>;
 const categoryFilters: CategoryFilters = {
   "Colchones": [
     {
-      title: "PLAZAS",
+      title: "Plazas",
       type: "checkbox",
       options: [
         { value: "una-plaza", label: "Una plaza" },
@@ -580,7 +580,7 @@ const categoryFilters: CategoryFilters = {
       ],
     },
     {
-      title: "MEDIDAS",
+      title: "Medidas",
       type: "checkbox",
       options: [
         { value: "80x190", label: "80*190" },
@@ -592,7 +592,7 @@ const categoryFilters: CategoryFilters = {
       ],
     },
     {
-      title: "ALTURA",
+      title: "Altura",
       type: "checkbox",
       options: [
         { value: "18cm", label: "18cm" },
@@ -605,7 +605,7 @@ const categoryFilters: CategoryFilters = {
       ],
     },
     {
-      title: "PESO MÁX. POR PLAZA",
+      title: "Peso máximo por plaza",
       type: "checkbox",
       options: [
         { value: "85kg", label: "85kg" },
@@ -619,7 +619,7 @@ const categoryFilters: CategoryFilters = {
   ],
   "Sommiers": [
     {
-      title: "PLAZAS",
+      title: "Plazas",
       type: "checkbox",
       options: [
         { value: "una-plaza", label: "Una plaza" },
@@ -650,7 +650,7 @@ const categoryFilters: CategoryFilters = {
       ],
     },
     {
-      title: "MEDIDAS",
+      title: "Medidas",
       type: "checkbox",
       options: [
         { value: "80x190", label: "80*190" },
@@ -662,7 +662,7 @@ const categoryFilters: CategoryFilters = {
       ],
     },
     {
-      title: "ALTURA",
+      title: "Altura",
       type: "checkbox",
       options: [
         { value: "18cm", label: "18cm" },
@@ -675,7 +675,7 @@ const categoryFilters: CategoryFilters = {
       ],
     },
     {
-      title: "PESO MÁX. POR PLAZA",
+      title: "Peso máximo por plaza",
       type: "checkbox",
       options: [
         { value: "85kg", label: "85kg" },
@@ -689,7 +689,7 @@ const categoryFilters: CategoryFilters = {
   ],
   "Respaldos": [
     {
-      title: "PLAZAS",
+      title: "Plazas",
       type: "checkbox",
       options: [
         { value: "una-plaza", label: "Una plaza" },
@@ -701,7 +701,7 @@ const categoryFilters: CategoryFilters = {
       ],
     },
     {
-      title: "TELA",
+      title: "Tela",
       type: "checkbox",
       options: [
         { value: "ecocuero", label: "Ecocuero" },
@@ -711,7 +711,7 @@ const categoryFilters: CategoryFilters = {
       ],
     },
     {
-      title: "MODELO",
+      title: "Modelo",
       type: "checkbox",
       options: [
         { value: "capitone", label: "Capitoné" },
@@ -721,7 +721,7 @@ const categoryFilters: CategoryFilters = {
       ],
     },
     {
-      title: "MEDIDAS",
+      title: "Medida",
       type: "checkbox",
       options: [
         { value: "80x190", label: "80*190" },
@@ -733,7 +733,7 @@ const categoryFilters: CategoryFilters = {
       ],
     },
     {
-      title: "COLOR",
+      title: "Color",
       type: "checkbox",
       options: [
         { value: "negro", label: "Negro" },
@@ -744,7 +744,7 @@ const categoryFilters: CategoryFilters = {
   ],
   "Accesorios": [
     {
-      title: "SUB-CATEGORÍAS",
+      title: "Subcategorías",
       type: "checkbox",
       options: [
         { value: "sabanas", label: "Sábanas" },
@@ -754,7 +754,7 @@ const categoryFilters: CategoryFilters = {
       ],
     },
     {
-      title: "PLAZAS",
+      title: "Plazas",
       type: "checkbox",
       options: [
         { value: "una-plaza", label: "Una plaza" },
@@ -766,7 +766,7 @@ const categoryFilters: CategoryFilters = {
       ],
     },
     {
-      title: "TECNOLOGÍA",
+      title: "Tecnología",
       type: "checkbox",
       options: [
         { value: "espuma-viscoelastica", label: "Espuma viscoelástica" },
@@ -774,7 +774,7 @@ const categoryFilters: CategoryFilters = {
       ],
     },
     {
-      title: "MODELO",
+      title: "Modelo",
       type: "checkbox",
       options: [
         { value: "almohada-viscoelastica-maxiking", label: "Almohada Viscoelástica MaxiKing" },
@@ -790,7 +790,7 @@ const categoryFilters: CategoryFilters = {
       ],
     },
     {
-      title: "MEDIDAS",
+      title: "Medidas",
       type: "checkbox",
       options: [
         { value: "45x70", label: "45 X 70" },
@@ -804,7 +804,7 @@ const categoryFilters: CategoryFilters = {
       ],
     },
     {
-      title: "COLOR",
+      title: "Color",
       type: "checkbox",
       options: [
         { value: "claro", label: "Claro" },
@@ -812,7 +812,7 @@ const categoryFilters: CategoryFilters = {
       ],
     },
     {
-      title: "HILOS",
+      title: "Hilos",
       type: "checkbox",
       options: [
         { value: "500", label: "500" },
@@ -831,7 +831,7 @@ const categoryFilters: CategoryFilters = {
   ],
   "Muebles de cocina": [
     {
-      title: "ANCHO",
+      title: "Ancho",
       type: "checkbox",
       options: [
         { value: "120cm", label: "120cm" },
@@ -839,7 +839,7 @@ const categoryFilters: CategoryFilters = {
       ],
     },
     {
-      title: "COLOR",
+      title: "Color",
       type: "checkbox",
       options: [
         { value: "blanco", label: "Blanco" },
@@ -863,6 +863,17 @@ export default function CatalogoPage() {
   
   // Filtros dinámicos - usando un objeto para almacenar todos los filtros seleccionados
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
+  
+  // Estado para controlar qué filtros están abiertos/cerrados (todos cerrados por defecto)
+  const [openFilters, setOpenFilters] = useState<Record<string, boolean>>({});
+  
+  // Función para toggle de cada filtro
+  const toggleFilter = (filterTitle: string) => {
+    setOpenFilters(prev => ({
+      ...prev,
+      [filterTitle]: !prev[filterTitle]
+    }));
+  };
   
   // Determinar la categoría y subcategoría desde el slug
   const getCategoryInfo = () => {
@@ -1003,7 +1014,7 @@ export default function CatalogoPage() {
     if (product.promos && product.promos.length > 0) {
       const promo = product.promos[0];
       if (promo.discount_percentage) {
-        discount = `%${promo.discount_percentage} OFF`;
+        discount = "OFERTA";
       }
     }
     
@@ -1154,31 +1165,49 @@ export default function CatalogoPage() {
                   <p className="text-sm text-gray-500">No hay filtros disponibles para esta categoría</p>
                 ) : (
                   <div className="space-y-6">
-                    {currentFilters.map((filterGroup, index) => (
-                      <div key={index} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
-                        <h3 className="text-sm font-semibold text-gray-900 mb-3">{filterGroup.title}</h3>
-                        <div className="space-y-2">
-                          {filterGroup.options.map((option) => {
-                            const filterKey = filterGroup.title;
-                            const isChecked = selectedFilters[filterKey]?.includes(option.value) || false;
-                            
-                            return (
-                              <label key={option.value} className="flex items-center cursor-pointer group">
-                                <input
-                                  type={filterGroup.type}
-                                  checked={isChecked}
-                                  onChange={(e) => handleFilterChange(filterKey, option.value, e.target.checked)}
-                                  className="w-4 h-4 text-[#00C1A7] focus:ring-[#00C1A7] focus:ring-2 rounded border-gray-300 cursor-pointer"
-                                />
-                                <span className="ml-2 text-sm text-gray-700 group-hover:text-gray-900 transition-colors">
-                                  {option.label}
-                                </span>
-                              </label>
-                            );
-                          })}
+                    {currentFilters.map((filterGroup, index) => {
+                      const filterKey = filterGroup.title;
+                      const isOpen = openFilters[filterKey] || false;
+                      
+                      return (
+                        <div key={index} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
+                          <button
+                            onClick={() => toggleFilter(filterKey)}
+                            className="flex items-center justify-between w-full text-left mb-3 group"
+                          >
+                            <h3 className="text-sm font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">
+                              {filterGroup.title}
+                            </h3>
+                            {isOpen ? (
+                              <Minus className="w-4 h-4 text-gray-600 flex-shrink-0" />
+                            ) : (
+                              <Plus className="w-4 h-4 text-gray-600 flex-shrink-0" />
+                            )}
+                          </button>
+                          {isOpen && (
+                            <div className="space-y-2">
+                              {filterGroup.options.map((option) => {
+                                const isChecked = selectedFilters[filterKey]?.includes(option.value) || false;
+                                
+                                return (
+                                  <label key={option.value} className="flex items-center cursor-pointer group">
+                                    <input
+                                      type={filterGroup.type}
+                                      checked={isChecked}
+                                      onChange={(e) => handleFilterChange(filterKey, option.value, e.target.checked)}
+                                      className="w-4 h-4 text-[#00C1A7] focus:ring-[#00C1A7] focus:ring-2 rounded border-gray-300 cursor-pointer"
+                                    />
+                                    <span className="ml-2 text-sm text-gray-700 group-hover:text-gray-900 transition-colors">
+                                      {option.label}
+                                    </span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1189,8 +1218,27 @@ export default function CatalogoPage() {
           <div className={`col-span-12 ${filtersExpanded ? 'lg:col-span-9' : 'lg:col-span-12'} transition-all duration-300`}>
             {/* Products Grid */}
             {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="text-gray-600">Cargando productos...</div>
+              <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 transition-all duration-300 ease-in-out ${filtersExpanded ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
+                {[...Array(8)].map((_, index) => (
+                  <div key={index} className="relative group block animate-pulse">
+                    {/* Skeleton Image */}
+                    <div className="relative w-full h-80 rounded-[10px] overflow-hidden bg-gray-200"></div>
+                    {/* Skeleton Content */}
+                    <div className="pt-3">
+                      <div className="mb-1">
+                        <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                      </div>
+                      <div className="flex items-baseline gap-2 mt-2">
+                        <div className="h-6 bg-gray-200 rounded w-24"></div>
+                        <div className="h-4 bg-gray-200 rounded w-20"></div>
+                      </div>
+                      <div className="mt-2">
+                        <div className="h-4 bg-gray-200 rounded w-32"></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : products.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20">

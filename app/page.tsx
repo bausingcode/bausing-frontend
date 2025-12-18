@@ -29,7 +29,7 @@ const products = [
     name: "Colchón Vitto 2 plazas (140×190cm) de resortes",
     currentPrice: "$750.000",
     originalPrice: "$1.500.000",
-    discount: "%50 OFF"
+    discount: "OFERTA"
   },
   {
     id: 2,
@@ -69,7 +69,7 @@ const pillows = [
     name: "Colchón Lumma 2 plazas (140×190cm) de resortes",
     currentPrice: "$400.000",
     originalPrice: "$800.000",
-    discount: "%50 OFF"
+    discount: "OFERTA"
   },
   {
     id: 2,
@@ -109,7 +109,7 @@ const sommiers = [
     name: "Colchón Lumma 2 plazas (140×190cm) de resortes",
     currentPrice: "$400.000",
     originalPrice: "$800.000",
-    discount: "%50 OFF"
+    discount: "OFERTA"
   },
   {
     id: 2,
@@ -127,7 +127,7 @@ const sommiers = [
     name: "Colchón Lumma 2 plazas (140×190cm) de resortes",
     currentPrice: "$400.000",
     originalPrice: "$800.000",
-    discount: "%50 OFF"
+    discount: "OFERTA"
   },
   {
     id: 4,
@@ -338,7 +338,7 @@ export default async function Home() {
                 <Truck className="w-9 h-9 text-[#00C1A7]" strokeWidth={1.5} />
               </div>
               <p className="text-[#101828] mb-1">Envío gratis</p>
-              <p className="text-sm text-[#4A5565]">En compras superiores a $50.000</p>
+              <p className="text-sm text-[#4A5565]">Consultar localidades disponibles</p>
             </div>
 
             {/* Payment Options */}
@@ -346,8 +346,8 @@ export default async function Home() {
               <div className="w-18 h-18 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-3">
                 <CreditCard className="w-9 h-9 text-[#00C1A7]" strokeWidth={1.5} />
               </div>
-              <p className="text-[#101828] mb-1">Hasta 12 cuotas</p>
-              <p className="text-sm text-[#4A5565]">Sin interés en tarjetas seleccionadas</p>
+              <p className="text-[#101828] mb-1">La mejor financiación</p>
+              <p className="text-sm text-[#4A5565]">Te ofrecemos la mejor opción para tu compra</p>
             </div>
 
             {/* Warranty */}
@@ -356,7 +356,7 @@ export default async function Home() {
                 <Award className="w-9 h-9 text-[#00C1A7]" strokeWidth={1.5} />
               </div>
               <p className="text-[#101828] mb-1">5 años de garantía</p>
-              <p className="text-sm text-[#4A5565]">En todos nuestros productos</p>
+              <p className="text-sm text-[#4A5565]">En todos nuestros colchones</p>
             </div>
 
             {/* Quality Assurance */}
@@ -364,7 +364,7 @@ export default async function Home() {
               <div className="w-18 h-18 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-3">
                 <Factory className="w-9 h-9 text-[#00C1A7]" strokeWidth={1.5} />
               </div>
-              <p className="text-[#101828] mb-1">Fábrica propia</p>
+              <p className="text-[#101828] mb-1">Distribuidora oficial</p>
               <p className="text-sm text-[#4A5565]">Calidad garantizada desde el origen</p>
             </div>
           </div>
