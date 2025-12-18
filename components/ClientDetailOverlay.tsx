@@ -1,8 +1,11 @@
 "use client";
 
 import { X } from "lucide-react";
+import { useState } from "react";
+import ConfirmModal from "./ConfirmModal";
 
 interface Client {
+  id: string;
   nombre: string;
   telefono: string;
   email: string;
@@ -11,19 +14,38 @@ interface Client {
   ultimaCompra: string;
   saldoBilletera: string;
   estado: string;
+  is_suspended?: boolean;
 }
 
 interface ClientDetailOverlayProps {
   client: Client;
   isOpen: boolean;
   onClose: () => void;
+  onSuspend?: (userId: string, currentStatus: boolean) => void;
 }
 
 export default function ClientDetailOverlay({
   client,
   isOpen,
   onClose,
+  onSuspend,
 }: ClientDetailOverlayProps) {
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  const handleSuspendClick = () => {
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmSuspend = () => {
+    if (onSuspend) {
+      onSuspend(client.id, client.is_suspended || false);
+      // Cerrar el overlay después de suspender/reactivar
+      setTimeout(() => {
+        onClose();
+      }, 500);
+    }
+    setShowConfirmModal(false);
+  };
   return (
     <>
       {/* Overlay Panel */}
@@ -116,7 +138,13 @@ export default function ClientDetailOverlay({
                       Estado
                     </label>
                     <div className="mt-1">
-                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        client.is_suspended 
+                          ? "bg-red-100 text-red-700" 
+                          : client.estado === "Activo"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-700"
+                      }`}>
                         {client.estado}
                       </span>
                     </div>
@@ -127,7 +155,19 @@ export default function ClientDetailOverlay({
           </div>
 
           {/* Footer */}
-          <div className="p-6 border-t border-gray-200">
+          <div className="p-6 border-t border-gray-200 space-y-3">
+            {onSuspend && (
+              <button
+                onClick={handleSuspendClick}
+                className={`w-full px-4 py-2 rounded-[6px] font-medium transition-colors cursor-pointer ${
+                  client.is_suspended
+                    ? "bg-green-600 text-white hover:bg-green-700"
+                    : "bg-red-600 text-white hover:bg-red-700"
+                }`}
+              >
+                {client.is_suspended ? "Reactivar Usuario" : "Suspender Usuario"}
+              </button>
+            )}
             <button
               onClick={onClose}
               className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-[6px] font-medium hover:bg-gray-200 transition-colors cursor-pointer"
@@ -137,6 +177,21 @@ export default function ClientDetailOverlay({
           </div>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={handleConfirmSuspend}
+        title={client.is_suspended ? "Reactivar Usuario" : "Suspender Usuario"}
+        message={
+          client.is_suspended
+            ? `¿Estás seguro de que deseas reactivar a ${client.nombre}? El usuario podrá iniciar sesión nuevamente.`
+            : `¿Estás seguro de que deseas suspender a ${client.nombre}? El usuario no podrá iniciar sesión hasta que sea reactivado.`
+        }
+        confirmText={client.is_suspended ? "Reactivar" : "Suspender"}
+        cancelText="Cancelar"
+        variant={client.is_suspended ? "info" : "danger"}
+      />
     </>
   );
 }

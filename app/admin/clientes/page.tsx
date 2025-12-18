@@ -3,10 +3,12 @@
 import { useState, useEffect, useMemo } from "react";
 import PageHeader from "@/components/PageHeader";
 import ClientsTable from "@/components/ClientsTable";
-import { Search, Download } from "lucide-react";
-import { fetchCustomers, User } from "@/lib/api";
+import CreateCustomerModal from "@/components/CreateCustomerModal";
+import { Search, Plus } from "lucide-react";
+import { fetchCustomers, User, createCustomer, toggleSuspendCustomer } from "@/lib/api";
 
 interface Client {
+  id: string;
   nombre: string;
   telefono: string;
   email: string;
@@ -15,12 +17,14 @@ interface Client {
   ultimaCompra: string;
   saldoBilletera: string;
   estado: string;
+  is_suspended?: boolean;
 }
 
 export default function Clientes() {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   useEffect(() => {
     const loadCustomers = async () => {
@@ -42,6 +46,7 @@ export default function Clientes() {
   // Convert users to clients format
   const clients: Client[] = useMemo(() => {
     return users.map((user) => ({
+      id: user.id,
       nombre: `${user.first_name} ${user.last_name}`.trim(),
       telefono: user.phone || "N/A",
       email: user.email,
@@ -49,7 +54,8 @@ export default function Clientes() {
       compras: 0, // Not available in user model yet
       ultimaCompra: "N/A", // Not available in user model yet
       saldoBilletera: "$0", // Not available in user model yet
-      estado: user.email_verified ? "Activo" : "Inactivo",
+      estado: user.is_suspended ? "Suspendido" : (user.email_verified ? "Activo" : "Inactivo"),
+      is_suspended: user.is_suspended || false,
     }));
   }, [users]);
 
@@ -68,34 +74,34 @@ export default function Clientes() {
     );
   }, [clients, searchQuery]);
 
-  // Export to CSV
-  const handleExport = () => {
-    const headers = ["Nombre", "Teléfono", "Email", "Localidad", "Compras", "Última Compra", "Saldo Billetera", "Estado"];
-    const rows = filteredClients.map((client) => [
-      client.nombre,
-      client.telefono,
-      client.email,
-      client.localidad,
-      client.compras.toString(),
-      client.ultimaCompra,
-      client.saldoBilletera,
-      client.estado,
-    ]);
+  const handleCreateCustomer = async (data: {
+    email: string;
+    password: string;
+    first_name: string;
+    last_name: string;
+    phone?: string;
+  }) => {
+    try {
+      await createCustomer(data);
+      
+      // Recargar lista de clientes
+      const customers = await fetchCustomers();
+      setUsers(customers);
+    } catch (error: any) {
+      throw error;
+    }
+  };
 
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `clientes_${new Date().toISOString().split("T")[0]}.csv`);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleToggleSuspend = async (userId: string, currentStatus: boolean) => {
+    try {
+      await toggleSuspendCustomer(userId, !currentStatus);
+      
+      // Recargar lista de clientes
+      const customers = await fetchCustomers();
+      setUsers(customers);
+    } catch (error: any) {
+      alert(`Error al actualizar cliente: ${error.message}`);
+    }
   };
 
   return (
@@ -105,7 +111,7 @@ export default function Clientes() {
         description="Gestiona la información de tus clientes" 
       />
 
-      {/* Search and Export Section */}
+      {/* Search and Create Section */}
       <div className="bg-white rounded-[10px] border border-gray-200 p-4 mb-6" style={{ borderRadius: '14px' }}>
         <div className="flex gap-4">
           <div className="flex-1 relative">
@@ -119,12 +125,12 @@ export default function Clientes() {
             />
           </div>
           <button 
-            onClick={handleExport}
+            onClick={() => setIsCreateModalOpen(true)}
             className="px-4 py-2 cursor-pointer text-white rounded-[6px] font-medium hover:opacity-90 transition-colors flex items-center gap-2" 
             style={{ backgroundColor: '#155DFC' }}
           >
-            <Download className="w-5 h-5" />
-            Exportar
+            <Plus className="w-5 h-5" />
+            Crear Cliente
           </button>
         </div>
       </div>
@@ -141,8 +147,14 @@ export default function Clientes() {
           </p>
         </div>
       ) : (
-        <ClientsTable clients={filteredClients} />
+        <ClientsTable clients={filteredClients} onToggleSuspend={handleToggleSuspend} />
       )}
+
+      <CreateCustomerModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCreate={handleCreateCustomer}
+      />
     </div>
   );
 }

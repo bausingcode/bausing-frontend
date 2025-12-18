@@ -1,10 +1,11 @@
 "use client";
 
-import { Eye } from "lucide-react";
-import { useState, useEffect } from "react";
+import { MoreVertical } from "lucide-react";
+import { useState } from "react";
 import ClientDetailOverlay from "./ClientDetailOverlay";
 
 interface Client {
+  id: string;
   nombre: string;
   telefono: string;
   email: string;
@@ -13,23 +14,17 @@ interface Client {
   ultimaCompra: string;
   saldoBilletera: string;
   estado: string;
+  is_suspended?: boolean;
 }
 
 interface ClientsTableProps {
   clients: Client[];
+  onToggleSuspend: (userId: string, currentStatus: boolean) => void;
 }
 
-export default function ClientsTable({ clients }: ClientsTableProps) {
+export default function ClientsTable({ clients, onToggleSuspend }: ClientsTableProps) {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
-
-  const handleViewClient = (client: Client) => {
-    setSelectedClient(client);
-    // Pequeño delay para asegurar que el componente se monte primero
-    setTimeout(() => {
-      setIsOverlayOpen(true);
-    }, 10);
-  };
 
   const handleCloseOverlay = () => {
     setIsOverlayOpen(false);
@@ -37,6 +32,13 @@ export default function ClientsTable({ clients }: ClientsTableProps) {
     setTimeout(() => {
       setSelectedClient(null);
     }, 300);
+  };
+
+  const handleViewClient = (client: Client) => {
+    setSelectedClient(client);
+    setTimeout(() => {
+      setIsOverlayOpen(true);
+    }, 10);
   };
 
   return (
@@ -82,17 +84,27 @@ export default function ClientsTable({ clients }: ClientsTableProps) {
                     {client.saldoBilletera}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      client.is_suspended 
+                        ? "bg-red-100 text-red-700" 
+                        : client.estado === "Activo"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-gray-100 text-gray-700"
+                    }`}>
                       {client.estado}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
-                    <button
-                      onClick={() => handleViewClient(client)}
-                      className="text-gray-600 cursor-pointer hover:text-blue-600 transition-colors"
-                    >
-                      <Eye className="w-5 h-5" />
-                    </button>
+                    <div className="flex items-center justify-center">
+                      <button
+                        onClick={() => handleViewClient(client)}
+                        className="text-gray-600 cursor-pointer hover:text-gray-900 transition-colors p-1"
+                        title="Ver detalles"
+                        type="button"
+                      >
+                        <MoreVertical className="w-5 h-5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -106,6 +118,7 @@ export default function ClientsTable({ clients }: ClientsTableProps) {
           client={selectedClient}
           isOpen={isOverlayOpen}
           onClose={handleCloseOverlay}
+          onSuspend={onToggleSuspend}
         />
       )}
     </>

@@ -810,6 +810,7 @@ export interface User {
   phone?: string;
   dni?: string;
   email_verified: boolean;
+  is_suspended?: boolean;
   created_at?: string;
 }
 
@@ -960,5 +961,54 @@ export async function fetchCustomers(cookieHeader?: string | null): Promise<User
   
   const data = await response.json();
   return data.success ? data.data : [];
+}
+
+/**
+ * Create a new customer
+ */
+export async function createCustomer(customerData: {
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+  dni?: string;
+  email_verified?: boolean;
+  is_suspended?: boolean;
+}): Promise<User> {
+  const url = `/api/admin/customers`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(customerData),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to create customer: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.data;
+}
+
+/**
+ * Toggle suspend status of a customer
+ */
+export async function toggleSuspendCustomer(userId: string, isSuspended: boolean): Promise<User> {
+  const url = `/api/admin/customers/${userId}/suspend`;
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ is_suspended: isSuspended }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to update customer: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.data;
 }
 

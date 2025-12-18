@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, ShoppingCart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight } from "lucide-react";
+import { Heart, ShoppingCart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight, Layers, Bed, Scale, Package, Maximize, CheckCircle2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
@@ -32,8 +32,15 @@ interface Product {
   discount?: string;
   images: ProductImage[];
   variants: ProductVariant[];
-  technicalInfo?: string;
-  materials?: string;
+  // Características principales
+  firmness?: string; // "Medio", "Blando", "Firme", etc.
+  firmnessLevel?: number; // 1-5 para la barra visual
+  withPillow?: string;
+  maxWeight?: string;
+  boxed?: string;
+  size?: string;
+  fillingType?: string;
+  // Otras secciones
   warranty?: string;
 }
 
@@ -47,9 +54,8 @@ export default function ProductDetailPage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<string>("");
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    technical: false,
+    characteristics: false,
     description: false,
-    materials: false,
     warranty: false,
   });
 
@@ -84,8 +90,13 @@ export default function ProductDetailPage() {
             { id: "6", name: "160x200cm", size: "160x200cm" },
             { id: "7", name: "100x200cm", size: "100x200cm" },
           ],
-          technicalInfo: "Sistema de resortes bonell de acero de alta resistencia. Densidad de espuma de poliuretano: 25kg/m³. Altura total: 30cm. Peso máximo recomendado: 150kg por persona.",
-          materials: "Fabricado con resortes bonell de acero, espuma de poliuretano de alta densidad, tela de algodón transpirable y base de soporte reforzada.",
+          firmness: "Medio",
+          firmnessLevel: 3,
+          withPillow: "No",
+          maxWeight: "120 kg",
+          boxed: "Sí",
+          size: "140x190cm",
+          fillingType: "Espuma",
           warranty: "Garantía de 5 años contra defectos de fabricación. Cobertura completa de resortes y materiales. Servicio técnico incluido.",
         };
 
@@ -149,8 +160,13 @@ export default function ProductDetailPage() {
           discount,
           images: images.length > 0 ? images : mockProduct.images,
           variants: variants.length > 0 ? variants : mockProduct.variants,
-          technicalInfo: "Información técnica del producto...", // TODO: Agregar al backend si es necesario
-          materials: "Materiales utilizados en la fabricación...", // TODO: Agregar al backend si es necesario
+          firmness: "Medio", // TODO: Agregar al backend si es necesario
+          firmnessLevel: 3, // TODO: Agregar al backend si es necesario
+          withPillow: "No", // TODO: Agregar al backend si es necesario
+          maxWeight: "120 kg", // TODO: Agregar al backend si es necesario
+          boxed: "Sí", // TODO: Agregar al backend si es necesario
+          size: variants.length > 0 ? variants[0].size || variants[0].name : "Tamaño...",
+          fillingType: "Espuma", // TODO: Agregar al backend si es necesario
           warranty: "Garantía de 5 años...", // TODO: Agregar al backend si es necesario
         };
 
@@ -181,8 +197,13 @@ export default function ProductDetailPage() {
             { id: "6", name: "160x200cm", size: "160x200cm" },
             { id: "7", name: "100x200cm", size: "100x200cm" },
           ],
-          technicalInfo: "Sistema de resortes bonell de acero de alta resistencia. Densidad de espuma de poliuretano: 25kg/m³. Altura total: 30cm. Peso máximo recomendado: 150kg por persona.",
-          materials: "Fabricado con resortes bonell de acero, espuma de poliuretano de alta densidad, tela de algodón transpirable y base de soporte reforzada.",
+          firmness: "Medio",
+          firmnessLevel: 3,
+          withPillow: "No",
+          maxWeight: "120 kg",
+          boxed: "Sí",
+          size: "140x190cm",
+          fillingType: "Espuma",
           warranty: "Garantía de 5 años contra defectos de fabricación. Cobertura completa de resortes y materiales. Servicio técnico incluido.",
         };
         setProduct(mockProduct);
@@ -430,32 +451,171 @@ export default function ProductDetailPage() {
           <div className="col-span-4">
             <h2 className="text-xl text-gray-900 mb-6">Información técnica</h2>
             <div className="space-y-2">
-              {[
-                { key: "description", title: "Descripción" },
-                { key: "materials", title: "Materiales" },
-                { key: "warranty", title: "Garantía del producto" },
-              ].map((section) => (
-                <div key={section.key} className="border-b border-gray-200">
-                  <button
-                    onClick={() => toggleSection(section.key)}
-                    className="w-full flex items-center justify-between py-4 text-left cursor-pointer"
-                  >
-                    <span className="text-md text-gray-500">{section.title}</span>
-                    {expandedSections[section.key] ? (
-                      <Minus className="w-5 h-5 text-gray-500" />
-                    ) : (
-                      <Plus className="w-5 h-5 text-gray-500" />
-                    )}
-                  </button>
-                  {expandedSections[section.key] && (
-                    <div className="pb-4 text-sm text-gray-600">
-                      {section.key === "description" && product.description}
-                      {section.key === "materials" && product.materials}
-                      {section.key === "warranty" && product.warranty}
-                    </div>
+              {/* Descripción */}
+              <div className="border-b border-gray-200">
+                <button
+                  onClick={() => toggleSection("description")}
+                  className="w-full flex items-center justify-between py-4 text-left cursor-pointer"
+                >
+                  <span className="text-md text-gray-500">Descripción</span>
+                  {expandedSections.description ? (
+                    <Minus className="w-5 h-5 text-gray-500" />
+                  ) : (
+                    <Plus className="w-5 h-5 text-gray-500" />
                   )}
-                </div>
-              ))}
+                </button>
+                {expandedSections.description && (
+                  <div className="pb-4 text-sm text-gray-600">
+                    {product.description}
+                  </div>
+                )}
+              </div>
+
+              {/* Características principales */}
+              <div className="border-b border-gray-200">
+                <button
+                  onClick={() => toggleSection("characteristics")}
+                  className="w-full flex items-center justify-between py-4 text-left cursor-pointer"
+                >
+                  <span className="text-md text-gray-500">Características principales</span>
+                  {expandedSections.characteristics ? (
+                    <Minus className="w-5 h-5 text-gray-500" />
+                  ) : (
+                    <Plus className="w-5 h-5 text-gray-500" />
+                  )}
+                </button>
+                {expandedSections.characteristics && (
+                  <div className="pb-4">
+                    <div className="space-y-4">
+                      {/* Firmeza del colchón con barra visual */}
+                      {product.firmness && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Layers className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-2">Firmeza del colchón</div>
+                            <div className="flex items-center gap-3">
+                              <div className="flex-1">
+                                <div className="flex gap-1">
+                                  {[1, 2, 3, 4, 5].map((level) => {
+                                    const firmnessLevel = product.firmnessLevel || 3;
+                                    const isActive = level <= firmnessLevel;
+                                    return (
+                                      <div
+                                        key={level}
+                                        className={`flex-1 h-2 rounded-sm ${
+                                          isActive ? "bg-[#00C1A7]" : "bg-gray-200"
+                                        }`}
+                                      />
+                                    );
+                                  })}
+                                </div>
+                                <div className="flex justify-between mt-1 text-xs text-gray-500">
+                                  <span>EXTRA BLANDO</span>
+                                  <span>EXTRA FIRME</span>
+                                </div>
+                              </div>
+                              <div className="text-sm font-medium text-gray-900 min-w-[60px] text-right">
+                                {product.firmness}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Con pillow */}
+                      {product.withPillow && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Bed className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Con pillow</div>
+                            <div className="text-sm text-gray-900">{product.withPillow}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Peso máximo soportado */}
+                      {product.maxWeight && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Scale className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Peso máximo soportado</div>
+                            <div className="text-sm text-gray-900">{product.maxWeight}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Colchón en caja */}
+                      {product.boxed && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Package className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Colchón en caja</div>
+                            <div className="text-sm text-gray-900">{product.boxed}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Tamaño */}
+                      {(() => {
+                        const selectedVariantObj = product.variants.find(v => v.id === selectedVariant);
+                        const displaySize = selectedVariantObj?.size || selectedVariantObj?.name || product.size;
+                        return displaySize ? (
+                          <div className="flex items-center gap-4">
+                            <div className="flex-shrink-0">
+                              <Maximize className="w-5 h-5 text-gray-600" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-gray-700 mb-1">Tamaño</div>
+                              <div className="text-sm text-gray-900">{displaySize}</div>
+                            </div>
+                          </div>
+                        ) : null;
+                      })()}
+
+                      {/* Tipo de relleno */}
+                      {product.fillingType && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <CheckCircle2 className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Tipo de relleno</div>
+                            <div className="text-sm text-gray-900">{product.fillingType}</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Garantía */}
+              <div className="border-b border-gray-200">
+                <button
+                  onClick={() => toggleSection("warranty")}
+                  className="w-full flex items-center justify-between py-4 text-left cursor-pointer"
+                >
+                  <span className="text-md text-gray-500">Garantía</span>
+                  {expandedSections.warranty ? (
+                    <Minus className="w-5 h-5 text-gray-500" />
+                  ) : (
+                    <Plus className="w-5 h-5 text-gray-500" />
+                  )}
+                </button>
+                {expandedSections.warranty && (
+                  <div className="pb-4 text-sm text-gray-600">
+                    {product.warranty}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
