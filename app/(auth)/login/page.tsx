@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/contexts/AuthContext";
-import { Mail, Lock, ArrowRight, User } from "lucide-react";
+import { Mail, Lock, ArrowRight, User, Loader2 } from "lucide-react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -35,10 +35,11 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      router.push("/");
+      // Pequeño delay para asegurar que el estado se actualice antes de redirigir
+      await new Promise(resolve => setTimeout(resolve, 100));
+      router.replace("/");
     } catch (err: any) {
       setError(err.message || "Error al iniciar sesión");
-    } finally {
       setLoading(false);
     }
   };
@@ -113,7 +114,10 @@ export default function LoginPage() {
               className="w-full flex items-center justify-center gap-2 bg-[#00C1A7] text-white py-3 px-4 rounded-[4px] font-semibold hover:bg-[#00a892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
-                "Iniciando sesión..."
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Iniciando sesión...
+                </>
               ) : (
                 <>
                   Iniciar Sesión

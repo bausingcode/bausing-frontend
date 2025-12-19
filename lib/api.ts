@@ -1012,3 +1012,184 @@ export async function toggleSuspendCustomer(userId: string, isSuspended: boolean
   return data.data;
 }
 
+// ============================================
+// USER PROFILE API
+// ============================================
+
+export interface Address {
+  id: string;
+  user_id: string;
+  full_name: string;
+  phone: string;
+  street: string;
+  number: string;
+  additional_info?: string;
+  postal_code: string;
+  city: string;
+  province: string;
+  is_default: boolean;
+  created_at?: string;
+}
+
+/**
+ * Update user profile
+ */
+export async function updateUserProfile(profileData: {
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  dni?: string;
+  gender?: string;
+  birth_date?: string;
+}): Promise<User> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/auth/profile`
+    : `/api/auth/profile`;
+  
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: getUserAuthHeaders(),
+    body: JSON.stringify(profileData),
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.error || "Error al actualizar perfil");
+  }
+  
+  return data.data;
+}
+
+/**
+ * Change user password
+ */
+export async function changePassword(passwordData: {
+  current_password: string;
+  new_password: string;
+}): Promise<void> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/auth/password`
+    : `/api/auth/password`;
+  
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: getUserAuthHeaders(),
+    body: JSON.stringify(passwordData),
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.error || "Error al cambiar contraseña");
+  }
+}
+
+/**
+ * Get user addresses
+ */
+export async function getUserAddresses(): Promise<Address[]> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/auth/addresses`
+    : `/api/auth/addresses`;
+  
+  const response = await fetch(url, {
+    headers: getUserAuthHeaders(),
+    cache: "no-store",
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.error || "Error al obtener direcciones");
+  }
+  
+  return data.data || [];
+}
+
+/**
+ * Create user address
+ */
+export async function createUserAddress(addressData: {
+  full_name: string;
+  phone: string;
+  street: string;
+  number: string;
+  additional_info?: string;
+  postal_code: string;
+  city: string;
+  province: string;
+  is_default?: boolean;
+}): Promise<Address> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/auth/addresses`
+    : `/api/auth/addresses`;
+  
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getUserAuthHeaders(),
+    body: JSON.stringify(addressData),
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.error || "Error al crear dirección");
+  }
+  
+  return data.data;
+}
+
+/**
+ * Update user address
+ */
+export async function updateUserAddress(addressId: string, addressData: {
+  full_name?: string;
+  phone?: string;
+  street?: string;
+  number?: string;
+  additional_info?: string;
+  postal_code?: string;
+  city?: string;
+  province?: string;
+  is_default?: boolean;
+}): Promise<Address> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/auth/addresses/${addressId}`
+    : `/api/auth/addresses/${addressId}`;
+  
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: getUserAuthHeaders(),
+    body: JSON.stringify(addressData),
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.error || "Error al actualizar dirección");
+  }
+  
+  return data.data;
+}
+
+/**
+ * Delete user address
+ */
+export async function deleteUserAddress(addressId: string): Promise<void> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/auth/addresses/${addressId}`
+    : `/api/auth/addresses/${addressId}`;
+  
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: getUserAuthHeaders(),
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.error || "Error al eliminar dirección");
+  }
+}
+

@@ -24,7 +24,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={dmSans.variable}>
-      <body className={dmSans.className}>
+      <body className={`${dmSans.className} bg-white`}>
         <AuthProvider>
           <CartProvider>
             {children}

@@ -7,6 +7,15 @@ import Footer from "@/components/Footer";
 import Loader from "@/components/Loader";
 import { useAuth } from "@/app/contexts/AuthContext";
 import {
+  updateUserProfile,
+  changePassword,
+  getUserAddresses,
+  createUserAddress,
+  updateUserAddress,
+  deleteUserAddress,
+  type Address,
+} from "@/lib/api";
+import {
   Calendar,
   FileText,
   LogOut,
@@ -49,28 +58,22 @@ export default function UsuarioPage() {
     birth_date: "",
     phone: "",
   });
-  const [addresses, setAddresses] = useState<
-    Array<{
-      id: string;
-      street: string;
-      number: string;
-      postalCode: string;
-      extraInfo: string;
-      recipientName: string;
-      recipientPhone: string;
-    }>
-  >([]);
+  const [addresses, setAddresses] = useState<Address[]>([]);
   const [addressSaving, setAddressSaving] = useState(false);
   const [addressStatus, setAddressStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
   const [addressForm, setAddressForm] = useState({
     street: "",
     number: "",
-    postalCode: "",
-    extraInfo: "",
-    recipientName: "",
-    recipientPhone: "",
+    postal_code: "",
+    additional_info: "",
+    full_name: "",
+    phone: "",
+    city: "",
+    province: "",
+    is_default: false,
   });
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
@@ -94,20 +97,30 @@ export default function UsuarioPage() {
     }
   }, [user]);
 
-  const handleChange = (field: keyof typeof formData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  // Cargar direcciones cuando se activa la sección
+  useEffect(() => {
+    if (activeSection === "direcciones" && isAuthenticated && !loadingAddresses) {
+      loadAddresses();
+    }
+  }, [activeSection, isAuthenticated]);
+
+  const loadAddresses = async () => {
+    setLoadingAddresses(true);
+    try {
+      const data = await getUserAddresses();
+      setAddresses(data);
+    } catch (error: any) {
+      setAddressStatus({
+        type: "error",
+        message: error?.message || "Error al cargar direcciones",
+      });
+    } finally {
+      setLoadingAddresses(false);
+    }
   };
 
-  const saveProfile = async () => {
-    // Placeholder para integrar con el backend. Por ahora actualizamos el contexto/localStorage.
-    updateUser({
-      first_name: formData.first_name,
-      last_name: formData.last_name,
-      dni: formData.dni,
-      gender: formData.gender,
-      birth_date: formData.birth_date,
-      phone: formData.phone,
-    });
+  const handleChange = (field: keyof typeof formData, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -116,8 +129,17 @@ export default function UsuarioPage() {
     setSaving(true);
 
     try {
-      // Simula una breve espera para mostrar feedback
-      await saveProfile();
+      const updatedUser = await updateUserProfile({
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        dni: formData.dni,
+        gender: formData.gender,
+        birth_date: formData.birth_date || undefined,
+        phone: formData.phone,
+      });
+      
+      // Actualizar el contexto con los datos actualizados
+      updateUser(updatedUser);
       setStatus({ type: "success", message: "Perfil actualizado correctamente." });
     } catch (error: any) {
       setStatus({
@@ -129,25 +151,10 @@ export default function UsuarioPage() {
     }
   };
 
-  // Redirigir al login cuando no hay sesión (evita parpadeo)
-  useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      router.replace("/login");
-    }
-  }, [loading, isAuthenticated, router]);
-
   const currentTitle = useMemo(() => {
     const current = menuItems.find((item) => item.key === activeSection);
     return current?.label || "Perfil";
   }, [activeSection]);
-
-  if (loading) {
-    return <Loader fullScreen message="Cargando tu cuenta..." />;
-  }
-
-  if (!isAuthenticated) {
-    return null;
-  }
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -378,7 +385,7 @@ export default function UsuarioPage() {
                   )}
 
                   {/* Empty state */}
-                  {!addresses.length && !showAddressForm && (
+                  {!loadingAddresses && !addresses.length && !showAddressForm && (
                     <div className="border border-dashed border-gray-300 rounded-[12px] p-6 text-center space-y-3 bg-gray-50">
                       <div className="mx-auto w-12 h-12 rounded-full bg-white border border-gray-200 flex items-center justify-center text-[#00C1A7]">
                         <MapPin className="w-6 h-6" />
@@ -407,50 +414,67 @@ export default function UsuarioPage() {
                   {showAddressForm && (
                     <form
                       className="space-y-5 border border-gray-200 rounded-[12px] p-5 bg-gray-50"
-                      onSubmit={(e) => {
+                      onSubmit={async (e) => {
                         e.preventDefault();
                         setAddressStatus(null);
                         setAddressSaving(true);
                         try {
-                          const newAddress = {
-                            id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-                            street: addressForm.street.trim(),
-                            number: addressForm.number.trim(),
-                            postalCode: addressForm.postalCode.trim(),
-                            extraInfo: addressForm.extraInfo.trim(),
-                            recipientName: addressForm.recipientName.trim(),
-                            recipientPhone: addressForm.recipientPhone.trim(),
-                          };
-
-                          if (!newAddress.street || !newAddress.number || !newAddress.postalCode) {
-                            throw new Error("Calle, número y código postal son obligatorios.");
+                          if (!addressForm.street || !addressForm.number || !addressForm.postal_code || !addressForm.city || !addressForm.province) {
+                            throw new Error("Calle, número, código postal, ciudad y provincia son obligatorios.");
                           }
-                          if (!newAddress.recipientName || !newAddress.recipientPhone) {
+                          if (!addressForm.full_name || !addressForm.phone) {
                             throw new Error("Nombre completo y teléfono del destinatario son obligatorios.");
                           }
 
                           if (editingAddressId) {
-                            setAddresses((prev) =>
-                              prev.map((addr) => (addr.id === editingAddressId ? { ...newAddress, id: addr.id } : addr))
-                            );
+                            await updateUserAddress(editingAddressId, {
+                              street: addressForm.street.trim(),
+                              number: addressForm.number.trim(),
+                              postal_code: addressForm.postal_code.trim(),
+                              additional_info: addressForm.additional_info.trim() || undefined,
+                              full_name: addressForm.full_name.trim(),
+                              phone: addressForm.phone.trim(),
+                              city: addressForm.city.trim(),
+                              province: addressForm.province.trim(),
+                              is_default: addressForm.is_default,
+                            });
+                            await loadAddresses();
+                            setAddressStatus({
+                              type: "success",
+                              message: "Dirección actualizada.",
+                            });
                           } else {
-                            setAddresses((prev) => [...prev, newAddress]);
+                            await createUserAddress({
+                              street: addressForm.street.trim(),
+                              number: addressForm.number.trim(),
+                              postal_code: addressForm.postal_code.trim(),
+                              additional_info: addressForm.additional_info.trim() || undefined,
+                              full_name: addressForm.full_name.trim(),
+                              phone: addressForm.phone.trim(),
+                              city: addressForm.city.trim(),
+                              province: addressForm.province.trim(),
+                              is_default: addressForm.is_default,
+                            });
+                            await loadAddresses();
+                            setAddressStatus({
+                              type: "success",
+                              message: "Dirección guardada.",
+                            });
                           }
 
                           setAddressForm({
                             street: "",
                             number: "",
-                            postalCode: "",
-                            extraInfo: "",
-                            recipientName: "",
-                            recipientPhone: "",
+                            postal_code: "",
+                            additional_info: "",
+                            full_name: "",
+                            phone: "",
+                            city: "",
+                            province: "",
+                            is_default: false,
                           });
                           setShowAddressForm(false);
                           setEditingAddressId(null);
-                          setAddressStatus({
-                            type: "success",
-                            message: editingAddressId ? "Dirección actualizada." : "Dirección guardada.",
-                          });
                         } catch (error: any) {
                           setAddressStatus({
                             type: "error",
@@ -488,10 +512,35 @@ export default function UsuarioPage() {
                           <label className="text-sm font-medium text-gray-700">Código postal *</label>
                           <input
                             type="text"
-                            value={addressForm.postalCode}
-                            onChange={(e) => setAddressForm((prev) => ({ ...prev, postalCode: e.target.value }))}
+                            value={addressForm.postal_code}
+                            onChange={(e) => setAddressForm((prev) => ({ ...prev, postal_code: e.target.value }))}
                             className="block w-full px-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
                             placeholder="Ej: 1405"
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Ciudad *</label>
+                          <input
+                            type="text"
+                            value={addressForm.city}
+                            onChange={(e) => setAddressForm((prev) => ({ ...prev, city: e.target.value }))}
+                            className="block w-full px-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
+                            placeholder="Ej: Buenos Aires"
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Provincia *</label>
+                          <input
+                            type="text"
+                            value={addressForm.province}
+                            onChange={(e) => setAddressForm((prev) => ({ ...prev, province: e.target.value }))}
+                            className="block w-full px-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
+                            placeholder="Ej: CABA"
+                            required
                           />
                         </div>
 
@@ -499,8 +548,8 @@ export default function UsuarioPage() {
                           <label className="text-sm font-medium text-gray-700">Información adicional</label>
                           <input
                             type="text"
-                            value={addressForm.extraInfo}
-                            onChange={(e) => setAddressForm((prev) => ({ ...prev, extraInfo: e.target.value }))}
+                            value={addressForm.additional_info}
+                            onChange={(e) => setAddressForm((prev) => ({ ...prev, additional_info: e.target.value }))}
                             className="block w-full px-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
                             placeholder="Depto, piso, entrecalles"
                           />
@@ -513,9 +562,9 @@ export default function UsuarioPage() {
                               <label className="text-sm font-medium text-gray-700">Nombre completo *</label>
                               <input
                                 type="text"
-                                value={addressForm.recipientName}
+                                value={addressForm.full_name}
                                 onChange={(e) =>
-                                  setAddressForm((prev) => ({ ...prev, recipientName: e.target.value }))
+                                  setAddressForm((prev) => ({ ...prev, full_name: e.target.value }))
                                 }
                                 className="block w-full px-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
                                 placeholder="Ej: Juan Pérez"
@@ -526,9 +575,9 @@ export default function UsuarioPage() {
                               <label className="text-sm font-medium text-gray-700">Teléfono *</label>
                               <input
                                 type="tel"
-                                value={addressForm.recipientPhone}
+                                value={addressForm.phone}
                                 onChange={(e) =>
-                                  setAddressForm((prev) => ({ ...prev, recipientPhone: e.target.value }))
+                                  setAddressForm((prev) => ({ ...prev, phone: e.target.value }))
                                 }
                                 className="block w-full px-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
                                 placeholder="+54 9 11 1234-5678"
@@ -536,6 +585,19 @@ export default function UsuarioPage() {
                               />
                             </div>
                           </div>
+                        </div>
+
+                        <div className="md:col-span-2 flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="is_default"
+                            checked={addressForm.is_default}
+                            onChange={(e) => setAddressForm((prev) => ({ ...prev, is_default: e.target.checked }))}
+                            className="w-4 h-4 text-[#00C1A7] border-gray-300 rounded focus:ring-[#00C1A7]"
+                          />
+                          <label htmlFor="is_default" className="text-sm font-medium text-gray-700">
+                            Marcar como dirección por defecto
+                          </label>
                         </div>
                       </div>
 
@@ -547,10 +609,13 @@ export default function UsuarioPage() {
                             setAddressForm({
                               street: "",
                               number: "",
-                              postalCode: "",
-                              extraInfo: "",
-                            recipientName: "",
-                            recipientPhone: "",
+                              postal_code: "",
+                              additional_info: "",
+                              full_name: "",
+                              phone: "",
+                              city: "",
+                              province: "",
+                              is_default: false,
                             });
                             setEditingAddressId(null);
                           }}
@@ -571,26 +636,39 @@ export default function UsuarioPage() {
                   )}
 
                   {/* List of addresses */}
-                  {addresses.length > 0 && (
+                  {loadingAddresses ? (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">Cargando direcciones...</p>
+                    </div>
+                  ) : addresses.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {addresses.map((address) => (
                         <div
                           key={address.id}
                           className="border border-gray-200 rounded-[12px] p-4 space-y-2 bg-white"
                         >
-                          <div className="flex items-center gap-2 text-sm text-gray-900 font-semibold">
-                            <MapPin className="w-4 h-4 text-[#00C1A7]" />
-                            Dirección guardada
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-sm text-gray-900 font-semibold">
+                              <MapPin className="w-4 h-4 text-[#00C1A7]" />
+                              Dirección guardada
+                            </div>
+                            {address.is_default && (
+                              <span className="text-xs bg-[#00C1A7]/10 text-[#00C1A7] px-2 py-1 rounded-full font-semibold">
+                                Por defecto
+                              </span>
+                            )}
                           </div>
                           <p className="text-sm text-gray-800">
                             {address.street} {address.number}
                           </p>
-                          <p className="text-sm text-gray-600">CP {address.postalCode}</p>
-                          {address.extraInfo && (
-                            <p className="text-sm text-gray-600">Info adicional: {address.extraInfo}</p>
+                          <p className="text-sm text-gray-600">
+                            {address.city}, {address.province} - CP {address.postal_code}
+                          </p>
+                          {address.additional_info && (
+                            <p className="text-sm text-gray-600">Info adicional: {address.additional_info}</p>
                           )}
                           <p className="text-sm text-gray-600">
-                            Destinatario: {address.recipientName} · {address.recipientPhone}
+                            Destinatario: {address.full_name} · {address.phone}
                           </p>
                           <div className="flex gap-3 pt-2">
                             <button
@@ -601,10 +679,13 @@ export default function UsuarioPage() {
                                 setAddressForm({
                                   street: address.street,
                                   number: address.number,
-                                  postalCode: address.postalCode,
-                                  extraInfo: address.extraInfo,
-                                  recipientName: address.recipientName,
-                                  recipientPhone: address.recipientPhone,
+                                  postal_code: address.postal_code,
+                                  additional_info: address.additional_info || "",
+                                  full_name: address.full_name,
+                                  phone: address.phone,
+                                  city: address.city,
+                                  province: address.province,
+                                  is_default: address.is_default,
                                 });
                                 setShowAddressForm(true);
                                 setAddressStatus(null);
@@ -615,12 +696,20 @@ export default function UsuarioPage() {
                             <button
                               type="button"
                               className="text-sm font-semibold text-red-600 hover:text-red-700"
-                              onClick={() => {
-                                setAddresses((prev) => prev.filter((addr) => addr.id !== address.id));
-                                setAddressStatus({ type: "success", message: "Dirección eliminada." });
-                                if (editingAddressId === address.id) {
-                                  setShowAddressForm(false);
-                                  setEditingAddressId(null);
+                              onClick={async () => {
+                                try {
+                                  await deleteUserAddress(address.id);
+                                  await loadAddresses();
+                                  setAddressStatus({ type: "success", message: "Dirección eliminada." });
+                                  if (editingAddressId === address.id) {
+                                    setShowAddressForm(false);
+                                    setEditingAddressId(null);
+                                  }
+                                } catch (error: any) {
+                                  setAddressStatus({
+                                    type: "error",
+                                    message: error?.message || "Error al eliminar dirección",
+                                  });
                                 }
                               }}
                             >
@@ -630,7 +719,7 @@ export default function UsuarioPage() {
                         </div>
                       ))}
                     </div>
-                  )}
+                  ) : null}
 
                   {/* CTA to add more when there are addresses */}
                   {addresses.length > 0 && !showAddressForm && (
@@ -654,7 +743,7 @@ export default function UsuarioPage() {
               {activeSection === "seguridad" && (
                 <form
                   className="space-y-6"
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
                     setPasswordStatus(null);
                     if (!passwordForm.newPassword || passwordForm.newPassword.length < 8) {
@@ -673,7 +762,10 @@ export default function UsuarioPage() {
                     }
                     setPasswordSaving(true);
                     try {
-                      // TODO: integrar con endpoint real de cambio de contraseña.
+                      await changePassword({
+                        current_password: passwordForm.currentPassword,
+                        new_password: passwordForm.newPassword,
+                      });
                       setPasswordStatus({ type: "success", message: "Contraseña actualizada." });
                       setPasswordForm({
                         currentPassword: "",
