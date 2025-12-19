@@ -10,6 +10,8 @@ export interface User {
   email: string;
   phone?: string;
   dni?: string;
+  gender?: string;
+  birth_date?: string;
   email_verified: boolean;
   created_at?: string;
 }
@@ -22,6 +24,7 @@ interface AuthContextType {
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  updateUser: (updates: Partial<User>) => void;
 }
 
 interface RegisterData {
@@ -143,6 +146,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push("/");
   };
 
+  const updateUser = (updates: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updatedUser = { ...prev, ...updates };
+      // Persist the updated user locally so we can reflect changes immediately
+      localStorage.setItem("user_data", JSON.stringify(updatedUser));
+      return updatedUser;
+    });
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -153,6 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         isAuthenticated: !!user && !!token,
+        updateUser,
       }}
     >
       {children}

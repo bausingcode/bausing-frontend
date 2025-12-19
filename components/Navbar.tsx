@@ -850,9 +850,12 @@ export default function Navbar() {
                       onClick={() => setShowUserMenu(!showUserMenu)}
                     >
                       <User className="w-7 h-7 text-gray-700 group-hover:text-gray-900" strokeWidth={1.5} />
-                      <div className="flex flex-col">
+                    <div className="flex flex-col min-w-0">
                         <span className="text-xs text-gray-700 font-normal">Mi cuenta</span>
-                        <span className="text-xs text-[#000000] font-semibold">
+                      <span
+                        className="text-xs text-[#000000] font-semibold truncate max-w-[140px]"
+                        title={`${user.first_name} ${user.last_name}`}
+                      >
                           {user.first_name} {user.last_name}
                         </span>
                       </div>
@@ -884,10 +887,21 @@ export default function Navbar() {
                       <button
                         type="button"
                         onClick={() => {
-                          logout();
+                          router.push("/usuario");
                           setShowUserMenu(false);
                         }}
                         className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                      >
+                        <User className="w-4 h-4" />
+                        Mi perfil
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          logout();
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
                       >
                         <LogOut className="w-4 h-4" />
                         Cerrar sesión
