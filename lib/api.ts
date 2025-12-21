@@ -1193,3 +1193,292 @@ export async function deleteUserAddress(addressId: string): Promise<void> {
   }
 }
 
+// ============================================
+// BLOG API
+// ============================================
+
+export interface BlogPost {
+  id: string;
+  author_id: string;
+  title: string;
+  slug: string;
+  excerpt?: string;
+  content?: string;
+  cover_image_url?: string;
+  meta_title?: string;
+  meta_description?: string;
+  status: 'draft' | 'published';
+  published_at?: string;
+  view_count: number;
+  created_at?: string;
+  updated_at?: string;
+  author?: {
+    id: string;
+    email: string;
+  };
+  keywords?: BlogPostKeyword[];
+  images?: BlogPostImage[];
+}
+
+export interface BlogPostKeyword {
+  id: string;
+  post_id: string;
+  keyword: string;
+  position: number;
+  created_at?: string;
+}
+
+export interface BlogPostImage {
+  id: string;
+  post_id: string;
+  image_url: string;
+  alt_text?: string;
+  position: number;
+  created_at?: string;
+}
+
+/**
+ * Fetch all blog posts
+ */
+export async function fetchBlogPosts(params?: {
+  status?: 'draft' | 'published';
+  include_keywords?: boolean;
+  include_images?: boolean;
+}): Promise<BlogPost[]> {
+  const queryParams = new URLSearchParams();
+  if (params?.status) queryParams.append('status', params.status);
+  if (params?.include_keywords !== undefined) queryParams.append('include_keywords', params.include_keywords.toString());
+  if (params?.include_images !== undefined) queryParams.append('include_images', params.include_images.toString());
+
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/blog?${queryParams.toString()}`
+    : `/api/blog?${queryParams.toString()}`;
+
+  const headers = typeof window === "undefined"
+    ? getAuthHeadersServer()
+    : getAuthHeaders();
+
+  const response = await fetch(url, { headers, cache: "no-store" });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch blog posts: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.success ? data.data : [];
+}
+
+/**
+ * Fetch a single blog post by ID
+ */
+export async function fetchBlogPostById(postId: string): Promise<BlogPost | null> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/blog/${postId}`
+      : `/api/blog/${postId}`;
+
+    const headers = typeof window === "undefined"
+      ? getAuthHeadersServer()
+      : getAuthHeaders();
+
+    const response = await fetch(url, { headers, cache: "no-store" });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error(`Failed to fetch blog post: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.success ? data.data : null;
+  } catch (error) {
+    console.error("Error fetching blog post:", error);
+    return null;
+  }
+}
+
+/**
+ * Create a new blog post
+ */
+export async function createBlogPost(postData: {
+  title: string;
+  slug?: string;
+  excerpt?: string;
+  content?: string;
+  cover_image_url?: string;
+  meta_title?: string;
+  meta_description?: string;
+  status?: 'draft' | 'published';
+  published_at?: string;
+  keywords?: string[] | Array<{ keyword: string; position?: number }>;
+  images?: Array<{ image_url: string; alt_text?: string; position?: number }>;
+}): Promise<BlogPost> {
+  const url = `/api/blog`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(postData),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to create blog post: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to create blog post: Invalid response");
+  }
+  return data.data;
+}
+
+/**
+ * Update a blog post
+ */
+export async function updateBlogPost(
+  postId: string,
+  postData: Partial<{
+    title: string;
+    slug: string;
+    excerpt: string;
+    content: string;
+    cover_image_url: string;
+    meta_title: string;
+    meta_description: string;
+    status: 'draft' | 'published';
+    published_at: string | null;
+    keywords: string[] | Array<{ keyword: string; position?: number }>;
+    images: Array<{ image_url: string; alt_text?: string; position?: number }>;
+  }>
+): Promise<BlogPost> {
+  const url = `/api/blog/${postId}`;
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(postData),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to update blog post: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to update blog post: Invalid response");
+  }
+  return data.data;
+}
+
+/**
+ * Delete a blog post
+ */
+export async function deleteBlogPost(postId: string): Promise<void> {
+  const url = `/api/blog/${postId}`;
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to delete blog post: ${response.statusText}`);
+  }
+}
+
+/**
+ * Upload a blog post image file directly to Supabase and save to database
+ */
+export async function uploadBlogPostImageFile(file: File, postId: string): Promise<BlogPostImage> {
+  // Import compression function
+  const { compressToWebp } = await import("@/lib/image");
+  
+  // Compress image
+  const compressedFile = await compressToWebp(file, {
+    maxSide: 2048,
+    quality: 0.86,
+  });
+
+  // Upload to Supabase Storage using client
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error("Supabase configuration is missing. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  }
+
+  // Generate unique filename
+  const fileExt = compressedFile.name.split('.').pop();
+  const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+  const folder = `blog-posts/${postId}`;
+  const filePath = `${folder}/${fileName}`;
+
+  // Upload to Supabase Storage using REST API
+  const uploadResponse = await fetch(
+    `${supabaseUrl}/storage/v1/object/blog-images/${filePath}`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${supabaseKey}`,
+        "Content-Type": compressedFile.type,
+        "x-upsert": "true",
+      },
+      body: compressedFile,
+    }
+  );
+
+  if (!uploadResponse.ok) {
+    const errorText = await uploadResponse.text();
+    let errorMessage = `Failed to upload to Supabase: ${uploadResponse.statusText}`;
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.message || errorJson.error || errorMessage;
+    } catch {
+      errorMessage = errorText || errorMessage;
+    }
+    throw new Error(errorMessage);
+  }
+
+  // Get public URL
+  const publicUrl = `${supabaseUrl}/storage/v1/object/public/blog-images/${filePath}`;
+
+  // Save to database via backend
+  const url = `/api/blog/${postId}/images`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      image_url: publicUrl,
+      alt_text: file.name,
+    }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to save blog post image: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to save blog post image: Invalid response");
+  }
+  return data.data;
+}
+
+/**
+ * Delete a blog post image
+ */
+export async function deleteBlogPostImage(imageId: string): Promise<void> {
+  const url = `/api/blog/images/${imageId}`;
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to delete blog post image: ${response.statusText}`);
+  }
+}
+

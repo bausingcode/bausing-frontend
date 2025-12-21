@@ -95,8 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(userData);
       setToken(userToken);
       
-      // Redirigir a home
-      router.push("/");
+      // Redirigir inmediatamente después de actualizar el estado
+      router.replace("/");
     } catch (error) {
       console.error("Login error:", error);
       throw error;
@@ -130,8 +130,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(userData);
       setToken(userToken);
       
-      // Redirigir a home
-      router.push("/");
+      // Redirigir inmediatamente después de actualizar el estado
+      router.replace("/");
     } catch (error) {
       console.error("Register error:", error);
       throw error;

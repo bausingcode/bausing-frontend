@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import Image from "next/image";
 import { Star } from "lucide-react";
 
 interface Review {
@@ -9,44 +8,52 @@ interface Review {
   name: string;
   text: string;
   rating: number;
-  avatar: string;
+  link: string;
 }
+
+// Helper function to get initials from name
+const getInitials = (name: string): string => {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
 
 const baseReviews: Review[] = [
   {
     id: 1,
-    name: "María González",
-    text: "La relación precio-calidad es increíble. El sommier llegó en perfectas condiciones y el armado fue muy sencillo. Totalmente recomendable.",
+    name: "Hannss Angulo",
+    text: "Vi el catálogo por internet , me asesoraron mediante WhatsApp lo cual lo hicieron muy bien y al día siguiente me trajeron el colchón...",
     rating: 5,
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face"
+    link: "https://share.google/JGDJHozKLGNTD9dro"
   },
   {
     id: 2,
-    name: "María González",
-    text: "La relación precio-calidad es increíble. El sommier llegó en perfectas condiciones y el armado fue muy sencillo. Totalmente recomendable.",
+    name: "Patricia Diaz",
+    text: "Excelente la atención el personal, súper expeditivo, amable y dispuesto a resolver cualquier situación. Muy buena mercadería, sin dudas recomendables.",
     rating: 5,
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face"
+    link: "https://share.google/TlUOz7UAY8mpNRiTZ"
   },
   {
     id: 3,
-    name: "María González",
-    text: "La relación precio-calidad es increíble. El sommier llegó en perfectas condiciones y el armado fue muy sencillo. Totalmente recomendable.",
+    name: "Jazmin Roy",
+    text: "Hoy compre un respaldar de falso capitone de pana negra. Es todo lo que está bien 😍 el precio excelente!",
     rating: 5,
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face"
+    link: "https://share.google/4Qho3RFqJYCxDqL2N"
   },
   {
     id: 4,
-    name: "María González",
-    text: "La relación precio-calidad es increíble. El sommier llegó en perfectas condiciones y el armado fue muy sencillo. Totalmente recomendable.",
+    name: "Maria Cristina Bazan",
+    text: "Llegaron al tiempo prometido, la calidad es muy buena y los precios inmejorable. Altamente recomendados",
     rating: 5,
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face"
+    link: "https://share.google/6hMvqUqIWr6p2SY2U"
   },
   {
     id: 5,
-    name: "María González",
-    text: "La relación precio-calidad es increíble. El sommier llegó en perfectas condiciones y el armado fue muy sencillo. Totalmente recomendable.",
+    name: "Alexia Brajin",
+    text: "Muy  lindooo y exelente calidad y trato muy confiableee",
     rating: 5,
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face"
+    link: "https://share.google/BwB9nXVRcKlIgn0cH"
   }
 ];
 
@@ -128,9 +135,34 @@ export default function ReviewsSection() {
           <h2 className="text-3xl text-gray-900 mb-2">
             ¡Gracias por confiar en nosotros!
           </h2>
-          <p className="text-lg text-gray-700">
-            Opiniones de nuestros clientes.
-          </p>
+          
+          {/* Google Logo and Rating */}
+          <div className="flex items-center justify-center gap-3 mb-4 mt-4">
+            <img 
+              src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png" 
+              alt="Google" 
+              className="h-6"
+            />
+            <div className="flex gap-1">
+              {[...Array(5)].map((_, i) => (
+                <Star
+                  key={i}
+                  className="w-5 h-5 fill-yellow-400 text-yellow-400"
+                  strokeWidth={0}
+                />
+              ))}
+            </div>
+          </div>
+          
+          {/* Link to all reviews */}
+          <a 
+            href="https://maps.app.goo.gl/R5TPRodvyBBw1qZh6" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-[#00C1A7] hover:text-[#00A892] font-medium text-sm underline inline-block"
+          >
+            Ver todas las reseñas
+          </a>
         </div>
       </div>
 
@@ -146,13 +178,16 @@ export default function ReviewsSection() {
         >
             {/* Render reviews twice for seamless loop */}
             {[...reviews, ...reviews].map((review, index) => (
-              <div
+              <a
                 key={`${review.id}-${index}`}
-                className="bg-white rounded-lg border border-[#DEDEDE] p-6 min-w-[400px] max-w-[400px] flex flex-col flex-shrink-0"
+                href={review.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white rounded-lg border border-[#DEDEDE] p-6 min-w-[400px] max-w-[400px] flex flex-col flex-shrink-0 cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all"
               >
                 {/* Stars */}
                 <div className="flex gap-1 mb-4">
-                  {[...Array(review.rating)].map((_, i) => (
+                  {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
                       className="w-5 h-5 fill-yellow-400 text-yellow-400"
@@ -168,19 +203,16 @@ export default function ReviewsSection() {
 
                 {/* Customer Info */}
                 <div className="flex items-center gap-3">
-                  <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
-                    <Image
-                      src={review.avatar}
-                      alt={review.name}
-                      fill
-                      className="object-cover"
-                    />
+                  <div className="w-12 h-12 rounded-full bg-[#00C1A7] flex items-center justify-center flex-shrink-0">
+                    <span className="text-white font-semibold text-sm">
+                      {getInitials(review.name)}
+                    </span>
                   </div>
                   <p className="text-gray-900 font-medium text-sm">
                     {review.name}
                   </p>
                 </div>
-              </div>
+              </a>
             ))}
           </div>
         </div>

@@ -19,7 +19,7 @@ export default function LoginPage() {
   // Redirigir al home si ya está autenticado
   useEffect(() => {
     if (isAuthenticated) {
-      router.push("/");
+      router.replace("/");
     }
   }, [isAuthenticated, router]);
 
@@ -35,9 +35,7 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      // Pequeño delay para asegurar que el estado se actualice antes de redirigir
-      await new Promise(resolve => setTimeout(resolve, 100));
-      router.replace("/");
+      // La redirección se maneja en el AuthContext
     } catch (err: any) {
       setError(err.message || "Error al iniciar sesión");
       setLoading(false);

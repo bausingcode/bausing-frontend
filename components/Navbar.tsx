@@ -854,9 +854,9 @@ export default function Navbar() {
                         <span className="text-xs text-gray-700 font-normal">Mi cuenta</span>
                       <span
                         className="text-xs text-[#000000] font-semibold truncate max-w-[140px]"
-                        title={user.first_name}
+                        title={`${user.first_name} ${user.last_name}`}
                       >
-                          {user.first_name}
+                          {user.first_name} {user.last_name}
                         </span>
                       </div>
                     </div>
@@ -880,7 +880,7 @@ export default function Navbar() {
                     >
                       <div className="px-4 py-2 border-b border-gray-100">
                         <p className="text-sm font-semibold text-gray-900">
-                          {user?.first_name}
+                          {user?.first_name} {user?.last_name}
                         </p>
                         <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                       </div>
