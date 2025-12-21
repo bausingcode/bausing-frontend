@@ -91,14 +91,6 @@ export default function ArticlePage() {
 
             <aside className="space-y-4">
               <div className="bg-white border border-gray-200 rounded-[12px] p-4">
-                <h4 className="text-sm font-semibold text-gray-900 mb-3">Datos rápidos</h4>
-                <ul className="space-y-2 text-sm text-gray-700">
-                  <li>• Firmeza sugerida: media a media-firme.</li>
-                  <li>• Ideal para: postura lateral o boca arriba.</li>
-                  <li>• Tip: combiná con almohada altura media.</li>
-                </ul>
-              </div>
-              <div className="bg-white border border-gray-200 rounded-[12px] p-4">
                 <h4 className="text-sm font-semibold text-gray-900 mb-3">Etiquetas</h4>
                 <div className="flex flex-wrap gap-2">
                   {["Descanso", "Colchones", "Guía rápida"].map((tag) => (
