@@ -38,7 +38,7 @@ import {
 } from "lucide-react";
 import Cart from "./Cart";
 import Image from "next/image";
-import { useAuth } from "@/app/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Iconos personalizados
 const PillowIcon = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (

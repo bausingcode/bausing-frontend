@@ -10,9 +10,7 @@ import {
   updateBlogPost,
   deleteBlogPost,
   uploadBlogPostImageFile,
-  deleteBlogPostImage,
-  BlogPost,
-  BlogPostImage
+  BlogPost
 } from "@/lib/api";
 import wsrvLoader from "@/lib/wsrvLoader";
 import { 
@@ -24,8 +22,6 @@ import {
   Check, 
   AlertCircle,
   Plus,
-  Image as ImageIcon,
-  Maximize2,
   Save
 } from "lucide-react";
 
@@ -71,12 +67,6 @@ export default function BlogPage() {
   
   // Estados para imágenes
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
-  const [pendingImages, setPendingImages] = useState<File[]>([]);
-  const [postImages, setPostImages] = useState<BlogPostImage[]>([]);
-  const [imagesToDelete, setImagesToDelete] = useState<Set<string>>(new Set());
-  
-  // Estado para preview ampliado
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
   
   // Estado para keyword input
   const [keywordInput, setKeywordInput] = useState("");
@@ -89,7 +79,7 @@ export default function BlogPage() {
     try {
       setLoading(true);
       setError("");
-      const data = await fetchBlogPosts({ include_keywords: true, include_images: true });
+      const data = await fetchBlogPosts({ include_keywords: true });
       setPosts(data);
     } catch (err: any) {
       setError(err.message || "Error al cargar los posts");
@@ -117,10 +107,7 @@ export default function BlogPage() {
         published_at: post.published_at ? new Date(post.published_at).toISOString().slice(0, 16) : "",
         keywords: post.keywords?.map(k => k.keyword) || [],
       });
-      setPostImages(post.images || []);
       setCoverImageFile(null);
-      setPendingImages([]);
-      setImagesToDelete(new Set());
     } else {
       setEditingPost(null);
       setFormData({
@@ -135,10 +122,7 @@ export default function BlogPage() {
         published_at: "",
         keywords: [],
       });
-      setPostImages([]);
       setCoverImageFile(null);
-      setPendingImages([]);
-      setImagesToDelete(new Set());
     }
     setIsModalOpen(true);
   };
@@ -158,14 +142,11 @@ export default function BlogPage() {
       published_at: "",
       keywords: [],
     });
-    setPostImages([]);
     setCoverImageFile(null);
-    setPendingImages([]);
-    setImagesToDelete(new Set());
     setKeywordInput("");
   };
 
-  const handleFileSelect = (file: File, type: 'cover' | 'content') => {
+  const handleFileSelect = (file: File) => {
     if (!file.type.startsWith('image/')) {
       setError("Por favor selecciona un archivo de imagen válido");
       return;
@@ -177,12 +158,7 @@ export default function BlogPage() {
     }
     
     setError("");
-    
-    if (type === 'cover') {
-      setCoverImageFile(file);
-    } else {
-      setPendingImages([...pendingImages, file]);
-    }
+    setCoverImageFile(file);
   };
 
   const handleSave = async () => {
@@ -206,7 +182,6 @@ export default function BlogPage() {
           status: formData.status,
           published_at: formData.published_at || undefined,
           keywords: formData.keywords,
-          images: [],
         });
         postId = newPost.id;
       } else {
@@ -231,22 +206,6 @@ export default function BlogPage() {
         await updateBlogPost(postId, {
           cover_image_url: coverImage.image_url,
         });
-      }
-
-      // Eliminar imágenes marcadas para eliminar
-      for (const imageId of imagesToDelete) {
-        try {
-          await deleteBlogPostImage(imageId);
-        } catch (err: any) {
-          console.error(`Error al eliminar imagen ${imageId}:`, err);
-        }
-      }
-
-      // Subir nuevas imágenes de contenido
-      for (const file of pendingImages) {
-        if (postId) {
-          await uploadBlogPostImageFile(file, postId);
-        }
       }
 
       setSuccess("Post guardado correctamente");
@@ -275,16 +234,6 @@ export default function BlogPage() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const toggleImageDelete = (imageId: string) => {
-    const newSet = new Set(imagesToDelete);
-    if (newSet.has(imageId)) {
-      newSet.delete(imageId);
-    } else {
-      newSet.add(imageId);
-    }
-    setImagesToDelete(newSet);
   };
 
   const addKeyword = () => {
@@ -510,7 +459,7 @@ export default function BlogPage() {
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (file) handleFileSelect(file, 'cover');
+                    if (file) handleFileSelect(file);
                     e.target.value = '';
                   }}
                 />
@@ -546,124 +495,6 @@ export default function BlogPage() {
                     >
                       <X className="w-4 h-4" />
                     </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Imágenes de contenido */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Imágenes de Contenido
-                </label>
-                <input
-                  type="file"
-                  id="content-images-input"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleFileSelect(file, 'content');
-                    e.target.value = '';
-                  }}
-                />
-                <label
-                  htmlFor="content-images-input"
-                  className="px-3 py-2 text-sm rounded-lg flex items-center gap-2 transition-colors cursor-pointer bg-blue-600 text-white hover:bg-blue-700 w-fit mb-3"
-                >
-                  <Upload className="w-4 h-4" />
-                  <span>Agregar Imagen</span>
-                </label>
-
-                {/* Previews de imágenes pendientes */}
-                {pendingImages.length > 0 && (
-                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-medium text-blue-900">
-                        {pendingImages.length} imagen(es) pendiente(s) de subir
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {pendingImages.map((file, index) => (
-                        <div key={index} className="relative group">
-                          <div 
-                            className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-                            onClick={() => setPreviewImage(URL.createObjectURL(file))}
-                          >
-                            <img
-                              src={URL.createObjectURL(file)}
-                              alt={`Preview ${index + 1}`}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <button
-                            onClick={() => {
-                              const newFiles = pendingImages.filter((_, i) => i !== index);
-                              setPendingImages(newFiles);
-                            }}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 cursor-pointer"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Imágenes existentes */}
-                {postImages.filter(img => !imagesToDelete.has(img.id)).length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {postImages.filter(img => !imagesToDelete.has(img.id)).map((image) => {
-                      const isMarkedForDelete = imagesToDelete.has(image.id);
-                      return (
-                        <div
-                          key={image.id}
-                          className={`border rounded-lg overflow-hidden group relative ${
-                            isMarkedForDelete ? "border-red-300 opacity-50" : "border-gray-200"
-                          }`}
-                        >
-                          <div className="aspect-square bg-gray-100 relative">
-                            <img
-                              src={image.image_url}
-                              alt={image.alt_text || "Imagen"}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                if (target.src !== wsrvLoader({ src: image.image_url, width: 400 })) {
-                                  target.src = wsrvLoader({ src: image.image_url, width: 400 });
-                                }
-                              }}
-                            />
-                            {isMarkedForDelete && (
-                              <div className="absolute inset-0 bg-red-500 bg-opacity-20 flex items-center justify-center">
-                                <span className="text-red-700 font-semibold bg-white px-2 py-1 rounded text-xs">Se eliminará</span>
-                              </div>
-                            )}
-                            <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={() => setPreviewImage(image.image_url)}
-                                className="p-1.5 rounded-full cursor-pointer bg-blue-500 text-white hover:bg-blue-600"
-                                title="Visualizar imagen"
-                              >
-                                <Maximize2 className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </div>
-                          <div className="p-2 bg-white">
-                            <button
-                              onClick={() => toggleImageDelete(image.id)}
-                              className={`w-full p-1.5 rounded transition-colors cursor-pointer text-xs ${
-                                isMarkedForDelete
-                                  ? "bg-red-100 text-red-700"
-                                  : "text-red-600 hover:bg-red-50"
-                              }`}
-                            >
-                              {isMarkedForDelete ? "Cancelar" : "Eliminar"}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
                   </div>
                 )}
               </div>
@@ -774,28 +605,6 @@ export default function BlogPage() {
         </div>
       )}
 
-      {/* Modal de preview ampliado */}
-      {previewImage && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm bg-black/50"
-          onClick={() => setPreviewImage(null)}
-        >
-          <div className="relative max-w-7xl max-h-[90vh] w-full h-full flex items-center justify-center">
-            <button
-              onClick={() => setPreviewImage(null)}
-              className="absolute top-4 right-4 text-white bg-black/50 hover:bg-black/70 rounded-full p-2 transition-colors z-10 cursor-pointer"
-            >
-              <X className="w-6 h-6" />
-            </button>
-            <img
-              src={previewImage}
-              alt="Preview ampliado"
-              className="max-w-full max-h-full object-contain rounded-lg"
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

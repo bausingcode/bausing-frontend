@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Heart, ShoppingCart } from "lucide-react";
 import wsrvLoader from "@/lib/wsrvLoader";
-import { useCart } from "@/app/contexts/CartContext";
+import { useCart } from "@/contexts/CartContext";
 
 interface ProductCardProps {
   id?: string;

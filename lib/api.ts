@@ -1299,6 +1299,36 @@ export async function fetchBlogPostById(postId: string): Promise<BlogPost | null
 }
 
 /**
+ * Fetch a single blog post by slug
+ */
+export async function fetchBlogPostBySlug(slug: string): Promise<BlogPost | null> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/blog/slug/${slug}`
+      : `/api/blog/slug/${slug}`;
+
+    const headers = typeof window === "undefined"
+      ? getAuthHeadersServer()
+      : getAuthHeaders();
+
+    const response = await fetch(url, { headers, cache: "no-store" });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error(`Failed to fetch blog post: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.success ? data.data : null;
+  } catch (error) {
+    console.error("Error fetching blog post by slug:", error);
+    return null;
+  }
+}
+
+/**
  * Create a new blog post
  */
 export async function createBlogPost(postData: {

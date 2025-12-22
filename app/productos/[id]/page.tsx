@@ -7,7 +7,7 @@ import { Heart, ShoppingCart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
-import { useCart } from "@/app/contexts/CartContext";
+import { useCart } from "@/contexts/CartContext";
 import { fetchProductById, Product as ApiProduct } from "@/lib/api";
 import wsrvLoader from "@/lib/wsrvLoader";
 
