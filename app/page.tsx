@@ -364,7 +364,7 @@ export default async function Home() {
               <div className="w-18 h-18 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-3">
                 <Factory className="w-9 h-9 text-[#00C1A7]" strokeWidth={1.5} />
               </div>
-              <p className="text-[#101828] mb-1">Distribuidora oficial</p>
+              <p className="text-[#101828] mb-1">Distribuidor oficial</p>
               <p className="text-sm text-[#4A5565]">Calidad garantizada desde el origen</p>
             </div>
           </div>

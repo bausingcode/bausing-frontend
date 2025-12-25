@@ -24,7 +24,11 @@ import {
   Package,
   Phone,
   Shield,
-  User
+  User,
+  Mail,
+  CheckCircle,
+  XCircle,
+  RefreshCw
 } from "lucide-react";
 
 type MenuKey = "perfil" | "direcciones" | "pedidos" | "seguridad" | "logout";
@@ -82,6 +86,8 @@ export default function UsuarioPage() {
   });
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordStatus, setPasswordStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // Pre-cargar los datos del usuario cuando están disponibles
   useEffect(() => {
@@ -741,126 +747,243 @@ export default function UsuarioPage() {
               )}
 
               {activeSection === "seguridad" && (
-                <form
-                  className="space-y-6"
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    setPasswordStatus(null);
-                    if (!passwordForm.newPassword || passwordForm.newPassword.length < 8) {
-                      setPasswordStatus({
-                        type: "error",
-                        message: "La nueva contraseña debe tener al menos 8 caracteres.",
-                      });
-                      return;
-                    }
-                    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-                      setPasswordStatus({
-                        type: "error",
-                        message: "Las contraseñas no coinciden.",
-                      });
-                      return;
-                    }
-                    setPasswordSaving(true);
-                    try {
-                      await changePassword({
-                        current_password: passwordForm.currentPassword,
-                        new_password: passwordForm.newPassword,
-                      });
-                      setPasswordStatus({ type: "success", message: "Contraseña actualizada." });
-                      setPasswordForm({
-                        currentPassword: "",
-                        newPassword: "",
-                        confirmPassword: "",
-                      });
-                    } catch (error: any) {
-                      setPasswordStatus({
-                        type: "error",
-                        message: error?.message || "No pudimos actualizar tu contraseña.",
-                      });
-                    } finally {
-                      setPasswordSaving(false);
-                    }
-                  }}
-                >
-                  {passwordStatus && (
-                    <div
-                      className={`px-4 py-3 rounded-lg border text-sm ${
-                        passwordStatus.type === "success"
-                          ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                          : "bg-red-50 border-red-200 text-red-700"
-                      }`}
-                    >
-                      {passwordStatus.message}
+                <div className="space-y-8">
+                  {/* Sección de Email y Verificación */}
+                  <div className="space-y-4">
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-900 mb-4">Email y Verificación</h2>
+                      
+                      {/* Email del usuario */}
+                      <div className="border border-gray-200 rounded-[12px] p-4 bg-gray-50">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-white rounded-lg border border-gray-200">
+                              <Mail className="w-5 h-5 text-gray-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500">Email</p>
+                              <p className="text-base font-semibold text-gray-900">{user?.email}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {user?.email_verified ? (
+                              <>
+                                <CheckCircle className="w-5 h-5 text-emerald-600" />
+                                <span className="text-sm font-semibold text-emerald-600">Verificado</span>
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="w-5 h-5 text-red-600" />
+                                <span className="text-sm font-semibold text-red-600">No verificado</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Mensaje de estado de reenvío */}
+                      {resendMessage && (
+                        <div
+                          className={`px-4 py-3 rounded-lg border text-sm ${
+                            resendMessage.type === "success"
+                              ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                              : "bg-red-50 border-red-200 text-red-700"
+                          }`}
+                        >
+                          {resendMessage.message}
+                        </div>
+                      )}
+
+                      {/* Botón para reenviar email si no está verificado */}
+                      {!user?.email_verified && (
+                        <div className="border border-amber-200 rounded-[12px] p-4 bg-amber-50">
+                          <div className="flex items-start gap-3">
+                            <div className="p-2 bg-amber-100 rounded-lg">
+                              <Mail className="w-5 h-5 text-amber-600" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-amber-900 mb-1">
+                                Tu email no está verificado
+                              </p>
+                              <p className="text-sm text-amber-700 mb-3">
+                                Por favor, verifica tu email para acceder a todas las funcionalidades de tu cuenta.
+                              </p>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  setResendMessage(null);
+                                  setResendLoading(true);
+                                  try {
+                                    const token = localStorage.getItem("user_token");
+                                    if (!token) {
+                                      throw new Error("Debes iniciar sesión para reenviar el email");
+                                    }
+
+                                    const response = await fetch(`/api/auth/resend-verification`, {
+                                      method: "POST",
+                                      headers: {
+                                        "Content-Type": "application/json",
+                                        Authorization: `Bearer ${token}`,
+                                      },
+                                    });
+
+                                    const data = await response.json();
+
+                                    if (!response.ok || !data.success) {
+                                      throw new Error(data.error || "Error al reenviar el email");
+                                    }
+
+                                    setResendMessage({
+                                      type: "success",
+                                      message: "Email de verificación reenviado. Revisa tu bandeja de entrada.",
+                                    });
+                                  } catch (error: any) {
+                                    setResendMessage({
+                                      type: "error",
+                                      message: error?.message || "Error al reenviar el email de verificación",
+                                    });
+                                  } finally {
+                                    setResendLoading(false);
+                                  }
+                                }}
+                                disabled={resendLoading}
+                                className="inline-flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-[8px] text-sm font-semibold hover:bg-amber-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                              >
+                                <RefreshCw className={`w-4 h-4 ${resendLoading ? "animate-spin" : ""}`} />
+                                {resendLoading ? "Enviando..." : "Reenviar email de verificación"}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Contraseña actual</label>
-                    <input
-                      type="password"
-                      value={passwordForm.currentPassword}
-                      onChange={(e) =>
-                        setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))
-                      }
-                      className="block w-full px-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
-                      placeholder="••••••••"
-                      required
-                    />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Nueva contraseña</label>
-                    <input
-                      type="password"
-                      value={passwordForm.newPassword}
-                      onChange={(e) =>
-                        setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))
-                      }
-                      className="block w-full px-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
-                      placeholder="Mínimo 8 caracteres"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Confirmar nueva contraseña</label>
-                    <input
-                      type="password"
-                      value={passwordForm.confirmPassword}
-                      onChange={(e) =>
-                        setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))
-                      }
-                      className="block w-full px-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
-                      placeholder="Repite la nueva contraseña"
-                      required
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-end gap-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPasswordForm({
-                          currentPassword: "",
-                          newPassword: "",
-                          confirmPassword: "",
-                        });
+                  {/* Sección de Cambio de Contraseña */}
+                  <div className="border-t border-gray-200 pt-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Cambiar Contraseña</h2>
+                    <form
+                      className="space-y-6"
+                      onSubmit={async (e) => {
+                        e.preventDefault();
                         setPasswordStatus(null);
+                        if (!passwordForm.newPassword || passwordForm.newPassword.length < 8) {
+                          setPasswordStatus({
+                            type: "error",
+                            message: "La nueva contraseña debe tener al menos 8 caracteres.",
+                          });
+                          return;
+                        }
+                        if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+                          setPasswordStatus({
+                            type: "error",
+                            message: "Las contraseñas no coinciden.",
+                          });
+                          return;
+                        }
+                        setPasswordSaving(true);
+                        try {
+                          await changePassword({
+                            current_password: passwordForm.currentPassword,
+                            new_password: passwordForm.newPassword,
+                          });
+                          setPasswordStatus({ type: "success", message: "Contraseña actualizada." });
+                          setPasswordForm({
+                            currentPassword: "",
+                            newPassword: "",
+                            confirmPassword: "",
+                          });
+                        } catch (error: any) {
+                          setPasswordStatus({
+                            type: "error",
+                            message: error?.message || "No pudimos actualizar tu contraseña.",
+                          });
+                        } finally {
+                          setPasswordSaving(false);
+                        }
                       }}
-                      className="px-4 py-2 text-sm font-semibold text-gray-700 hover:text-gray-900"
-                      disabled={passwordSaving}
                     >
-                      Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={passwordSaving}
-                      className="inline-flex items-center gap-2 bg-[#00C1A7] text-white py-3 px-5 rounded-[8px] font-semibold hover:bg-[#00a892] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {passwordSaving ? "Guardando..." : "Actualizar contraseña"}
-                    </button>
+                      {passwordStatus && (
+                        <div
+                          className={`px-4 py-3 rounded-lg border text-sm ${
+                            passwordStatus.type === "success"
+                              ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                              : "bg-red-50 border-red-200 text-red-700"
+                          }`}
+                        >
+                          {passwordStatus.message}
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Contraseña actual</label>
+                        <input
+                          type="password"
+                          value={passwordForm.currentPassword}
+                          onChange={(e) =>
+                            setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))
+                          }
+                          className="block w-full px-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
+                          placeholder="••••••••"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Nueva contraseña</label>
+                        <input
+                          type="password"
+                          value={passwordForm.newPassword}
+                          onChange={(e) =>
+                            setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))
+                          }
+                          className="block w-full px-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
+                          placeholder="Mínimo 8 caracteres"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Confirmar nueva contraseña</label>
+                        <input
+                          type="password"
+                          value={passwordForm.confirmPassword}
+                          onChange={(e) =>
+                            setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))
+                          }
+                          className="block w-full px-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
+                          placeholder="Repite la nueva contraseña"
+                          required
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-end gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPasswordForm({
+                              currentPassword: "",
+                              newPassword: "",
+                              confirmPassword: "",
+                            });
+                            setPasswordStatus(null);
+                          }}
+                          className="px-4 py-2 text-sm font-semibold text-gray-700 hover:text-gray-900"
+                          disabled={passwordSaving}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={passwordSaving}
+                          className="inline-flex items-center gap-2 bg-[#00C1A7] text-white py-3 px-5 rounded-[8px] font-semibold hover:bg-[#00a892] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {passwordSaving ? "Guardando..." : "Actualizar contraseña"}
+                        </button>
+                      </div>
+                    </form>
                   </div>
-                </form>
+                </div>
               )}
             </div>
           </section>

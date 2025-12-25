@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Star } from "lucide-react";
 
 interface Review {
@@ -133,7 +133,7 @@ export default function ReviewsSection() {
         {/* Titles */}
         <div className="text-center mb-12">
           <h2 className="text-3xl text-gray-900 mb-2">
-            ¡Gracias por confiar en nosotros!
+            La colchoneria mejor puntuada de Córdoba
           </h2>
           
           {/* Google Logo and Rating */}
@@ -143,14 +143,19 @@ export default function ReviewsSection() {
               alt="Google" 
               className="h-6"
             />
-            <div className="flex gap-1">
-              {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  className="w-5 h-5 fill-yellow-400 text-yellow-400"
-                  strokeWidth={0}
-                />
-              ))}
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1">
+                {[...Array(5)].map((_, i) => (
+                  <Star
+                    key={i}
+                    className="w-5 h-5 fill-yellow-400 text-yellow-400"
+                    strokeWidth={0}
+                  />
+                ))}
+              </div>
+              <span className="text-gray-600 text-sm">
+                +1.000 reseñas en Google
+              </span>
             </div>
           </div>
           

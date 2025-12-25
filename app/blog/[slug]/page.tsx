@@ -183,8 +183,6 @@ export default function ArticlePage() {
                 <p className="text-base md:text-lg text-white/90">{article.excerpt}</p>
               )}
               <div className="flex flex-wrap items-center gap-3 text-sm text-white/80">
-                <span>{author}</span>
-                <span className="w-1 h-1 rounded-full bg-white/60" />
                 <span>{date}</span>
                 <span className="w-1 h-1 rounded-full bg-white/60" />
                 <span>{readTime} de lectura</span>

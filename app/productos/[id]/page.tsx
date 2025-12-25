@@ -512,8 +512,8 @@ export default function ProductDetailPage() {
                                   })}
                                 </div>
                                 <div className="flex justify-between mt-1 text-xs text-gray-500">
-                                  <span>EXTRA BLANDO</span>
-                                  <span>EXTRA FIRME</span>
+                                  <span>SOFT</span>
+                                  <span>FIRME</span>
                                 </div>
                               </div>
                               <div className="text-sm font-medium text-gray-900 min-w-[60px] text-right">
