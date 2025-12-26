@@ -26,6 +26,14 @@ export default function Clientes() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
+  // Función para formatear moneda
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("es-AR", {
+      style: "currency",
+      currency: "ARS",
+    }).format(amount);
+  };
+
   useEffect(() => {
     const loadCustomers = async () => {
       try {
@@ -53,7 +61,7 @@ export default function Clientes() {
       localidad: "N/A", // Not available in user model yet
       compras: 0, // Not available in user model yet
       ultimaCompra: "N/A", // Not available in user model yet
-      saldoBilletera: "$0", // Not available in user model yet
+      saldoBilletera: user.wallet ? formatCurrency(user.wallet.balance) : "$0",
       estado: user.is_suspended ? "Suspendido" : (user.email_verified ? "Activo" : "Inactivo"),
       is_suspended: user.is_suspended || false,
     }));

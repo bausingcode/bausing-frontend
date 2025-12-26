@@ -812,6 +812,10 @@ export interface User {
   email_verified: boolean;
   is_suspended?: boolean;
   created_at?: string;
+  wallet?: {
+    balance: number;
+    is_blocked: boolean;
+  };
 }
 
 export interface LoginResponse {
@@ -1006,6 +1010,320 @@ export async function toggleSuspendCustomer(userId: string, isSuspended: boolean
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || `Failed to update customer: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.data;
+}
+
+// ============================================
+// WALLET API (Admin)
+// ============================================
+
+export interface WalletCustomer {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+  dni?: string;
+  has_wallet: boolean;
+  wallet_balance: number;
+  wallet_blocked: boolean;
+}
+
+export interface WalletSummary {
+  user: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone?: string;
+    dni?: string;
+  };
+  wallet: {
+    balance: number;
+    is_blocked: boolean;
+    last_movement?: {
+      id: string;
+      type: string;
+      amount: number;
+      description?: string;
+      created_at: string;
+    } | null;
+  };
+}
+
+export interface WalletMovement {
+  id: string;
+  wallet_id: string;
+  type: string;
+  amount: number;
+  description?: string;
+  order_id?: string;
+  reason?: string;
+  internal_comment?: string;
+  created_at: string;
+  admin_user?: {
+    id: string;
+    email: string;
+  };
+  user?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
+}
+
+export interface WalletMovementsResponse {
+  movements: WalletMovement[];
+  pagination: {
+    page: number;
+    per_page: number;
+    total: number;
+    pages: number;
+  };
+}
+
+export interface WalletAnomalies {
+  many_manual_adjustments: Array<{
+    user_id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    adjustment_count: number;
+  }>;
+  large_movements: Array<{
+    movement_id: string;
+    user: {
+      user_id: string;
+      first_name: string;
+      last_name: string;
+      email: string;
+    };
+    type: string;
+    amount: number;
+    description?: string;
+    created_at: string;
+  }>;
+}
+
+/**
+ * Search customers for wallet management
+ */
+export async function searchWalletCustomers(query: string, limit = 20): Promise<WalletCustomer[]> {
+  const url = `/api/admin/wallet/customers/search?q=${encodeURIComponent(query)}&limit=${limit}`;
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to search customers: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.success ? data.data : [];
+}
+
+/**
+ * Get wallet summary for a customer
+ */
+export async function getWalletSummary(userId: string): Promise<WalletSummary> {
+  const url = `/api/admin/wallet/customers/${userId}/summary`;
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to get wallet summary: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.data;
+}
+
+/**
+ * Get wallet movements for a customer
+ */
+export async function getCustomerWalletMovements(
+  userId: string,
+  page = 1,
+  perPage = 50,
+  type?: string
+): Promise<WalletMovementsResponse> {
+  const queryParams = new URLSearchParams({
+    page: page.toString(),
+    per_page: perPage.toString(),
+  });
+  if (type) queryParams.append('type', type);
+  
+  const url = `/api/admin/wallet/customers/${userId}/movements?${queryParams.toString()}`;
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to get wallet movements: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.data;
+}
+
+/**
+ * Manual credit (load balance)
+ */
+export async function walletManualCredit(
+  userId: string,
+  data: {
+    amount: number;
+    reason: string;
+    internal_comment?: string;
+  }
+): Promise<void> {
+  const url = `/api/admin/wallet/customers/${userId}/credit`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to credit wallet: ${response.statusText}`);
+  }
+}
+
+/**
+ * Manual debit (deduct balance)
+ */
+export async function walletManualDebit(
+  userId: string,
+  data: {
+    amount: number;
+    reason: string;
+    internal_comment: string;
+  }
+): Promise<void> {
+  const url = `/api/admin/wallet/customers/${userId}/debit`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to debit wallet: ${response.statusText}`);
+  }
+}
+
+/**
+ * Block/unblock wallet
+ */
+export async function toggleWalletBlock(
+  userId: string,
+  isBlocked: boolean,
+  reason?: string
+): Promise<void> {
+  const url = `/api/admin/wallet/customers/${userId}/block`;
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ is_blocked: isBlocked, reason }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to update wallet block status: ${response.statusText}`);
+  }
+}
+
+/**
+ * Get all wallet movements with filters
+ */
+export async function getAllWalletMovements(params?: {
+  page?: number;
+  per_page?: number;
+  type?: string;
+  user_id?: string;
+  start_date?: string;
+  end_date?: string;
+}): Promise<WalletMovementsResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+  if (params?.type) queryParams.append('type', params.type);
+  if (params?.user_id) queryParams.append('user_id', params.user_id);
+  if (params?.start_date) queryParams.append('start_date', params.start_date);
+  if (params?.end_date) queryParams.append('end_date', params.end_date);
+  
+  const url = `/api/admin/wallet/movements?${queryParams.toString()}`;
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to get wallet movements: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.data;
+}
+
+/**
+ * Export wallet movements to CSV
+ */
+export async function exportWalletMovements(params?: {
+  type?: string;
+  user_id?: string;
+  start_date?: string;
+  end_date?: string;
+}): Promise<Blob> {
+  const queryParams = new URLSearchParams();
+  if (params?.type) queryParams.append('type', params.type);
+  if (params?.user_id) queryParams.append('user_id', params.user_id);
+  if (params?.start_date) queryParams.append('start_date', params.start_date);
+  if (params?.end_date) queryParams.append('end_date', params.end_date);
+  
+  const url = `/api/admin/wallet/movements/export?${queryParams.toString()}`;
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to export movements: ${response.statusText}`);
+  }
+  
+  return response.blob();
+}
+
+/**
+ * Get wallet anomalies
+ */
+export async function getWalletAnomalies(params?: {
+  min_manual_adjustments?: number;
+  min_amount?: number;
+}): Promise<WalletAnomalies> {
+  const queryParams = new URLSearchParams();
+  if (params?.min_manual_adjustments) queryParams.append('min_manual_adjustments', params.min_manual_adjustments.toString());
+  if (params?.min_amount) queryParams.append('min_amount', params.min_amount.toString());
+  
+  const url = `/api/admin/wallet/anomalies?${queryParams.toString()}`;
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to get anomalies: ${response.statusText}`);
   }
   
   const data = await response.json();

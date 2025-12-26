@@ -173,7 +173,7 @@ export default function Sidebar() {
                   href="/admin/billetera"
                   icon={<CreditCard className="w-5 h-5" />}
                 >
-                  Billetera Bausing (X)
+                  Billetera Bausing
                 </NavLink>
               </li>
               <li key="productos">
