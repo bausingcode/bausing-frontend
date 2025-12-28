@@ -1830,3 +1830,119 @@ export async function deleteBlogPostImage(imageId: string): Promise<void> {
   }
 }
 
+// ==================== WALLET API (USER) ====================
+
+export interface WalletBalance {
+  balance: number;
+  is_blocked: boolean;
+}
+
+export interface WalletMovement {
+  id: string;
+  wallet_id: string;
+  type: string;
+  amount: number;
+  description: string;
+  order_id?: string;
+  created_at: string;
+}
+
+export interface WalletMovementsResponse {
+  movements: WalletMovement[];
+  pagination: {
+    page: number;
+    per_page: number;
+    total: number;
+    pages: number;
+  };
+}
+
+export interface TransferResponse {
+  transfer_id: string;
+  amount: number;
+  recipient_email: string;
+  new_balance: number;
+}
+
+/**
+ * Get user wallet balance
+ */
+export async function getUserWalletBalance(): Promise<WalletBalance> {
+  const url = `/api/wallet/balance`;
+  const response = await fetch(url, {
+    headers: getUserAuthHeaders(),
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to get wallet balance: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to get wallet balance: Invalid response");
+  }
+  return data.data;
+}
+
+/**
+ * Get user wallet movements
+ */
+export async function getUserWalletMovements(params?: {
+  page?: number;
+  per_page?: number;
+  type?: string;
+}): Promise<WalletMovementsResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+  if (params?.type) queryParams.append('type', params.type);
+  
+  const url = `/api/wallet/movements?${queryParams.toString()}`;
+  const response = await fetch(url, {
+    headers: getUserAuthHeaders(),
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to get wallet movements: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to get wallet movements: Invalid response");
+  }
+  return data.data;
+}
+
+/**
+ * Transfer wallet balance to another user
+ */
+export async function transferWalletBalance(
+  recipientEmail: string,
+  amount: number
+): Promise<TransferResponse> {
+  const url = `/api/wallet/transfer`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getUserAuthHeaders(),
+    body: JSON.stringify({
+      recipient_email: recipientEmail,
+      amount: amount,
+    }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to transfer balance: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error(data.error || "Failed to transfer balance: Invalid response");
+  }
+  return data.data;
+}
+

@@ -13,7 +13,11 @@ import {
   createUserAddress,
   updateUserAddress,
   deleteUserAddress,
+  getUserWalletBalance,
+  getUserWalletMovements,
+  transferWalletBalance,
   type Address,
+  type WalletMovement,
 } from "@/lib/api";
 import {
   Calendar,
@@ -103,8 +107,46 @@ export default function UsuarioPage() {
   const [transferSaving, setTransferSaving] = useState(false);
   const [transferStatus, setTransferStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletMovements, setWalletMovements] = useState<WalletMovement[]>([]);
+  const [movementsLoading, setMovementsLoading] = useState(false);
 
-  // Datos de ejemplo de transacciones (transferencias y compras)
+  // Cargar datos de wallet cuando se activa la sección
+  useEffect(() => {
+    if (activeSection === "billetera" && isAuthenticated) {
+      loadWalletData();
+    }
+  }, [activeSection, isAuthenticated]);
+
+  const loadWalletData = async () => {
+    setWalletLoading(true);
+    try {
+      const balanceData = await getUserWalletBalance();
+      setWalletBalance(balanceData.balance);
+      
+      const movementsData = await getUserWalletMovements({ page: 1, per_page: 50 });
+      setWalletMovements(movementsData.movements);
+    } catch (error: any) {
+      console.error("Error loading wallet data:", error);
+    } finally {
+      setWalletLoading(false);
+    }
+  };
+
+  const loadMovements = async () => {
+    setMovementsLoading(true);
+    try {
+      const movementsData = await getUserWalletMovements({ page: 1, per_page: 50 });
+      setWalletMovements(movementsData.movements);
+    } catch (error: any) {
+      console.error("Error loading movements:", error);
+    } finally {
+      setMovementsLoading(false);
+    }
+  };
+
+  // Datos de ejemplo de transacciones (transferencias y compras) - DEPRECATED, usar walletMovements
   const exampleTransactions = [
     {
       id: "1",
@@ -836,7 +878,16 @@ export default function UsuarioPage() {
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <p className="text-sm text-gray-600 mb-1">Saldo disponible</p>
-                        <p className="text-3xl font-bold text-gray-900">$0</p>
+                        {walletLoading ? (
+                          <p className="text-3xl font-bold text-gray-900">Cargando...</p>
+                        ) : (
+                          <p className="text-3xl font-bold text-gray-900">
+                            ${walletBalance.toLocaleString("es-AR", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </p>
+                        )}
                       </div>
                       <div className="p-3 bg-white rounded-full border border-gray-200">
                         <CreditCard className="w-6 h-6 text-[#00C1A7]" />
@@ -856,7 +907,7 @@ export default function UsuarioPage() {
                         setTransferStatus(null);
                         setTransferForm({ email: "", amount: "" });
                       }}
-                      className="border border-gray-200 rounded-[12px] p-4 hover:border-[#00C1A7] hover:bg-[#00C1A7]/5 transition-colors text-left"
+                      className="border border-gray-200 rounded-[12px] p-4 hover:border-[#00C1A7] hover:bg-[#00C1A7]/5 transition-colors text-left cursor-pointer"
                     >
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-[#00C1A7]/10 rounded-lg">
@@ -868,11 +919,14 @@ export default function UsuarioPage() {
                         </div>
                       </div>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowHistoryModal(true)}
-                      className="border border-gray-200 rounded-[12px] p-4 hover:border-[#00C1A7] hover:bg-[#00C1A7]/5 transition-colors text-left"
-                    >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowHistoryModal(true);
+                      loadMovements();
+                    }}
+                    className="border border-gray-200 rounded-[12px] p-4 hover:border-[#00C1A7] hover:bg-[#00C1A7]/5 transition-colors text-left cursor-pointer"
+                  >
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-[#00C1A7]/10 rounded-lg">
                           <FileText className="w-5 h-5 text-[#00C1A7]" />
@@ -1135,8 +1189,18 @@ export default function UsuarioPage() {
 
       {/* Modal de Transferir Saldo */}
       {showTransferModal && (
-        <div className="fixed inset-0 backdrop-blur-[1px] bg-black/40 z-[200] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[14px] w-full max-w-md shadow-xl">
+        <div 
+          className="fixed inset-0 backdrop-blur-[1px] bg-black/40 z-[200] flex items-center justify-center p-4"
+          onClick={() => {
+            setShowTransferModal(false);
+            setTransferForm({ email: "", amount: "" });
+            setTransferStatus(null);
+          }}
+        >
+          <div 
+            className="bg-white rounded-[14px] w-full max-w-md shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -1150,6 +1214,7 @@ export default function UsuarioPage() {
                     setTransferStatus(null);
                   }}
                   className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                  type="button"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -1192,16 +1257,15 @@ export default function UsuarioPage() {
 
                   setTransferSaving(true);
                   try {
-                    // TODO: Integrar con el endpoint de transferencia cuando esté disponible
-                    // await transferWalletBalance(transferForm.email, amount);
-                    
-                    // Simulación por ahora
-                    await new Promise((resolve) => setTimeout(resolve, 1000));
+                    await transferWalletBalance(transferForm.email, amount);
                     
                     setTransferStatus({
                       type: "success",
                       message: `Transferencia de $${amount.toFixed(2)} a ${transferForm.email} realizada exitosamente.`,
                     });
+                    
+                    // Recargar datos de wallet
+                    await loadWalletData();
                     
                     setTimeout(() => {
                       setShowTransferModal(false);
@@ -1288,8 +1352,14 @@ export default function UsuarioPage() {
 
       {/* Modal de Historial de Uso */}
       {showHistoryModal && (
-        <div className="fixed inset-0 backdrop-blur-[1px] bg-black/40 z-[200] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[14px] w-full max-w-2xl shadow-xl max-h-[80vh] flex flex-col">
+        <div 
+          className="fixed inset-0 backdrop-blur-[1px] bg-black/40 z-[200] flex items-center justify-center p-4"
+          onClick={() => setShowHistoryModal(false)}
+        >
+          <div 
+            className="bg-white rounded-[14px] w-full max-w-2xl shadow-xl max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -1299,6 +1369,7 @@ export default function UsuarioPage() {
                 <button
                   onClick={() => setShowHistoryModal(false)}
                   className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                  type="button"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -1306,71 +1377,89 @@ export default function UsuarioPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
-              {exampleTransactions.length === 0 ? (
+              {movementsLoading ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">Cargando movimientos...</p>
+                </div>
+              ) : walletMovements.length === 0 ? (
                 <div className="text-center py-12">
                   <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No hay transacciones registradas</p>
+                  <p className="text-gray-500">No hay movimientos registrados</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {exampleTransactions.map((transaction) => {
-                    const isSent = transaction.type === "sent";
-                    const isReceived = transaction.type === "received";
-                    const isPurchase = transaction.type === "purchase";
-                    const formattedDate = transaction.date.toLocaleDateString("es-AR", {
+                  {walletMovements.map((movement) => {
+                    // Si la descripción contiene "Descuento", es una reducción de dinero
+                    const isDiscount = movement.description?.toLowerCase().includes("descuento") || false;
+                    // Las compras también son reducción de dinero
+                    const isPurchase = movement.type === "purchase" || movement.type === "order_payment";
+                    const isOutgoing = movement.amount < 0 || isDiscount || isPurchase;
+                    const isIncoming = movement.amount > 0 && !isDiscount && !isPurchase;
+                    const movementDate = new Date(movement.created_at);
+                    const formattedDate = movementDate.toLocaleDateString("es-AR", {
                       day: "2-digit",
                       month: "2-digit",
                       year: "numeric",
                     });
-                    const formattedTime = transaction.date.toLocaleTimeString("es-AR", {
+                    const formattedTime = movementDate.toLocaleTimeString("es-AR", {
                       hour: "2-digit",
                       minute: "2-digit",
                     });
 
+                    // Determinar tipo de movimiento
+                    let movementType = "Otro";
+                    let icon = <ShoppingCart className="w-5 h-5" />;
+                    let bgColor = "bg-blue-50 text-blue-600";
+                    let badgeColor = "bg-blue-100 text-blue-700";
+                    
+                    // Si es descuento, tratarlo como reducción
+                    if (isDiscount) {
+                      movementType = "Descuento";
+                      icon = <ArrowUpRight className="w-5 h-5" />;
+                      bgColor = "bg-red-50 text-red-600";
+                      badgeColor = "bg-red-100 text-red-700";
+                    }
+
+                    if (movement.type === "transfer_out") {
+                      movementType = "Enviada";
+                      icon = <ArrowUpRight className="w-5 h-5" />;
+                      bgColor = "bg-red-50 text-red-600";
+                      badgeColor = "bg-red-100 text-red-700";
+                    } else if (movement.type === "transfer_in") {
+                      movementType = "Recibida";
+                      icon = <ArrowDownRight className="w-5 h-5" />;
+                      bgColor = "bg-emerald-50 text-emerald-600";
+                      badgeColor = "bg-emerald-100 text-emerald-700";
+                    } else if (movement.type === "purchase" || movement.type === "order_payment") {
+                      movementType = "Compra";
+                      icon = <ShoppingCart className="w-5 h-5" />;
+                      bgColor = "bg-red-50 text-red-600";
+                      badgeColor = "bg-red-100 text-red-700";
+                    } else if (movement.type === "accreditation" || movement.type === "manual_credit") {
+                      movementType = "Acreditación";
+                      icon = <ArrowDownRight className="w-5 h-5" />;
+                      bgColor = "bg-emerald-50 text-emerald-600";
+                      badgeColor = "bg-emerald-100 text-emerald-700";
+                    }
+
                     return (
                       <div
-                        key={transaction.id}
+                        key={movement.id}
                         className="border border-gray-200 rounded-[12px] p-4 hover:border-[#00C1A7] transition-colors"
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3 flex-1">
-                            <div
-                              className={`p-2 rounded-lg ${
-                                isSent
-                                  ? "bg-red-50 text-red-600"
-                                  : isReceived
-                                  ? "bg-emerald-50 text-emerald-600"
-                                  : "bg-blue-50 text-blue-600"
-                              }`}
-                            >
-                              {isSent ? (
-                                <ArrowUpRight className="w-5 h-5" />
-                              ) : isReceived ? (
-                                <ArrowDownRight className="w-5 h-5" />
-                              ) : (
-                                <ShoppingCart className="w-5 h-5" />
-                              )}
+                            <div className={`p-2 rounded-lg ${bgColor}`}>
+                              {icon}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <span
-                                  className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                                    isSent
-                                      ? "bg-red-100 text-red-700"
-                                      : isReceived
-                                      ? "bg-emerald-100 text-emerald-700"
-                                      : "bg-blue-100 text-blue-700"
-                                  }`}
-                                >
-                                  {isSent ? "Enviada" : isReceived ? "Recibida" : "Compra"}
+                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${badgeColor}`}>
+                                  {movementType}
                                 </span>
                               </div>
                               <p className="text-sm font-medium text-gray-900 truncate">
-                                {isPurchase
-                                  ? transaction.productName
-                                  : isSent
-                                  ? `A: ${transaction.email}`
-                                  : `De: ${transaction.email}`}
+                                {movement.description || movementType}
                               </p>
                               <p className="text-xs text-gray-500">
                                 {formattedDate} a las {formattedTime}
@@ -1380,12 +1469,10 @@ export default function UsuarioPage() {
                           <div className="text-right">
                             <p
                               className={`text-lg font-bold ${
-                                isSent || isPurchase
-                                  ? "text-red-600"
-                                  : "text-emerald-600"
+                                isOutgoing ? "text-red-600" : "text-emerald-600"
                               }`}
                             >
-                              {isSent || isPurchase ? "-" : "+"}${transaction.amount.toLocaleString("es-AR", {
+                              {isOutgoing ? "-" : "+"}${Math.abs(movement.amount).toLocaleString("es-AR", {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2,
                               })}
