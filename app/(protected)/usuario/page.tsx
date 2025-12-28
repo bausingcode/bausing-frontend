@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Loader from "@/components/Loader";
@@ -28,14 +28,20 @@ import {
   Mail,
   CheckCircle,
   XCircle,
-  RefreshCw
+  RefreshCw,
+  CreditCard,
+  X,
+  ArrowUpRight,
+  ArrowDownRight,
+  ShoppingCart
 } from "lucide-react";
 
-type MenuKey = "perfil" | "direcciones" | "pedidos" | "seguridad" | "logout";
+type MenuKey = "perfil" | "direcciones" | "pedidos" | "seguridad" | "billetera" | "logout";
 
 const menuItems: { key: MenuKey; label: string; icon: LucideIcon }[] = [
   { key: "perfil", label: "Perfil", icon: User },
   { key: "direcciones", label: "Direcciones", icon: MapPin },
+  { key: "billetera", label: "Billetera", icon: CreditCard },
   { key: "pedidos", label: "Pedidos", icon: Package },
   { key: "seguridad", label: "Seguridad", icon: Shield },
   { key: "logout", label: "Cerrar sesión", icon: LogOut },
@@ -51,6 +57,7 @@ const genderOptions = [
 export default function UsuarioPage() {
   const { user, loading, isAuthenticated, logout, updateUser } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeSection, setActiveSection] = useState<MenuKey>("perfil");
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -88,6 +95,82 @@ export default function UsuarioPage() {
   const [passwordStatus, setPasswordStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferForm, setTransferForm] = useState({
+    email: "",
+    amount: "",
+  });
+  const [transferSaving, setTransferSaving] = useState(false);
+  const [transferStatus, setTransferStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+
+  // Datos de ejemplo de transacciones (transferencias y compras)
+  const exampleTransactions = [
+    {
+      id: "1",
+      type: "sent" as const,
+      email: "juan.perez@example.com",
+      amount: 5000,
+      date: new Date("2025-01-15T14:30:00"),
+    },
+    {
+      id: "2",
+      type: "purchase" as const,
+      productName: "Colchón Premium 160x200",
+      amount: 45000,
+      date: new Date("2025-01-14T11:20:00"),
+    },
+    {
+      id: "3",
+      type: "received" as const,
+      email: "maria.garcia@example.com",
+      amount: 3000,
+      date: new Date("2025-01-12T10:15:00"),
+    },
+    {
+      id: "4",
+      type: "purchase" as const,
+      productName: "Almohadas Memory Foam x2",
+      amount: 8500,
+      date: new Date("2025-01-11T16:00:00"),
+    },
+    {
+      id: "5",
+      type: "sent" as const,
+      email: "carlos.rodriguez@example.com",
+      amount: 2500,
+      date: new Date("2025-01-10T16:45:00"),
+    },
+    {
+      id: "6",
+      type: "received" as const,
+      email: "ana.martinez@example.com",
+      amount: 7500,
+      date: new Date("2025-01-08T09:20:00"),
+    },
+    {
+      id: "7",
+      type: "purchase" as const,
+      productName: "Sommier Box Spring 140x190",
+      amount: 32000,
+      date: new Date("2025-01-06T14:30:00"),
+    },
+    {
+      id: "8",
+      type: "sent" as const,
+      email: "luis.fernandez@example.com",
+      amount: 1200,
+      date: new Date("2025-01-05T11:30:00"),
+    },
+  ];
+
+  // Leer query params para establecer la sección activa
+  useEffect(() => {
+    const section = searchParams.get("section");
+    if (section && ["perfil", "direcciones", "billetera", "pedidos", "seguridad"].includes(section)) {
+      setActiveSection(section as MenuKey);
+    }
+  }, [searchParams]);
 
   // Pre-cargar los datos del usuario cuando están disponibles
   useEffect(() => {
@@ -167,7 +250,7 @@ export default function UsuarioPage() {
       <Navbar />
 
       <main className="flex-1 container mx-auto px-4 lg:px-8 py-8 lg:py-12">
-        <div className="grid lg:grid-cols-[280px_1fr] gap-6 items-start">
+        <div className={`grid lg:grid-cols-[280px_1fr] gap-6 ${activeSection === "billetera" ? "items-stretch" : "items-start"}`}>
           {/* Sidebar */}
           <aside className="bg-white border border-gray-200 rounded-[14px] shadow-sm p-4">
             <div className="flex items-center gap-3 pb-4 mb-4 border-b border-gray-100">
@@ -189,7 +272,7 @@ export default function UsuarioPage() {
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeSection === item.key;
-                const isDisabled = !["perfil", "direcciones", "seguridad", "logout"].includes(item.key);
+                const isDisabled = !["perfil", "direcciones", "seguridad", "billetera", "logout"].includes(item.key);
 
                 return (
                   <button
@@ -223,8 +306,8 @@ export default function UsuarioPage() {
           </aside>
 
           {/* Content */}
-          <section className="space-y-4">
-            <div className="bg-white border border-gray-200 rounded-[14px] shadow-sm p-6">
+          <section className={`space-y-4 ${activeSection === "billetera" ? "h-full" : ""}`}>
+            <div className={`bg-white border border-gray-200 rounded-[14px] shadow-sm p-6 ${activeSection === "billetera" ? "h-full" : ""}`}>
               <div className="flex items-center justify-between gap-3 mb-6">
                 <div>
                   <p className="text-sm text-gray-500">Sección</p>
@@ -746,6 +829,64 @@ export default function UsuarioPage() {
                 </div>
               )}
 
+              {activeSection === "billetera" && (
+                <div className="space-y-6 h-full flex flex-col">
+                  {/* Saldo actual */}
+                  <div className="border border-gray-200 rounded-[14px] p-6 bg-gradient-to-br from-[#00C1A7]/5 to-[#00C1A7]/10">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">Saldo disponible</p>
+                        <p className="text-3xl font-bold text-gray-900">$0</p>
+                      </div>
+                      <div className="p-3 bg-white rounded-full border border-gray-200">
+                        <CreditCard className="w-6 h-6 text-[#00C1A7]" />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Usa tu billetera Bausing para pagar tus compras de forma rápida y segura.
+                    </p>
+                  </div>
+
+                  {/* Acciones rápidas */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowTransferModal(true);
+                        setTransferStatus(null);
+                        setTransferForm({ email: "", amount: "" });
+                      }}
+                      className="border border-gray-200 rounded-[12px] p-4 hover:border-[#00C1A7] hover:bg-[#00C1A7]/5 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-[#00C1A7]/10 rounded-lg">
+                          <CreditCard className="w-5 h-5 text-[#00C1A7]" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">Transferir saldo</p>
+                          <p className="text-xs text-gray-500">Transfiere dinero a otra cuenta</p>
+                        </div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowHistoryModal(true)}
+                      className="border border-gray-200 rounded-[12px] p-4 hover:border-[#00C1A7] hover:bg-[#00C1A7]/5 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-[#00C1A7]/10 rounded-lg">
+                          <FileText className="w-5 h-5 text-[#00C1A7]" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">Ver historial</p>
+                          <p className="text-xs text-gray-500">Consulta tus movimientos</p>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {activeSection === "seguridad" && (
                 <div className="space-y-8">
                   {/* Sección de Email y Verificación */}
@@ -991,6 +1132,275 @@ export default function UsuarioPage() {
       </main>
 
       <Footer />
+
+      {/* Modal de Transferir Saldo */}
+      {showTransferModal && (
+        <div className="fixed inset-0 backdrop-blur-[1px] bg-black/40 z-[200] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[14px] w-full max-w-md shadow-xl">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <CreditCard className="w-6 h-6 text-[#00C1A7]" />
+                  <h2 className="text-xl font-semibold text-gray-900">Transferir saldo</h2>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowTransferModal(false);
+                    setTransferForm({ email: "", amount: "" });
+                    setTransferStatus(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {transferStatus && (
+                <div
+                  className={`px-4 py-3 rounded-lg border text-sm mb-4 ${
+                    transferStatus.type === "success"
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                      : "bg-red-50 border-red-200 text-red-700"
+                  }`}
+                >
+                  {transferStatus.message}
+                </div>
+              )}
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setTransferStatus(null);
+
+                  // Validaciones
+                  if (!transferForm.email || !transferForm.email.includes("@")) {
+                    setTransferStatus({
+                      type: "error",
+                      message: "Por favor ingresa un email válido.",
+                    });
+                    return;
+                  }
+
+                  const amount = parseFloat(transferForm.amount);
+                  if (!transferForm.amount || isNaN(amount) || amount <= 0) {
+                    setTransferStatus({
+                      type: "error",
+                      message: "Por favor ingresa un monto válido mayor a 0.",
+                    });
+                    return;
+                  }
+
+                  setTransferSaving(true);
+                  try {
+                    // TODO: Integrar con el endpoint de transferencia cuando esté disponible
+                    // await transferWalletBalance(transferForm.email, amount);
+                    
+                    // Simulación por ahora
+                    await new Promise((resolve) => setTimeout(resolve, 1000));
+                    
+                    setTransferStatus({
+                      type: "success",
+                      message: `Transferencia de $${amount.toFixed(2)} a ${transferForm.email} realizada exitosamente.`,
+                    });
+                    
+                    setTimeout(() => {
+                      setShowTransferModal(false);
+                      setTransferForm({ email: "", amount: "" });
+                      setTransferStatus(null);
+                    }, 2000);
+                  } catch (error: any) {
+                    setTransferStatus({
+                      type: "error",
+                      message: error?.message || "Error al realizar la transferencia. Inténtalo nuevamente.",
+                    });
+                  } finally {
+                    setTransferSaving(false);
+                  }
+                }}
+                className="space-y-4"
+              >
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Email del destinatario *</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Mail className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="email"
+                      value={transferForm.email}
+                      onChange={(e) =>
+                        setTransferForm((prev) => ({ ...prev, email: e.target.value }))
+                      }
+                      className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
+                      placeholder="usuario@ejemplo.com"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Monto a transferir *</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-gray-500">$</span>
+                    </div>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={transferForm.amount}
+                      onChange={(e) =>
+                        setTransferForm((prev) => ({ ...prev, amount: e.target.value }))
+                      }
+                      className="block w-full pl-8 pr-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowTransferModal(false);
+                      setTransferForm({ email: "", amount: "" });
+                      setTransferStatus(null);
+                    }}
+                    className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-[6px] font-medium hover:bg-gray-200 transition-colors cursor-pointer"
+                    disabled={transferSaving}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={transferSaving}
+                    className="flex-1 px-4 py-2 bg-[#00C1A7] text-white rounded-[6px] font-medium hover:bg-[#00a892] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {transferSaving ? "Transferiendo..." : "Transferir"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Historial de Uso */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 backdrop-blur-[1px] bg-black/40 z-[200] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[14px] w-full max-w-2xl shadow-xl max-h-[80vh] flex flex-col">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <FileText className="w-6 h-6 text-[#00C1A7]" />
+                  <h2 className="text-xl font-semibold text-gray-900">Historial de uso</h2>
+                </div>
+                <button
+                  onClick={() => setShowHistoryModal(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {exampleTransactions.length === 0 ? (
+                <div className="text-center py-12">
+                  <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">No hay transacciones registradas</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {exampleTransactions.map((transaction) => {
+                    const isSent = transaction.type === "sent";
+                    const isReceived = transaction.type === "received";
+                    const isPurchase = transaction.type === "purchase";
+                    const formattedDate = transaction.date.toLocaleDateString("es-AR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    });
+                    const formattedTime = transaction.date.toLocaleTimeString("es-AR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    });
+
+                    return (
+                      <div
+                        key={transaction.id}
+                        className="border border-gray-200 rounded-[12px] p-4 hover:border-[#00C1A7] transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 flex-1">
+                            <div
+                              className={`p-2 rounded-lg ${
+                                isSent
+                                  ? "bg-red-50 text-red-600"
+                                  : isReceived
+                                  ? "bg-emerald-50 text-emerald-600"
+                                  : "bg-blue-50 text-blue-600"
+                              }`}
+                            >
+                              {isSent ? (
+                                <ArrowUpRight className="w-5 h-5" />
+                              ) : isReceived ? (
+                                <ArrowDownRight className="w-5 h-5" />
+                              ) : (
+                                <ShoppingCart className="w-5 h-5" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span
+                                  className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                    isSent
+                                      ? "bg-red-100 text-red-700"
+                                      : isReceived
+                                      ? "bg-emerald-100 text-emerald-700"
+                                      : "bg-blue-100 text-blue-700"
+                                  }`}
+                                >
+                                  {isSent ? "Enviada" : isReceived ? "Recibida" : "Compra"}
+                                </span>
+                              </div>
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {isPurchase
+                                  ? transaction.productName
+                                  : isSent
+                                  ? `A: ${transaction.email}`
+                                  : `De: ${transaction.email}`}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {formattedDate} a las {formattedTime}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p
+                              className={`text-lg font-bold ${
+                                isSent || isPurchase
+                                  ? "text-red-600"
+                                  : "text-emerald-600"
+                              }`}
+                            >
+                              {isSent || isPurchase ? "-" : "+"}${transaction.amount.toLocaleString("es-AR", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

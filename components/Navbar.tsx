@@ -898,6 +898,17 @@ export default function Navbar() {
                       <button
                         type="button"
                         onClick={() => {
+                          router.push("/usuario?section=billetera");
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                      >
+                        <CreditCard className="w-4 h-4" />
+                        Billetera
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
                           logout();
                           setShowUserMenu(false);
                         }}
