@@ -81,6 +81,10 @@ export default function BilleteraAdmin() {
   // Notification states
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  
+  // Loading states for modals
+  const [isLoadingCredit, setIsLoadingCredit] = useState(false);
+  const [isLoadingDebit, setIsLoadingDebit] = useState(false);
 
   // Search customers - removed auto-search, now requires button press or Enter
 
@@ -147,7 +151,10 @@ export default function BilleteraAdmin() {
       return;
     }
 
+    if (isLoadingCredit) return; // Evitar múltiples clicks
+
     try {
+      setIsLoadingCredit(true);
       setError("");
       await walletManualCredit(selectedCustomer.id, {
         amount: parseFloat(modalData.amount),
@@ -167,6 +174,8 @@ export default function BilleteraAdmin() {
       setSuccess("Saldo cargado exitosamente");
     } catch (error: any) {
       setError(`Error al cargar saldo: ${error.message}`);
+    } finally {
+      setIsLoadingCredit(false);
     }
   };
 
@@ -176,7 +185,10 @@ export default function BilleteraAdmin() {
       return;
     }
 
+    if (isLoadingDebit) return; // Evitar múltiples clicks
+
     try {
+      setIsLoadingDebit(true);
       setError("");
       await walletManualDebit(selectedCustomer.id, {
         amount: parseFloat(modalData.amount),
@@ -195,6 +207,8 @@ export default function BilleteraAdmin() {
       setSuccess("Saldo descontado exitosamente");
     } catch (error: any) {
       setError(`Error al descontar saldo: ${error.message}`);
+    } finally {
+      setIsLoadingDebit(false);
     }
   };
 
@@ -1125,8 +1139,10 @@ export default function BilleteraAdmin() {
                 onClick={() => {
                   setShowCreditModal(false);
                   setModalData({ amount: "", reason: "", internal_comment: "", expires_at: "" });
+                  setIsLoadingCredit(false);
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                disabled={isLoadingCredit}
+                className="text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1202,16 +1218,26 @@ export default function BilleteraAdmin() {
                 onClick={() => {
                   setShowCreditModal(false);
                   setModalData({ amount: "", reason: "", internal_comment: "", expires_at: "" });
+                  setIsLoadingCredit(false);
                 }}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-[6px] hover:bg-gray-300 transition-colors cursor-pointer"
+                disabled={isLoadingCredit}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-[6px] hover:bg-gray-300 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleCredit}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-[6px] hover:bg-green-700 transition-colors cursor-pointer"
+                disabled={isLoadingCredit}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-[6px] hover:bg-green-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Cargar Saldo
+                {isLoadingCredit ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Cargando...</span>
+                  </>
+                ) : (
+                  "Cargar Saldo"
+                )}
               </button>
             </div>
           </div>
@@ -1225,8 +1251,13 @@ export default function BilleteraAdmin() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold text-gray-900">Descontar Saldo</h3>
               <button
-                onClick={() => setShowDebitModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                onClick={() => {
+                  setShowDebitModal(false);
+                  setModalData({ amount: "", reason: "", internal_comment: "", expires_at: "" });
+                  setIsLoadingDebit(false);
+                }}
+                disabled={isLoadingDebit}
+                className="text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1282,16 +1313,29 @@ export default function BilleteraAdmin() {
             </div>
             <div className="flex gap-3 mt-6">
               <button
-                onClick={() => setShowDebitModal(false)}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-[6px] hover:bg-gray-300 transition-colors cursor-pointer"
+                onClick={() => {
+                  setShowDebitModal(false);
+                  setModalData({ amount: "", reason: "", internal_comment: "", expires_at: "" });
+                  setIsLoadingDebit(false);
+                }}
+                disabled={isLoadingDebit}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-[6px] hover:bg-gray-300 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleDebit}
-                className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-[6px] hover:bg-orange-700 transition-colors cursor-pointer"
+                disabled={isLoadingDebit}
+                className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-[6px] hover:bg-orange-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Descontar Saldo
+                {isLoadingDebit ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Cargando...</span>
+                  </>
+                ) : (
+                  "Descontar Saldo"
+                )}
               </button>
             </div>
           </div>
