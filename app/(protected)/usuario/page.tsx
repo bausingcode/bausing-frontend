@@ -991,7 +991,7 @@ export default function UsuarioPage() {
 
                       {/* Botón para reenviar email si no está verificado */}
                       {!user?.email_verified && (
-                        <div className="border border-amber-200 rounded-[12px] p-4 bg-amber-50">
+                        <div className="border border-amber-200 rounded-[12px] p-4 mt-4 bg-amber-50">
                           <div className="flex items-start gap-3">
                             <div className="p-2 bg-amber-100 rounded-lg">
                               <Mail className="w-5 h-5 text-amber-600" />
@@ -1042,7 +1042,7 @@ export default function UsuarioPage() {
                                   }
                                 }}
                                 disabled={resendLoading}
-                                className="inline-flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-[8px] text-sm font-semibold hover:bg-amber-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                className="inline-flex items-center cursor-pointer gap-2 bg-amber-600 text-white px-4 py-2 rounded-[8px] text-sm font-semibold hover:bg-amber-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                               >
                                 <RefreshCw className={`w-4 h-4 ${resendLoading ? "animate-spin" : ""}`} />
                                 {resendLoading ? "Enviando..." : "Reenviar email de verificación"}
@@ -1464,6 +1464,38 @@ export default function UsuarioPage() {
                               <p className="text-xs text-gray-500">
                                 {formattedDate} a las {formattedTime}
                               </p>
+                              {/* Mostrar información de vencimiento para créditos */}
+                              {isIncoming && movement.expires_at && (
+                                (() => {
+                                  const expiresDate = new Date(movement.expires_at);
+                                  const now = new Date();
+                                  const isExpired = expiresDate < now;
+                                  const daysUntilExpiry = Math.ceil((expiresDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                                  const formattedExpiryDate = expiresDate.toLocaleDateString("es-AR", {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    year: "numeric",
+                                  });
+                                  
+                                  return (
+                                    <div className="mt-1">
+                                      {isExpired ? (
+                                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                                          <span>Vencido el {formattedExpiryDate}</span>
+                                        </span>
+                                      ) : daysUntilExpiry <= 7 ? (
+                                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                                          <span>Vence el {formattedExpiryDate} ({daysUntilExpiry} {daysUntilExpiry === 1 ? 'día' : 'días'})</span>
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                                          <span>Vence el {formattedExpiryDate}</span>
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })()
+                              )}
                             </div>
                           </div>
                           <div className="text-right">

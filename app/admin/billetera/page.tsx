@@ -75,6 +75,7 @@ export default function BilleteraAdmin() {
     amount: "",
     reason: "",
     internal_comment: "",
+    expires_at: "",
   });
 
   // Notification states
@@ -152,10 +153,11 @@ export default function BilleteraAdmin() {
         amount: parseFloat(modalData.amount),
         reason: modalData.reason,
         internal_comment: modalData.internal_comment || undefined,
+        expires_at: modalData.expires_at || undefined,
       });
       
       setShowCreditModal(false);
-      setModalData({ amount: "", reason: "", internal_comment: "" });
+      setModalData({ amount: "", reason: "", internal_comment: "", expires_at: "" });
       
       // Reload customer data
       if (selectedCustomer) {
@@ -183,7 +185,7 @@ export default function BilleteraAdmin() {
       });
       
       setShowDebitModal(false);
-      setModalData({ amount: "", reason: "", internal_comment: "" });
+      setModalData({ amount: "", reason: "", internal_comment: "", expires_at: "" });
       
       // Reload customer data
       if (selectedCustomer) {
@@ -208,7 +210,7 @@ export default function BilleteraAdmin() {
       );
       
       setShowBlockModal(false);
-      setModalData({ amount: "", reason: "", internal_comment: "" });
+      setModalData({ amount: "", reason: "", internal_comment: "", expires_at: "" });
       
       // Reload customer data
       if (selectedCustomer) {
@@ -587,7 +589,7 @@ export default function BilleteraAdmin() {
                     <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
                       <button
                         onClick={() => {
-                          setModalData({ amount: "", reason: "", internal_comment: "" });
+                          setModalData({ amount: "", reason: "", internal_comment: "", expires_at: "" });
                           setShowCreditModal(true);
                         }}
                         className="flex-1 px-4 py-2 bg-green-600 text-white rounded-[6px] hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
@@ -597,7 +599,7 @@ export default function BilleteraAdmin() {
                       </button>
                       <button
                         onClick={() => {
-                          setModalData({ amount: "", reason: "", internal_comment: "" });
+                          setModalData({ amount: "", reason: "", internal_comment: "", expires_at: "" });
                           setShowDebitModal(true);
                         }}
                         className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-[6px] hover:bg-orange-700 transition-colors flex items-center justify-center gap-2"
@@ -607,7 +609,7 @@ export default function BilleteraAdmin() {
                       </button>
                       <button
                         onClick={() => {
-                          setModalData({ amount: "", reason: "", internal_comment: "" });
+                          setModalData({ amount: "", reason: "", internal_comment: "", expires_at: "" });
                           setShowBlockModal(true);
                         }}
                         className={`flex-1 px-4 py-2 rounded-[6px] transition-colors flex items-center justify-center gap-2 ${
@@ -662,35 +664,56 @@ export default function BilleteraAdmin() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-200">
-                            {customerMovements.map((movement) => (
-                              <tr key={movement.id} className="hover:bg-gray-50">
-                                <td className="py-3 px-4 text-sm text-gray-600">
-                                  {formatDate(movement.created_at)}
-                                </td>
-                                <td className="py-3 px-4 text-sm text-gray-900">
-                                  {getMovementTypeLabel(movement.type)}
-                                </td>
-                                <td
-                                  className={`py-3 px-4 text-sm text-right font-medium ${
-                                    movement.type.includes("credit") ||
-                                    movement.type === "cashback" ||
-                                    movement.type === "refund"
-                                      ? "text-green-600"
-                                      : "text-red-600"
-                                  }`}
-                                >
-                                  {movement.type.includes("credit") ||
-                                  movement.type === "cashback" ||
-                                  movement.type === "refund"
-                                    ? "+"
-                                    : "-"}
-                                  {formatCurrency(Math.abs(movement.amount))}
-                                </td>
-                                <td className="py-3 px-4 text-sm text-gray-600">
-                                  {movement.description || "-"}
-                                </td>
-                              </tr>
-                            ))}
+                            {customerMovements.map((movement) => {
+                              const isCredit = movement.type.includes("credit") ||
+                                movement.type === "cashback" ||
+                                movement.type === "refund" ||
+                                movement.type === "transfer_in";
+                              const expiresDate = movement.expires_at ? new Date(movement.expires_at) : null;
+                              const now = new Date();
+                              const isExpired = expiresDate ? expiresDate < now : false;
+                              const daysUntilExpiry = expiresDate && !isExpired
+                                ? Math.ceil((expiresDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+                                : null;
+                              
+                              return (
+                                <tr key={movement.id} className="hover:bg-gray-50">
+                                  <td className="py-3 px-4 text-sm text-gray-600">
+                                    {formatDate(movement.created_at)}
+                                  </td>
+                                  <td className="py-3 px-4 text-sm text-gray-900">
+                                    {getMovementTypeLabel(movement.type)}
+                                  </td>
+                                  <td
+                                    className={`py-3 px-4 text-sm text-right font-medium ${
+                                      isCredit
+                                        ? "text-green-600"
+                                        : "text-red-600"
+                                    }`}
+                                  >
+                                    {isCredit ? "+" : "-"}
+                                    {formatCurrency(Math.abs(movement.amount))}
+                                  </td>
+                                  <td className="py-3 px-4 text-sm text-gray-600">
+                                    {movement.description || "-"}
+                                  </td>
+                                  <td className="py-3 px-4 text-sm text-gray-600">
+                                    {isCredit && expiresDate ? (
+                                      <div className="flex flex-col">
+                                        <span className={isExpired ? "text-red-600 font-medium" : daysUntilExpiry && daysUntilExpiry <= 7 ? "text-orange-600 font-medium" : "text-gray-600"}>
+                                          {formatDate(movement.expires_at)}
+                                        </span>
+                                        {isExpired ? (
+                                          <span className="text-xs text-red-500">Vencido</span>
+                                        ) : daysUntilExpiry !== null && daysUntilExpiry <= 7 ? (
+                                          <span className="text-xs text-orange-500">{daysUntilExpiry} {daysUntilExpiry === 1 ? 'día' : 'días'}</span>
+                                        ) : null}
+                                      </div>
+                                    ) : "-"}
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -812,43 +835,64 @@ export default function BilleteraAdmin() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {allMovements.map((movement) => (
-                        <tr key={movement.id} className="hover:bg-gray-50">
-                          <td className="py-3 px-4 text-sm text-gray-600">
-                            {formatDate(movement.created_at)}
-                          </td>
-                          <td className="py-3 px-4 text-sm text-gray-900">
-                            {movement.user
-                              ? `${movement.user.first_name} ${movement.user.last_name}`
-                              : "-"}
-                          </td>
-                          <td className="py-3 px-4 text-sm text-gray-900">
-                            {getMovementTypeLabel(movement.type)}
-                          </td>
-                          <td
-                            className={`py-3 px-4 text-sm text-right font-medium ${
-                              movement.type.includes("credit") ||
-                              movement.type === "cashback" ||
-                              movement.type === "refund"
-                                ? "text-green-600"
-                                : "text-red-600"
-                            }`}
-                          >
-                            {movement.type.includes("credit") ||
-                            movement.type === "cashback" ||
-                            movement.type === "refund"
-                              ? "+"
-                              : "-"}
-                            {formatCurrency(Math.abs(movement.amount))}
-                          </td>
-                          <td className="py-3 px-4 text-sm text-gray-600">
-                            {movement.description || "-"}
-                          </td>
-                          <td className="py-3 px-4 text-sm text-gray-600">
-                            {movement.admin_user?.email || "-"}
-                          </td>
-                        </tr>
-                      ))}
+                      {allMovements.map((movement) => {
+                        const isCredit = movement.type.includes("credit") ||
+                          movement.type === "cashback" ||
+                          movement.type === "refund" ||
+                          movement.type === "transfer_in";
+                        const expiresDate = movement.expires_at ? new Date(movement.expires_at) : null;
+                        const now = new Date();
+                        const isExpired = expiresDate ? expiresDate < now : false;
+                        const daysUntilExpiry = expiresDate && !isExpired
+                          ? Math.ceil((expiresDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+                          : null;
+                        
+                        return (
+                          <tr key={movement.id} className="hover:bg-gray-50">
+                            <td className="py-3 px-4 text-sm text-gray-600">
+                              {formatDate(movement.created_at)}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-gray-900">
+                              {movement.user
+                                ? `${movement.user.first_name} ${movement.user.last_name}`
+                                : "-"}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-gray-900">
+                              {getMovementTypeLabel(movement.type)}
+                            </td>
+                            <td
+                              className={`py-3 px-4 text-sm text-right font-medium ${
+                                isCredit
+                                  ? "text-green-600"
+                                  : "text-red-600"
+                              }`}
+                            >
+                              {isCredit ? "+" : "-"}
+                              {formatCurrency(Math.abs(movement.amount))}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-gray-600">
+                              {movement.description || "-"}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-gray-600">
+                              {isCredit && expiresDate ? (
+                                <div className="flex flex-col">
+                                  <span className={isExpired ? "text-red-600 font-medium" : daysUntilExpiry && daysUntilExpiry <= 7 ? "text-orange-600 font-medium" : "text-gray-600"}>
+                                    {formatDate(movement.expires_at)}
+                                  </span>
+                                  {isExpired ? (
+                                    <span className="text-xs text-red-500">Vencido</span>
+                                  ) : daysUntilExpiry !== null && daysUntilExpiry <= 7 ? (
+                                    <span className="text-xs text-orange-500">{daysUntilExpiry} {daysUntilExpiry === 1 ? 'día' : 'días'}</span>
+                                  ) : null}
+                                </div>
+                              ) : "-"}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-gray-600">
+                              {movement.admin_user?.email || "-"}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1078,7 +1122,10 @@ export default function BilleteraAdmin() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold text-gray-900">Cargar Saldo</h3>
               <button
-                onClick={() => setShowCreditModal(false)}
+                onClick={() => {
+                  setShowCreditModal(false);
+                  setModalData({ amount: "", reason: "", internal_comment: "", expires_at: "" });
+                }}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <X className="w-5 h-5" />
@@ -1132,10 +1179,30 @@ export default function BilleteraAdmin() {
                   placeholder="Comentario interno (opcional)"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Fecha de Vencimiento (Opcional)
+                </label>
+                <input
+                  type="date"
+                  value={modalData.expires_at}
+                  onChange={(e) =>
+                    setModalData({ ...modalData, expires_at: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  min={new Date().toISOString().split('T')[0]}
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Si no especificas una fecha, se usará la configuración de vencimiento de los ajustes del sistema.
+                </p>
+              </div>
             </div>
             <div className="flex gap-3 mt-6">
               <button
-                onClick={() => setShowCreditModal(false)}
+                onClick={() => {
+                  setShowCreditModal(false);
+                  setModalData({ amount: "", reason: "", internal_comment: "", expires_at: "" });
+                }}
                 className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-[6px] hover:bg-gray-300 transition-colors cursor-pointer"
               >
                 Cancelar

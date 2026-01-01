@@ -1064,6 +1064,7 @@ export interface WalletMovement {
   reason?: string;
   internal_comment?: string;
   created_at: string;
+  expires_at?: string | null;
   admin_user?: {
     id: string;
     email: string;
@@ -1184,6 +1185,7 @@ export async function walletManualCredit(
     amount: number;
     reason: string;
     internal_comment?: string;
+    expires_at?: string;
   }
 ): Promise<void> {
   const url = `/api/admin/wallet/customers/${userId}/credit`;
@@ -1845,6 +1847,7 @@ export interface WalletMovement {
   description: string;
   order_id?: string;
   created_at: string;
+  expires_at?: string | null;
 }
 
 export interface WalletMovementsResponse {
