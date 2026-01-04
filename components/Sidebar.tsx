@@ -181,7 +181,7 @@ export default function Sidebar() {
                   href="/admin/productos"
                   icon={<Package className="w-5 h-5" />}
                 >
-                  Productos (X)
+                  Productos
                 </NavLink>
               </li>
               <li key="imagenes">

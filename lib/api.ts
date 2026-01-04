@@ -242,6 +242,351 @@ export async function fetchProductById(productId: string): Promise<Product | nul
   }
 }
 
+// ============================================
+// CRM PRODUCTS API
+// ============================================
+
+export interface CrmProduct {
+  id: string;
+  crm_product_id: number;
+  combo: boolean;
+  is_active: boolean;
+  commission?: number;
+  price_sale?: number;
+  variability?: number;
+  min_limit?: number;
+  description?: string;
+  alt_description?: string;
+  crm_created_at?: string;
+  crm_updated_at?: string;
+  product_id?: string;
+  product_name?: string;
+  is_completed: boolean;
+  raw?: any;
+}
+
+export interface CrmCombo extends CrmProduct {
+  items: Array<{
+    crm_product_id: number;
+    quantity: number;
+    item_description?: string;
+    item_name?: string;
+  }>;
+}
+
+/**
+ * Fetch CRM products with pagination
+ */
+export async function fetchCrmProducts(params?: {
+  status?: 'completed' | 'not_completed' | 'all';
+  combo?: boolean;
+  search?: string;
+  page?: number;
+  per_page?: number;
+}): Promise<{
+  products: CrmProduct[];
+  pagination: {
+    page: number;
+    per_page: number;
+    total: number;
+    pages: number;
+    has_next: boolean;
+    has_prev: boolean;
+  };
+}> {
+  try {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.combo !== undefined) queryParams.append('combo', params.combo.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+
+    const url = `/api/admin/crm-products?${queryParams.toString()}`;
+    const response = await fetch(url, {
+      headers: getAuthHeaders(),
+      cache: "no-store",
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch CRM products: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return {
+      products: data.success ? data.data : [],
+      pagination: data.pagination || {
+        page: 1,
+        per_page: 20,
+        total: 0,
+        pages: 0,
+        has_next: false,
+        has_prev: false,
+      }
+    };
+  } catch (error) {
+    console.error("Error fetching CRM products:", error);
+    return {
+      products: [],
+      pagination: {
+        page: 1,
+        per_page: 20,
+        total: 0,
+        pages: 0,
+        has_next: false,
+        has_prev: false,
+      }
+    };
+  }
+}
+
+/**
+ * Fetch a single CRM product by ID
+ */
+export async function fetchCrmProductById(productId: string): Promise<CrmProduct | null> {
+  try {
+    const url = `/api/admin/crm-products/${productId}`;
+    const response = await fetch(url, {
+      headers: getAuthHeaders(),
+      cache: "no-store",
+    });
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error(`Failed to fetch CRM product: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return data.success ? data.data : null;
+  } catch (error) {
+    console.error("Error fetching CRM product:", error);
+    return null;
+  }
+}
+
+/**
+ * Complete/link a CRM product with an ecommerce product
+ */
+export async function completeCrmProduct(
+  crmProductId: string,
+  productData: {
+    product_id?: string;
+    name: string;
+    description?: string;
+    technical_description?: string;
+    warranty_months?: number;
+    warranty_description?: string;
+    materials?: string;
+    filling_type?: string;
+    max_supported_weight_kg?: number;
+    has_pillow_top?: boolean;
+    is_bed_in_box?: boolean;
+    mattress_firmness?: string;
+    size_label?: string;
+    sku?: string;
+    category_id?: string;
+    category_option_id?: string;
+    is_active?: boolean;
+    images?: Array<{
+      image_url: string;
+      alt_text?: string;
+      position?: number;
+    }>;
+  }
+): Promise<Product> {
+  const url = `/api/admin/crm-products/${crmProductId}/complete`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(productData),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to complete CRM product: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to complete CRM product: Invalid response");
+  }
+  return data.data;
+}
+
+/**
+ * Fetch CRM combos
+ */
+export async function fetchCrmCombos(params?: {
+  search?: string;
+  page?: number;
+  per_page?: number;
+}): Promise<{
+  combos: CrmCombo[];
+  pagination: {
+    page: number;
+    per_page: number;
+    total: number;
+    pages: number;
+    has_next: boolean;
+    has_prev: boolean;
+  };
+}> {
+  try {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+
+    const url = `/api/admin/crm-combos?${queryParams.toString()}`;
+    const response = await fetch(url, {
+      headers: getAuthHeaders(),
+      cache: "no-store",
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch CRM combos: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return {
+      combos: data.success ? data.data : [],
+      pagination: data.pagination || {
+        page: 1,
+        per_page: 20,
+        total: 0,
+        pages: 0,
+        has_next: false,
+        has_prev: false,
+      }
+    };
+  } catch (error) {
+    console.error("Error fetching CRM combos:", error);
+    return {
+      combos: [],
+      pagination: {
+        page: 1,
+        per_page: 20,
+        total: 0,
+        pages: 0,
+        has_next: false,
+        has_prev: false,
+      }
+    };
+  }
+}
+
+/**
+ * Fetch a single CRM combo by ID
+ */
+export async function fetchCrmComboById(comboId: string): Promise<CrmCombo | null> {
+  try {
+    const url = `/api/admin/crm-combos/${comboId}`;
+    const response = await fetch(url, {
+      headers: getAuthHeaders(),
+      cache: "no-store",
+    });
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error(`Failed to fetch CRM combo: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return data.success ? data.data : null;
+  } catch (error) {
+    console.error("Error fetching CRM combo:", error);
+    return null;
+  }
+}
+
+/**
+ * Upload a product image file directly to Supabase and save to database
+ */
+export async function uploadProductImageFile(file: File, productId: string): Promise<{
+  id: string;
+  image_url: string;
+  alt_text?: string;
+  position: number;
+}> {
+  // Import compression function
+  const { compressToWebp } = await import("@/lib/image");
+  
+  // Compress image
+  const compressedFile = await compressToWebp(file, {
+    maxSide: 2048,
+    quality: 0.86,
+  });
+
+  // Upload to Supabase Storage using client
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error("Supabase configuration is missing. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  }
+
+  // Generate unique filename
+  const fileExt = compressedFile.name.split('.').pop();
+  const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+  const folder = `products/${productId}`;
+  const filePath = `${folder}/${fileName}`;
+
+  // Upload to Supabase Storage using REST API
+  const uploadResponse = await fetch(
+    `${supabaseUrl}/storage/v1/object/product-images/${filePath}`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${supabaseKey}`,
+        "Content-Type": compressedFile.type,
+        "x-upsert": "true",
+      },
+      body: compressedFile,
+    }
+  );
+
+  if (!uploadResponse.ok) {
+    const errorText = await uploadResponse.text();
+    let errorMessage = `Failed to upload to Supabase: ${uploadResponse.statusText}`;
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.message || errorJson.error || errorMessage;
+    } catch {
+      errorMessage = errorText || errorMessage;
+    }
+    throw new Error(errorMessage);
+  }
+
+  // Get public URL
+  const publicUrl = `${supabaseUrl}/storage/v1/object/public/product-images/${filePath}`;
+
+  // Save to database via backend
+  const url = `/api/products/${productId}/images`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      image_url: publicUrl,
+      alt_text: file.name,
+    }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to save product image: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to save product image: Invalid response");
+  }
+  return data.data;
+}
+
 /**
  * Create a new category
  */

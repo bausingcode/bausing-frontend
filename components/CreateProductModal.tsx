@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, Plus, ChevronRight, ChevronLeft, Trash2 } from "lucide-react";
+import { CrmProduct, CrmCombo, completeCrmProduct, uploadProductImageFile } from "@/lib/api";
 
 interface Category {
   id: string;
@@ -39,9 +40,10 @@ interface CreateProductModalProps {
   onClose: () => void;
   onSuccess: () => void;
   categories?: CategoryFromPage[];
+  crmProduct?: CrmProduct | CrmCombo | null;
 }
 
-export default function CreateProductModal({ isOpen, onClose, onSuccess, categories: propCategories = [] }: CreateProductModalProps) {
+export default function CreateProductModal({ isOpen, onClose, onSuccess, categories: propCategories = [], crmProduct }: CreateProductModalProps) {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   
   // Step 1: Datos básicos
@@ -51,6 +53,23 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   const [subcategoryIds, setSubcategoryIds] = useState<string[]>([]); // Múltiples subcategorías
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({}); // Opciones seleccionadas por subcategoría
   const [isActive, setIsActive] = useState(true);
+  
+  // Technical fields
+  const [technicalDescription, setTechnicalDescription] = useState("");
+  const [warrantyMonths, setWarrantyMonths] = useState<number | undefined>(undefined);
+  const [warrantyDescription, setWarrantyDescription] = useState("");
+  const [materials, setMaterials] = useState("");
+  const [showMattressFields, setShowMattressFields] = useState(false);
+  const [fillingType, setFillingType] = useState("");
+  const [maxSupportedWeightKg, setMaxSupportedWeightKg] = useState<number | undefined>(undefined);
+  const [hasPillowTop, setHasPillowTop] = useState(false);
+  const [isBedInBox, setIsBedInBox] = useState(false);
+  const [mattressFirmness, setMattressFirmness] = useState("");
+  const [sizeLabel, setSizeLabel] = useState("");
+  
+  // Images
+  const [images, setImages] = useState<Array<{ image_url: string; alt_text?: string; position: number }>>([]);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
   
   // Step 2: Atributos (generados automáticamente según categoría, pero editables)
   const [attributes, setAttributes] = useState<Attribute[]>([]);
@@ -250,20 +269,68 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
     if (isOpen) {
       // Reset form
       setCurrentStep(1);
-      setName("");
-      setDescription("");
-      setCategoryId("");
+      
+      if (crmProduct && 'product' in crmProduct && crmProduct.product) {
+        // Editing completed CRM product
+        const product = crmProduct.product;
+        setName(product.name || "");
+        setDescription(product.description || "");
+        setCategoryId(product.category_id || "");
+        setIsActive(product.is_active ?? true);
+        setTechnicalDescription(product.technical_description || "");
+        setWarrantyMonths(product.warranty_months);
+        setWarrantyDescription(product.warranty_description || "");
+        setMaterials(product.materials || "");
+        // Determinar si mostrar campos de colchones basado en si hay valores
+        const hasMattressData = !!(product.filling_type || product.max_supported_weight_kg || 
+          product.has_pillow_top || product.is_bed_in_box || product.mattress_firmness || product.size_label);
+        setShowMattressFields(hasMattressData);
+        setFillingType(product.filling_type || "");
+        setMaxSupportedWeightKg(product.max_supported_weight_kg);
+        setHasPillowTop(product.has_pillow_top || false);
+        setIsBedInBox(product.is_bed_in_box || false);
+        setMattressFirmness(product.mattress_firmness || "");
+        setSizeLabel(product.size_label || "");
+        setImages(product.images || []);
+      } else if (crmProduct) {
+        // Completing CRM product - NO inicializar campos desde CRM, solo mostrar info
+        setName("");
+        setDescription("");
+        setIsActive(crmProduct.is_active ?? true);
+        setImages([]);
+      } else {
+        // New product
+        setName("");
+        setDescription("");
+        setCategoryId("");
+        setSubcategoryIds([]);
+        setSelectedOptions({});
+        setIsActive(true);
+        setTechnicalDescription("");
+        setWarrantyMonths(undefined);
+        setWarrantyDescription("");
+        setMaterials("");
+        setShowMattressFields(false);
+        setFillingType("");
+        setMaxSupportedWeightKg(undefined);
+        setHasPillowTop(false);
+        setIsBedInBox(false);
+        setMattressFirmness("");
+        setSizeLabel("");
+        setImages([]);
+      }
+      
       setSubcategoryIds([]);
       setSelectedOptions({});
-      setIsActive(true);
       setAttributes([]);
       setVariants([]);
       setNewAttributeName("");
       setIsAddingAttribute(false);
       setNewOptionValues({});
+      setImageFiles([]);
       setError("");
     }
-  }, [isOpen]);
+  }, [isOpen, crmProduct]);
 
   // Generar atributos cuando cambia la categoría, subcategorías u opción (solo si no hay atributos ya)
   useEffect(() => {
@@ -475,42 +542,86 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         return;
       }
 
-      // Preparar datos para enviar
-      const productData = {
-        name,
-        description: description || null,
-        category_id: subcategoryIds.length > 0 ? subcategoryIds[0] : categoryId, // Usar primera subcategoría si hay, sino la categoría principal
-        category_options: selectedOptions, // Enviar todas las opciones seleccionadas por subcategoría
-        is_active: isActive,
-        attributes: attributes.map((attr) => ({
-          name: attr.name,
-          type: attr.type,
-          options: attr.options,
-        })),
-        variants: variants.map((variant) => ({
-          attributes: variant.attributes,
-          stock: variant.stock,
-          price: variant.price,
-        })),
-      };
+      // Si es un producto CRM, usar completeCrmProduct
+      if (crmProduct) {
+        const productData = {
+          product_id: crmProduct.product_id,
+          name,
+          description: description || undefined,
+          technical_description: technicalDescription || undefined,
+          warranty_months: warrantyMonths || undefined,
+          warranty_description: warrantyDescription || undefined,
+          materials: materials || undefined,
+          filling_type: fillingType || undefined,
+          max_supported_weight_kg: maxSupportedWeightKg || undefined,
+          has_pillow_top: hasPillowTop,
+          is_bed_in_box: isBedInBox,
+          mattress_firmness: mattressFirmness || undefined,
+          size_label: sizeLabel || undefined,
+          category_id: subcategoryIds.length > 0 ? subcategoryIds[0] : categoryId,
+          category_option_id: selectedOptions[subcategoryIds[0]] || selectedOptions["direct"] ? undefined : undefined, // TODO: map to category_option_id
+          is_active: isActive,
+          images: images,
+        };
 
-      // Simular guardado (sin llamada al backend por ahora)
-      await new Promise(resolve => setTimeout(resolve, 500));
+        const completedProduct = await completeCrmProduct(crmProduct.id, productData);
+        
+        // Upload new images if any
+        if (imageFiles.length > 0 && completedProduct.id) {
+          for (const file of imageFiles) {
+            await uploadProductImageFile(file, completedProduct.id);
+          }
+        }
+      } else {
+        // Crear producto nuevo (lógica existente)
+        const productData = {
+          name,
+          description: description || null,
+          category_id: subcategoryIds.length > 0 ? subcategoryIds[0] : categoryId,
+          category_options: selectedOptions,
+          is_active: isActive,
+          attributes: attributes.map((attr) => ({
+            name: attr.name,
+            type: attr.type,
+            options: attr.options,
+          })),
+          variants: variants.map((variant) => ({
+            attributes: variant.attributes,
+            stock: variant.stock,
+            price: variant.price,
+          })),
+        };
+
+        // TODO: Llamar al endpoint de creación de productos
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
 
       // Limpiar formulario
       setName("");
       setDescription("");
       setCategoryId("");
       setSubcategoryIds([]);
-      setOptionValue("");
+      setSelectedOptions({});
       setIsActive(true);
       setAttributes([]);
       setVariants([]);
+      setTechnicalDescription("");
+      setWarrantyMonths(undefined);
+      setWarrantyDescription("");
+      setMaterials("");
+      setFillingType("");
+      setMaxSupportedWeightKg(undefined);
+      setHasPillowTop(false);
+      setIsBedInBox(false);
+      setMattressFirmness("");
+      setSizeLabel("");
+      setImages([]);
+      setImageFiles([]);
       setCurrentStep(1);
       onSuccess();
       onClose();
-    } catch (err) {
-      setError("Error al crear el producto");
+    } catch (err: any) {
+      setError(err.message || "Error al guardar el producto");
     } finally {
       setLoading(false);
     }
@@ -530,7 +641,9 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         {/* Header - Sticky */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200 sticky top-0 bg-white z-20 rounded-t-[16px]">
           <div className="flex-1">
-            <h2 className="text-xl font-semibold text-gray-900 mb-3">Nuevo Producto</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-3">
+              {crmProduct ? (crmProduct.is_completed ? "Editar Producto CRM" : "Completar Producto CRM") : "Nuevo Producto"}
+            </h2>
             <div className="flex items-center gap-2 flex-wrap">
               <span
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
@@ -587,6 +700,107 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           {/* Step 1: Datos básicos */}
           {currentStep === 1 && (
             <div className="space-y-4">
+              {/* Información del CRM (solo lectura) */}
+              {crmProduct && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <h3 className="text-sm font-semibold text-blue-900 mb-3">Información del CRM (solo lectura)</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-700">ID CRM:</span>
+                      <span className="ml-2 text-gray-900">{crmProduct.crm_product_id}</span>
+                    </div>
+                    {crmProduct.price_sale && (
+                      <div>
+                        <span className="font-medium text-gray-700">Precio de Venta:</span>
+                        <span className="ml-2 text-gray-900">${crmProduct.price_sale}</span>
+                      </div>
+                    )}
+                    {crmProduct.commission && (
+                      <div>
+                        <span className="font-medium text-gray-700">Comisión:</span>
+                        <span className="ml-2 text-gray-900">{crmProduct.commission}%</span>
+                      </div>
+                    )}
+                    {crmProduct.description && (
+                      <div className="col-span-2">
+                        <span className="font-medium text-gray-700">Descripción CRM:</span>
+                        <p className="mt-1 text-gray-900">{crmProduct.description}</p>
+                      </div>
+                    )}
+                    {crmProduct.alt_description && (
+                      <div className="col-span-2">
+                        <span className="font-medium text-gray-700">Descripción Alternativa:</span>
+                        <p className="mt-1 text-gray-900">{crmProduct.alt_description}</p>
+                      </div>
+                    )}
+                    {'items' in crmProduct && crmProduct.items && crmProduct.items.length > 0 && (
+                      <div className="col-span-2">
+                        <span className="font-medium text-gray-700">Items del Combo:</span>
+                        <ul className="mt-1 list-disc list-inside text-gray-900">
+                          {crmProduct.items.map((item, idx) => (
+                            <li key={idx}>
+                              {item.quantity}x {item.item_name || `ID: ${item.crm_product_id}`}
+                              {item.item_description && ` - ${item.item_description}`}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Imágenes - Movidas al principio */}
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Imágenes del Producto</h3>
+                
+                {/* Imágenes existentes */}
+                {images.length > 0 && (
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    {images.map((img, idx) => (
+                      <div key={idx} className="relative group">
+                        <img
+                          src={img.image_url}
+                          alt={img.alt_text || `Imagen ${idx + 1}`}
+                          className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImages(images.filter((_, i) => i !== idx));
+                          }}
+                          className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Input para subir imágenes */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Agregar Imágenes
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      setImageFiles([...imageFiles, ...files]);
+                    }}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                  />
+                  {imageFiles.length > 0 && (
+                    <div className="mt-2 text-sm text-gray-600">
+                      {imageFiles.length} archivo(s) seleccionado(s)
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Nombre <span className="text-red-500">*</span>
@@ -727,6 +941,175 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                     })}
                   </div>
                 </div>
+              )}
+
+              {/* Campos técnicos - Solo mostrar si es un producto CRM o si se especifica */}
+              {(crmProduct || true) && (
+                <>
+                  <div className="border-t border-gray-200 pt-6 mt-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Información Técnica</h3>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Descripción Técnica
+                        </label>
+                        <textarea
+                          value={technicalDescription}
+                          onChange={(e) => setTechnicalDescription(e.target.value)}
+                          rows={3}
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                          placeholder="Descripción técnica del producto"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Meses de Garantía
+                        </label>
+                        <input
+                          type="number"
+                          value={warrantyMonths || ""}
+                          onChange={(e) => setWarrantyMonths(e.target.value ? parseInt(e.target.value) : undefined)}
+                          min="0"
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                          placeholder="Ej: 12"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Descripción de Garantía
+                        </label>
+                        <textarea
+                          value={warrantyDescription}
+                          onChange={(e) => setWarrantyDescription(e.target.value)}
+                          rows={2}
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                          placeholder="Detalles de la garantía"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Materiales
+                        </label>
+                        <textarea
+                          value={materials}
+                          onChange={(e) => setMaterials(e.target.value)}
+                          rows={2}
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                          placeholder="Materiales utilizados en el producto"
+                        />
+                      </div>
+
+                      {/* Toggle para campos específicos de colchones */}
+                      <div className="border-t border-gray-200 pt-4">
+                        <div className="flex items-center gap-3 mb-4">
+                          <input
+                            type="checkbox"
+                            id="showMattressFields"
+                            checked={showMattressFields}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setShowMattressFields(checked);
+                              // Si se desactiva, limpiar los campos específicos de colchones
+                              if (!checked) {
+                                setFillingType("");
+                                setMaxSupportedWeightKg(undefined);
+                                setHasPillowTop(false);
+                                setIsBedInBox(false);
+                                setMattressFirmness("");
+                                setSizeLabel("");
+                              }
+                            }}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <label htmlFor="showMattressFields" className="text-sm font-medium text-gray-700 cursor-pointer">
+                            Mostrar campos específicos de colchones
+                          </label>
+                        </div>
+
+                        {showMattressFields && (
+                          <div className="space-y-4 pl-7 border-l-2 border-gray-200">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Tipo de Relleno
+                                </label>
+                                <input
+                                  type="text"
+                                  value={fillingType}
+                                  onChange={(e) => setFillingType(e.target.value)}
+                                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                                  placeholder="Ej: Espuma de memoria"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Peso Máximo Soportado (kg)
+                                </label>
+                                <input
+                                  type="number"
+                                  value={maxSupportedWeightKg || ""}
+                                  onChange={(e) => setMaxSupportedWeightKg(e.target.value ? parseInt(e.target.value) : undefined)}
+                                  min="0"
+                                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                                  placeholder="Ej: 150"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Firmeza del Colchón
+                              </label>
+                              <select
+                                value={mattressFirmness}
+                                onChange={(e) => setMattressFirmness(e.target.value)}
+                                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                              >
+                                <option value="">Selecciona firmeza</option>
+                                <option value="SOFT">SOFT</option>
+                                <option value="MEDIO">MEDIO</option>
+                                <option value="FIRME">FIRME</option>
+                              </select>
+                            </div>
+
+                            <div className="flex items-center gap-6">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  id="hasPillowTop"
+                                  checked={hasPillowTop}
+                                  onChange={(e) => setHasPillowTop(e.target.checked)}
+                                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                                <label htmlFor="hasPillowTop" className="text-sm font-medium text-gray-700">
+                                  Con Pillow
+                                </label>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  id="isBedInBox"
+                                  checked={isBedInBox}
+                                  onChange={(e) => setIsBedInBox(e.target.checked)}
+                                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                                <label htmlFor="isBedInBox" className="text-sm font-medium text-gray-700">
+                                  Colchón en Caja
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </>
               )}
 
               <div className="flex items-center gap-2">
