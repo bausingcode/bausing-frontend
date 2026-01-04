@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { 
   Truck, 
   CreditCard, 
@@ -754,6 +754,8 @@ export default function Navbar() {
   const closingTimestampRef = useRef<number>(0);
   const { user, isAuthenticated, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const isFavoritesPage = pathname === "/favoritos";
 
   // Cerrar menú de usuario al hacer click fuera
   useEffect(() => {
@@ -777,8 +779,7 @@ export default function Navbar() {
       router.push("/login");
       return;
     }
-    // TODO: Navegar a favoritos cuando esté implementado
-    console.log("Favoritos");
+    router.push("/favoritos");
   };
 
   const handleCartClick = () => {
@@ -922,10 +923,18 @@ export default function Navbar() {
                 </div>
                 
                 {/* Favorites */}
-                <Heart 
-                  className="w-6 h-6 text-gray-700 cursor-pointer hover:text-gray-900 transition-colors" 
-                  onClick={handleFavoritesClick}
-                />
+                <div className="group">
+                  <Heart 
+                    className={`w-6 h-6 cursor-pointer transition-all duration-300 group-hover:animate-wiggle ${
+                      isFavoritesPage
+                        ? "text-red-500 fill-red-500"
+                        : "text-gray-700 group-hover:text-red-500 group-hover:stroke-red-500"
+                    }`}
+                    strokeWidth={2}
+                    fill={isFavoritesPage ? "currentColor" : "none"}
+                    onClick={handleFavoritesClick}
+                  />
+                </div>
                 
                 {/* Cart */}
                 <div 

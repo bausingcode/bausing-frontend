@@ -41,7 +41,8 @@ export default function ProductCard({
   }, [productId, isInFavorites, isInCart]);
 
   // Generar URL optimizada con wsrv (usando ancho de 400px para productos)
-  const optimizedUrl = wsrvLoader({ src: image, width: 400 });
+  // Si la imagen ya es una URL de wsrv, no la optimizamos de nuevo
+  const optimizedUrl = image.includes('wsrv.nl') ? image : wsrvLoader({ src: image, width: 400 });
 
   // Calcular precio en 12 cuotas
   const calculatePriceInInstallments = (priceStr: string, installments: number = 12): string => {
@@ -78,10 +79,11 @@ export default function ProductCard({
       removeFromFavorites(productId);
       setIsFavorite(false);
     } else {
+      // Guardar la URL original, no la optimizada, para mayor flexibilidad
       addToFavorites({
         id: productId,
         name,
-        image: optimizedUrl,
+        image: image,
         price: currentPrice,
       });
       setIsFavorite(true);
