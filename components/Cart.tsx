@@ -1,6 +1,8 @@
 "use client";
 
-import { X } from "lucide-react";
+import { X, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useCart } from "@/contexts/CartContext";
 
 interface CartProps {
   isOpen: boolean;
@@ -8,6 +10,18 @@ interface CartProps {
 }
 
 export default function Cart({ isOpen, onClose }: CartProps) {
+  const router = useRouter();
+  const { cart, removeFromCart, cartCount } = useCart();
+
+  const calculateTotal = () => {
+    return cart.reduce((sum, item) => sum + parseFloat(item.price) * item.quantity, 0);
+  };
+
+  const handleCheckout = () => {
+    onClose();
+    router.push("/checkout");
+  };
+
   return (
     <>
       {/* Backdrop */}
@@ -24,6 +38,7 @@ export default function Cart({ isOpen, onClose }: CartProps) {
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
         style={{ fontFamily: 'DM Sans, sans-serif' }}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -41,23 +56,72 @@ export default function Cart({ isOpen, onClose }: CartProps) {
         <div className="flex flex-col h-[calc(100%-80px)]">
           {/* Items List */}
           <div className="flex-1 overflow-y-auto p-6">
-            <div className="text-center text-gray-500 py-12">
-              <p>Tu carrito está vacío</p>
-            </div>
+            {cart.length === 0 ? (
+              <div className="text-center text-gray-500 py-12">
+                <p>Tu carrito está vacío</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {cart.map((item) => (
+                  <div key={item.id} className="flex gap-3 pb-4 border-b border-gray-100 last:border-0">
+                    <div className="w-20 h-20 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
+                      {item.image && (
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-medium text-gray-900 truncate mb-1">
+                        {item.name}
+                      </h3>
+                      <p className="text-sm text-gray-500 mb-2">
+                        Cantidad: {item.quantity}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-gray-900">
+                          ${(parseFloat(item.price) * item.quantity).toLocaleString("es-AR", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </p>
+                        <button
+                          onClick={() => removeFromCart(item.id)}
+                          className="p-1.5 hover:bg-red-50 rounded transition-colors"
+                          aria-label="Eliminar del carrito"
+                        >
+                          <Trash2 className="w-4 h-4 text-gray-500 hover:text-red-500" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Footer */}
-          <div className="border-t border-gray-200 p-6 bg-gray-50">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-lg font-normal text-black">Total:</span>
-              <span className="text-xl font-normal text-black">$0</span>
+          {cart.length > 0 && (
+            <div className="border-t border-gray-200 p-6 bg-gray-50">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-lg font-normal text-black">Total:</span>
+                <span className="text-xl font-normal text-black">
+                  ${calculateTotal().toLocaleString("es-AR", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+              </div>
+              <button
+                onClick={handleCheckout}
+                className="w-full bg-gray-900 text-white py-3 px-6 rounded-lg font-semibold hover:bg-gray-800 transition-colors"
+              >
+                Finalizar compra
+              </button>
             </div>
-            <button
-              className="w-full bg-gray-900 text-white py-3 px-6 rounded-lg font-semibold hover:bg-gray-800 transition-colors"
-            >
-              Finalizar compra
-            </button>
-          </div>
+          )}
         </div>
       </div>
     </>
