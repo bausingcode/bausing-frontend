@@ -1963,6 +1963,152 @@ export async function fetchBlogPostById(postId: string): Promise<BlogPost | null
   }
 }
 
+// ============================================================================
+// VENTAS API
+// ============================================================================
+
+export interface Venta {
+  id: number;
+  numero_comprobante: string;
+  fecha_detalle: string;
+  vendedor_id: number;
+  cliente_nombre: string;
+  cliente_direccion: string;
+  cliente_telefono: string;
+  email_cliente: string;
+  documento_cliente: string;
+  tipo_documento_cliente: number;
+  provincia_id: number;
+  localidad: string;
+  zona_id: number;
+  tipo_venta: number;
+  estado: string;
+  total_venta: number;
+  total_con_fpago: number;
+  venta_cancelada: number;
+  fecha_entrega: string | null;
+  fecha_paso_cobranza: string | null;
+  fecha_paso_caja: string | null;
+  js: any[]; // Renglones de la venta
+  pagos_procesados: any[]; // Pagos procesados
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VentasResponse {
+  status: boolean;
+  tipo: string;
+  filtros: Record<string, any>;
+  datos: Venta[];
+  sincronizar: {
+    accion: string;
+    timestamp: string;
+  };
+}
+
+/**
+ * Fetch all sales (ventas) from CRM
+ */
+export interface VentasPaginationParams {
+  id?: number;
+  fecha?: string;
+  search?: string;
+  estados?: string[];
+  medios_pago?: string[];
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  page?: number;
+  per_page?: number;
+}
+
+export interface VentasPaginationResponse {
+  ventas: Venta[];
+  pagination: {
+    page: number;
+    per_page: number;
+    total: number;
+    pages: number;
+  };
+}
+
+export async function fetchVentas(params?: VentasPaginationParams): Promise<VentasPaginationResponse> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/api/ventas/lista`
+      : `/api/api/ventas/lista`;
+    
+    // Obtener token desde variables de entorno
+    // En Next.js, las variables de entorno del cliente deben tener prefijo NEXT_PUBLIC_
+    const apiToken = process.env.NEXT_PUBLIC_API_KEY;
+    
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+    
+    // Agregar Bearer token si está disponible
+    if (apiToken) {
+      headers["Authorization"] = `Bearer ${apiToken}`;
+    } else {
+      console.warn("NEXT_PUBLIC_API_KEY no está configurado. La autenticación puede fallar.");
+    }
+    
+    const body: any = { tipo: "ventas" };
+    if (params?.id) body.id = params.id;
+    if (params?.fecha) body.fecha = params.fecha;
+    if (params?.search) body.search = params.search;
+    if (params?.estados && params.estados.length > 0) body.estados = params.estados;
+    if (params?.medios_pago && params.medios_pago.length > 0) body.medios_pago = params.medios_pago;
+    if (params?.fecha_desde) body.fecha_desde = params.fecha_desde;
+    if (params?.fecha_hasta) body.fecha_hasta = params.fecha_hasta;
+    if (params?.page) body.page = params.page;
+    if (params?.per_page) body.per_page = params.per_page;
+    
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ventas: ${response.statusText}`);
+    }
+    
+    const data: VentasResponse & { pagination?: any } = await response.json();
+    if (data.status) {
+      return {
+        ventas: data.datos || [],
+        pagination: data.pagination || {
+          page: params?.page || 1,
+          per_page: params?.per_page || 10,
+          total: data.datos?.length || 0,
+          pages: 1
+        }
+      };
+    }
+    return {
+      ventas: [],
+      pagination: {
+        page: 1,
+        per_page: 10,
+        total: 0,
+        pages: 0
+      }
+    };
+  } catch (error) {
+    console.error("Error fetching ventas:", error);
+    return {
+      ventas: [],
+      pagination: {
+        page: 1,
+        per_page: 10,
+        total: 0,
+        pages: 0
+      }
+    };
+  }
+}
+
 /**
  * Fetch a single blog post by slug
  */
@@ -2189,7 +2335,7 @@ export interface WalletMovement {
   wallet_id: string;
   type: string;
   amount: number;
-  description: string;
+  description?: string;
   order_id?: string;
   created_at: string;
   expires_at?: string | null;

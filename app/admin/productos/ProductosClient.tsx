@@ -410,7 +410,7 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
               />
             </div>
           </div>
-          
+
           <div className="bg-white rounded-[14px] border border-gray-200 overflow-hidden">
             {isLoadingCrmProducts ? (
               <div className="flex flex-col items-center justify-center py-16 px-6">
@@ -495,14 +495,14 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-normal" style={{ color: '#484848' }}>Productos No Completados</h2>
-            <button
+                <button
               onClick={() => refreshCrmProductsNotCompleted(notCompletedPage)}
               className="px-4 py-2 text-sm font-medium text-white rounded-[6px] hover:opacity-90 transition-opacity cursor-pointer flex items-center gap-2"
-              style={{ backgroundColor: '#155DFC' }}
-            >
+                  style={{ backgroundColor: '#155DFC' }}
+                >
               <RefreshCw className="w-4 h-4" />
               Refrescar
-            </button>
+                </button>
           </div>
           
           {/* Búsqueda */}
@@ -535,24 +535,24 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
               </div>
             ) : (
               <>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">ID CRM</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Descripción</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Estado</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
                       {crmProductsNotCompleted.map((crmProduct) => (
                         <tr key={crmProduct.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{crmProduct.crm_product_id}</td>
                           <td className="px-6 py-4 text-sm text-gray-700">{crmProduct.description || crmProduct.alt_description || '-'}</td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className="px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-800">Pendiente</span>
-                          </td>
+                        </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <button
                               onClick={() => {
@@ -671,12 +671,12 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                             >
                               <Edit className="w-5 h-5" />
                             </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
                 
                 {/* Paginación */}
                 {combosCompletedPagination.pages > 1 && (

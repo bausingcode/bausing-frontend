@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { Search, SlidersHorizontal, Eye, Edit } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, SlidersHorizontal, Eye, Loader2, Package, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import DateRangePicker from "@/components/DateRangePicker";
+import VentaDetailOverlay from "@/components/VentaDetailOverlay";
+import { fetchVentas, Venta } from "@/lib/api";
 
 export default function VentasPedidos() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -12,72 +14,95 @@ export default function VentasPedidos() {
   const [selectedMediosPago, setSelectedMediosPago] = useState<string[]>([]);
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
+  const [ventas, setVentas] = useState<Venta[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedVenta, setSelectedVenta] = useState<Venta | null>(null);
+  const [isOverlayOpen, setIsOverlayOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [perPage] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [estadosDisponibles, setEstadosDisponibles] = useState<string[]>([]);
+  const [mediosPagoDisponibles, setMediosPagoDisponibles] = useState<string[]>([]);
 
-  const orders = [
-    {
-      id: "#001234",
-      cliente: "Juan Pérez",
-      monto: "$45,000",
-      estado: "Pagado",
-      estadoColor: "green",
-      medioPago: "Mercado Pago",
-      fecha: "2025-11-28",
-    },
-    {
-      id: "#001235",
-      cliente: "María González",
-      monto: "$32,500",
-      estado: "Enviado",
-      estadoColor: "blue",
-      medioPago: "Mixto",
-      fecha: "2025-11-27",
-    },
-    {
-      id: "#001236",
-      cliente: "Carlos Rodríguez",
-      monto: "$67,800",
-      estado: "Pendiente",
-      estadoColor: "yellow",
-      medioPago: "Efectivo",
-      fecha: "2025-11-28",
-    },
-    {
-      id: "#001237",
-      cliente: "Ana Martínez",
-      monto: "$28,900",
-      estado: "Entregado",
-      estadoColor: "purple",
-      medioPago: "Billetera",
-      fecha: "2025-11-26",
-    },
-    {
-      id: "#001238",
-      cliente: "Luis Fernández",
-      monto: "$55,600",
-      estado: "En Preparación",
-      estadoColor: "orange",
-      medioPago: "Mercado Pago",
-      fecha: "2025-11-28",
-    },
-  ];
-
-  const estadoColors = {
-    green: "bg-green-100 text-green-700",
-    blue: "bg-blue-100 text-blue-700",
-    yellow: "bg-yellow-100 text-yellow-700",
-    purple: "bg-purple-100 text-purple-700",
-    orange: "bg-orange-100 text-orange-700",
+  // Función para cargar ventas
+  const loadVentas = async () => {
+    try {
+      setIsLoading(true);
+      const result = await fetchVentas({
+        search: searchTerm || undefined,
+        estados: selectedEstados.length > 0 ? selectedEstados : undefined,
+        medios_pago: selectedMediosPago.length > 0 ? selectedMediosPago : undefined,
+        fecha_desde: fechaDesde || undefined,
+        fecha_hasta: fechaHasta || undefined,
+        page,
+        per_page: perPage,
+      });
+      setVentas(result.ventas);
+      setTotal(result.pagination.total);
+      setTotalPages(result.pagination.pages);
+      
+      // Actualizar estados y medios de pago disponibles desde todas las ventas
+      // Para esto necesitaríamos hacer una consulta sin filtros, pero por ahora
+      // usamos los estados y medios de pago de las ventas cargadas
+      const estados = Array.from(new Set(result.ventas.map(v => v.estado).filter(Boolean))).sort() as string[];
+      const medios = Array.from(
+        new Set(
+          result.ventas.flatMap(v => 
+            v.pagos_procesados?.map((p: any) => p.forma_pago_descripcion || "N/A") || []
+          )
+        )
+      ).sort() as string[];
+      setEstadosDisponibles(estados);
+      setMediosPagoDisponibles(medios);
+    } catch (error) {
+      console.error("Error loading ventas:", error);
+      setVentas([]);
+      setTotal(0);
+      setTotalPages(0);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Opciones de filtros
-  const estadosDisponibles = ["Pagado", "Enviado", "Pendiente", "Entregado", "En Preparación"];
-  const mediosPagoDisponibles = ["Mercado Pago", "Mixto", "Efectivo", "Billetera"];
+  // Cargar ventas al montar y cuando cambian los filtros
+  useEffect(() => {
+    loadVentas();
+  }, [page, searchTerm, selectedEstados, selectedMediosPago, fechaDesde, fechaHasta]);
+
+  // Capitalizar primera letra
+  const capitalize = (str: string): string => {
+    if (!str) return "";
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  };
+
+  // Mapear estados a colores
+  const getEstadoColor = (estado: string): string => {
+    const estadoLower = estado.toLowerCase();
+    if (estadoLower.includes("pagado") || estadoLower.includes("entregado") || estadoLower.includes("finalizado")) {
+      return "bg-green-100 text-green-700";
+    }
+    if (estadoLower.includes("enviado") || estadoLower.includes("reparto")) {
+      return "bg-blue-100 text-blue-700";
+    }
+    if (estadoLower.includes("pendiente")) {
+      return "bg-yellow-100 text-yellow-700";
+    }
+    if (estadoLower.includes("preparación") || estadoLower.includes("preparacion")) {
+      return "bg-orange-100 text-orange-700";
+    }
+    if (estadoLower.includes("cancelado")) {
+      return "bg-red-100 text-red-700";
+    }
+    return "bg-gray-100 text-gray-700";
+  };
 
   // Toggle estado
   const toggleEstado = (estado: string) => {
     setSelectedEstados((prev) =>
       prev.includes(estado) ? prev.filter((e) => e !== estado) : [...prev, estado]
     );
+    setPage(1); // Resetear a primera página cuando cambian los filtros
   };
 
   // Toggle medio de pago
@@ -85,6 +110,7 @@ export default function VentasPedidos() {
     setSelectedMediosPago((prev) =>
       prev.includes(medio) ? prev.filter((m) => m !== medio) : [...prev, medio]
     );
+    setPage(1); // Resetear a primera página cuando cambian los filtros
   };
 
   // Limpiar todos los filtros
@@ -93,33 +119,48 @@ export default function VentasPedidos() {
     setSelectedMediosPago([]);
     setFechaDesde("");
     setFechaHasta("");
+    setSearchTerm("");
+    setPage(1);
   };
 
-  // Filtrar pedidos por búsqueda, estado, medio de pago y fecha
-  const filteredOrders = orders.filter((order) => {
-    // Filtro de búsqueda
-    const searchLower = searchTerm.toLowerCase();
-    const orderId = order.id.toLowerCase();
-    const clienteName = order.cliente.toLowerCase();
-    const matchesSearch = searchTerm === "" || orderId.includes(searchLower) || clienteName.includes(searchLower);
+  // Formatear monto
+  const formatMonto = (monto: number): string => {
+    return new Intl.NumberFormat('es-AR', {
+      style: 'currency',
+      currency: 'ARS',
+      minimumFractionDigits: 0,
+    }).format(monto);
+  };
 
-    // Filtro por estado
-    const matchesEstado = selectedEstados.length === 0 || selectedEstados.includes(order.estado);
-
-    // Filtro por medio de pago
-    const matchesMedioPago = selectedMediosPago.length === 0 || selectedMediosPago.includes(order.medioPago);
-
-    // Filtro por fecha
-    let matchesFecha = true;
-    if (fechaDesde && order.fecha < fechaDesde) {
-      matchesFecha = false;
+  // Obtener medio de pago principal de una venta
+  const getMedioPagoPrincipal = (venta: Venta): string => {
+    if (venta.pagos_procesados && venta.pagos_procesados.length > 0) {
+      return venta.pagos_procesados[0].forma_pago_descripcion || "N/A";
     }
-    if (fechaHasta && order.fecha > fechaHasta) {
-      matchesFecha = false;
-    }
+    return "N/A";
+  };
 
-    return matchesSearch && matchesEstado && matchesMedioPago && matchesFecha;
-  });
+  // Abrir overlay con detalles de venta
+  const handleViewVenta = (venta: Venta) => {
+    setSelectedVenta(venta);
+    setIsOverlayOpen(true);
+  };
+
+  // Cerrar overlay
+  const handleCloseOverlay = () => {
+    setIsOverlayOpen(false);
+    setSelectedVenta(null);
+  };
+
+  // Manejar cambio de búsqueda con debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(1); // Resetear a primera página cuando cambia la búsqueda
+      loadVentas();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   return (
     <div className="px-8 pt-6 pb-8 min-h-screen">
@@ -205,7 +246,7 @@ export default function VentasPedidos() {
                           </div>
                         </div>
                         <span className="ml-2 text-sm text-gray-700 group-hover:text-gray-900">
-                          {estado}
+                          {capitalize(estado)}
                         </span>
                       </label>
                     );
@@ -272,14 +313,20 @@ export default function VentasPedidos() {
                 <DateRangePicker
                   fechaDesde={fechaDesde}
                   fechaHasta={fechaHasta}
-                  onFechaDesdeChange={setFechaDesde}
-                  onFechaHastaChange={setFechaHasta}
+                  onFechaDesdeChange={(fecha) => {
+                    setFechaDesde(fecha);
+                    setPage(1);
+                  }}
+                  onFechaHastaChange={(fecha) => {
+                    setFechaHasta(fecha);
+                    setPage(1);
+                  }}
                 />
               </div>
             </div>
 
             {/* Botón Limpiar Filtros */}
-            {(selectedEstados.length > 0 || selectedMediosPago.length > 0 || fechaDesde || fechaHasta) && (
+            {(selectedEstados.length > 0 || selectedMediosPago.length > 0 || fechaDesde || fechaHasta || searchTerm) && (
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <button
                   onClick={limpiarFiltros}
@@ -295,75 +342,154 @@ export default function VentasPedidos() {
 
       {/* Orders Table */}
       <div className="bg-white rounded-[10px] border border-gray-200 overflow-hidden" style={{ borderRadius: '14px' }}>
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900">Ventas</h3>
+          <button
+            onClick={loadVentas}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-[6px] hover:bg-gray-200 transition-colors cursor-pointer"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refrescar
+          </button>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
                   N° Pedido
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Cliente
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                  Monto Total
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
+                  Total
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Estado
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                {/* <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Medio de Pago
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                </th> */}
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Fecha
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Acciones
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredOrders.map((order, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {order.id}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {order.cliente}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {order.monto}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${estadoColors[order.estadoColor as keyof typeof estadoColors]}`}
-                    >
-                      {order.estado}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {order.medioPago}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {order.fecha}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center gap-3">
-                      <button className="text-gray-600 cursor-pointer hover:text-blue-600 transition-colors">
-                        <Eye className="w-5 h-5" />
-                      </button>
-                      <button className="text-gray-600 cursor-pointer hover:text-blue-600 transition-colors">
-                        <Edit className="w-5 h-5" />
-                      </button>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                      <p className="text-sm text-gray-600">Cargando ventas...</p>
                     </div>
                   </td>
                 </tr>
-              ))}
+              ) : ventas.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <Package className="w-12 h-12 text-gray-400" />
+                      <p className="text-sm font-medium text-gray-900">No hay ventas</p>
+                      <p className="text-sm text-gray-500">
+                        Aún no hay ventas registradas
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                ventas.map((venta) => (
+                  <tr key={venta.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 text-center whitespace-nowrap text-sm font-medium text-gray-900">
+                      {venta.numero_comprobante || `#${venta.id}`}
+                    </td>
+                    <td className="px-6 py-4 text-center whitespace-nowrap text-sm text-gray-700">
+                      {venta.cliente_nombre || "N/A"}
+                    </td>
+                    <td className="px-6 py-4 text-center whitespace-nowrap text-sm text-gray-700">
+                      {formatMonto(venta.total_venta || 0)}
+                    </td>
+                    <td className="px-6 py-4 text-center whitespace-nowrap">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${getEstadoColor(venta.estado || "")}`}
+                      >
+                        {capitalize(venta.estado || "N/A")}
+                      </span>
+                    </td>
+                    {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {getMedioPagoPrincipal(venta)}
+                    </td> */}
+                    <td className="px-6 py-4 text-center whitespace-nowrap text-sm text-gray-700">
+                      {venta.fecha_detalle || venta.created_at?.split('T')[0] || "N/A"}
+                    </td>
+                    <td className="px-6 py-4 text-center whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center gap-3 justify-center">
+                        <button 
+                          onClick={() => handleViewVenta(venta)}
+                          className="text-gray-600 cursor-pointer hover:text-blue-600 transition-colors"
+                        >
+                          <Eye className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
+
+        {/* Paginación */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
+            <div className="text-sm text-gray-700">
+              Mostrando {((page - 1) * perPage) + 1} a {Math.min(page * perPage, total)} de {total} ventas
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className={`px-4 py-2 text-sm font-medium rounded-[6px] transition-colors ${
+                  page === 1
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-blue-600 text-white hover:bg-blue-700 cursor-pointer"
+                }`}
+              >
+                <ChevronLeft className="w-4 h-4 inline mr-1" />
+                Anterior
+              </button>
+              <span className="text-sm text-gray-700">
+                Página {page} de {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className={`px-4 py-2 text-sm font-medium rounded-[6px] transition-colors ${
+                  page === totalPages
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-blue-600 text-white hover:bg-blue-700 cursor-pointer"
+                }`}
+              >
+                Siguiente
+                <ChevronRight className="w-4 h-4 inline ml-1" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Overlay de Detalles */}
+      {selectedVenta && (
+        <VentaDetailOverlay
+          venta={selectedVenta}
+          isOpen={isOverlayOpen}
+          onClose={handleCloseOverlay}
+        />
+      )}
     </div>
   );
 }
-
