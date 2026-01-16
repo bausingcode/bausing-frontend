@@ -34,7 +34,9 @@ import {
   RectangleHorizontal,
   BedDouble,
   Square,
-  Box
+  Box,
+  Shield,
+  MapPin
 } from "lucide-react";
 import Cart from "./Cart";
 import Image from "next/image";
@@ -794,7 +796,7 @@ export default function Navbar() {
     <>
       <div className="sticky top-0 z-50 bg-white">
         {/* Top Header - Light Green Bar */}
-        <div className="bg-[#00C1A7] py-1.5">
+        <div className="bg-[#00C1A7]/80 py-1.5">
           <div className="container mx-auto px-4">
             <div className="flex items-center justify-center gap-6 text-sm text-white">
               <div className="flex items-center gap-2">
@@ -895,6 +897,28 @@ export default function Navbar() {
                       >
                         <User className="w-4 h-4" />
                         Mi perfil
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          router.push("/usuario?section=pedidos");
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                      >
+                        <Package className="w-4 h-4" />
+                        Mis pedidos
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          router.push("/usuario?section=direcciones");
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                      >
+                        <MapPin className="w-4 h-4" />
+                        Mis direcciones
                       </button>
                       <button
                         type="button"

@@ -2440,3 +2440,103 @@ export async function transferWalletBalance(
   return data.data;
 }
 
+// ==================== ORDERS API (USER) ====================
+
+export interface OrderItem {
+  id: string;
+  product_id: string;
+  product_name: string;
+  product_image?: string;
+  variant_id?: string;
+  variant_name?: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+}
+
+export interface Order {
+  id: string;
+  user_id: string;
+  order_number: string;
+  status: "pending" | "in_transit" | "pending_delivery" | "delivered" | "cancelled";
+  payment_method: "card" | "cash" | "transfer" | "wallet";
+  payment_status: "pending" | "paid" | "failed";
+  pay_on_delivery: boolean;
+  total_amount: number;
+  shipping_address: Address;
+  items: OrderItem[];
+  tracking_number?: string;
+  tracking_url?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrdersResponse {
+  orders: Order[];
+  pagination: {
+    page: number;
+    per_page: number;
+    total: number;
+    pages: number;
+  };
+}
+
+/**
+ * Get user orders
+ */
+export async function getUserOrders(params?: {
+  page?: number;
+  per_page?: number;
+  status?: string;
+}): Promise<OrdersResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+  if (params?.status) queryParams.append('status', params.status);
+  
+  const url = `/api/orders?${queryParams.toString()}`;
+  const response = await fetch(url, {
+    headers: getUserAuthHeaders(),
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to get orders: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to get orders: Invalid response");
+  }
+  return data.data;
+}
+
+/**
+ * Get a single order by ID
+ */
+export async function getUserOrder(orderId: string): Promise<Order | null> {
+  try {
+    const url = `/api/orders/${orderId}`;
+    const response = await fetch(url, {
+      headers: getUserAuthHeaders(),
+      cache: "no-store",
+    });
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error(`Failed to get order: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    if (!data.success || !data.data) {
+      return null;
+    }
+    return data.data;
+  } catch (error) {
+    console.error("Error fetching order:", error);
+    return null;
+  }
+}
