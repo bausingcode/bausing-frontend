@@ -140,167 +140,11 @@ export default function UsuarioPage() {
   const loadOrders = async () => {
     setOrdersLoading(true);
     try {
-      // Datos mockeados
-      const mockOrders: Order[] = [
-        {
-          id: "1",
-          user_id: user?.id || "",
-          order_number: "ORD-2025-001",
-          status: "in_transit",
-          payment_method: "card",
-          payment_status: "paid",
-          pay_on_delivery: false,
-          total_amount: 45000,
-          shipping_address: {
-            id: "addr-1",
-            user_id: user?.id || "",
-            full_name: "Juan Pérez",
-            phone: "+54 9 11 1234-5678",
-            street: "Av. Siempre Viva",
-            number: "742",
-            additional_info: "Depto 4B",
-            postal_code: "1405",
-            city: "Buenos Aires",
-            province: "CABA",
-            is_default: true,
-          },
-          items: [
-            {
-              id: "item-1",
-              product_id: "prod-1",
-              product_name: "Colchón Premium 160x200",
-              product_image: "/images/home/4.png",
-              variant_id: "var-1",
-              variant_name: "160x200 cm",
-              quantity: 1,
-              unit_price: 45000,
-              total_price: 45000,
-            },
-          ],
-          tracking_number: "TRACK123456",
-          tracking_url: "https://tracking.example.com/TRACK123456",
-          created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-        {
-          id: "2",
-          user_id: user?.id || "",
-          order_number: "ORD-2025-002",
-          status: "pending_delivery",
-          payment_method: "cash",
-          payment_status: "pending",
-          pay_on_delivery: true,
-          total_amount: 8500,
-          shipping_address: {
-            id: "addr-1",
-            user_id: user?.id || "",
-            full_name: "Juan Pérez",
-            phone: "+54 9 11 1234-5678",
-            street: "Av. Siempre Viva",
-            number: "742",
-            additional_info: "Depto 4B",
-            postal_code: "1405",
-            city: "Buenos Aires",
-            province: "CABA",
-            is_default: true,
-          },
-          items: [
-            {
-              id: "item-2",
-              product_id: "prod-2",
-              product_name: "Almohadas Memory Foam x2",
-              product_image: "/images/home/4.png",
-              quantity: 2,
-              unit_price: 4250,
-              total_price: 8500,
-            },
-          ],
-          created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-          updated_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-        {
-          id: "3",
-          user_id: user?.id || "",
-          order_number: "ORD-2025-003",
-          status: "delivered",
-          payment_method: "wallet",
-          payment_status: "paid",
-          pay_on_delivery: false,
-          total_amount: 32000,
-          shipping_address: {
-            id: "addr-1",
-            user_id: user?.id || "",
-            full_name: "Juan Pérez",
-            phone: "+54 9 11 1234-5678",
-            street: "Av. Siempre Viva",
-            number: "742",
-            additional_info: "Depto 4B",
-            postal_code: "1405",
-            city: "Buenos Aires",
-            province: "CABA",
-            is_default: true,
-          },
-          items: [
-            {
-              id: "item-3",
-              product_id: "prod-3",
-              product_name: "Sommier Box Spring 140x190",
-              product_image: "/images/home/4.png",
-              variant_id: "var-3",
-              variant_name: "140x190 cm",
-              quantity: 1,
-              unit_price: 32000,
-              total_price: 32000,
-            },
-          ],
-          created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-          updated_at: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-        {
-          id: "4",
-          user_id: user?.id || "",
-          order_number: "ORD-2025-004",
-          status: "pending",
-          payment_method: "transfer",
-          payment_status: "pending",
-          pay_on_delivery: false,
-          total_amount: 12500,
-          shipping_address: {
-            id: "addr-1",
-            user_id: user?.id || "",
-            full_name: "Juan Pérez",
-            phone: "+54 9 11 1234-5678",
-            street: "Av. Siempre Viva",
-            number: "742",
-            additional_info: "Depto 4B",
-            postal_code: "1405",
-            city: "Buenos Aires",
-            province: "CABA",
-            is_default: true,
-          },
-          items: [
-            {
-              id: "item-4",
-              product_id: "prod-4",
-              product_name: "Base para cama 160x200",
-              product_image: "/images/home/4.png",
-              variant_id: "var-4",
-              variant_name: "160x200 cm",
-              quantity: 1,
-              unit_price: 12500,
-              total_price: 12500,
-            },
-          ],
-          created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-          updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-      ];
-      
-      // Simular delay de carga
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setOrders(mockOrders);
+      const ordersData = await getUserOrders({ page: 1, per_page: 50 });
+      setOrders(ordersData.orders);
     } catch (error: any) {
       console.error("Error loading orders:", error);
+      setOrders([]);
     } finally {
       setOrdersLoading(false);
     }
@@ -309,56 +153,18 @@ export default function UsuarioPage() {
   const loadOrder = async (orderId: string) => {
     setOrderLoading(true);
     try {
-      // Buscar el pedido en la lista mockeada
+      // Primero buscar en la lista cargada
       const order = orders.find(o => o.id === orderId);
       if (order) {
-        // Simular delay de carga
-        await new Promise(resolve => setTimeout(resolve, 300));
         setSelectedOrder(order);
       } else {
-        // Si no está en la lista, crear uno mockeado
-        const mockOrder: Order = {
-          id: orderId,
-          user_id: user?.id || "",
-          order_number: `ORD-2025-${orderId.padStart(3, '0')}`,
-          status: "in_transit",
-          payment_method: "card",
-          payment_status: "paid",
-          pay_on_delivery: false,
-          total_amount: 45000,
-          shipping_address: {
-            id: "addr-1",
-            user_id: user?.id || "",
-            full_name: "Juan Pérez",
-            phone: "+54 9 11 1234-5678",
-            street: "Av. Siempre Viva",
-            number: "742",
-            additional_info: "Depto 4B",
-            postal_code: "1405",
-            city: "Buenos Aires",
-            province: "CABA",
-            is_default: true,
-          },
-          items: [
-            {
-              id: "item-1",
-              product_id: "prod-1",
-              product_name: "Colchón Premium 160x200",
-              product_image: "/images/home/4.png",
-              variant_id: "var-1",
-              variant_name: "160x200 cm",
-              quantity: 1,
-              unit_price: 45000,
-              total_price: 45000,
-            },
-          ],
-          tracking_number: "TRACK123456",
-          tracking_url: "https://tracking.example.com/TRACK123456",
-          created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        };
-        await new Promise(resolve => setTimeout(resolve, 300));
-        setSelectedOrder(mockOrder);
+        // Si no está en la lista, cargar desde la API
+        const orderData = await getUserOrder(orderId);
+        if (orderData) {
+          setSelectedOrder(orderData);
+        } else {
+          console.error("Order not found");
+        }
       }
     } catch (error: any) {
       console.error("Error loading order:", error);
@@ -1545,17 +1351,18 @@ export default function UsuarioPage() {
                             <div className="space-y-3">
                               <div className="flex items-center gap-3">
                                 <div className={`w-3 h-3 rounded-full ${
-                                  selectedOrder.status === "delivered" ? "bg-emerald-500" :
-                                  selectedOrder.status === "in_transit" ? "bg-blue-500" :
-                                  selectedOrder.status === "pending_delivery" ? "bg-amber-500" :
+                                  selectedOrder.status === "entregado" || selectedOrder.status === "delivered" ? "bg-emerald-500" :
+                                  selectedOrder.status === "en camino" || selectedOrder.status === "in_transit" ? "bg-blue-500" :
+                                  selectedOrder.status === "pendiente de entrega" || selectedOrder.status === "pending_delivery" ? "bg-amber-500" :
                                   "bg-gray-400"
                                 }`} />
                                 <span className="text-sm font-semibold text-gray-900">
-                                  {selectedOrder.status === "pending" && "Pendiente"}
-                                  {selectedOrder.status === "in_transit" && "En camino"}
-                                  {selectedOrder.status === "pending_delivery" && "Pendiente de entrega"}
-                                  {selectedOrder.status === "delivered" && "Entregado"}
-                                  {selectedOrder.status === "cancelled" && "Cancelado"}
+                                  {(selectedOrder.status === "pendiente de entrega" || selectedOrder.status === "pending_delivery") && "Pendiente de entrega"}
+                                  {(selectedOrder.status === "en camino" || selectedOrder.status === "in_transit") && "En camino"}
+                                  {(selectedOrder.status === "entregado" || selectedOrder.status === "delivered") && "Entregado"}
+                                  {selectedOrder.status !== "pendiente de entrega" && selectedOrder.status !== "pending_delivery" && 
+                                   selectedOrder.status !== "en camino" && selectedOrder.status !== "in_transit" && 
+                                   selectedOrder.status !== "entregado" && selectedOrder.status !== "delivered" && selectedOrder.status}
                                 </span>
                               </div>
                               {selectedOrder.tracking_number && (
@@ -1624,8 +1431,36 @@ export default function UsuarioPage() {
                     // Vista de lista de pedidos
                     <>
                       {ordersLoading ? (
-                        <div className="text-center py-12">
-                          <p className="text-gray-500">Cargando pedidos...</p>
+                        <div className="space-y-4">
+                          {[...Array(3)].map((_, index) => (
+                            <div
+                              key={index}
+                              className="border border-gray-200 rounded-[14px] p-6 animate-pulse"
+                            >
+                              <div className="flex items-start justify-between mb-4">
+                                <div className="space-y-2">
+                                  <div className="h-4 bg-gray-200 rounded w-32"></div>
+                                  <div className="h-3 bg-gray-200 rounded w-24"></div>
+                                </div>
+                                <div className="h-6 bg-gray-200 rounded-full w-24"></div>
+                              </div>
+                              <div className="space-y-2">
+                                {[...Array(2)].map((_, itemIndex) => (
+                                  <div key={itemIndex} className="flex items-center gap-3">
+                                    <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
+                                    <div className="flex-1 space-y-2">
+                                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                                      <div className="h-3 bg-gray-200 rounded w-20"></div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                                <div className="h-4 bg-gray-200 rounded w-12"></div>
+                                <div className="h-5 bg-gray-200 rounded w-24"></div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       ) : orders.length === 0 ? (
                         <div className="border border-dashed border-gray-300 rounded-[12px] p-6 text-center space-y-3 bg-gray-50">
@@ -1661,16 +1496,17 @@ export default function UsuarioPage() {
                                   </p>
                                 </div>
                                 <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
-                                  order.status === "delivered" ? "bg-emerald-100 text-emerald-700" :
-                                  order.status === "in_transit" ? "bg-blue-100 text-blue-700" :
-                                  order.status === "pending_delivery" ? "bg-amber-100 text-amber-700" :
+                                  order.status === "entregado" || order.status === "delivered" ? "bg-emerald-100 text-emerald-700" :
+                                  order.status === "en camino" || order.status === "in_transit" ? "bg-blue-100 text-blue-700" :
+                                  order.status === "pendiente de entrega" || order.status === "pending_delivery" ? "bg-amber-100 text-amber-700" :
                                   "bg-gray-100 text-gray-700"
                                 }`}>
-                                  {order.status === "pending" && "Pendiente"}
-                                  {order.status === "in_transit" && "En camino"}
-                                  {order.status === "pending_delivery" && "Pendiente de entrega"}
-                                  {order.status === "delivered" && "Entregado"}
-                                  {order.status === "cancelled" && "Cancelado"}
+                                  {(order.status === "pendiente de entrega" || order.status === "pending_delivery") && "Pendiente de entrega"}
+                                  {(order.status === "en camino" || order.status === "in_transit") && "En camino"}
+                                  {(order.status === "entregado" || order.status === "delivered") && "Entregado"}
+                                  {order.status !== "pendiente de entrega" && order.status !== "pending_delivery" && 
+                                   order.status !== "en camino" && order.status !== "in_transit" && 
+                                   order.status !== "entregado" && order.status !== "delivered" && order.status}
                                 </span>
                               </div>
                               <div className="space-y-2">

@@ -2593,7 +2593,7 @@ export interface Order {
   id: string;
   user_id: string;
   order_number: string;
-  status: "pending" | "in_transit" | "pending_delivery" | "delivered" | "cancelled";
+  status: string; // Estado de entrega: "pendiente de entrega", "en camino", "entregado", etc.
   payment_method: "card" | "cash" | "transfer" | "wallet";
   payment_status: "pending" | "paid" | "failed";
   pay_on_delivery: boolean;
@@ -2629,7 +2629,7 @@ export async function getUserOrders(params?: {
   if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
   if (params?.status) queryParams.append('status', params.status);
   
-  const url = `/api/orders?${queryParams.toString()}`;
+  const url = `/api/api/orders?${queryParams.toString()}`;
   const response = await fetch(url, {
     headers: getUserAuthHeaders(),
     cache: "no-store",
@@ -2652,7 +2652,7 @@ export async function getUserOrders(params?: {
  */
 export async function getUserOrder(orderId: string): Promise<Order | null> {
   try {
-    const url = `/api/orders/${orderId}`;
+    const url = `/api/api/orders/${orderId}`;
     const response = await fetch(url, {
       headers: getUserAuthHeaders(),
       cache: "no-store",
