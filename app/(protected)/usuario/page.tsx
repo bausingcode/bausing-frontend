@@ -1351,18 +1351,21 @@ export default function UsuarioPage() {
                             <div className="space-y-3">
                               <div className="flex items-center gap-3">
                                 <div className={`w-3 h-3 rounded-full ${
-                                  selectedOrder.status === "entregado" || selectedOrder.status === "delivered" ? "bg-emerald-500" :
-                                  selectedOrder.status === "en camino" || selectedOrder.status === "in_transit" ? "bg-blue-500" :
+                                  selectedOrder.status === "finalizado" || selectedOrder.status === "finalized" ? "bg-green-600" :
+                                  selectedOrder.status === "en cobranza" || selectedOrder.status === "pending_payment" ? "bg-purple-500" :
+                                  selectedOrder.status === "en reparto" || selectedOrder.status === "in_transit" ? "bg-blue-500" :
                                   selectedOrder.status === "pendiente de entrega" || selectedOrder.status === "pending_delivery" ? "bg-amber-500" :
                                   "bg-gray-400"
                                 }`} />
                                 <span className="text-sm font-semibold text-gray-900">
                                   {(selectedOrder.status === "pendiente de entrega" || selectedOrder.status === "pending_delivery") && "Pendiente de entrega"}
-                                  {(selectedOrder.status === "en camino" || selectedOrder.status === "in_transit") && "En camino"}
-                                  {(selectedOrder.status === "entregado" || selectedOrder.status === "delivered") && "Entregado"}
+                                  {(selectedOrder.status === "en reparto" || selectedOrder.status === "in_transit") && "En reparto"}
+                                  {(selectedOrder.status === "en cobranza" || selectedOrder.status === "pending_payment") && "En cobranza"}
+                                  {(selectedOrder.status === "finalizado" || selectedOrder.status === "finalized") && "Finalizado"}
                                   {selectedOrder.status !== "pendiente de entrega" && selectedOrder.status !== "pending_delivery" && 
-                                   selectedOrder.status !== "en camino" && selectedOrder.status !== "in_transit" && 
-                                   selectedOrder.status !== "entregado" && selectedOrder.status !== "delivered" && selectedOrder.status}
+                                   selectedOrder.status !== "en reparto" && selectedOrder.status !== "in_transit" && 
+                                   selectedOrder.status !== "en cobranza" && selectedOrder.status !== "pending_payment" &&
+                                   selectedOrder.status !== "finalizado" && selectedOrder.status !== "finalized" && selectedOrder.status}
                                 </span>
                               </div>
                               {selectedOrder.tracking_number && (
@@ -1496,17 +1499,20 @@ export default function UsuarioPage() {
                                   </p>
                                 </div>
                                 <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
-                                  order.status === "entregado" || order.status === "delivered" ? "bg-emerald-100 text-emerald-700" :
-                                  order.status === "en camino" || order.status === "in_transit" ? "bg-blue-100 text-blue-700" :
+                                  order.status === "finalizado" || order.status === "finalized" ? "bg-green-100 text-green-700" :
+                                  order.status === "en cobranza" || order.status === "pending_payment" ? "bg-purple-100 text-purple-700" :
+                                  order.status === "en reparto" || order.status === "in_transit" ? "bg-blue-100 text-blue-700" :
                                   order.status === "pendiente de entrega" || order.status === "pending_delivery" ? "bg-amber-100 text-amber-700" :
                                   "bg-gray-100 text-gray-700"
                                 }`}>
                                   {(order.status === "pendiente de entrega" || order.status === "pending_delivery") && "Pendiente de entrega"}
-                                  {(order.status === "en camino" || order.status === "in_transit") && "En camino"}
-                                  {(order.status === "entregado" || order.status === "delivered") && "Entregado"}
+                                  {(order.status === "en reparto" || order.status === "in_transit") && "En reparto"}
+                                  {(order.status === "en cobranza" || order.status === "pending_payment") && "En cobranza"}
+                                  {(order.status === "finalizado" || order.status === "finalized") && "Finalizado"}
                                   {order.status !== "pendiente de entrega" && order.status !== "pending_delivery" && 
-                                   order.status !== "en camino" && order.status !== "in_transit" && 
-                                   order.status !== "entregado" && order.status !== "delivered" && order.status}
+                                   order.status !== "en reparto" && order.status !== "in_transit" && 
+                                   order.status !== "en cobranza" && order.status !== "pending_payment" &&
+                                   order.status !== "finalizado" && order.status !== "finalized" && order.status}
                                 </span>
                               </div>
                               <div className="space-y-2">

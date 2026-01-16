@@ -68,7 +68,7 @@ export default function AdminDashboard() {
           icon={<Clock className="w-6 h-6" />}
         />
         <OrderStatusCard
-          title="En Camino"
+          title="En Reparto"
           value={34}
           color="blue"
           icon={<Info className="w-6 h-6" />}

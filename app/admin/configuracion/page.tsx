@@ -443,10 +443,10 @@ export default function Configuracion() {
               </p>
             </div>
 
-            {/* Pedido en camino */}
+            {/* Pedido en reparto */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Pedido en camino
+                Pedido en reparto
               </label>
               <textarea
                 value={mensajes.enCamino}

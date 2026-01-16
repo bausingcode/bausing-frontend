@@ -52,7 +52,7 @@ export default function EnviosLogistica() {
       provincia: "Buenos Aires",
       localidad: "CABA",
       direccion: "Av. Corrientes 1234",
-      estado: "En Camino",
+      estado: "En Reparto",
       estadoColor: "purple",
       transporte: "Propio",
       fechaEst: "2025-11-29",
@@ -222,7 +222,7 @@ export default function EnviosLogistica() {
               </div>
               <div className="flex gap-2">
                 <span className="px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-700">
-                  {zona.enCamino} en camino
+                  {zona.enCamino} en reparto
                 </span>
                 <span className="px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-700">
                   {zona.pendientes} pendientes

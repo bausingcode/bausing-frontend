@@ -2593,7 +2593,7 @@ export interface Order {
   id: string;
   user_id: string;
   order_number: string;
-  status: string; // Estado de entrega: "pendiente de entrega", "en camino", "entregado", etc.
+  status: string; // Estado de entrega: "pendiente de entrega", "en reparto", "en cobranza", "finalizado", etc.
   payment_method: "card" | "cash" | "transfer" | "wallet";
   payment_status: "pending" | "paid" | "failed";
   pay_on_delivery: boolean;
