@@ -415,66 +415,64 @@ export default function CheckoutPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tipo de documento <span className="text-red-500">*</span>
+                      Documento <span className="text-red-500">*</span>
                     </label>
-                    <select
-                      value={formData.document_type}
-                      onChange={(e) => handleInputChange("document_type", e.target.value)}
-                      className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080] ${
-                        errors.document_type ? "border-red-500" : "border-gray-300"
-                      }`}
-                    >
-                      <option value="">Selecciona una opción</option>
-                      <option value="dni">DNI</option>
-                      <option value="passport">Pasaporte</option>
-                      <option value="cuit">CUIT</option>
-                    </select>
+                    <div className={`flex border rounded-lg overflow-hidden ${
+                      errors.document_type || errors.dni ? "border-red-500" : "border-gray-300"
+                    } focus-within:ring-2 focus-within:ring-[#00C1A7] focus-within:border-transparent`}>
+                      <select
+                        value={formData.document_type}
+                        onChange={(e) => handleInputChange("document_type", e.target.value)}
+                        className="px-4 py-2.5 border-r border-gray-300 bg-white focus:outline-none text-[#808080] text-sm min-w-[140px]"
+                      >
+                        <option value="">Tipo</option>
+                        <option value="dni">DNI</option>
+                        <option value="passport">Pasaporte</option>
+                        <option value="cuit">CUIT</option>
+                      </select>
+                      <input
+                        type="text"
+                        value={formData.dni}
+                        onChange={(e) => handleInputChange("dni", e.target.value)}
+                        placeholder="Número de documento"
+                        className="flex-1 px-4 py-2.5 border-0 focus:outline-none text-[#808080] placeholder:text-[#DEDEDE]"
+                      />
+                    </div>
                     {errors.document_type && (
                       <p className="text-red-500 text-xs mt-1">{errors.document_type}</p>
                     )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Número de documento <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.dni}
-                      onChange={(e) => handleInputChange("dni", e.target.value)}
-                      className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080] ${
-                        errors.dni ? "border-red-500" : "border-gray-300"
-                      }`}
-                    />
                     {errors.dni && (
                       <p className="text-red-500 text-xs mt-1">{errors.dni}</p>
                     )}
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Celular <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => handleInputChange("phone", e.target.value)}
-                      className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080] ${
-                        errors.phone ? "border-red-500" : "border-gray-300"
-                      }`}
-                    />
-                    {errors.phone && (
-                      <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Celular alternativo
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.alternate_phone}
-                      onChange={(e) => handleInputChange("alternate_phone", e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080]"
-                    />
+                  <div className="md:col-span-2 grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Celular <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => handleInputChange("phone", e.target.value)}
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080] ${
+                          errors.phone ? "border-red-500" : "border-gray-300"
+                        }`}
+                      />
+                      {errors.phone && (
+                        <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Celular alternativo
+                      </label>
+                      <input
+                        type="tel"
+                        value={formData.alternate_phone}
+                        onChange={(e) => handleInputChange("alternate_phone", e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080]"
+                      />
+                    </div>
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -805,7 +803,7 @@ export default function CheckoutPage() {
                       checked={paymentMethod === "cash"}
                       onChange={() => {
                         setPaymentMethod("cash");
-                        setPayOnDelivery(false);
+                        setPayOnDelivery(true);
                         // Clear card data and errors when switching to cash
                         setCardData({
                           number: "",
@@ -827,7 +825,10 @@ export default function CheckoutPage() {
                       className="w-4 h-4"
                     />
                     <Wallet className="w-5 h-5 text-gray-600" />
-                    <span className="font-medium text-gray-900">Efectivo</span>
+                    <div className="flex-1">
+                      <span className="font-medium text-gray-900">Efectivo</span>
+                      <p className="text-xs text-gray-500 mt-0.5">Abonarás al recibir</p>
+                    </div>
                     {paymentMethod === "cash" && (
                       <Check className="w-5 h-5 text-[#00C1A7] ml-auto" />
                     )}
@@ -846,7 +847,7 @@ export default function CheckoutPage() {
                       checked={paymentMethod === "transfer"}
                       onChange={() => {
                         setPaymentMethod("transfer");
-                        setPayOnDelivery(false);
+                        setPayOnDelivery(true);
                         // Clear card data and errors when switching to transfer
                         setCardData({
                           number: "",
@@ -868,7 +869,10 @@ export default function CheckoutPage() {
                       className="w-4 h-4"
                     />
                     <ArrowRightLeft className="w-5 h-5 text-gray-600" />
-                    <span className="font-medium text-gray-900">Transferencia</span>
+                    <div className="flex-1">
+                      <span className="font-medium text-gray-900">Transferencia</span>
+                      <p className="text-xs text-gray-500 mt-0.5">Abonarás al recibir</p>
+                    </div>
                     {paymentMethod === "transfer" && (
                       <Check className="w-5 h-5 text-[#00C1A7] ml-auto" />
                     )}
@@ -1099,14 +1103,12 @@ export default function CheckoutPage() {
                 {/* Pay on delivery option */}
                 {(paymentMethod === "cash" || paymentMethod === "transfer") && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
-                    <label className="flex items-center gap-3 cursor-pointer">
+                    <label className="flex items-center gap-3">
                       <input
                         type="checkbox"
                         checked={payOnDelivery}
-                        onChange={(e) => {
-                          setPayOnDelivery(e.target.checked);
-                        }}
-                        className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7]"
+                        disabled
+                        className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7] cursor-not-allowed opacity-60"
                       />
                       <div>
                         <span className="font-medium text-gray-900">Pagar al recibir</span>

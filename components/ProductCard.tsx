@@ -44,20 +44,6 @@ export default function ProductCard({
   // Si la imagen ya es una URL de wsrv, no la optimizamos de nuevo
   const optimizedUrl = image.includes('wsrv.nl') ? image : wsrvLoader({ src: image, width: 400 });
 
-  // Calcular precio en 12 cuotas
-  const calculatePriceInInstallments = (priceStr: string, installments: number = 12): string => {
-    // Extraer el número del precio (remover $ y puntos)
-    const numericPrice = parseFloat(priceStr.replace(/[$.]/g, '').replace(/\./g, ''));
-    if (isNaN(numericPrice)) return '';
-    
-    const pricePerInstallment = numericPrice / installments;
-    // Formatear con puntos de miles
-    const formatted = Math.round(pricePerInstallment).toLocaleString('es-AR');
-    return `$${formatted}`;
-  };
-
-  const priceIn12Installments = calculatePriceInInstallments(currentPrice);
-
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -157,13 +143,6 @@ export default function ProductCard({
             <span className="text-sm text-gray-400 line-through">{originalPrice}</span>
           )}
         </div>
-        {priceIn12Installments && (
-          <div className="mt-1">
-            <span className="text-sm text-gray-600">
-              {priceIn12Installments} en 12 cuotas sin interés
-            </span>
-          </div>
-        )}
       </div>
     </Link>
   );

@@ -257,7 +257,7 @@ export default async function Home() {
           <div className="grid grid-cols-4 gap-6">
             {/* Banner Descuentazos */}
             {descuentazosBanner ? (
-              <div className="rounded-[10px] overflow-hidden" style={{ width: '300px', height: '400px' }}>
+              <div className="rounded-[10px] overflow-hidden" style={{ width: '300px', height: '430px' }}>
                 <img
                   src={wsrvLoader({ src: descuentazosBanner.image_url, width: 300 })}
                   alt={descuentazosBanner.title || descuentazosBanner.subtitle || "Descuentazos"}

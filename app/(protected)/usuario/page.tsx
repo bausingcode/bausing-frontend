@@ -16,8 +16,11 @@ import {
   getUserWalletBalance,
   getUserWalletMovements,
   transferWalletBalance,
+  getUserOrders,
+  getUserOrder,
   type Address,
   type WalletMovement,
+  type Order,
 } from "@/lib/api";
 import {
   Calendar,
@@ -37,7 +40,11 @@ import {
   X,
   ArrowUpRight,
   ArrowDownRight,
-  ShoppingCart
+  ShoppingCart,
+  Truck,
+  HelpCircle,
+  ExternalLink,
+  ArrowLeft
 } from "lucide-react";
 
 type MenuKey = "perfil" | "direcciones" | "pedidos" | "seguridad" | "billetera" | "logout";
@@ -111,6 +118,10 @@ export default function UsuarioPage() {
   const [walletLoading, setWalletLoading] = useState(false);
   const [walletMovements, setWalletMovements] = useState<WalletMovement[]>([]);
   const [movementsLoading, setMovementsLoading] = useState(false);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [orderLoading, setOrderLoading] = useState(false);
 
   // Cargar datos de wallet cuando se activa la sección
   useEffect(() => {
@@ -118,6 +129,243 @@ export default function UsuarioPage() {
       loadWalletData();
     }
   }, [activeSection, isAuthenticated]);
+
+  // Cargar pedidos cuando se activa la sección
+  useEffect(() => {
+    if (activeSection === "pedidos" && isAuthenticated && !ordersLoading) {
+      loadOrders();
+    }
+  }, [activeSection, isAuthenticated]);
+
+  const loadOrders = async () => {
+    setOrdersLoading(true);
+    try {
+      // Datos mockeados
+      const mockOrders: Order[] = [
+        {
+          id: "1",
+          user_id: user?.id || "",
+          order_number: "ORD-2025-001",
+          status: "in_transit",
+          payment_method: "card",
+          payment_status: "paid",
+          pay_on_delivery: false,
+          total_amount: 45000,
+          shipping_address: {
+            id: "addr-1",
+            user_id: user?.id || "",
+            full_name: "Juan Pérez",
+            phone: "+54 9 11 1234-5678",
+            street: "Av. Siempre Viva",
+            number: "742",
+            additional_info: "Depto 4B",
+            postal_code: "1405",
+            city: "Buenos Aires",
+            province: "CABA",
+            is_default: true,
+          },
+          items: [
+            {
+              id: "item-1",
+              product_id: "prod-1",
+              product_name: "Colchón Premium 160x200",
+              product_image: "/images/home/4.png",
+              variant_id: "var-1",
+              variant_name: "160x200 cm",
+              quantity: 1,
+              unit_price: 45000,
+              total_price: 45000,
+            },
+          ],
+          tracking_number: "TRACK123456",
+          tracking_url: "https://tracking.example.com/TRACK123456",
+          created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+        {
+          id: "2",
+          user_id: user?.id || "",
+          order_number: "ORD-2025-002",
+          status: "pending_delivery",
+          payment_method: "cash",
+          payment_status: "pending",
+          pay_on_delivery: true,
+          total_amount: 8500,
+          shipping_address: {
+            id: "addr-1",
+            user_id: user?.id || "",
+            full_name: "Juan Pérez",
+            phone: "+54 9 11 1234-5678",
+            street: "Av. Siempre Viva",
+            number: "742",
+            additional_info: "Depto 4B",
+            postal_code: "1405",
+            city: "Buenos Aires",
+            province: "CABA",
+            is_default: true,
+          },
+          items: [
+            {
+              id: "item-2",
+              product_id: "prod-2",
+              product_name: "Almohadas Memory Foam x2",
+              product_image: "/images/home/4.png",
+              quantity: 2,
+              unit_price: 4250,
+              total_price: 8500,
+            },
+          ],
+          created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+          updated_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+        {
+          id: "3",
+          user_id: user?.id || "",
+          order_number: "ORD-2025-003",
+          status: "delivered",
+          payment_method: "wallet",
+          payment_status: "paid",
+          pay_on_delivery: false,
+          total_amount: 32000,
+          shipping_address: {
+            id: "addr-1",
+            user_id: user?.id || "",
+            full_name: "Juan Pérez",
+            phone: "+54 9 11 1234-5678",
+            street: "Av. Siempre Viva",
+            number: "742",
+            additional_info: "Depto 4B",
+            postal_code: "1405",
+            city: "Buenos Aires",
+            province: "CABA",
+            is_default: true,
+          },
+          items: [
+            {
+              id: "item-3",
+              product_id: "prod-3",
+              product_name: "Sommier Box Spring 140x190",
+              product_image: "/images/home/4.png",
+              variant_id: "var-3",
+              variant_name: "140x190 cm",
+              quantity: 1,
+              unit_price: 32000,
+              total_price: 32000,
+            },
+          ],
+          created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+          updated_at: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+        {
+          id: "4",
+          user_id: user?.id || "",
+          order_number: "ORD-2025-004",
+          status: "pending",
+          payment_method: "transfer",
+          payment_status: "pending",
+          pay_on_delivery: false,
+          total_amount: 12500,
+          shipping_address: {
+            id: "addr-1",
+            user_id: user?.id || "",
+            full_name: "Juan Pérez",
+            phone: "+54 9 11 1234-5678",
+            street: "Av. Siempre Viva",
+            number: "742",
+            additional_info: "Depto 4B",
+            postal_code: "1405",
+            city: "Buenos Aires",
+            province: "CABA",
+            is_default: true,
+          },
+          items: [
+            {
+              id: "item-4",
+              product_id: "prod-4",
+              product_name: "Base para cama 160x200",
+              product_image: "/images/home/4.png",
+              variant_id: "var-4",
+              variant_name: "160x200 cm",
+              quantity: 1,
+              unit_price: 12500,
+              total_price: 12500,
+            },
+          ],
+          created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+          updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+      ];
+      
+      // Simular delay de carga
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setOrders(mockOrders);
+    } catch (error: any) {
+      console.error("Error loading orders:", error);
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
+  const loadOrder = async (orderId: string) => {
+    setOrderLoading(true);
+    try {
+      // Buscar el pedido en la lista mockeada
+      const order = orders.find(o => o.id === orderId);
+      if (order) {
+        // Simular delay de carga
+        await new Promise(resolve => setTimeout(resolve, 300));
+        setSelectedOrder(order);
+      } else {
+        // Si no está en la lista, crear uno mockeado
+        const mockOrder: Order = {
+          id: orderId,
+          user_id: user?.id || "",
+          order_number: `ORD-2025-${orderId.padStart(3, '0')}`,
+          status: "in_transit",
+          payment_method: "card",
+          payment_status: "paid",
+          pay_on_delivery: false,
+          total_amount: 45000,
+          shipping_address: {
+            id: "addr-1",
+            user_id: user?.id || "",
+            full_name: "Juan Pérez",
+            phone: "+54 9 11 1234-5678",
+            street: "Av. Siempre Viva",
+            number: "742",
+            additional_info: "Depto 4B",
+            postal_code: "1405",
+            city: "Buenos Aires",
+            province: "CABA",
+            is_default: true,
+          },
+          items: [
+            {
+              id: "item-1",
+              product_id: "prod-1",
+              product_name: "Colchón Premium 160x200",
+              product_image: "/images/home/4.png",
+              variant_id: "var-1",
+              variant_name: "160x200 cm",
+              quantity: 1,
+              unit_price: 45000,
+              total_price: 45000,
+            },
+          ],
+          tracking_number: "TRACK123456",
+          tracking_url: "https://tracking.example.com/TRACK123456",
+          created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+        };
+        await new Promise(resolve => setTimeout(resolve, 300));
+        setSelectedOrder(mockOrder);
+      }
+    } catch (error: any) {
+      console.error("Error loading order:", error);
+    } finally {
+      setOrderLoading(false);
+    }
+  };
 
   const loadWalletData = async () => {
     setWalletLoading(true);
@@ -314,7 +562,7 @@ export default function UsuarioPage() {
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeSection === item.key;
-                const isDisabled = !["perfil", "direcciones", "seguridad", "billetera", "logout"].includes(item.key);
+                const isDisabled = !["perfil", "direcciones", "seguridad", "billetera", "pedidos", "logout"].includes(item.key);
 
                 return (
                   <button
@@ -1178,6 +1426,288 @@ export default function UsuarioPage() {
                       </div>
                     </form>
                   </div>
+                </div>
+              )}
+
+              {activeSection === "pedidos" && (
+                <div className="space-y-6">
+                  {selectedOrder ? (
+                    // Vista de detalle de pedido
+                    <div className="space-y-6">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedOrder(null);
+                        }}
+                        className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900 mb-4"
+                      >
+                        <ArrowLeft className="w-4 h-4" />
+                        Volver a mis pedidos
+                      </button>
+
+                      {orderLoading ? (
+                        <div className="text-center py-12">
+                          <p className="text-gray-500">Cargando pedido...</p>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Información del producto */}
+                          <div className="border border-gray-200 rounded-[14px] p-6">
+                            <h2 className="text-lg font-semibold text-gray-900 mb-4">Productos</h2>
+                            <div className="space-y-4">
+                              {selectedOrder.items.map((item) => (
+                                <div key={item.id} className="flex gap-4 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+                                  {item.product_image && (
+                                    <img
+                                      src={item.product_image}
+                                      alt={item.product_name}
+                                      className="w-20 h-20 object-cover rounded-lg"
+                                    />
+                                  )}
+                                  <div className="flex-1">
+                                    <h3 className="font-semibold text-gray-900">{item.product_name}</h3>
+                                    {item.variant_name && (
+                                      <p className="text-sm text-gray-600">Variante: {item.variant_name}</p>
+                                    )}
+                                    <p className="text-sm text-gray-600">Cantidad: {item.quantity}</p>
+                                    <p className="text-sm font-semibold text-gray-900 mt-1">
+                                      ${item.total_price.toLocaleString("es-AR", {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      })}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Información de compra (Ticket) */}
+                          <div className="border border-gray-200 rounded-[14px] p-6">
+                            <h2 className="text-lg font-semibold text-gray-900 mb-4">Información de compra</h2>
+                            <div className="space-y-3">
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">Número de pedido:</span>
+                                <span className="text-sm font-semibold text-gray-900">{selectedOrder.order_number}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">Fecha:</span>
+                                <span className="text-sm text-gray-900">
+                                  {new Date(selectedOrder.created_at).toLocaleDateString("es-AR", {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    year: "numeric",
+                                  })}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">Método de pago:</span>
+                                <span className="text-sm text-gray-900 capitalize">
+                                  {selectedOrder.payment_method === "card" && "Tarjeta"}
+                                  {selectedOrder.payment_method === "cash" && "Efectivo"}
+                                  {selectedOrder.payment_method === "transfer" && "Transferencia"}
+                                  {selectedOrder.payment_method === "wallet" && "Billetera Bausing"}
+                                </span>
+                              </div>
+                              {selectedOrder.pay_on_delivery && (
+                                <div className="flex justify-between">
+                                  <span className="text-sm text-gray-600">Pago al recibir:</span>
+                                  <span className="text-sm text-gray-900">Sí</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between">
+                                <span className="text-sm text-gray-600">Estado del pago:</span>
+                                <span className={`text-sm font-semibold ${
+                                  selectedOrder.payment_status === "paid" ? "text-emerald-600" :
+                                  selectedOrder.payment_status === "pending" ? "text-amber-600" :
+                                  "text-red-600"
+                                }`}>
+                                  {selectedOrder.payment_status === "paid" && "Pagado"}
+                                  {selectedOrder.payment_status === "pending" && "Pendiente"}
+                                  {selectedOrder.payment_status === "failed" && "Fallido"}
+                                </span>
+                              </div>
+                              <div className="flex justify-between pt-3 border-t border-gray-200">
+                                <span className="text-base font-semibold text-gray-900">Total:</span>
+                                <span className="text-lg font-bold text-gray-900">
+                                  ${selectedOrder.total_amount.toLocaleString("es-AR", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Estado del pedido */}
+                          <div className="border border-gray-200 rounded-[14px] p-6">
+                            <h2 className="text-lg font-semibold text-gray-900 mb-4">Estado del pedido</h2>
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-3 h-3 rounded-full ${
+                                  selectedOrder.status === "delivered" ? "bg-emerald-500" :
+                                  selectedOrder.status === "in_transit" ? "bg-blue-500" :
+                                  selectedOrder.status === "pending_delivery" ? "bg-amber-500" :
+                                  "bg-gray-400"
+                                }`} />
+                                <span className="text-sm font-semibold text-gray-900">
+                                  {selectedOrder.status === "pending" && "Pendiente"}
+                                  {selectedOrder.status === "in_transit" && "En camino"}
+                                  {selectedOrder.status === "pending_delivery" && "Pendiente de entrega"}
+                                  {selectedOrder.status === "delivered" && "Entregado"}
+                                  {selectedOrder.status === "cancelled" && "Cancelado"}
+                                </span>
+                              </div>
+                              {selectedOrder.tracking_number && (
+                                <div className="mt-4 pt-4 border-t border-gray-200">
+                                  <p className="text-sm text-gray-600 mb-2">Número de seguimiento:</p>
+                                  <p className="text-sm font-semibold text-gray-900">{selectedOrder.tracking_number}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Dirección de entrega */}
+                          <div className="border border-gray-200 rounded-[14px] p-6">
+                            <h2 className="text-lg font-semibold text-gray-900 mb-4">Dirección de entrega</h2>
+                            <div className="space-y-1 text-sm text-gray-700">
+                              <p className="font-semibold">{selectedOrder.shipping_address.full_name}</p>
+                              <p>{selectedOrder.shipping_address.street} {selectedOrder.shipping_address.number}</p>
+                              {selectedOrder.shipping_address.additional_info && (
+                                <p>{selectedOrder.shipping_address.additional_info}</p>
+                              )}
+                              <p>{selectedOrder.shipping_address.city}, {selectedOrder.shipping_address.province}</p>
+                              <p>CP {selectedOrder.shipping_address.postal_code}</p>
+                              <p className="mt-2">{selectedOrder.shipping_address.phone}</p>
+                            </div>
+                          </div>
+
+                          {/* Botón de tracking */}
+                          {selectedOrder.tracking_url && (
+                            <div className="border border-gray-200 rounded-[14px] p-6">
+                              <a
+                                href={selectedOrder.tracking_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 bg-[#00C1A7] text-white px-6 py-3 rounded-[10px] font-semibold hover:bg-[#00a892] transition-colors"
+                              >
+                                <Truck className="w-5 h-5" />
+                                Ver seguimiento
+                                <ExternalLink className="w-4 h-4" />
+                              </a>
+                            </div>
+                          )}
+
+                          {/* Ayuda */}
+                          <div className="border border-gray-200 rounded-[14px] p-6">
+                            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                              <HelpCircle className="w-5 h-5 text-[#00C1A7]" />
+                              Ayuda
+                            </h2>
+                            <p className="text-sm text-gray-600 mb-4">
+                              ¿Necesitas ayuda con tu pedido? Contáctanos y te ayudaremos a resolver cualquier duda.
+                            </p>
+                            <a
+                              href="https://wa.me/5491112345678"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 bg-emerald-500 text-white px-6 py-3 rounded-[10px] font-semibold hover:bg-emerald-600 transition-colors"
+                            >
+                              <Phone className="w-5 h-5" />
+                              Contactar por WhatsApp
+                            </a>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    // Vista de lista de pedidos
+                    <>
+                      {ordersLoading ? (
+                        <div className="text-center py-12">
+                          <p className="text-gray-500">Cargando pedidos...</p>
+                        </div>
+                      ) : orders.length === 0 ? (
+                        <div className="border border-dashed border-gray-300 rounded-[12px] p-6 text-center space-y-3 bg-gray-50">
+                          <div className="mx-auto w-12 h-12 rounded-full bg-white border border-gray-200 flex items-center justify-center text-[#00C1A7]">
+                            <Package className="w-6 h-6" />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-base font-semibold text-gray-900">Aún no tienes pedidos</p>
+                            <p className="text-sm text-gray-600">
+                              Cuando realices tu primera compra, aparecerá aquí.
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {orders.map((order) => (
+                            <div
+                              key={order.id}
+                              className="border border-gray-200 rounded-[14px] p-6 hover:border-[#00C1A7] transition-colors cursor-pointer"
+                              onClick={() => {
+                                setSelectedOrder(order);
+                              }}
+                            >
+                              <div className="flex items-start justify-between mb-4">
+                                <div>
+                                  <p className="text-sm text-gray-600 mb-1">Pedido #{order.order_number}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {new Date(order.created_at).toLocaleDateString("es-AR", {
+                                      day: "2-digit",
+                                      month: "2-digit",
+                                      year: "numeric",
+                                    })}
+                                  </p>
+                                </div>
+                                <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
+                                  order.status === "delivered" ? "bg-emerald-100 text-emerald-700" :
+                                  order.status === "in_transit" ? "bg-blue-100 text-blue-700" :
+                                  order.status === "pending_delivery" ? "bg-amber-100 text-amber-700" :
+                                  "bg-gray-100 text-gray-700"
+                                }`}>
+                                  {order.status === "pending" && "Pendiente"}
+                                  {order.status === "in_transit" && "En camino"}
+                                  {order.status === "pending_delivery" && "Pendiente de entrega"}
+                                  {order.status === "delivered" && "Entregado"}
+                                  {order.status === "cancelled" && "Cancelado"}
+                                </span>
+                              </div>
+                              <div className="space-y-2">
+                                {order.items.slice(0, 2).map((item) => (
+                                  <div key={item.id} className="flex items-center gap-3">
+                                    {item.product_image && (
+                                      <img
+                                        src={item.product_image}
+                                        alt={item.product_name}
+                                        className="w-12 h-12 object-cover rounded-lg"
+                                      />
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-gray-900 truncate">{item.product_name}</p>
+                                      <p className="text-xs text-gray-600">Cantidad: {item.quantity}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                                {order.items.length > 2 && (
+                                  <p className="text-xs text-gray-500">+{order.items.length - 2} producto(s) más</p>
+                                )}
+                              </div>
+                              <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                                <span className="text-sm text-gray-600">Total:</span>
+                                <span className="text-base font-semibold text-gray-900">
+                                  ${order.total_amount.toLocaleString("es-AR", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </div>
