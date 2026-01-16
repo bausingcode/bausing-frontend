@@ -18,133 +18,61 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ReviewsSection from "@/components/ReviewsSection";
 import wsrvLoader from "@/lib/wsrvLoader";
-import { fetchHeroImages, HeroImage } from "@/lib/api";
+import { fetchHeroImages, HeroImage, fetchProducts, Product } from "@/lib/api";
 
-// Mock data for products
-const products = [
-  {
-    id: 1,
-    image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=400&h=400&fit=crop",
-    alt: "Colchón Vitto",
-    name: "Colchón Vitto 2 plazas (140×190cm) de resortes",
-    currentPrice: "$750.000",
-    originalPrice: "$1.500.000",
-    discount: "OFERTA"
-  },
-  {
-    id: 2,
-    image: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
-    alt: "Colchón Lumma",
-    name: "Colchón Lumma 2 plazas (140×190cm) de resortes",
-    currentPrice: "$400.000",
-    originalPrice: "",
-    discount: undefined
-  },
-  {
-    id: 3,
-    image: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
-    alt: "Colchón Vitto",
-    name: "Colchón Vitto 2 plazas (140×190cm) de resortes",
-    currentPrice: "$650.000",
-    originalPrice: "",
-    discount: undefined
-  },
-  {
-    id: 4,
-    image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=400&h=400&fit=crop",
-    alt: "Colchón Lumma",
-    name: "Colchón Lumma 2 plazas (140×190cm) de resortes",
-    currentPrice: "$900.000",
-    originalPrice: "",
-    discount: undefined
+// Helper function to repeat products if not enough
+function repeatProducts<T>(products: T[], count: number): T[] {
+  if (products.length === 0) return [];
+  const result: T[] = [];
+  for (let i = 0; i < count; i++) {
+    result.push(products[i % products.length]);
   }
-];
+  return result;
+}
 
-// Mock data for pillows
-const pillows = [
-  {
-    id: 1,
-    image: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
-    alt: "Almohada",
-    name: "Colchón Lumma 2 plazas (140×190cm) de resortes",
-    currentPrice: "$400.000",
-    originalPrice: "$800.000",
-    discount: "OFERTA"
-  },
-  {
-    id: 2,
-    image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=400&h=400&fit=crop",
-    alt: "Almohada",
-    name: "Colchón Vitto 2 plazas (140×190cm) de resortes",
-    currentPrice: "$400.000",
-    originalPrice: "",
-    discount: undefined
-  },
-  {
-    id: 3,
-    image: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
-    alt: "Almohada",
-    name: "Colchón Lumma 2 plazas (140×190cm) de resortes",
-    currentPrice: "$650.000",
-    originalPrice: "",
-    discount: undefined
-  },
-  {
-    id: 4,
-    image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=400&h=400&fit=crop",
-    alt: "Almohada",
-    name: "Colchón Vitto 2 plazas (140×190cm) de resortes",
-    currentPrice: "$750.000",
-    originalPrice: "",
-    discount: undefined
-  }
-];
+// Helper function to format price
+function formatPrice(price: number): string {
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    minimumFractionDigits: 0,
+  }).format(price);
+}
 
-// Mock data for sommiers
-const sommiers = [
-  {
-    id: 1,
-    image: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
-    alt: "Sommier",
-    name: "Colchón Lumma 2 plazas (140×190cm) de resortes",
-    currentPrice: "$400.000",
-    originalPrice: "$800.000",
-    discount: "OFERTA"
-  },
-  {
-    id: 2,
-    image: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
-    alt: "Sommier",
-    name: "Colchón Vitto 2 plazas (140×190cm) de resortes",
-    currentPrice: "$400.000",
-    originalPrice: "",
-    discount: undefined
-  },
-  {
-    id: 3,
-    image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=400&h=400&fit=crop",
-    alt: "Sommier",
-    name: "Colchón Lumma 2 plazas (140×190cm) de resortes",
-    currentPrice: "$400.000",
-    originalPrice: "$800.000",
-    discount: "OFERTA"
-  },
-  {
-    id: 4,
-    image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=400&h=400&fit=crop",
-    alt: "Sommier",
-    name: "Colchón Vitto 2 plazas (140×190cm) de resortes",
-    currentPrice: "$750.000",
-    originalPrice: "",
-    discount: undefined
+// Helper function to convert Product to ProductCard props
+function productToCardProps(product: Product) {
+  const image = product.main_image || (product.images && product.images[0]?.image_url) || "/images/placeholder.png";
+  const price = product.min_price ? formatPrice(product.min_price) : "$0";
+  const originalPrice = product.max_price && product.min_price !== product.max_price 
+    ? formatPrice(product.max_price) 
+    : "";
+  
+  // Calcular descuento si hay promociones
+  let discount: string | undefined;
+  if (product.promos && product.promos.length > 0) {
+    const promo = product.promos[0];
+    if (promo.discount_percentage) {
+      discount = "OFERTA";
+    }
   }
-];
+  
+  return {
+    id: product.id,
+    image,
+    alt: product.name,
+    name: product.name,
+    currentPrice: price,
+    originalPrice,
+    discount,
+  };
+}
 
 export default async function Home() {
   // Fetch hero images (position 1), info banner (position 2), and descuentazos banner (position 3) from server
   let heroImages: HeroImage[] = [];
   let infoBanner: HeroImage | null = null;
   let descuentazosBanner: HeroImage | null = null;
+  let allProducts: Product[] = [];
 
   try {
     // Fetch active hero images (position 1)
@@ -157,8 +85,17 @@ export default async function Home() {
     // Fetch active descuentazos banner (position 3)
     const descuentazosBanners = await fetchHeroImages(3, true);
     descuentazosBanner = descuentazosBanners.length > 0 ? descuentazosBanners[0] : null;
+    
+    // Fetch all active products
+    const productsResult = await fetchProducts({
+      is_active: true,
+      include_images: true,
+      include_promos: true,
+      per_page: 100, // Get a good amount of products
+    });
+    allProducts = productsResult.products;
   } catch (error) {
-    console.error("Error fetching images:", error);
+    console.error("Error fetching data:", error);
     // Continue with empty arrays if fetch fails
   }
 
@@ -168,6 +105,12 @@ export default async function Home() {
     url: img.image_url,
     alt: img.title || img.subtitle || "Banner"
   }));
+
+  // Convert products to card props and repeat if needed
+  const productCardProps = allProducts.map(productToCardProps);
+  const products = repeatProducts(productCardProps, 4);
+  const pillows = repeatProducts(productCardProps, 4);
+  const sommiers = repeatProducts(productCardProps, 4);
 
   return (
     <div className="min-h-screen bg-white">
@@ -250,18 +193,42 @@ export default async function Home() {
 
           {/* Product Grid */}
           <div className="grid grid-cols-4 gap-6">
-            {products.map((product) => (
-              <ProductCard
-                key={product.id}
-                id={String(product.id)}
-                image={product.image}
-                alt={product.alt}
-                name={product.name}
-                currentPrice={product.currentPrice}
-                originalPrice={product.originalPrice}
-                discount={product.discount}
-              />
-            ))}
+            {products.length > 0 ? (
+              products.map((product, index) => (
+                <ProductCard
+                  key={`${product.id}-${index}`}
+                  id={product.id}
+                  image={product.image}
+                  alt={product.alt}
+                  name={product.name}
+                  currentPrice={product.currentPrice}
+                  originalPrice={product.originalPrice}
+                  discount={product.discount}
+                />
+              ))
+            ) : (
+              // Skeleton for products
+              [...Array(4)].map((_, index) => (
+                <div key={index} className="relative group block animate-pulse">
+                  {/* Skeleton Image */}
+                  <div className="relative w-full h-80 rounded-[10px] overflow-hidden bg-gray-200"></div>
+                  {/* Skeleton Content */}
+                  <div className="pt-3">
+                    <div className="mb-1">
+                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                    <div className="flex items-baseline gap-2 mt-2">
+                      <div className="h-6 bg-gray-200 rounded w-24"></div>
+                      <div className="h-4 bg-gray-200 rounded w-20"></div>
+                    </div>
+                    <div className="mt-2">
+                      <div className="h-4 bg-gray-200 rounded w-32"></div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </section>
@@ -309,21 +276,43 @@ export default async function Home() {
             )}
 
             {/* Productos */}
-            {products.slice(0, 3).map((product) => (
-              <div key={product.id} className="bg-white p-4 rounded-[20px] h-full cursor-pointer">
-                <div className="h-full flex flex-col">
-                  <ProductCard
-                    id={String(product.id)}
-                    image={product.image}
-                    alt={product.alt}
-                    name={product.name}
-                    currentPrice={product.currentPrice}
-                    originalPrice={product.originalPrice}
-                    discount={product.discount}
-                  />
+            {products.length > 0 ? (
+              products.slice(0, 3).map((product, index) => (
+                <div key={`${product.id}-${index}`} className="bg-white p-4 rounded-[20px] h-full cursor-pointer">
+                  <div className="h-full flex flex-col">
+                    <ProductCard
+                      id={product.id}
+                      image={product.image}
+                      alt={product.alt}
+                      name={product.name}
+                      currentPrice={product.currentPrice}
+                      originalPrice={product.originalPrice}
+                      discount={product.discount}
+                    />
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              // Skeleton for products
+              [...Array(3)].map((_, index) => (
+                <div key={index} className="bg-white p-4 rounded-[20px] h-full animate-pulse">
+                  <div className="relative w-full h-80 rounded-[10px] overflow-hidden bg-gray-200"></div>
+                  <div className="pt-3">
+                    <div className="mb-1">
+                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                    <div className="flex items-baseline gap-2 mt-2">
+                      <div className="h-6 bg-gray-200 rounded w-24"></div>
+                      <div className="h-4 bg-gray-200 rounded w-20"></div>
+                    </div>
+                    <div className="mt-2">
+                      <div className="h-4 bg-gray-200 rounded w-32"></div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </section>
@@ -385,18 +374,40 @@ export default async function Home() {
 
           {/* Product Grid */}
           <div className="grid grid-cols-4 gap-6">
-            {pillows.map((product) => (
-              <ProductCard
-                key={product.id}
-                id={String(product.id)}
-                image={product.image}
-                alt={product.alt}
-                name={product.name}
-                currentPrice={product.currentPrice}
-                originalPrice={product.originalPrice}
-                discount={product.discount}
-              />
-            ))}
+            {pillows.length > 0 ? (
+              pillows.map((product, index) => (
+                <ProductCard
+                  key={`${product.id}-pillows-${index}`}
+                  id={product.id}
+                  image={product.image}
+                  alt={product.alt}
+                  name={product.name}
+                  currentPrice={product.currentPrice}
+                  originalPrice={product.originalPrice}
+                  discount={product.discount}
+                />
+              ))
+            ) : (
+              // Skeleton for products
+              [...Array(4)].map((_, index) => (
+                <div key={index} className="relative group block animate-pulse">
+                  <div className="relative w-full h-80 rounded-[10px] overflow-hidden bg-gray-200"></div>
+                  <div className="pt-3">
+                    <div className="mb-1">
+                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                    <div className="flex items-baseline gap-2 mt-2">
+                      <div className="h-6 bg-gray-200 rounded w-24"></div>
+                      <div className="h-4 bg-gray-200 rounded w-20"></div>
+                    </div>
+                    <div className="mt-2">
+                      <div className="h-4 bg-gray-200 rounded w-32"></div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </section>
@@ -415,18 +426,40 @@ export default async function Home() {
 
           {/* Product Grid */}
           <div className="grid grid-cols-4 gap-6">
-            {sommiers.map((product) => (
-              <ProductCard
-                key={product.id}
-                id={String(product.id)}
-                image={product.image}
-                alt={product.alt}
-                name={product.name}
-                currentPrice={product.currentPrice}
-                originalPrice={product.originalPrice}
-                discount={product.discount}
-              />
-            ))}
+            {sommiers.length > 0 ? (
+              sommiers.map((product, index) => (
+                <ProductCard
+                  key={`${product.id}-sommiers-${index}`}
+                  id={product.id}
+                  image={product.image}
+                  alt={product.alt}
+                  name={product.name}
+                  currentPrice={product.currentPrice}
+                  originalPrice={product.originalPrice}
+                  discount={product.discount}
+                />
+              ))
+            ) : (
+              // Skeleton for products
+              [...Array(4)].map((_, index) => (
+                <div key={index} className="relative group block animate-pulse">
+                  <div className="relative w-full h-80 rounded-[10px] overflow-hidden bg-gray-200"></div>
+                  <div className="pt-3">
+                    <div className="mb-1">
+                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                    <div className="flex items-baseline gap-2 mt-2">
+                      <div className="h-6 bg-gray-200 rounded w-24"></div>
+                      <div className="h-4 bg-gray-200 rounded w-20"></div>
+                    </div>
+                    <div className="mt-2">
+                      <div className="h-4 bg-gray-200 rounded w-32"></div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </section>

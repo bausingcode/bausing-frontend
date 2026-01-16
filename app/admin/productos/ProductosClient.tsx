@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import PageHeader from "@/components/PageHeader";
-import { Plus, Edit, Trash2, FolderTree, Package, PackageSearch, FolderX, Sparkles, ChevronDown, ChevronRight, Search, RefreshCw } from "lucide-react";
+import { Plus, Edit, Trash2, FolderTree, Package, PackageSearch, FolderX, Sparkles, ChevronDown, ChevronRight, Search, RefreshCw, Eye, X, ExternalLink, Loader2 } from "lucide-react";
 import CreateCategoryModal from "@/components/CreateCategoryModal";
 import CreateProductModal from "@/components/CreateProductModal";
-import { Category, fetchCrmProducts, fetchCrmCombos, CrmProduct, CrmCombo } from "@/lib/api";
+import { Category, fetchCrmProducts, fetchCrmCombos, CrmProduct, CrmCombo, fetchProductById, Product } from "@/lib/api";
 import { fetchCategories as fetchCategoriesClient } from "@/lib/api";
 
 interface CategoryFromBackend extends Category {
@@ -42,10 +42,13 @@ function convertBackendCategoryToLocal(cat: Category, allCategories: Category[])
 }
 
 export default function ProductosClient({ initialCategories = [] }: ProductosClientProps) {
-  const [activeTab, setActiveTab] = useState<"crm-completados" | "crm-no-completados" | "combos" | "combos-completados" | "categorias">("crm-completados");
+  const [activeTab, setActiveTab] = useState<"crm-completados" | "crm-no-completados" | "combos" | "combos-completados" | "categorias">("crm-no-completados");
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingCrmProduct, setEditingCrmProduct] = useState<CrmProduct | CrmCombo | null>(null);
+  const [viewingCrmProduct, setViewingCrmProduct] = useState<CrmProduct | CrmCombo | null>(null);
+  const [viewingProductData, setViewingProductData] = useState<Product | null>(null);
+  const [isLoadingViewingProduct, setIsLoadingViewingProduct] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   
@@ -308,6 +311,25 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
     setRefreshKey(prev => prev + 1);
   };
 
+  // Función para manejar la visualización de producto
+  const handleViewProduct = async (crmProduct: CrmProduct | CrmCombo) => {
+    setViewingCrmProduct(crmProduct);
+    setViewingProductData(null);
+    
+    // Si el producto está completado, cargar los datos completos
+    if (crmProduct.product_id) {
+      setIsLoadingViewingProduct(true);
+      try {
+        const fullProduct = await fetchProductById(crmProduct.product_id);
+        setViewingProductData(fullProduct);
+      } catch (error) {
+        console.error("Error loading product data:", error);
+      } finally {
+        setIsLoadingViewingProduct(false);
+      }
+    }
+  };
+
 
   return (
     <div className="px-8 pt-6 pb-8 min-h-screen">
@@ -320,19 +342,6 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
       <div className="flex gap-2 mb-6 border-b border-gray-200 overflow-x-auto">
         <button
           onClick={() => {
-            setActiveTab("crm-completados");
-            refreshCrmProductsCompleted(completedPage);
-          }}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 cursor-pointer whitespace-nowrap ${
-            activeTab === "crm-completados"
-              ? "border-blue-600 text-blue-600"
-              : "border-transparent text-gray-600 hover:text-gray-900"
-          }`}
-        >
-          Productos Completados
-        </button>
-        <button
-          onClick={() => {
             setActiveTab("crm-no-completados");
             refreshCrmProductsNotCompleted(notCompletedPage);
           }}
@@ -343,6 +352,19 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
           }`}
         >
           No Completados
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("crm-completados");
+            refreshCrmProductsCompleted(completedPage);
+          }}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === "crm-completados"
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent text-gray-600 hover:text-gray-900"
+          }`}
+        >
+          Productos Completados
         </button>
         <button
           onClick={() => {
@@ -444,15 +466,25 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                           <td className="px-6 py-4 text-sm text-gray-700">{crmProduct.description || crmProduct.alt_description || '-'}</td>
                           <td className="px-6 py-4 text-sm text-gray-700">{crmProduct.product_name || '-'}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button
-                              onClick={() => {
-                                setEditingCrmProduct(crmProduct);
-                                setIsProductModalOpen(true);
-                              }}
-                              className="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
-                            >
-                              <Edit className="w-5 h-5" />
-                            </button>
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => handleViewProduct(crmProduct)}
+                                className="text-green-600 hover:text-green-800 transition-colors cursor-pointer"
+                                title="Visualizar producto"
+                              >
+                                <Eye className="w-5 h-5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingCrmProduct(crmProduct);
+                                  setIsProductModalOpen(true);
+                                }}
+                                className="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+                                title="Editar producto"
+                              >
+                                <Edit className="w-5 h-5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -662,16 +694,26 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                           <td className="px-6 py-4 text-sm text-gray-700">{combo.description || combo.alt_description || '-'}</td>
                           <td className="px-6 py-4 text-sm text-gray-700">{combo.product_name || '-'}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button
-                              onClick={() => {
-                                setEditingCrmProduct(combo);
-                                setIsProductModalOpen(true);
-                              }}
-                              className="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
-                            >
-                              <Edit className="w-5 h-5" />
-                            </button>
-                        </td>
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => handleViewProduct(combo)}
+                                className="text-green-600 hover:text-green-800 transition-colors cursor-pointer"
+                                title="Visualizar combo"
+                              >
+                                <Eye className="w-5 h-5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingCrmProduct(combo);
+                                  setIsProductModalOpen(true);
+                                }}
+                                className="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+                                title="Editar combo"
+                              >
+                                <Edit className="w-5 h-5" />
+                              </button>
+                            </div>
+                          </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1061,6 +1103,326 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
           opciones: cat.opciones || [],
         }))}
       />
+
+      {/* Product View Overlay */}
+      {viewingCrmProduct && (
+          <div className="fixed right-0 top-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out overflow-y-auto border-l border-gray-200">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
+              <h2 className="text-xl font-semibold text-gray-900">
+                {viewingCrmProduct.combo ? 'Detalles del Combo' : 'Detalles del Producto'}
+              </h2>
+              <button
+                onClick={() => {
+                  setViewingCrmProduct(null);
+                  setViewingProductData(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {isLoadingViewingProduct ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-4" />
+                  <p className="text-gray-600">Cargando información del producto...</p>
+                </div>
+              ) : (
+                <>
+                  {/* Información del CRM Product */}
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Información del CRM</h3>
+                    <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium text-gray-600">ID CRM:</span>
+                        <span className="text-sm text-gray-900">{viewingCrmProduct.crm_product_id}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium text-gray-600">Estado:</span>
+                        <span className={`text-sm px-2 py-1 rounded ${
+                          viewingCrmProduct.is_completed 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {viewingCrmProduct.is_completed ? 'Completado' : 'Pendiente'}
+                        </span>
+                      </div>
+                      {viewingCrmProduct.description && (
+                        <div>
+                          <span className="text-sm font-medium text-gray-600 block mb-1">Descripción:</span>
+                          <span className="text-sm text-gray-900">{viewingCrmProduct.description}</span>
+                        </div>
+                      )}
+                      {viewingCrmProduct.alt_description && (
+                        <div>
+                          <span className="text-sm font-medium text-gray-600 block mb-1">Descripción Alternativa:</span>
+                          <span className="text-sm text-gray-900">{viewingCrmProduct.alt_description}</span>
+                        </div>
+                      )}
+                      {viewingCrmProduct.price_sale && (
+                        <div className="flex justify-between">
+                          <span className="text-sm font-medium text-gray-600">Precio Venta:</span>
+                          <span className="text-sm text-gray-900">${viewingCrmProduct.price_sale.toLocaleString()}</span>
+                        </div>
+                      )}
+                      {viewingCrmProduct.commission && (
+                        <div className="flex justify-between">
+                          <span className="text-sm font-medium text-gray-600">Comisión:</span>
+                          <span className="text-sm text-gray-900">{viewingCrmProduct.commission}%</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Información del Producto Completo (si está completado) */}
+                  {viewingCrmProduct.is_completed && viewingCrmProduct.product_id && (
+                    <div className="mb-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-900">Información del Producto</h3>
+                        <button
+                          onClick={() => window.open(`/productos/${viewingCrmProduct.product_id}`, '_blank')}
+                          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-[6px] hover:opacity-90 transition-opacity cursor-pointer"
+                          style={{ backgroundColor: '#155DFC' }}
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          Ver Página del Producto
+                        </button>
+                      </div>
+                      
+                      {viewingProductData ? (
+                        <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+                          <div>
+                            <span className="text-sm font-medium text-gray-600 block mb-1">Nombre:</span>
+                            <span className="text-sm text-gray-900">{viewingProductData.name}</span>
+                          </div>
+                          {viewingProductData.description && (
+                            <div>
+                              <span className="text-sm font-medium text-gray-600 block mb-1">Descripción:</span>
+                              <span className="text-sm text-gray-900">{viewingProductData.description}</span>
+                            </div>
+                          )}
+                          {viewingProductData.category_name && (
+                            <div className="flex justify-between">
+                              <span className="text-sm font-medium text-gray-600">Categoría:</span>
+                              <span className="text-sm text-gray-900">{viewingProductData.category_name}</span>
+                            </div>
+                          )}
+                          {viewingProductData.sku && (
+                            <div className="flex justify-between">
+                              <span className="text-sm font-medium text-gray-600">SKU:</span>
+                              <span className="text-sm text-gray-900">{viewingProductData.sku}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between">
+                            <span className="text-sm font-medium text-gray-600">Estado:</span>
+                            <span className={`text-sm px-2 py-1 rounded ${
+                              viewingProductData.is_active 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {viewingProductData.is_active ? 'Activo' : 'Inactivo'}
+                            </span>
+                          </div>
+                          
+                          {/* Precios */}
+                          {(viewingProductData.min_price || viewingProductData.max_price) && (
+                            <div>
+                              <span className="text-sm font-medium text-gray-600 block mb-2">Rango de Precios:</span>
+                              <div className="space-y-1">
+                                {viewingProductData.min_price && (
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">Precio Mínimo:</span>
+                                    <span className="text-sm font-medium text-gray-900">${viewingProductData.min_price.toLocaleString()}</span>
+                                  </div>
+                                )}
+                                {viewingProductData.max_price && (
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">Precio Máximo:</span>
+                                    <span className="text-sm font-medium text-gray-900">${viewingProductData.max_price.toLocaleString()}</span>
+                                  </div>
+                                )}
+                                {viewingProductData.price_range && (
+                                  <div className="text-sm text-gray-600">{viewingProductData.price_range}</div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Imágenes */}
+                          {viewingProductData.images && viewingProductData.images.length > 0 && (
+                            <div>
+                              <span className="text-sm font-medium text-gray-600 block mb-2">Imágenes ({viewingProductData.images.length}):</span>
+                              <div className="grid grid-cols-3 gap-2">
+                                {viewingProductData.images.slice(0, 6).map((img, idx) => (
+                                  <div key={idx} className="relative aspect-square rounded overflow-hidden bg-gray-100">
+                                    <img 
+                                      src={img.image_url} 
+                                      alt={img.alt_text || `Imagen ${idx + 1}`}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Información Técnica */}
+                          {(viewingProductData as any).technical_description && (
+                            <div>
+                              <span className="text-sm font-medium text-gray-600 block mb-1">Descripción Técnica:</span>
+                              <span className="text-sm text-gray-900 whitespace-pre-wrap">{(viewingProductData as any).technical_description}</span>
+                            </div>
+                          )}
+
+                          {/* Garantía */}
+                          {((viewingProductData as any).warranty_months || (viewingProductData as any).warranty_description) && (
+                            <div>
+                              <span className="text-sm font-medium text-gray-600 block mb-2">Garantía:</span>
+                              <div className="space-y-1">
+                                {(viewingProductData as any).warranty_months && (
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">Meses:</span>
+                                    <span className="text-sm text-gray-900">{(viewingProductData as any).warranty_months} meses</span>
+                                  </div>
+                                )}
+                                {(viewingProductData as any).warranty_description && (
+                                  <div>
+                                    <span className="text-sm text-gray-900 whitespace-pre-wrap">{(viewingProductData as any).warranty_description}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Materiales */}
+                          {(viewingProductData as any).materials && (
+                            <div>
+                              <span className="text-sm font-medium text-gray-600 block mb-1">Materiales:</span>
+                              <span className="text-sm text-gray-900 whitespace-pre-wrap">{(viewingProductData as any).materials}</span>
+                            </div>
+                          )}
+
+                          {/* Información de Colchón */}
+                          {((viewingProductData as any).filling_type || 
+                            (viewingProductData as any).max_supported_weight_kg || 
+                            (viewingProductData as any).has_pillow_top !== undefined || 
+                            (viewingProductData as any).is_bed_in_box !== undefined || 
+                            (viewingProductData as any).mattress_firmness || 
+                            (viewingProductData as any).size_label) && (
+                            <div>
+                              <span className="text-sm font-medium text-gray-600 block mb-2">Información del Colchón:</span>
+                              <div className="space-y-1">
+                                {(viewingProductData as any).filling_type && (
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">Tipo de Relleno:</span>
+                                    <span className="text-sm text-gray-900">{(viewingProductData as any).filling_type}</span>
+                                  </div>
+                                )}
+                                {(viewingProductData as any).max_supported_weight_kg && (
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">Peso Máximo Soportado:</span>
+                                    <span className="text-sm text-gray-900">{(viewingProductData as any).max_supported_weight_kg} kg</span>
+                                  </div>
+                                )}
+                                {(viewingProductData as any).has_pillow_top !== undefined && (
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">Con Pillow Top:</span>
+                                    <span className="text-sm text-gray-900">{(viewingProductData as any).has_pillow_top ? 'Sí' : 'No'}</span>
+                                  </div>
+                                )}
+                                {(viewingProductData as any).is_bed_in_box !== undefined && (
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">Bed in Box:</span>
+                                    <span className="text-sm text-gray-900">{(viewingProductData as any).is_bed_in_box ? 'Sí' : 'No'}</span>
+                                  </div>
+                                )}
+                                {(viewingProductData as any).mattress_firmness && (
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">Firmeza:</span>
+                                    <span className="text-sm text-gray-900">{(viewingProductData as any).mattress_firmness}</span>
+                                  </div>
+                                )}
+                                {(viewingProductData as any).size_label && (
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">Etiqueta de Tamaño:</span>
+                                    <span className="text-sm text-gray-900">{(viewingProductData as any).size_label}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Variantes */}
+                          {viewingProductData.variants && viewingProductData.variants.length > 0 && (
+                            <div>
+                              <span className="text-sm font-medium text-gray-600 block mb-2">Variantes ({viewingProductData.variants.length}):</span>
+                              <div className="space-y-2 max-h-60 overflow-y-auto">
+                                {viewingProductData.variants.map((variant, idx) => (
+                                  <div key={variant.id || idx} className="bg-white rounded p-3 border border-gray-200">
+                                    {variant.name && (
+                                      <div className="font-medium text-sm text-gray-900 mb-1">{variant.name}</div>
+                                    )}
+                                    {variant.sku && (
+                                      <div className="text-xs text-gray-600 mb-1">SKU: {variant.sku}</div>
+                                    )}
+                                    {variant.stock !== undefined && (
+                                      <div className="text-xs text-gray-600 mb-1">Stock: {variant.stock}</div>
+                                    )}
+                                    {variant.attributes && Object.keys(variant.attributes).length > 0 && (
+                                      <div className="text-xs text-gray-600 mb-1">
+                                        Atributos: {Object.entries(variant.attributes).map(([key, value]) => `${key}: ${value}`).join(', ')}
+                                      </div>
+                                    )}
+                                    {variant.prices && variant.prices.length > 0 && (
+                                      <div className="text-xs text-gray-600">
+                                        Precios: {variant.prices.map(p => `${p.locality_name || p.locality_id}: $${p.price.toLocaleString()}`).join(', ')}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="bg-gray-50 rounded-lg p-4 text-center text-sm text-gray-600">
+                          No se pudieron cargar los datos completos del producto
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Items del Combo (si es combo) */}
+                  {viewingCrmProduct.combo && 'items' in viewingCrmProduct && viewingCrmProduct.items && viewingCrmProduct.items.length > 0 && (
+                    <div className="mb-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Items del Combo</h3>
+                      <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                        {viewingCrmProduct.items.map((item, idx) => (
+                          <div key={idx} className="bg-white rounded p-3 border border-gray-200">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="font-medium text-sm text-gray-900">
+                                  {item.item_name || `Producto ${item.crm_product_id}`}
+                                </div>
+                                {item.item_description && (
+                                  <div className="text-xs text-gray-600 mt-1">{item.item_description}</div>
+                                )}
+                              </div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {item.quantity}x
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+      )}
     </div>
   );
 }

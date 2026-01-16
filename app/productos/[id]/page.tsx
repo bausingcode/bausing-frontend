@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, ShoppingCart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight, Layers, Bed, Scale, Package, Maximize, CheckCircle2 } from "lucide-react";
+import { Heart, ShoppingCart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight, Layers, Bed, Scale, Package, Maximize, CheckCircle2, Package2, ChevronDown } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import { useCart } from "@/contexts/CartContext";
-import { fetchProductById, Product as ApiProduct } from "@/lib/api";
+import { fetchProductById, Product as ApiProduct, fetchProducts, fetchProductCombos, ProductCombo } from "@/lib/api";
 import wsrvLoader from "@/lib/wsrvLoader";
 
 interface ProductImage {
@@ -19,8 +19,21 @@ interface ProductImage {
 
 interface ProductVariant {
   id: string;
-  name: string;
-  size?: string;
+  name?: string;
+  sku?: string;
+  stock?: number;
+  attributes?: Record<string, string>;
+  options?: Array<{
+    id: string;
+    name: string;
+    stock: number;
+  }>;
+  prices?: Array<{
+    id: string;
+    price: number;
+    locality_id: string;
+    locality_name?: string;
+  }>;
 }
 
 interface Product {
@@ -40,8 +53,29 @@ interface Product {
   boxed?: string;
   size?: string;
   fillingType?: string;
+  // Información técnica
+  technicalDescription?: string;
+  warrantyMonths?: number;
+  warrantyDescription?: string;
+  materials?: string;
+  // Otros campos técnicos
+  filling_type?: string;
+  max_supported_weight_kg?: number;
+  has_pillow_top?: boolean;
+  is_bed_in_box?: boolean;
+  mattress_firmness?: string;
+  size_label?: string;
   // Otras secciones
   warranty?: string;
+}
+
+interface SimilarProduct {
+  id: string;
+  name: string;
+  currentPrice: string;
+  originalPrice?: string;
+  discount?: string;
+  image: string;
 }
 
 export default function ProductDetailPage() {
@@ -50,61 +84,93 @@ export default function ProductDetailPage() {
   const productId = params.id as string;
   
   const [product, setProduct] = useState<Product | null>(null);
+  const [similarProducts, setSimilarProducts] = useState<SimilarProduct[]>([]);
+  const [productCombos, setProductCombos] = useState<ProductCombo[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<string>("");
+  const [selectedVariantOptions, setSelectedVariantOptions] = useState<Record<string, string>>({});
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     characteristics: false,
     description: false,
     warranty: false,
   });
 
-  const { addToCart, addToFavorites, removeFromFavorites, isInFavorites } = useCart();
+  const { addToCart, addToFavorites, removeFromFavorites, isInFavorites, favorites } = useCart();
   const [isFavorite, setIsFavorite] = useState(false);
+
+  // Sincronizar estado de favorito cuando cambia en el contexto (solo cuando cambia favorites)
+  useEffect(() => {
+    setIsFavorite(isInFavorites(productId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId, favorites]);
 
   useEffect(() => {
     const loadProduct = async () => {
       try {
         setLoading(true);
-        const apiProduct = await fetchProductById(productId);
         
-        // Producto de prueba por defecto
-        const mockProduct: Product = {
-          id: productId,
-          name: "Colchón Lumma 2 plazas (140x190cm) de resortes",
-          description: "Colchón de alta calidad con resortes bonell de acero de alta resistencia. Diseñado para brindar el máximo confort y soporte durante toda la noche. Ideal para personas que buscan un descanso reparador.",
-          currentPrice: "$400.000",
-          originalPrice: "$800.000",
-          discount: "OFERTA",
-          images: [
-            { id: "1", url: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800&h=800&fit=crop" },
-            { id: "2", url: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=800&h=800&fit=crop" },
-            { id: "3", url: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=800&h=800&fit=crop" },
-          ],
-          variants: [
-            { id: "1", name: "140x190cm", size: "140x190cm" },
-            { id: "2", name: "90x190cm", size: "90x190cm" },
-            { id: "3", name: "80x190cm", size: "80x190cm" },
-            { id: "4", name: "200x200cm", size: "200x200cm" },
-            { id: "5", name: "180x200cm", size: "180x200cm" },
-            { id: "6", name: "160x200cm", size: "160x200cm" },
-            { id: "7", name: "100x200cm", size: "100x200cm" },
-          ],
-          firmness: "Medio",
-          firmnessLevel: 3,
-          withPillow: "No",
-          maxWeight: "120 kg",
-          boxed: "Sí",
-          size: "140x190cm",
-          fillingType: "Espuma",
-          warranty: "Garantía de 5 años contra defectos de fabricación. Cobertura completa de resortes y materiales. Servicio técnico incluido.",
-        };
+        // Cargar producto y combos en paralelo (productos similares se cargan después para no bloquear)
+        const [apiProduct, combos] = await Promise.all([
+          fetchProductById(productId),
+          fetchProductCombos(productId).catch(() => [])
+        ]);
+
+        // Establecer combos inmediatamente
+        setProductCombos(combos);
+        
+        // Cargar productos similares de forma asíncrona sin bloquear la renderización
+        fetchProducts({
+          is_active: true,
+          page: 1,
+          per_page: 10, // Reducido de 20 a 10 para cargar más rápido
+          include_images: true,
+          include_variants: false, // No necesitamos variantes para productos similares
+          include_promos: true,
+        }).then((similarProductsResult) => {
+          if (similarProductsResult.products) {
+            const filteredProducts = similarProductsResult.products.filter(p => p.id !== productId);
+            const shuffled = filteredProducts.sort(() => 0.5 - Math.random());
+            const selected = shuffled.slice(0, 4);
+            
+            const formatPrice = (price: number): string => {
+              return `$${Math.round(price).toLocaleString('es-AR')}`;
+            };
+            
+            const similarProductsFormatted: SimilarProduct[] = selected.map(p => {
+              const minPrice = p.min_price || 0;
+              const maxPrice = p.max_price || minPrice;
+              const currentPrice = formatPrice(minPrice);
+              const originalPrice = maxPrice > minPrice ? formatPrice(maxPrice) : undefined;
+              
+              let discount: string | undefined;
+              if (p.promos && p.promos.length > 0) {
+                const promo = p.promos[0];
+                if (promo.discount_percentage) {
+                  discount = "OFERTA";
+                }
+              }
+              
+              return {
+                id: p.id,
+                name: p.name,
+                currentPrice,
+                originalPrice,
+                discount,
+                image: p.main_image || (p.images && p.images.length > 0 ? p.images[0].image_url : "") || "",
+              };
+            });
+            
+            setSimilarProducts(similarProductsFormatted);
+          }
+        }).catch(() => {
+          // Si falla, simplemente no mostrar productos similares
+          setSimilarProducts([]);
+        });
 
         if (!apiProduct) {
-          // Si no se encuentra en la API, usar producto de prueba
-          setProduct(mockProduct);
-          setSelectedVariant(mockProduct.variants[0]?.id || "");
-          setIsFavorite(isInFavorites(productId));
+          // Si no se encuentra en la API, dejar vacío
+          setProduct(null);
           setLoading(false);
           return;
         }
@@ -139,18 +205,17 @@ export default function ProductDetailPage() {
           alt: apiProduct.name,
         }] : []);
 
-        // Transformar variantes
-        const variants: ProductVariant[] = apiProduct.variants?.map((variant) => {
-          // Intentar extraer el tamaño de los atributos o del nombre
-          const size = variant.attributes?.size || variant.attributes?.dimension || 
-                      variant.name.match(/\d+x\d+/)?.[0] || variant.name;
-          return {
-            id: variant.id,
-            name: variant.name,
-            size: size,
-          };
-        }) || [];
+        // Transformar variantes - mantener estructura completa del API
+        // El backend ahora incluye las options cuando se solicitan variants
+        // Las options están en la tabla product_variant_options y tienen name y product_variant_id
+        const variants: any[] = (apiProduct.variants || []).map((variant: any) => ({
+          ...variant,
+          // Asegurar que options sea un array (puede ser undefined si el variant no tiene options)
+          options: variant.options || []
+        }));
 
+        const apiProductWithTech = apiProduct as any;
+        
         const transformedProduct: Product = {
           id: apiProduct.id,
           name: apiProduct.name,
@@ -158,64 +223,104 @@ export default function ProductDetailPage() {
           currentPrice,
           originalPrice,
           discount,
-          images: images.length > 0 ? images : mockProduct.images,
-          variants: variants.length > 0 ? variants : mockProduct.variants,
-          firmness: "Medio", // TODO: Agregar al backend si es necesario
-          firmnessLevel: 3, // TODO: Agregar al backend si es necesario
-          withPillow: "No", // TODO: Agregar al backend si es necesario
-          maxWeight: "120 kg", // TODO: Agregar al backend si es necesario
-          boxed: "Sí", // TODO: Agregar al backend si es necesario
-          size: variants.length > 0 ? variants[0].size || variants[0].name : "Tamaño...",
-          fillingType: "Espuma", // TODO: Agregar al backend si es necesario
-          warranty: "Garantía de 5 años...", // TODO: Agregar al backend si es necesario
+          images: images.length > 0 ? images : [],
+          variants: variants.length > 0 ? variants : [],
+          // Información técnica desde el API
+          technicalDescription: apiProductWithTech.technical_description || "",
+          warrantyMonths: apiProductWithTech.warranty_months,
+          warrantyDescription: apiProductWithTech.warranty_description || "",
+          materials: apiProductWithTech.materials || "",
+          filling_type: apiProductWithTech.filling_type || "",
+          max_supported_weight_kg: apiProductWithTech.max_supported_weight_kg,
+          has_pillow_top: apiProductWithTech.has_pillow_top,
+          is_bed_in_box: apiProductWithTech.is_bed_in_box,
+          mattress_firmness: apiProductWithTech.mattress_firmness || "",
+          size_label: apiProductWithTech.size_label || "",
+          // Características principales (transformadas desde campos técnicos)
+          firmness: apiProductWithTech.mattress_firmness || "Medio",
+          firmnessLevel: 3, // TODO: calcular desde mattress_firmness si es necesario
+          withPillow: apiProductWithTech.has_pillow_top ? "Sí" : "No",
+          maxWeight: apiProductWithTech.max_supported_weight_kg ? `${apiProductWithTech.max_supported_weight_kg} kg` : undefined,
+          boxed: apiProductWithTech.is_bed_in_box ? "Sí" : "No",
+          size: variants.length > 0 ? variants[0].size || variants[0].name : apiProductWithTech.size_label || "Tamaño...",
+          fillingType: apiProductWithTech.filling_type || "",
+          warranty: apiProductWithTech.warranty_description || 
+                   (apiProductWithTech.warranty_months ? `Garantía de ${apiProductWithTech.warranty_months} meses` : ""),
         };
 
         setProduct(transformedProduct);
-        setSelectedVariant((variants.length > 0 ? variants : mockProduct.variants)[0]?.id || "");
+        setSelectedVariant(variants.length > 0 ? variants[0]?.id || "" : "");
         setIsFavorite(isInFavorites(productId));
       } catch (error) {
         console.error("Error loading product:", error);
-        // En caso de error, mostrar producto de prueba
-        const mockProduct: Product = {
-          id: productId,
-          name: "Colchón Lumma 2 plazas (140x190cm) de resortes",
-          description: "Colchón de alta calidad con resortes bonell de acero de alta resistencia. Diseñado para brindar el máximo confort y soporte durante toda la noche. Ideal para personas que buscan un descanso reparador.",
-          currentPrice: "$400.000",
-          originalPrice: "$800.000",
-          discount: "OFERTA",
-          images: [
-            { id: "1", url: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800&h=800&fit=crop" },
-            { id: "2", url: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=800&h=800&fit=crop" },
-            { id: "3", url: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=800&h=800&fit=crop" },
-          ],
-          variants: [
-            { id: "1", name: "140x190cm", size: "140x190cm" },
-            { id: "2", name: "90x190cm", size: "90x190cm" },
-            { id: "3", name: "80x190cm", size: "80x190cm" },
-            { id: "4", name: "200x200cm", size: "200x200cm" },
-            { id: "5", name: "180x200cm", size: "180x200cm" },
-            { id: "6", name: "160x200cm", size: "160x200cm" },
-            { id: "7", name: "100x200cm", size: "100x200cm" },
-          ],
-          firmness: "Medio",
-          firmnessLevel: 3,
-          withPillow: "No",
-          maxWeight: "120 kg",
-          boxed: "Sí",
-          size: "140x190cm",
-          fillingType: "Espuma",
-          warranty: "Garantía de 5 años contra defectos de fabricación. Cobertura completa de resortes y materiales. Servicio técnico incluido.",
-        };
-        setProduct(mockProduct);
-        setSelectedVariant(mockProduct.variants[0]?.id || "");
-        setIsFavorite(isInFavorites(productId));
+        setProduct(null);
       } finally {
         setLoading(false);
       }
     };
 
     loadProduct();
-  }, [productId, isInFavorites]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId]);
+
+  // Los productos similares ahora se cargan en paralelo con el producto principal
+
+  // Mostrar/ocultar indicador de scroll del contenedor de variantes
+  useEffect(() => {
+    if (!product || !product.variants) return;
+    
+    const checkScrollIndicator = () => {
+      const variantsContainer = document.getElementById('variants-container');
+      const variantsIndicator = document.getElementById('variants-scroll-indicator');
+      
+      if (variantsContainer && variantsIndicator) {
+        const hasScroll = variantsContainer.scrollHeight > variantsContainer.clientHeight;
+        if (hasScroll) {
+          variantsIndicator.classList.remove('opacity-0');
+          variantsIndicator.classList.add('opacity-100');
+        } else {
+          variantsIndicator.classList.remove('opacity-100');
+          variantsIndicator.classList.add('opacity-0');
+        }
+      }
+    };
+    
+    // Verificar después de que el DOM se actualice
+    setTimeout(checkScrollIndicator, 100);
+    
+    // Verificar cuando se hace scroll en el contenedor de variantes
+    const variantsContainer = document.getElementById('variants-container');
+    let handleVariantsScroll: (() => void) | null = null;
+    
+    if (variantsContainer) {
+      handleVariantsScroll = () => {
+        const variantsIndicator = document.getElementById('variants-scroll-indicator');
+        if (variantsIndicator && variantsContainer) {
+          const isAtBottom = variantsContainer.scrollHeight - variantsContainer.scrollTop <= variantsContainer.clientHeight + 10;
+          if (isAtBottom) {
+            variantsIndicator.classList.remove('opacity-100');
+            variantsIndicator.classList.add('opacity-0');
+          } else {
+            variantsIndicator.classList.remove('opacity-0');
+            variantsIndicator.classList.add('opacity-100');
+          }
+        }
+      };
+      variantsContainer.addEventListener('scroll', handleVariantsScroll);
+    }
+    
+    // Verificar en resize
+    window.addEventListener('resize', checkScrollIndicator);
+    
+    return () => {
+      window.removeEventListener('resize', checkScrollIndicator);
+      if (variantsContainer && handleVariantsScroll) {
+        variantsContainer.removeEventListener('scroll', handleVariantsScroll);
+      }
+    };
+  }, [product]);
+
+  // Los combos ahora se cargan en paralelo con el producto principal
 
   const toggleSection = (section: string) => {
     setExpandedSections((prev) => ({
@@ -252,7 +357,9 @@ export default function ProductDetailPage() {
     router.push("/checkout");
   };
 
-  const handleToggleFavorite = () => {
+  const handleToggleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (product) {
       if (isFavorite) {
         removeFromFavorites(product.id);
@@ -280,8 +387,81 @@ export default function ProductDetailPage() {
     return (
       <div className="min-h-screen bg-white">
         <Navbar />
-        <div className="container mx-auto px-4 py-12">
-          <div className="text-center">Cargando producto...</div>
+        <div className="container mx-auto px-4 py-14">
+          {/* Main Product Section Skeleton */}
+          <div className="grid grid-cols-7 gap-12 mb-12 animate-pulse">
+            {/* Left: Image Skeleton */}
+            <div className="relative flex col-span-4">
+              <div className="relative w-full h-[520px] rounded-[10px] overflow-hidden bg-gray-200"></div>
+            </div>
+
+            {/* Right: Product Info Skeleton */}
+            <div className="flex flex-col h-[520px] col-span-3">
+              <div className="flex-1">
+                {/* Title Skeleton */}
+                <div className="h-8 bg-gray-200 rounded w-3/4 mb-6"></div>
+
+                {/* Pricing Skeleton */}
+                <div className="mb-6">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="h-5 bg-gray-200 rounded w-24"></div>
+                    <div className="h-6 bg-gray-200 rounded w-16"></div>
+                  </div>
+                  <div className="h-8 bg-gray-200 rounded w-32 mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-40 mb-1"></div>
+                  <div className="h-3 bg-gray-200 rounded w-48"></div>
+                </div>
+
+                {/* Variant Selection Skeleton */}
+                <div className="mb-8">
+                  <div className="h-4 bg-gray-200 rounded w-40 mb-3"></div>
+                  <div className="flex flex-wrap gap-2">
+                    {[...Array(4)].map((_, i) => (
+                      <div key={i} className="h-9 bg-gray-200 rounded-[4px] w-24"></div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons Skeleton */}
+              <div className="flex flex-col gap-4">
+                <div className="w-full h-12 bg-gray-200 rounded-[4px]"></div>
+                <div className="w-full h-12 bg-gray-200 rounded-[4px]"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Section Skeleton */}
+          <div className="grid grid-cols-7 gap-12 mb-12">
+            {/* Left: Technical Info Skeleton */}
+            <div className="col-span-4">
+              <div className="h-6 bg-gray-200 rounded w-48 mb-6"></div>
+              <div className="space-y-2">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="border-b border-gray-200">
+                    <div className="w-full flex items-center justify-between py-4">
+                      <div className="h-5 bg-gray-200 rounded w-32"></div>
+                      <div className="h-5 w-5 bg-gray-200 rounded"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: Combos Skeleton */}
+            <div className="col-span-3">
+              <div className="h-6 bg-gray-200 rounded w-40 mb-6"></div>
+              <div className="space-y-4">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="bg-gray-100 rounded-lg p-4">
+                    <div className="h-5 bg-gray-200 rounded w-3/4 mb-3"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                    <div className="h-6 bg-gray-200 rounded w-24"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
         <Footer />
       </div>
@@ -304,8 +484,40 @@ export default function ProductDetailPage() {
   const priceWithoutTaxes = parseFloat(product.currentPrice.replace(/[$.]/g, '').replace(/\./g, '')) * 1.21;
 
   return (
-    <div className="min-h-screen bg-white">
-      <Navbar />
+    <>
+      <style jsx global>{`
+        .custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+        @keyframes arrowDown {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(8px);
+          }
+        }
+        .arrow-down-animation {
+          animation: arrowDown 1.5s ease-in-out infinite;
+        }
+      `}</style>
+      <div className="min-h-screen bg-white">
+        <Navbar />
 
       <div className="container mx-auto px-4 py-14">
         {/* Main Product Section */}
@@ -360,6 +572,7 @@ export default function ProductDetailPage() {
 
                   {/* Favorite Button */}
                   <button
+                    type="button"
                     onClick={handleToggleFavorite}
                     className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all z-10 ${
                       isFavorite
@@ -407,24 +620,102 @@ export default function ProductDetailPage() {
               </div>
 
               {/* Variant Selection */}
-              <div className="mb-8">
-                <h3 className="text-sm font-medium text-gray-700 mb-3">Opciones disponibles:</h3>
-                <div className="flex flex-wrap gap-2">
-                  {product.variants.map((variant) => (
-                    <button
-                      key={variant.id}
-                      onClick={() => setSelectedVariant(variant.id)}
-                      className={`px-4 py-2 rounded-[4px] border transition-all cursor-pointer ${
-                        selectedVariant === variant.id
-                          ? "border-[#00C1A7] bg-[#00C1A7] text-white"
-                          : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
-                      }`}
+              {product.variants && product.variants.length > 0 && (
+                <div className="mb-8">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Opciones disponibles:</h3>
+                  <div className="relative">
+                    <div 
+                      className="space-y-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar"
+                      id="variants-container"
                     >
-                      {variant.size || variant.name}
-                    </button>
-                  ))}
+                    {product.variants.map((variant: any) => {
+                      // Siempre mostrar variant como título, y si tiene options, mostrar las options como opciones
+                      const variantKey = variant.id || variant.name || variant.sku || 'default';
+                      const hasOptions = variant.options && Array.isArray(variant.options) && variant.options.length > 0;
+                      
+                      return (
+                        <div key={variantKey}>
+                          <h4 className="text-sm font-bold text-gray-700 mb-3">
+                            {variant.name || variant.sku || variant.id || "Opción"}
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {hasOptions ? (
+                              // Si tiene options, mostrar las options como opciones seleccionables
+                              variant.options.map((option: any) => {
+                                const isSelected = selectedVariantOptions[variantKey] === option.id;
+                                const isOutOfStock = option.stock !== undefined && option.stock <= 0;
+                                return (
+                                  <button
+                                    key={option.id}
+                                    onClick={() => {
+                                      if (!isOutOfStock) {
+                                        setSelectedVariantOptions(prev => ({
+                                          ...prev,
+                                          [variantKey]: option.id
+                                        }));
+                                      }
+                                    }}
+                                    disabled={isOutOfStock}
+                                    className={`px-4 py-2 rounded-[4px] border transition-all ${
+                                      isOutOfStock
+                                        ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
+                                        : isSelected
+                                        ? "border-[#00C1A7] bg-[#00C1A7] text-white cursor-pointer"
+                                        : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 cursor-pointer"
+                                    }`}
+                                  >
+                                    {option.name}
+                                    {isOutOfStock && (
+                                      <span className="ml-2 text-xs">(Sin stock)</span>
+                                    )}
+                                  </button>
+                                );
+                              })
+                            ) : (
+                              // Si no tiene options, mostrar el variant mismo como opción
+                              (() => {
+                                const isVariantOutOfStock = variant.stock !== undefined && variant.stock <= 0;
+                                return (
+                                  <button
+                                    onClick={() => {
+                                      if (!isVariantOutOfStock) {
+                                        setSelectedVariant(variant.id);
+                                      }
+                                    }}
+                                    disabled={isVariantOutOfStock}
+                                    className={`px-4 py-2 rounded-[4px] border transition-all ${
+                                      isVariantOutOfStock
+                                        ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
+                                        : selectedVariant === variant.id
+                                        ? "border-[#00C1A7] bg-[#00C1A7] text-white cursor-pointer"
+                                        : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 cursor-pointer"
+                                    }`}
+                                  >
+                                    {variant.name || variant.sku || variant.id}
+                                    {isVariantOutOfStock && (
+                                      <span className="ml-2 text-xs">(Sin stock)</span>
+                                    )}
+                                  </button>
+                                );
+                              })()
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    </div>
+                    {/* Indicador de scroll para variantes */}
+                    <div 
+                      className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white via-white/98 to-white/70 pointer-events-none flex items-end justify-center pb-3 opacity-0 transition-opacity duration-300"
+                      id="variants-scroll-indicator"
+                    >
+                      <div className="flex flex-col items-center gap-1.5">
+                        <ChevronDown className="w-6 h-6 text-gray-500 arrow-down-animation" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Action Buttons - Alineados con el fondo de la imagen */}
@@ -564,21 +855,17 @@ export default function ProductDetailPage() {
                       )}
 
                       {/* Tamaño */}
-                      {(() => {
-                        const selectedVariantObj = product.variants.find(v => v.id === selectedVariant);
-                        const displaySize = selectedVariantObj?.size || selectedVariantObj?.name || product.size;
-                        return displaySize ? (
-                          <div className="flex items-center gap-4">
-                            <div className="flex-shrink-0">
-                              <Maximize className="w-5 h-5 text-gray-600" />
-                            </div>
-                            <div className="flex-1">
-                              <div className="text-sm font-medium text-gray-700 mb-1">Tamaño</div>
-                              <div className="text-sm text-gray-900">{displaySize}</div>
-                            </div>
+                      {product.size_label && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Maximize className="w-5 h-5 text-gray-600" />
                           </div>
-                        ) : null;
-                      })()}
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Tamaño</div>
+                            <div className="text-sm text-gray-900">{product.size_label}</div>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Tipo de relleno */}
                       {product.fillingType && (
@@ -597,138 +884,166 @@ export default function ProductDetailPage() {
                 )}
               </div>
 
+
               {/* Garantía */}
-              <div className="border-b border-gray-200">
-                <button
-                  onClick={() => toggleSection("warranty")}
-                  className="w-full flex items-center justify-between py-4 text-left cursor-pointer"
-                >
-                  <span className="text-md text-gray-500">Garantía</span>
-                  {expandedSections.warranty ? (
-                    <Minus className="w-5 h-5 text-gray-500" />
-                  ) : (
-                    <Plus className="w-5 h-5 text-gray-500" />
+              {(product.warrantyDescription || product.warrantyMonths) && (
+                <div className="border-b border-gray-200">
+                  <button
+                    onClick={() => toggleSection("warranty")}
+                    className="w-full flex items-center justify-between py-4 text-left cursor-pointer"
+                  >
+                    <span className="text-md text-gray-500">Garantía</span>
+                    {expandedSections.warranty ? (
+                      <Minus className="w-5 h-5 text-gray-500" />
+                    ) : (
+                      <Plus className="w-5 h-5 text-gray-500" />
+                    )}
+                  </button>
+                  {expandedSections.warranty && (
+                    <div className="pb-4 text-sm text-gray-600 space-y-2">
+                      {product.warrantyMonths && (
+                        <div>
+                          <span className="font-medium text-gray-700">Duración:</span> {product.warrantyMonths} meses
+                        </div>
+                      )}
+                      {product.warrantyDescription && (
+                        <div className="whitespace-pre-wrap">{product.warrantyDescription}</div>
+                      )}
+                      {!product.warrantyDescription && !product.warrantyMonths && product.warranty && (
+                        <div>{product.warranty}</div>
+                      )}
+                    </div>
                   )}
-                </button>
-                {expandedSections.warranty && (
-                  <div className="pb-4 text-sm text-gray-600">
-                    {product.warranty}
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Right: Combo Section */}
-          <div className="col-span-3">
-            <h2 className="text-xl text-gray-900 mb-6">Elegí tu combo</h2>
-            <div className="space-y-6">
-              {[
-                {
-                  name: "Colchón Luuma + base de hierro",
-                  size: "2 plazas (140x190) cm",
-                  currentPrice: "$920.000",
-                  originalPrice: "$1.620.000",
-                },
-                {
-                  name: "Colchón Luuma + base de hierro + Respaldo de pluma",
-                  size: "2 plazas (140x190) cm",
-                  currentPrice: "$1.120.000",
-                  originalPrice: "$1.920.000",
-                },
-              ].map((combo, index) => (
-                <div
-                  key={index}
-                  className="bg-white border border-gray-200 rounded-[10px] p-4 flex items-center gap-4"
-                >
-                  <div className="w-20 h-20 bg-gray-100 rounded-[4px] flex-shrink-0 overflow-hidden">
-                    <img
-                      src="https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=200&h=200&fit=crop"
-                      alt={combo.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium text-gray-900 mb-1">{combo.name}</h3>
-                    <p className="text-sm text-gray-600 mb-2">{combo.size}</p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg font-semibold text-gray-900">{combo.currentPrice}</span>
-                      <span className="text-sm text-gray-400 line-through">{combo.originalPrice}</span>
-                    </div>
-                  </div>
-                  <Link 
-                    href={`/productos/${productId}`}
-                    className="w-8 h-8 rounded-full border border-[#484848] text-[#484848] flex items-center justify-center hover:bg-[#484848] hover:text-white transition-colors cursor-pointer"
+          {productCombos.filter(combo => combo.is_completed).length > 0 && (
+            <div className="col-span-3">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl text-gray-900">Elegí tu combo</h2>
+                {productCombos.filter(combo => combo.is_completed).length > 3 && (
+                  <Link
+                    href={`/productos/${productId}/combos`}
+                    className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors text-sm font-medium"
                   >
-                    <Plus className="w-4 h-4" />
+                    <span>Ver todos los combos</span>
+                    <ArrowRight className="w-4 h-4" />
                   </Link>
-                </div>
-              ))}
+                )}
+              </div>
+              <div className="space-y-6">
+                {productCombos.filter(combo => combo.is_completed).slice(0, 3).map((combo) => {
+                  const formatPrice = (price: number): string => {
+                    return `$${Math.round(price).toLocaleString('es-AR')}`;
+                  };
+                  
+                  // Obtener precio del combo
+                  let currentPrice = "";
+                  let originalPrice: string | undefined = undefined;
+                  
+                  if (combo.product) {
+                    const minPrice = combo.product.min_price || 0;
+                    const maxPrice = combo.product.max_price || minPrice;
+                    currentPrice = formatPrice(minPrice);
+                    originalPrice = maxPrice > minPrice ? formatPrice(maxPrice) : undefined;
+                  } else if (combo.price_sale) {
+                    currentPrice = formatPrice(combo.price_sale);
+                  }
+                  
+                  // Construir nombre del combo desde los items
+                  const comboName = combo.product_name || 
+                                   combo.description || 
+                                   combo.alt_description || 
+                                   `Combo ${combo.crm_product_id}`;
+                  
+                  // Construir descripción con los items
+                  const itemsDescription = combo.items
+                    .map(item => `${item.quantity}x ${item.item_name || `Producto ${item.crm_product_id}`}`)
+                    .join(", ");
+                  
+                  const comboImage = combo.product?.main_image || 
+                                    (combo.product?.images && combo.product.images.length > 0 
+                                      ? combo.product.images[0].image_url 
+                                      : "") || 
+                                    product?.images[0]?.url || 
+                                    "";
+                  
+                  return (
+                    <div
+                      key={combo.id}
+                      className="bg-white border border-gray-200 rounded-[10px] p-4 flex items-center gap-4"
+                    >
+                      {comboImage && (
+                        <div className="w-20 h-20 bg-gray-100 rounded-[4px] flex-shrink-0 overflow-hidden">
+                          <img
+                            src={wsrvLoader({ src: comboImage, width: 200 })}
+                            alt={comboName}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900 mb-1">{comboName}</h3>
+                        {itemsDescription && (
+                          <p className="text-sm text-gray-600 mb-2">{itemsDescription}</p>
+                        )}
+                        {currentPrice && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg font-semibold text-gray-900">{currentPrice}</span>
+                            {originalPrice && (
+                              <span className="text-sm text-gray-400 line-through">{originalPrice}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <Link 
+                        href={combo.product_id ? `/productos/${combo.product_id}` : "#"}
+                        className="w-8 h-8 rounded-full border border-[#484848] text-[#484848] flex items-center justify-center hover:bg-[#484848] hover:text-white transition-colors cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Similar Products */}
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-semibold text-gray-900">Productos similares</h2>
-            <a href="#" className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors">
-              <span className="font-medium">Ver todos</span>
-              <ArrowRight className="w-5 h-5" />
-            </a>
+        {similarProducts.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-semibold text-gray-900">Productos similares</h2>
+              <a href="#" className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors">
+                <span className="font-medium">Ver todos</span>
+                <ArrowRight className="w-5 h-5" />
+              </a>
+            </div>
+            <div className="grid grid-cols-4 gap-6">
+              {similarProducts.map((similarProduct) => (
+                <ProductCard
+                  key={similarProduct.id}
+                  id={similarProduct.id}
+                  image={similarProduct.image}
+                  alt={similarProduct.name}
+                  name={similarProduct.name}
+                  currentPrice={similarProduct.currentPrice}
+                  originalPrice={similarProduct.originalPrice || ""}
+                  discount={similarProduct.discount}
+                />
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-4 gap-6">
-            {[
-              {
-                id: "1",
-                name: "Colchón Lumma 2 plazas (140x190cm) de resortes",
-                currentPrice: "$400.000",
-                originalPrice: "$800.000",
-                discount: "OFERTA",
-                image: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
-              },
-              {
-                id: "2",
-                name: "Colchón Vitto 2 plazas (140x190cm) de resortes",
-                currentPrice: "$750.000",
-                originalPrice: "$1.500.000",
-                discount: "OFERTA",
-                image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=400&h=400&fit=crop",
-              },
-              {
-                id: "3",
-                name: "Colchón Lumma 2 plazas (140x190cm) de resortes",
-                currentPrice: "$650.000",
-                originalPrice: "$1.300.000",
-                discount: "OFERTA",
-                image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=400&h=400&fit=crop",
-              },
-              {
-                id: "4",
-                name: "Colchón Vitto 2 plazas (140x190cm) de resortes",
-                currentPrice: "$900.000",
-                originalPrice: "",
-                discount: undefined,
-                image: "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&h=400&fit=crop",
-              },
-            ].map((similarProduct) => (
-              <ProductCard
-                key={similarProduct.id}
-                id={similarProduct.id}
-                image={similarProduct.image}
-                alt={similarProduct.name}
-                name={similarProduct.name}
-                currentPrice={similarProduct.currentPrice}
-                originalPrice={similarProduct.originalPrice}
-                discount={similarProduct.discount}
-              />
-            ))}
-          </div>
-        </div>
+        )}
       </div>
 
-      <Footer />
-    </div>
+        <Footer />
+      </div>
+    </>
   );
 }
 

@@ -748,6 +748,8 @@ export default function Navbar() {
   const [isClosing, setIsClosing] = useState(false);
   const [closingCategory, setClosingCategory] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const isExitingRef = useRef(false);
@@ -756,6 +758,20 @@ export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
   const isFavoritesPage = pathname === "/favoritos";
+
+  // Escuchar evento para abrir el carrito cuando se agrega un item
+  useEffect(() => {
+    const handleCartItemAdded = () => {
+      if (isAuthenticated) {
+        setIsCartOpen(true);
+      }
+    };
+
+    window.addEventListener('cartItemAdded', handleCartItemAdded);
+    return () => {
+      window.removeEventListener('cartItemAdded', handleCartItemAdded);
+    };
+  }, [isAuthenticated]);
 
   // Cerrar menú de usuario al hacer click fuera
   useEffect(() => {
@@ -788,6 +804,34 @@ export default function Navbar() {
       return;
     }
     setIsCartOpen(true);
+  };
+
+  // Sincronizar el input de búsqueda con la URL cuando cambia
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const searchParam = params.get("search") || "";
+      setSearchQuery(searchParam);
+    }
+  }, [pathname]);
+
+  const handleSearch = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const query = searchQuery.trim();
+    
+    if (query) {
+      // Navegar a la página de catálogo con el parámetro de búsqueda
+      router.push(`/catalogo?search=${encodeURIComponent(query)}`);
+    } else {
+      // Si está vacío, ir al catálogo sin parámetros
+      router.push("/catalogo");
+    }
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
   };
 
   return (
@@ -828,14 +872,24 @@ export default function Navbar() {
 
               {/* Search Bar - Centered */}
               <div className="flex-1 flex justify-center px-8">
-                <div className="relative w-full max-w-4xl">
+                <form onSubmit={handleSearch} className="relative w-full max-w-4xl">
                   <input
+                    ref={searchInputRef}
                     type="text"
                     placeholder="Buscar colchones, sommiers, almohadas..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={handleSearchKeyDown}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-900 placeholder:text-gray-600"
                   />
-                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-black" />
-                </div>
+                  <button
+                    type="submit"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer hover:opacity-70 transition-opacity"
+                    aria-label="Buscar"
+                  >
+                    <Search className="w-5 h-5 text-black" />
+                  </button>
+                </form>
               </div>
 
               {/* User and Cart Icons */}

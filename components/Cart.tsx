@@ -13,8 +13,26 @@ export default function Cart({ isOpen, onClose }: CartProps) {
   const router = useRouter();
   const { cart, removeFromCart, cartCount } = useCart();
 
+  // Función helper para parsear precio desde formato string argentino
+  const parsePrice = (priceStr: string): number => {
+    // Remover $ y espacios, luego reemplazar puntos (separadores de miles) y comas (decimales)
+    const cleaned = priceStr.replace(/[$\s]/g, '').replace(/\./g, '').replace(',', '.');
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
+  // Función helper para formatear precio en formato argentino
+  const formatPrice = (price: number): string => {
+    return new Intl.NumberFormat("es-AR", {
+      style: "currency",
+      currency: "ARS",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price);
+  };
+
   const calculateTotal = () => {
-    return cart.reduce((sum, item) => sum + parseFloat(item.price) * item.quantity, 0);
+    return cart.reduce((sum, item) => sum + parsePrice(item.price) * item.quantity, 0);
   };
 
   const handleCheckout = () => {
@@ -82,10 +100,7 @@ export default function Cart({ isOpen, onClose }: CartProps) {
                       </p>
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-semibold text-gray-900">
-                          ${(parseFloat(item.price) * item.quantity).toLocaleString("es-AR", {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
+                          {formatPrice(parsePrice(item.price) * item.quantity)}
                         </p>
                         <button
                           onClick={() => removeFromCart(item.id)}
@@ -108,10 +123,7 @@ export default function Cart({ isOpen, onClose }: CartProps) {
               <div className="flex items-center justify-between mb-4">
                 <span className="text-lg font-normal text-black">Total:</span>
                 <span className="text-xl font-normal text-black">
-                  ${calculateTotal().toLocaleString("es-AR", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                  {formatPrice(calculateTotal())}
                 </span>
               </div>
               <button

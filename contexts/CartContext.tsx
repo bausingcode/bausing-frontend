@@ -84,6 +84,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
       return [...prev, { ...item, quantity: 1 }];
     });
+    // Disparar evento personalizado para abrir el carrito
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('cartItemAdded'));
+    }
   };
 
   const removeFromCart = (id: string) => {
@@ -92,7 +96,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addToFavorites = (item: FavoritesItem) => {
     if (!isAuthenticated) {
-      router.push("/login");
+      // Use replace instead of push to avoid adding to history, but this shouldn't cause page reload
+      router.replace("/login");
       return;
     }
     setFavorites((prev) => {

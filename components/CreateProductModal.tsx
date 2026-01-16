@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Plus, ChevronRight, ChevronLeft, Trash2 } from "lucide-react";
-import { CrmProduct, CrmCombo, completeCrmProduct, uploadProductImageFile } from "@/lib/api";
+import { X, Plus, ChevronRight, ChevronLeft, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { CrmProduct, CrmCombo, completeCrmProduct, uploadProductImageFile, fetchLocalities, Locality, createCompleteProduct, fetchProductById, Product } from "@/lib/api";
 
 interface Category {
   id: string;
@@ -32,7 +32,7 @@ interface Attribute {
 interface Variant {
   attributes: Record<string, string>;
   stock: number;
-  price: number;
+  prices: Record<string, number>; // locality_id -> price
 }
 
 interface CreateProductModalProps {
@@ -79,6 +79,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   
   // Step 3: Variantes
   const [variants, setVariants] = useState<Variant[]>([]);
+  const [localities, setLocalities] = useState<Locality[]>([]);
+  const [expandedVariant, setExpandedVariant] = useState<number | null>(null);
   
   // Otros estados
   const [loading, setLoading] = useState(false);
@@ -265,33 +267,26 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
     return [];
   };
 
+  // Fetch localities when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchLocalities().then(setLocalities).catch((err) => {
+        console.error("Error fetching localities:", err);
+        setError("Error al cargar localidades");
+      });
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     if (isOpen) {
       // Reset form
       setCurrentStep(1);
       
-      if (crmProduct && 'product' in crmProduct && crmProduct.product) {
-        // Editing completed CRM product
-        const product = crmProduct.product;
-        setName(product.name || "");
-        setDescription(product.description || "");
-        setCategoryId(product.category_id || "");
-        setIsActive(product.is_active ?? true);
-        setTechnicalDescription(product.technical_description || "");
-        setWarrantyMonths(product.warranty_months);
-        setWarrantyDescription(product.warranty_description || "");
-        setMaterials(product.materials || "");
-        // Determinar si mostrar campos de colchones basado en si hay valores
-        const hasMattressData = !!(product.filling_type || product.max_supported_weight_kg || 
-          product.has_pillow_top || product.is_bed_in_box || product.mattress_firmness || product.size_label);
-        setShowMattressFields(hasMattressData);
-        setFillingType(product.filling_type || "");
-        setMaxSupportedWeightKg(product.max_supported_weight_kg);
-        setHasPillowTop(product.has_pillow_top || false);
-        setIsBedInBox(product.is_bed_in_box || false);
-        setMattressFirmness(product.mattress_firmness || "");
-        setSizeLabel(product.size_label || "");
-        setImages(product.images || []);
+      // Los datos completos se cargarán en el siguiente useEffect usando fetchProductById
+      // Solo inicializar campos básicos aquí si es necesario
+      if (crmProduct && crmProduct.product_id) {
+        // Editing completed CRM product - los datos se cargarán en el useEffect siguiente
+        // Solo inicializar valores por defecto aquí
       } else if (crmProduct) {
         // Completing CRM product - NO inicializar campos desde CRM, solo mostrar info
         setName("");
@@ -320,17 +315,139 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setImages([]);
       }
       
-      setSubcategoryIds([]);
-      setSelectedOptions({});
-      setAttributes([]);
-      setVariants([]);
+      // Solo resetear estos campos si NO estamos editando un producto completo
+      // (Los datos completos se cargarán en el siguiente useEffect)
+      if (!(crmProduct && crmProduct.product_id)) {
+        setSubcategoryIds([]);
+        setSelectedOptions({});
+        setAttributes([]);
+        setVariants([]);
+      }
       setNewAttributeName("");
       setIsAddingAttribute(false);
       setNewOptionValues({});
       setImageFiles([]);
       setError("");
+      setExpandedVariant(null);
     }
   }, [isOpen, crmProduct]);
+
+  // Cargar datos completos del producto cuando se está editando un producto completo
+  useEffect(() => {
+    const loadCompleteProductData = async () => {
+      if (!isOpen || !crmProduct || !crmProduct.product_id) {
+        return;
+      }
+
+      try {
+        const fullProduct = await fetchProductById(crmProduct.product_id) as any;
+        if (!fullProduct) {
+          return;
+        }
+
+        // Actualizar TODOS los campos del formulario con los datos del producto completo
+        setName(fullProduct.name || "");
+        setDescription(fullProduct.description || "");
+        setCategoryId(fullProduct.category_id || "");
+        setIsActive(fullProduct.is_active ?? true);
+        setTechnicalDescription(fullProduct.technical_description || "");
+        setWarrantyMonths(fullProduct.warranty_months);
+        setWarrantyDescription(fullProduct.warranty_description || "");
+        setMaterials(fullProduct.materials || "");
+        
+        // Campos de colchón
+        const hasMattressData = !!(fullProduct.filling_type || fullProduct.max_supported_weight_kg || 
+          fullProduct.has_pillow_top || fullProduct.is_bed_in_box || fullProduct.mattress_firmness || fullProduct.size_label);
+        setShowMattressFields(hasMattressData);
+        setFillingType(fullProduct.filling_type || "");
+        setMaxSupportedWeightKg(fullProduct.max_supported_weight_kg);
+        setHasPillowTop(fullProduct.has_pillow_top || false);
+        setIsBedInBox(fullProduct.is_bed_in_box || false);
+        setMattressFirmness(fullProduct.mattress_firmness || "");
+        setSizeLabel(fullProduct.size_label || "");
+        
+        // Imágenes
+        if (fullProduct.images && fullProduct.images.length > 0) {
+          setImages(fullProduct.images.map((img: any) => ({
+            image_url: img.image_url,
+            alt_text: img.alt_text,
+            position: img.position || 0,
+          })));
+        }
+
+        // Cargar subcategorías si el producto tiene category_id y hay subcategorías relacionadas
+        if (fullProduct.category_id) {
+          // Buscar si hay subcategorías que pertenezcan a esta categoría
+          const productSubcategories = propCategories.filter(cat => 
+            cat.parentId === fullProduct.category_id || cat.parent_id === fullProduct.category_id
+          );
+          
+          // Si el producto tiene un category_id que es una subcategoría, agregarlo
+          const isSubcategory = propCategories.some(cat => cat.id === fullProduct.category_id && cat.parentId);
+          if (isSubcategory) {
+            setSubcategoryIds([fullProduct.category_id]);
+          } else if (productSubcategories.length > 0) {
+            // Intentar inferir las subcategorías desde las variantes o atributos
+            // Por ahora, esto se manejará mejor cuando tengamos más información del backend
+          }
+        }
+
+        // Cargar variantes y atributos desde el producto completo
+        if (fullProduct.variants && fullProduct.variants.length > 0) {
+          // Extraer atributos únicos de las variantes
+          const attributeMap: Record<string, Set<string>> = {};
+          
+          fullProduct.variants.forEach((variant: any) => {
+            if (variant.attributes) {
+              Object.entries(variant.attributes).forEach(([attrName, attrValue]) => {
+                if (!attributeMap[attrName]) {
+                  attributeMap[attrName] = new Set();
+                }
+                attributeMap[attrName].add(attrValue as string);
+              });
+            }
+          });
+
+          // Convertir el mapa de atributos al formato esperado
+          const loadedAttributes: Attribute[] = Object.entries(attributeMap).map(([name, values], index) => ({
+            id: `attr-${index}`,
+            name,
+            type: "select" as const,
+            options: Array.from(values),
+          }));
+
+          if (loadedAttributes.length > 0) {
+            setAttributes(loadedAttributes);
+          }
+
+          // Cargar variantes con sus precios
+          const loadedVariants: Variant[] = fullProduct.variants.map((variant: any) => {
+            const prices: Record<string, number> = {};
+            if (variant.prices) {
+              variant.prices.forEach((price: any) => {
+                prices[price.locality_id] = price.price;
+              });
+            }
+
+            return {
+              attributes: variant.attributes || {},
+              stock: variant.stock || 0,
+              prices,
+            };
+          });
+
+          if (loadedVariants.length > 0) {
+            setVariants(loadedVariants);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading complete product data:", error);
+        // No mostrar error al usuario, simplemente no cargar datos adicionales
+      }
+    };
+
+    loadCompleteProductData();
+  }, [isOpen, crmProduct?.product_id, propCategories]);
 
   // Generar atributos cuando cambia la categoría, subcategorías u opción (solo si no hay atributos ya)
   useEffect(() => {
@@ -423,7 +540,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           {
             attributes: {},
             stock: 0,
-            price: 0,
+            prices: {},
           },
         ]);
       } else {
@@ -463,24 +580,45 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 
     generateCombinations({}, 0);
 
-    // Crear variantes iniciales
+    // Crear variantes iniciales con precios vacíos por localidad
     const newVariants: Variant[] = combinations.map((combo) => ({
       attributes: combo,
       stock: 0,
-      price: 0,
+      prices: {},
     }));
 
     setVariants(newVariants);
   };
 
 
-  const handleVariantChange = (index: number, field: "stock" | "price", value: string | number) => {
+  const handleVariantChange = (index: number, field: "stock", value: string | number) => {
     setVariants((prev) =>
       prev.map((variant, i) => {
         if (i === index) {
           return {
             ...variant,
             [field]: Number(value),
+          };
+        }
+        return variant;
+      })
+    );
+  };
+
+  const handlePriceChange = (variantIndex: number, localityId: string, value: string | number) => {
+    setVariants((prev) =>
+      prev.map((variant, i) => {
+        if (i === variantIndex) {
+          const newPrices = { ...variant.prices };
+          const numValue = Number(value);
+          if (numValue > 0) {
+            newPrices[localityId] = numValue;
+          } else {
+            delete newPrices[localityId];
+          }
+          return {
+            ...variant,
+            prices: newPrices,
           };
         }
         return variant;
@@ -533,11 +671,22 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
     try {
       // Validar variantes
       const invalidVariants = variants.filter(
-        (v) => v.stock < 0 || v.price < 0
+        (v) => v.stock < 0 || Object.values(v.prices).some(price => price <= 0)
       );
 
       if (invalidVariants.length > 0) {
         setError("Por favor completa todos los campos de las variantes correctamente");
+        setLoading(false);
+        return;
+      }
+
+      // Validar que al menos una variante tenga precios
+      const variantsWithPrices = variants.filter(
+        (v) => Object.keys(v.prices).length > 0
+      );
+
+      if (variantsWithPrices.length === 0) {
+        setError("Por favor agrega al menos un precio por localidad para las variantes");
         setLoading(false);
         return;
       }
@@ -562,7 +711,27 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           category_option_id: selectedOptions[subcategoryIds[0]] || selectedOptions["direct"] ? undefined : undefined, // TODO: map to category_option_id
           is_active: isActive,
           images: images,
+          variants: variants.map((variant) => {
+            // Generar nombre descriptivo de la variant basado en atributos
+            const variantName = Object.entries(variant.attributes)
+              .map(([attrName, attrValue]) => `${attrName}: ${attrValue}`)
+              .join(', ');
+            
+            return {
+              sku: variantName || undefined,
+              stock: variant.stock,
+              attributes: variant.attributes,
+              prices: Object.entries(variant.prices).map(([locality_id, price]) => ({
+                locality_id,
+                price,
+              })),
+            };
+          }),
         };
+
+        console.log("📦 [CRM] Creando producto CRM con datos:", JSON.stringify(productData, null, 2));
+        console.log("📦 [CRM] Variants:", variants);
+        console.log("📦 [CRM] Variants mapped:", productData.variants);
 
         const completedProduct = await completeCrmProduct(crmProduct.id, productData);
         
@@ -573,27 +742,50 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           }
         }
       } else {
-        // Crear producto nuevo (lógica existente)
+        // Crear producto nuevo
         const productData = {
           name,
-          description: description || null,
-          category_id: subcategoryIds.length > 0 ? subcategoryIds[0] : categoryId,
-          category_options: selectedOptions,
+          description: description || undefined,
+          category_id: subcategoryIds.length > 0 ? undefined : categoryId,
+          subcategory_id: subcategoryIds.length > 0 ? subcategoryIds[0] : undefined,
           is_active: isActive,
-          attributes: attributes.map((attr) => ({
-            name: attr.name,
-            type: attr.type,
-            options: attr.options,
-          })),
-          variants: variants.map((variant) => ({
-            attributes: variant.attributes,
-            stock: variant.stock,
-            price: variant.price,
-          })),
+          variants: variants.map((variant) => {
+            // Generar nombre descriptivo de la variant basado en atributos
+            const variantName = Object.entries(variant.attributes)
+              .map(([attrName, attrValue]) => `${attrName}: ${attrValue}`)
+              .join(', ');
+            
+            return {
+              sku: variantName || undefined,
+              stock: variant.stock,
+              attributes: variant.attributes,
+              prices: Object.entries(variant.prices).map(([locality_id, price]) => ({
+                locality_id,
+                price,
+              })),
+            };
+          }),
         };
 
-        // TODO: Llamar al endpoint de creación de productos
-        await new Promise(resolve => setTimeout(resolve, 500));
+        console.log("📦 Creando producto con datos:", JSON.stringify(productData, null, 2));
+        console.log("📦 Variants:", variants);
+        console.log("📦 Variants mapped:", productData.variants);
+
+        try {
+          const createdProduct = await createCompleteProduct(productData);
+          console.log("✅ Producto creado exitosamente:", createdProduct);
+          
+          // Upload new images if any
+          if (imageFiles.length > 0 && createdProduct.id) {
+            for (const file of imageFiles) {
+              await uploadProductImageFile(file, createdProduct.id);
+            }
+          }
+        } catch (createError: any) {
+          console.error("❌ Error al crear producto:", createError);
+          console.error("❌ Error details:", createError.message);
+          throw createError;
+        }
       }
 
       // Limpiar formulario
@@ -1295,61 +1487,109 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                   <p className="font-medium">Generando variantes...</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        {attributes.length > 0 && attributes.map((attr) => (
-                          <th
-                            key={attr.id}
-                            className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase"
-                          >
-                            {attr.name}
-                          </th>
-                        ))}
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-                          Stock
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-                          Precio Base
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {variants.map((variant, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
-                          {attributes.length > 0 && attributes.map((attr) => (
-                            <td key={attr.id} className="px-4 py-3 text-sm text-gray-900">
-                              {variant.attributes[attr.name] || "-"}
-                            </td>
-                          ))}
-                          <td className="px-4 py-3">
-                            <input
-                              type="number"
-                              value={variant.stock}
-                              onChange={(e) =>
-                                handleVariantChange(index, "stock", e.target.value)
-                              }
-                              min="0"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 text-sm transition-colors"
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="number"
-                              value={variant.price}
-                              onChange={(e) =>
-                                handleVariantChange(index, "price", e.target.value)
-                              }
-                              min="0"
-                              step="0.01"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 text-sm transition-colors"
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="space-y-3">
+                  {variants.map((variant, index) => {
+                    const isExpanded = expandedVariant === index;
+                    const variantPricesCount = Object.keys(variant.prices).length;
+                    return (
+                      <div key={index} className="border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                        {/* Header row - always visible */}
+                        <div 
+                          className="bg-white hover:bg-gray-50 transition-colors cursor-pointer"
+                          onClick={() => setExpandedVariant(isExpanded ? null : index)}
+                        >
+                          <div className="px-4 py-3 flex items-center justify-between">
+                            <div className="flex items-center gap-4 flex-1">
+                              {attributes.length > 0 && attributes.map((attr) => (
+                                <div key={attr.id} className="flex-shrink-0">
+                                  <span className="text-xs font-medium text-gray-500 uppercase">
+                                    {attr.name}:
+                                  </span>
+                                  <span className="ml-2 text-sm font-medium text-gray-900">
+                                    {variant.attributes[attr.name] || "-"}
+                                  </span>
+                                </div>
+                              ))}
+                              <div className="flex-shrink-0">
+                                <span className="text-xs font-medium text-gray-500 uppercase">
+                                  Stock:
+                                </span>
+                                <input
+                                  type="number"
+                                  value={variant.stock}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    handleVariantChange(index, "stock", e.target.value);
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  min="0"
+                                  className="ml-2 w-24 px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 text-sm transition-colors"
+                                />
+                              </div>
+                              <div className="flex-shrink-0">
+                                <span className="text-xs font-medium text-gray-500">
+                                  Precios: {variantPricesCount} localidad{variantPricesCount !== 1 ? "es" : ""}
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedVariant(isExpanded ? null : index);
+                              }}
+                              className="ml-4 p-1.5 hover:bg-gray-200 rounded transition-colors"
+                            >
+                              {isExpanded ? (
+                                <ChevronUp className="w-5 h-5 text-gray-600" />
+                              ) : (
+                                <ChevronDown className="w-5 h-5 text-gray-600" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Expanded content - prices by locality */}
+                        {isExpanded && (
+                          <div className="border-t border-gray-200 bg-gray-50 p-4">
+                            <h4 className="text-sm font-medium text-gray-900 mb-3">
+                              Precios por Localidad
+                            </h4>
+                            {localities.length === 0 ? (
+                              <p className="text-sm text-gray-500">Cargando localidades...</p>
+                            ) : (
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                {localities.map((locality) => {
+                                  const currentPrice = variant.prices[locality.id] || "";
+                                  return (
+                                    <div key={locality.id} className="bg-white rounded-lg border border-gray-200 p-3">
+                                      <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                                        {locality.name}
+                                      </label>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-sm text-gray-500">$</span>
+                                        <input
+                                          type="number"
+                                          value={currentPrice}
+                                          onChange={(e) =>
+                                            handlePriceChange(index, locality.id, e.target.value)
+                                          }
+                                          min="0"
+                                          step="0.01"
+                                          placeholder="0.00"
+                                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 text-sm transition-colors"
+                                        />
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

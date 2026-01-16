@@ -107,6 +107,35 @@ export async function fetchCategories(includeOptions = false, cookieHeader?: str
   return data.success ? data.data : [];
 }
 
+// Localities API
+export interface Locality {
+  id: string;
+  name: string;
+  region?: string;
+}
+
+/**
+ * Fetch all localities from the backend
+ */
+export async function fetchLocalities(cookieHeader?: string | null): Promise<Locality[]> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/localities`
+    : `/api/localities`;
+  
+  const headers = typeof window === "undefined" 
+    ? getAuthHeadersServer(cookieHeader)
+    : getAuthHeaders();
+  
+  const response = await fetch(url, { headers, cache: "no-store" });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch localities: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.success ? data.data : [];
+}
+
 // Products API
 export interface Product {
   id: string;
@@ -128,10 +157,15 @@ export interface Product {
   }>;
   variants?: Array<{
     id: string;
-    name: string;
+    name?: string;
     sku?: string;
-    stock: number;
+    stock?: number;
     attributes?: Record<string, string>;
+    options?: Array<{
+      id: string;
+      name: string;
+      stock: number;
+    }>;
     prices?: Array<{
       id: string;
       price: number;
@@ -184,10 +218,17 @@ export async function fetchProducts(params?: {
     if (params?.include_images !== undefined) queryParams.append('include_images', params.include_images.toString());
     if (params?.include_promos !== undefined) queryParams.append('include_promos', params.include_promos.toString());
 
-    const url = `/api/products?${queryParams.toString()}`;
-    const response = await fetch(url, {
-      cache: "no-store",
-    });
+    // En el servidor, usar la URL completa del backend
+    // En el cliente, usar la ruta relativa que será manejada por el rewrite de Next.js
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/products?${queryParams.toString()}`
+      : `/api/products?${queryParams.toString()}`;
+    
+    const headers = typeof window === "undefined"
+      ? getAuthHeadersServer()
+      : getAuthHeaders();
+    
+    const response = await fetch(url, { headers, cache: "no-store" });
     
     if (!response.ok) {
       throw new Error(`Failed to fetch products: ${response.statusText}`);
@@ -224,7 +265,7 @@ export async function fetchProductById(productId: string): Promise<Product | nul
   try {
     const url = `/api/products/${productId}?include_variants=true&include_images=true&include_promos=true`;
     const response = await fetch(url, {
-      cache: "no-store",
+      cache: "default", // Permitir cache del navegador para cargar más rápido
     });
     
     if (!response.ok) {
@@ -239,6 +280,51 @@ export async function fetchProductById(productId: string): Promise<Product | nul
   } catch (error) {
     console.error("Error fetching product:", error);
     return null;
+  }
+}
+
+/**
+ * Fetch combos that contain a specific product
+ */
+export interface ProductCombo {
+  id: string;
+  crm_product_id: number;
+  description?: string;
+  alt_description?: string;
+  price_sale?: number;
+  is_active: boolean;
+  product_id?: string;
+  product_name?: string;
+  main_image?: string;
+  is_completed: boolean;
+  items: Array<{
+    crm_product_id: number;
+    quantity: number;
+    item_description?: string;
+    item_name?: string;
+  }>;
+  product?: Product;
+}
+
+export async function fetchProductCombos(productId: string): Promise<ProductCombo[]> {
+  try {
+    const url = `/api/products/${productId}/combos`;
+    const response = await fetch(url, {
+      cache: "no-store",
+    });
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        return [];
+      }
+      throw new Error(`Failed to fetch product combos: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return data.success ? data.data : [];
+  } catch (error) {
+    console.error("Error fetching product combos:", error);
+    return [];
   }
 }
 
@@ -585,6 +671,55 @@ export async function uploadProductImageFile(file: File, productId: string): Pro
     throw new Error("Failed to save product image: Invalid response");
   }
   return data.data;
+}
+
+/**
+ * Create a complete product with variants and prices
+ */
+export async function createCompleteProduct(productData: {
+  name: string;
+  description?: string;
+  sku?: string;
+  category_id?: string;
+  subcategory_id?: string;
+  is_active?: boolean;
+  variants: Array<{
+    sku?: string;
+    stock: number;
+    prices: Array<{
+      locality_id: string;
+      price: number;
+    }>;
+  }>;
+}): Promise<Product> {
+  const url = `/api/products/complete`;
+  console.log("🌐 Enviando request a:", url);
+  console.log("🌐 Headers:", getAuthHeaders());
+  console.log("🌐 Body:", JSON.stringify(productData, null, 2));
+  
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(productData),
+  });
+  
+  console.log("📡 Response status:", response.status, response.statusText);
+  
+  const responseData = await response.json();
+  console.log("📡 Response data:", JSON.stringify(responseData, null, 2));
+  
+  if (!response.ok) {
+    console.error("❌ Error response:", responseData);
+    throw new Error(responseData.error || `Failed to create product: ${response.statusText}`);
+  }
+  
+  if (!responseData.success || !responseData.data) {
+    console.error("❌ Invalid response structure:", responseData);
+    throw new Error("Failed to create product: Invalid response");
+  }
+  
+  console.log("✅ Product created successfully:", responseData.data);
+  return responseData.data;
 }
 
 /**

@@ -157,7 +157,7 @@ export default function Sidebar() {
                   href="/admin/ventas"
                   icon={<ShoppingCart className="w-5 h-5" />}
                 >
-                  Ventas (X)
+                  Ventas
                 </NavLink>
               </li>
               <li key="clientes">
@@ -200,7 +200,7 @@ export default function Sidebar() {
                   Blog
                 </NavLink>
               </li>
-              <li key="promos">
+              {/* <li key="promos">
                 <NavLink
                   href="/admin/promos"
                   icon={<Tag className="w-5 h-5" />}
@@ -215,15 +215,15 @@ export default function Sidebar() {
                 >
                   Logística (X)
                 </NavLink>
-              </li>
-              <li key="reportes">
+              </li> */}
+              {/* <li key="reportes">
                 <NavLink
                   href="/admin/reportes"
                   icon={<BarChart3 className="w-5 h-5" />}
                 >
                   Reportes (X)
                 </NavLink>
-              </li>
+              </li> */}
               <li key="usuarios">
                 <NavLink
                   href="/admin/usuarios"

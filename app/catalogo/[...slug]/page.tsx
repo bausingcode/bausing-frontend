@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import ProductCard from "@/components/ProductCard";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { fetchProducts, Product } from "@/lib/api";
+import { fetchProducts, fetchCategories, Product, Category } from "@/lib/api";
 import { ChevronDown, Minus, Plus } from "lucide-react";
 
 // ============================================
@@ -490,7 +490,7 @@ const EXAMPLE_PRODUCTS: Record<string, Product[]> = {
 // FIN DE PRODUCTOS DE EJEMPLO
 // ============================================
 
-// Mapeo de slugs a nombres de categorías (esto se puede mejorar con una API)
+// Mapeo de slugs a nombres de categorías (fallback si no se cargan desde la API)
 const categorySlugMap: Record<string, string> = {
   "colchones": "Colchones",
   "sommiers": "Sommiers",
@@ -851,6 +851,7 @@ const categoryFilters: CategoryFilters = {
 
 export default function CatalogoPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const slug = params?.slug as string[];
   
   const [products, setProducts] = useState<Product[]>([]);
@@ -859,7 +860,43 @@ export default function CatalogoPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [sortBy, setSortBy] = useState("created_at_desc");
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [perPage, setPerPage] = useState(20);
+  const [showPerPageMenu, setShowPerPageMenu] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(true);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryIdMap, setCategoryIdMap] = useState<Record<string, string>>({});
+  
+  // Obtener el término de búsqueda de la URL
+  const searchQuery = searchParams?.get("search") || "";
+  
+  // Cargar categorías al inicio
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const cats = await fetchCategories();
+        setCategories(cats);
+        
+        // Crear un mapa de nombre de categoría a ID
+        const nameToIdMap: Record<string, string> = {};
+        cats.forEach(cat => {
+          // Normalizar el nombre para comparación (sin acentos, minúsculas)
+          const normalizedName = cat.name.toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "");
+          nameToIdMap[normalizedName] = cat.id;
+          
+          // También mapear el nombre original
+          nameToIdMap[cat.name.toLowerCase()] = cat.id;
+        });
+        
+        setCategoryIdMap(nameToIdMap);
+      } catch (error) {
+        console.error("Error loading categories:", error);
+      }
+    };
+    
+    loadCategories();
+  }, []);
   
   // Filtros dinámicos - usando un objeto para almacenar todos los filtros seleccionados
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
@@ -877,15 +914,26 @@ export default function CatalogoPage() {
   
   // Determinar la categoría y subcategoría desde el slug
   const getCategoryInfo = () => {
-    if (!slug || slug.length === 0) {
-      return { categoryName: null, subcategoryName: null, subcategory2Name: null };
+    // Si no hay slug o es un array vacío, retornar valores nulos
+    if (!slug || !Array.isArray(slug) || slug.length === 0) {
+      return { categoryName: null, categoryId: null, subcategoryName: null, subcategory2Name: null };
     }
     
     const mainCategorySlug = slug[0];
     const categoryName = categorySlugMap[mainCategorySlug] || mainCategorySlug;
     
+    // Buscar el category_id correspondiente
+    let categoryId: string | null = null;
+    if (categoryIdMap && Object.keys(categoryIdMap).length > 0) {
+      // Intentar encontrar por nombre normalizado
+      const normalizedName = categoryName.toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+      categoryId = categoryIdMap[normalizedName] || categoryIdMap[categoryName.toLowerCase()] || null;
+    }
+    
     if (slug.length === 1) {
-      return { categoryName, subcategoryName: null, subcategory2Name: null };
+      return { categoryName, categoryId, subcategoryName: null, subcategory2Name: null };
     }
     
     if (slug.length === 2) {
@@ -893,6 +941,7 @@ export default function CatalogoPage() {
       const subcategoryInfo = subcategoryMap[subcategorySlug];
       return {
         categoryName,
+        categoryId,
         subcategoryName: subcategoryInfo?.name || subcategorySlug,
         subcategory2Name: null,
       };
@@ -905,15 +954,16 @@ export default function CatalogoPage() {
       const subcategory2Info = subcategoryMap[subcategory2Slug];
       return {
         categoryName,
+        categoryId,
         subcategoryName: subcategoryInfo?.name || subcategorySlug,
         subcategory2Name: subcategory2Info?.name || subcategory2Slug,
       };
     }
     
-    return { categoryName, subcategoryName: null, subcategory2Name: null };
+    return { categoryName, categoryId, subcategoryName: null, subcategory2Name: null };
   };
   
-  const { categoryName, subcategoryName, subcategory2Name } = getCategoryInfo();
+  const { categoryName, categoryId, subcategoryName, subcategory2Name } = getCategoryInfo();
   
   // Obtener filtros para la categoría actual
   const currentFilters = categoryName ? categoryFilters[categoryName] || [] : [];
@@ -942,12 +992,18 @@ export default function CatalogoPage() {
   // Verificar si hay filtros activos
   const hasActiveFilters = Object.values(selectedFilters).some(values => values.length > 0);
   
+  // Resetear página cuando cambia la búsqueda, categoría o perPage
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, categoryId, perPage]);
+  
   // Construir breadcrumbs
   const breadcrumbs = [
     { name: "Inicio", href: "/" },
-    ...(categoryName ? [{ name: categoryName, href: `/catalogo/${slug[0]}` }] : []),
-    ...(subcategoryName ? [{ name: subcategoryName, href: `/catalogo/${slug[0]}/${slug[1]}` }] : []),
-    ...(subcategory2Name ? [{ name: subcategory2Name }] : []),
+    ...(searchQuery ? [{ name: "Búsqueda", href: `/catalogo?search=${encodeURIComponent(searchQuery)}` }] : []),
+    ...(categoryName && !searchQuery && slug && slug.length > 0 ? [{ name: categoryName, href: `/catalogo/${slug[0]}` }] : []),
+    ...(subcategoryName && !searchQuery && slug && slug.length > 1 ? [{ name: subcategoryName, href: `/catalogo/${slug[0]}/${slug[1]}` }] : []),
+    ...(subcategory2Name && !searchQuery ? [{ name: subcategory2Name }] : []),
   ];
   
   // Obtener productos
@@ -955,36 +1011,41 @@ export default function CatalogoPage() {
     const loadProducts = async () => {
       setLoading(true);
       try {
-        // TODO: Reemplazar con llamada real a la API
-        // Por ahora usamos productos de ejemplo
-        if (categoryName && EXAMPLE_PRODUCTS[categoryName]) {
-          // Simular delay de carga
-          await new Promise(resolve => setTimeout(resolve, 500));
-          setProducts(EXAMPLE_PRODUCTS[categoryName]);
-          setTotalPages(1);
-        } else {
-          // Si no hay categoría o no hay productos de ejemplo, intentar cargar de la API
-          const result = await fetchProducts({
-            is_active: true,
-            sort: sortBy,
-            page,
-            per_page: 20,
-            include_images: true,
-          });
-          
-          setProducts(result.products);
-          setTotalPages(result.total_pages);
+        // Construir parámetros de búsqueda
+        const fetchParams: any = {
+          is_active: true,
+          sort: sortBy,
+          page,
+          per_page: perPage,
+          include_images: true,
+        };
+        
+        // Si hay búsqueda, agregar el parámetro de búsqueda
+        if (searchQuery) {
+          fetchParams.search = searchQuery;
         }
+        
+        // Si hay categoryId, filtrar por categoría
+        if (categoryId) {
+          fetchParams.category_id = categoryId;
+        }
+        
+        // Siempre usar la API real
+        const result = await fetchProducts(fetchParams);
+        
+        setProducts(result.products);
+        setTotalPages(result.total_pages);
       } catch (error) {
         console.error("Error loading products:", error);
         setProducts([]);
+        setTotalPages(1);
       } finally {
         setLoading(false);
       }
     };
     
     loadProducts();
-  }, [page, sortBy, categoryName, subcategoryName, subcategory2Name]);
+  }, [page, sortBy, categoryId, subcategoryName, subcategory2Name, searchQuery, perPage]);
   
   const sortOptions = [
     { value: "created_at_desc", label: "Más recientes" },
@@ -1076,77 +1137,126 @@ export default function CatalogoPage() {
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {subcategory2Name || subcategoryName || categoryName || "Catálogo"}
+            {searchQuery ? `Resultados de búsqueda` : (subcategory2Name || subcategoryName || categoryName || "Catálogo")}
           </h1>
-          {categoryName && (
+          {searchQuery && (
+            <p className="text-gray-600 mb-2">
+              Buscando: <span className="font-semibold text-gray-900">"{searchQuery}"</span>
+            </p>
+          )}
+          {(categoryName || searchQuery) && (
             <p className="text-gray-600">
               {products.length} {products.length === 1 ? "producto encontrado" : "productos encontrados"}
             </p>
           )}
         </div>
         
-        {/* Barra superior con filtros y ordenar (sticky junto al navbar) */}
+        {/* Barra superior con filtros, items por página y ordenar (sticky junto al navbar) */}
         <div className="sticky top-[150px] z-30 bg-white -mx-4 px-4 pb-3 pt-4 mb-6">
           <div className="container mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2 w-full max-w-[290px]">
-            <h2 className="text-lg font-semibold text-gray-900">Filtros</h2>
-            <button
-              onClick={() => setFiltersExpanded(!filtersExpanded)}
-              className="ml-auto text-gray-600 hover:text-gray-900 transition-all duration-300"
-            >
-              {filtersExpanded ? (
-                <Minus className="w-4 h-4 transition-transform duration-300" />
-              ) : (
-                <Plus className="w-4 h-4 transition-transform duration-300" />
-              )}
-            </button>
-          </div>
+          {!searchQuery && (
+            <div className="flex items-center gap-2 w-full max-w-[290px]">
+              <h2 className="text-lg font-semibold text-gray-900">Filtros</h2>
+              <button
+                onClick={() => setFiltersExpanded(!filtersExpanded)}
+                className="ml-auto text-gray-600 hover:text-gray-900 transition-all duration-300"
+              >
+                {filtersExpanded ? (
+                  <Minus className="w-4 h-4 transition-transform duration-300" />
+                ) : (
+                  <Plus className="w-4 h-4 transition-transform duration-300" />
+                )}
+              </button>
+            </div>
+          )}
+          {searchQuery && <div></div>}
           
-          {/* Sort Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setShowSortMenu(!showSortMenu)}
-              className="flex items-center gap-2 text-sm text-black hover:text-gray-900 transition-colors"
-            >
-              <span>
-                Ordenar por: {sortOptions.find(opt => opt.value === sortBy)?.label}
-              </span>
-              <ChevronDown className={`w-4 h-4 text-gray-600 transition-transform ${showSortMenu ? "rotate-180" : ""}`} />
-            </button>
+          <div className="flex items-center gap-4">
+            {/* Items por página */}
+            <div className="relative">
+              <button
+                onClick={() => setShowPerPageMenu(!showPerPageMenu)}
+                className="flex items-center gap-2 text-sm text-black hover:text-gray-900 transition-colors"
+              >
+                <span>
+                  Mostrar: {perPage} por página
+                </span>
+                <ChevronDown className={`w-4 h-4 text-gray-600 transition-transform ${showPerPageMenu ? "rotate-180" : ""}`} />
+              </button>
+              
+              {showPerPageMenu && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setShowPerPageMenu(false)}
+                  />
+                  <div className="absolute top-full right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-20 min-w-[180px]">
+                    {[20, 50, 100].map((value) => (
+                      <button
+                        key={value}
+                        onClick={() => {
+                          setPerPage(value);
+                          setShowPerPageMenu(false);
+                          setPage(1);
+                        }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                          perPage === value ? "bg-gray-50 font-medium text-[#00C1A7]" : "text-gray-700"
+                        }`}
+                      >
+                        {value} por página
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
             
-            {showSortMenu && (
-              <>
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setShowSortMenu(false)}
-                />
-                <div className="absolute top-full right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-20 min-w-[200px]">
-                  {sortOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => {
-                        setSortBy(option.value);
-                        setShowSortMenu(false);
-                        setPage(1);
-                      }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                        sortBy === option.value ? "bg-gray-50 font-medium text-[#00C1A7]" : "text-gray-700"
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
+            {/* Sort Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowSortMenu(!showSortMenu)}
+                className="flex items-center gap-2 text-sm text-black hover:text-gray-900 transition-colors"
+              >
+                <span>
+                  Ordenar por: {sortOptions.find(opt => opt.value === sortBy)?.label}
+                </span>
+                <ChevronDown className={`w-4 h-4 text-gray-600 transition-transform ${showSortMenu ? "rotate-180" : ""}`} />
+              </button>
+              
+              {showSortMenu && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setShowSortMenu(false)}
+                  />
+                  <div className="absolute top-full right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-20 min-w-[200px]">
+                    {sortOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setSortBy(option.value);
+                          setShowSortMenu(false);
+                          setPage(1);
+                        }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                          sortBy === option.value ? "bg-gray-50 font-medium text-[#00C1A7]" : "text-gray-700"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
           </div>
         </div>
         
         {/* Main Content Grid: Sidebar + Products */}
-        <div className="grid grid-cols-12 gap-6">
-          {/* Sidebar de Filtros - 3 columnas, oculto cuando está cerrado */}
-          {filtersExpanded && (
+        <div className={`grid grid-cols-12 gap-6 ${searchQuery ? 'lg:grid-cols-12' : ''}`}>
+          {/* Sidebar de Filtros - 3 columnas, oculto cuando está cerrado o hay búsqueda */}
+          {filtersExpanded && !searchQuery && (
             <aside className="col-span-12 lg:col-span-3 transition-all duration-300 ease-in-out">
               <div className="bg-white rounded-[10px] border border-gray-200 p-6 sticky top-[210px] max-h-[calc(100vh-12rem)] overflow-y-auto custom-scrollbar">
                 {/* Contenido de filtros - alineado con el grid de productos (después del mb-6 del dropdown) */}
