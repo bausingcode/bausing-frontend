@@ -168,20 +168,6 @@ export default function TrackingPage() {
               <span className="font-medium">{trackingData.status}</span>
             </div>
           </div>
-
-          {/* Barra de Progreso */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Progreso del envío</span>
-              <span className="text-sm font-medium text-gray-600">{trackingData.progress}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-              <div
-                className={`h-full ${statusStyle.iconBg} transition-all duration-500 ease-out`}
-                style={{ width: `${trackingData.progress}%` }}
-              />
-            </div>
-          </div>
         </div>
 
         {/* Información de Transporte */}
