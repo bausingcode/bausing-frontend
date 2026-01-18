@@ -1349,29 +1349,53 @@ export default function UsuarioPage() {
                           <div className="border border-gray-200 rounded-[14px] p-6">
                             <h2 className="text-lg font-semibold text-gray-900 mb-4">Estado del pedido</h2>
                             <div className="space-y-3">
-                              <div className="flex items-center gap-3">
-                                <div className={`w-3 h-3 rounded-full ${
-                                  selectedOrder.status === "finalizado" || selectedOrder.status === "finalized" ? "bg-green-600" :
-                                  selectedOrder.status === "en cobranza" || selectedOrder.status === "pending_payment" ? "bg-purple-500" :
-                                  selectedOrder.status === "en reparto" || selectedOrder.status === "in_transit" ? "bg-blue-500" :
-                                  selectedOrder.status === "pendiente de entrega" || selectedOrder.status === "pending_delivery" ? "bg-amber-500" :
-                                  "bg-gray-400"
-                                }`} />
-                                <span className="text-sm font-semibold text-gray-900">
-                                  {(selectedOrder.status === "pendiente de entrega" || selectedOrder.status === "pending_delivery") && "Pendiente de entrega"}
-                                  {(selectedOrder.status === "en reparto" || selectedOrder.status === "in_transit") && "En reparto"}
-                                  {(selectedOrder.status === "en cobranza" || selectedOrder.status === "pending_payment") && "En cobranza"}
-                                  {(selectedOrder.status === "finalizado" || selectedOrder.status === "finalized") && "Finalizado"}
-                                  {selectedOrder.status !== "pendiente de entrega" && selectedOrder.status !== "pending_delivery" && 
-                                   selectedOrder.status !== "en reparto" && selectedOrder.status !== "in_transit" && 
-                                   selectedOrder.status !== "en cobranza" && selectedOrder.status !== "pending_payment" &&
-                                   selectedOrder.status !== "finalizado" && selectedOrder.status !== "finalized" && selectedOrder.status}
-                                </span>
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-3 h-3 rounded-full ${
+                                    selectedOrder.status === "finalizado" || selectedOrder.status === "finalized" ? "bg-green-600" :
+                                    selectedOrder.status === "en cobranza" || selectedOrder.status === "pending_payment" ? "bg-purple-500" :
+                                    selectedOrder.status === "en reparto" || selectedOrder.status === "in_transit" ? "bg-blue-500" :
+                                    selectedOrder.status === "pendiente de entrega" || selectedOrder.status === "pending_delivery" ? "bg-amber-500" :
+                                    "bg-gray-400"
+                                  }`} />
+                                  <span className="text-sm font-semibold text-gray-900">
+                                    {(selectedOrder.status === "pendiente de entrega" || selectedOrder.status === "pending_delivery") && "Pendiente de entrega"}
+                                    {(selectedOrder.status === "en reparto" || selectedOrder.status === "in_transit") && "En reparto"}
+                                    {(selectedOrder.status === "en cobranza" || selectedOrder.status === "pending_payment") && "En cobranza"}
+                                    {(selectedOrder.status === "finalizado" || selectedOrder.status === "finalized") && "Finalizado"}
+                                    {selectedOrder.status !== "pendiente de entrega" && selectedOrder.status !== "pending_delivery" && 
+                                     selectedOrder.status !== "en reparto" && selectedOrder.status !== "in_transit" && 
+                                     selectedOrder.status !== "en cobranza" && selectedOrder.status !== "pending_payment" &&
+                                     selectedOrder.status !== "finalizado" && selectedOrder.status !== "finalized" && selectedOrder.status}
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    router.push(`/tracking?id=${selectedOrder.order_number}`);
+                                  }}
+                                  className="inline-flex items-center gap-2 bg-[#00C1A7] text-white px-4 py-2 rounded-[8px] text-sm font-semibold hover:bg-[#00a892] transition-colors"
+                                >
+                                  <Truck className="w-4 h-4" />
+                                  Ver seguimiento
+                                </button>
                               </div>
                               {selectedOrder.tracking_number && (
                                 <div className="mt-4 pt-4 border-t border-gray-200">
                                   <p className="text-sm text-gray-600 mb-2">Número de seguimiento:</p>
                                   <p className="text-sm font-semibold text-gray-900">{selectedOrder.tracking_number}</p>
+                                </div>
+                              )}
+                              {selectedOrder.tracking_url && (
+                                <div className="flex justify-end">
+                                  <a
+                                    href={selectedOrder.tracking_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-[8px] text-sm font-semibold hover:bg-gray-200 transition-colors"
+                                  >
+                                    <ExternalLink className="w-4 h-4" />
+                                    Rastrear en transportista
+                                  </a>
                                 </div>
                               )}
                             </div>
@@ -1391,22 +1415,6 @@ export default function UsuarioPage() {
                               <p className="mt-2">{selectedOrder.shipping_address.phone}</p>
                             </div>
                           </div>
-
-                          {/* Botón de tracking */}
-                          {selectedOrder.tracking_url && (
-                            <div className="border border-gray-200 rounded-[14px] p-6">
-                              <a
-                                href={selectedOrder.tracking_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 bg-[#00C1A7] text-white px-6 py-3 rounded-[10px] font-semibold hover:bg-[#00a892] transition-colors"
-                              >
-                                <Truck className="w-5 h-5" />
-                                Ver seguimiento
-                                <ExternalLink className="w-4 h-4" />
-                              </a>
-                            </div>
-                          )}
 
                           {/* Ayuda */}
                           <div className="border border-gray-200 rounded-[14px] p-6">
@@ -1543,6 +1551,18 @@ export default function UsuarioPage() {
                                     maximumFractionDigits: 2,
                                   })}
                                 </span>
+                              </div>
+                              <div className="mt-4 flex gap-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    router.push(`/tracking?id=${order.order_number}`);
+                                  }}
+                                  className="flex-1 inline-flex items-center justify-center gap-2 bg-[#00C1A7] text-white px-4 py-2 rounded-[8px] font-semibold hover:bg-[#00a892] transition-colors text-sm"
+                                >
+                                  <Truck className="w-4 h-4" />
+                                  Ver seguimiento
+                                </button>
                               </div>
                             </div>
                           ))}
