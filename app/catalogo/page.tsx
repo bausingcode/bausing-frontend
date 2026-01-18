@@ -7,6 +7,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { fetchProducts, fetchCategories, Product, Category } from "@/lib/api";
 import { ChevronDown } from "lucide-react";
+import { calculateProductPrice } from "@/utils/priceUtils";
 
 // Esta página maneja /catalogo sin slug (solo con query params como search)
 // Es básicamente la misma lógica que [...slug]/page.tsx pero sin manejo de categorías
@@ -41,6 +42,7 @@ export default function CatalogoPage() {
           page,
           per_page: perPage,
           include_images: true,
+          include_promos: true,
         };
         
         // Si hay búsqueda, agregar el parámetro de búsqueda
@@ -72,37 +74,20 @@ export default function CatalogoPage() {
     { value: "price_desc", label: "Precio: mayor a menor" },
   ];
   
-  const formatPrice = (price: number): string => {
-    return new Intl.NumberFormat("es-AR", {
-      style: "currency",
-      currency: "ARS",
-      minimumFractionDigits: 0,
-    }).format(price);
-  };
-  
   const getProductCardProps = (product: Product) => {
     const image = product.main_image || (product.images && product.images[0]?.image_url) || "/images/placeholder.png";
-    const price = product.min_price ? formatPrice(product.min_price) : "$0";
-    const originalPrice = product.max_price && product.min_price !== product.max_price 
-      ? formatPrice(product.max_price) 
-      : "";
     
-    let discount: string | undefined;
-    if (product.promos && product.promos.length > 0) {
-      const promo = product.promos[0];
-      if (promo.discount_percentage) {
-        discount = "OFERTA";
-      }
-    }
+    // Calcular precio usando función centralizada
+    const priceInfo = calculateProductPrice(product, 1);
     
     return {
       id: product.id,
       image,
       alt: product.name,
       name: product.name,
-      currentPrice: price,
-      originalPrice,
-      discount,
+      currentPrice: priceInfo.currentPrice,
+      originalPrice: priceInfo.originalPrice,
+      discount: priceInfo.discount,
     };
   };
   

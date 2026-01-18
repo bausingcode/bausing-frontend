@@ -175,9 +175,25 @@ export interface Product {
   }>;
   promos?: Array<{
     id: string;
-    name: string;
-    discount_percentage?: number;
-    discount_amount?: number;
+    title: string;
+    description?: string;
+    type: string; // 'percentage', 'fixed', '2x1', 'bundle', 'wallet_multiplier'
+    value: number;
+    extra_config?: Record<string, any>;
+    start_at: string;
+    end_at: string;
+    is_active: boolean;
+    allows_wallet: boolean;
+    created_at?: string;
+    applicability?: Array<{
+      id: string;
+      promo_id: string;
+      applies_to: string;
+      product_id?: string;
+      product_name?: string;
+      category_id?: string;
+      category_name?: string;
+    }>;
   }>;
 }
 
@@ -937,6 +953,12 @@ export interface SecuritySettings {
 
 export interface GeneralSettings {
   telefono?: string;
+  diasEstimadosEnvio?: number;
+  email?: string;
+  direccion?: string;
+  instagramUrl?: string;
+  facebookUrl?: string;
+  tiktokUrl?: string;
 }
 
 export interface AppSettings {
@@ -995,6 +1017,12 @@ export async function getAppSettings(): Promise<AppSettings> {
     },
     general: {
       telefono: settings.general?.phone || "",
+      diasEstimadosEnvio: settings.general?.estimated_shipping_days || 3,
+      email: settings.general?.email || "",
+      direccion: settings.general?.address || "",
+      instagramUrl: settings.general?.instagram_url || "",
+      facebookUrl: settings.general?.facebook_url || "",
+      tiktokUrl: settings.general?.tiktok_url || "",
     },
   };
 }
@@ -1082,6 +1110,275 @@ export async function updateSecuritySettings(security: SecuritySettings): Promis
     const error = await response.json();
     throw new Error(error.error || `Failed to update security settings: ${response.statusText}`);
   }
+}
+
+// Footer API (public)
+export interface FooterData {
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  instagram_url: string | null;
+  facebook_url: string | null;
+  tiktok_url: string | null;
+}
+
+/**
+ * Get footer data (public - no auth required)
+ */
+export async function getFooterData(): Promise<FooterData> {
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5050';
+  
+  // En servidor, llamar directamente al backend; en cliente, usar rewrite de Next.js
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/settings/public/footer`
+    : `/api/settings/public/footer`;
+  
+  const response = await fetch(url, {
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch footer data: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to fetch footer data: Invalid response");
+  }
+  
+  return data.data;
+}
+
+// Dashboard Stats API
+export interface DashboardStats {
+  ventas_hoy: number;
+  ventas_ayer: number;
+  cambio_hoy_pct: number;
+  ventas_semana: number;
+  ventas_semana_anterior: number;
+  cambio_semana_pct: number;
+  ventas_mes: number;
+  ventas_mes_anterior: number;
+  cambio_mes_pct: number;
+  total_pedidos: number;
+  pedidos_mes: number;
+  pedidos_mes_anterior: number;
+  cambio_pedidos: number;
+  estados: {
+    pagados: number;
+    pendientes: number;
+    en_reparto: number;
+    entregados: number;
+  };
+}
+
+/**
+ * Get dashboard statistics (optimized - calculated in SQL)
+ */
+export async function getDashboardStats(cookieHeader?: string | null): Promise<DashboardStats> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/dashboard/stats`
+    : `/api/admin/dashboard/stats`;
+  
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+  
+  if (typeof window === "undefined") {
+    const token = cookieHeader ? getAdminTokenServer(cookieHeader) : null;
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  } else {
+    const authHeaders = getAuthHeaders();
+    Object.assign(headers, authHeaders);
+  }
+  
+  const response = await fetch(url, {
+    headers,
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to fetch dashboard stats: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to fetch dashboard stats: Invalid response");
+  }
+  
+  return data.data;
+}
+
+// Logística API
+export interface LogisticaPedido {
+  id: number;
+  numero_comprobante: string;
+  fecha_detalle: string | null;
+  fecha_entrega: string | null;
+  cliente_nombre: string;
+  cliente_direccion: string;
+  localidad: string;
+  zona_id: number;
+  estado: string;
+  total_venta: number;
+  venta_cancelada: number;
+}
+
+export interface LogisticaPedidosResponse {
+  ventas: LogisticaPedido[];
+  total: number;
+}
+
+/**
+ * Get pedidos for logística (optimized - only necessary fields)
+ */
+export async function getLogisticaPedidos(params?: {
+  search?: string;
+  solo_retrasos?: boolean;
+  dias_estimados?: number;
+}, cookieHeader?: string | null): Promise<LogisticaPedidosResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.search) queryParams.append('search', params.search);
+  if (params?.solo_retrasos) queryParams.append('solo_retrasos', 'true');
+  if (params?.dias_estimados) queryParams.append('dias_estimados', params.dias_estimados.toString());
+  
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/logistica/pedidos?${queryParams.toString()}`
+    : `/api/admin/logistica/pedidos?${queryParams.toString()}`;
+  
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+  
+  if (typeof window === "undefined") {
+    const token = cookieHeader ? getAdminTokenServer(cookieHeader) : null;
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  } else {
+    const authHeaders = getAuthHeaders();
+    Object.assign(headers, authHeaders);
+  }
+  
+  const response = await fetch(url, {
+    headers,
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to fetch logistica pedidos: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to fetch logistica pedidos: Invalid response");
+  }
+  
+  return data.data;
+}
+
+// Dashboard Alerts API
+export interface Alert {
+  text: string;
+  count: number;
+  color: 'red' | 'yellow' | 'blue';
+  url?: string | null;
+}
+
+export interface DashboardAlertsResponse {
+  alerts: Alert[];
+  total: number;
+}
+
+/**
+ * Get dashboard alerts (retrasos, reclamos, anomalías)
+ */
+export async function getDashboardAlerts(cookieHeader?: string | null): Promise<DashboardAlertsResponse> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/dashboard/alerts`
+    : `/api/admin/dashboard/alerts`;
+  
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+  
+  if (typeof window === "undefined") {
+    const token = cookieHeader ? getAdminTokenServer(cookieHeader) : null;
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  } else {
+    const authHeaders = getAuthHeaders();
+    Object.assign(headers, authHeaders);
+  }
+  
+  const response = await fetch(url, {
+    headers,
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to fetch dashboard alerts: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to fetch dashboard alerts: Invalid response");
+  }
+  
+  return data.data;
+}
+
+// Dashboard Wallet Usage API
+export interface WalletUsageStats {
+  clientes_hoy: number;
+  saldo_utilizado: number;
+  saldo_pendiente: number;
+}
+
+/**
+ * Get wallet usage statistics
+ */
+export async function getWalletUsageStats(cookieHeader?: string | null): Promise<WalletUsageStats> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/dashboard/wallet-usage`
+    : `/api/admin/dashboard/wallet-usage`;
+  
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+  
+  if (typeof window === "undefined") {
+    const token = cookieHeader ? getAdminTokenServer(cookieHeader) : null;
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  } else {
+    const authHeaders = getAuthHeaders();
+    Object.assign(headers, authHeaders);
+  }
+  
+  const response = await fetch(url, {
+    headers,
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to fetch wallet usage stats: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to fetch wallet usage stats: Invalid response");
+  }
+  
+  return data.data;
 }
 
 // Hero Images API
@@ -2673,5 +2970,207 @@ export async function getUserOrder(orderId: string): Promise<Order | null> {
   } catch (error) {
     console.error("Error fetching order:", error);
     return null;
+  }
+}
+
+// Promos API
+export interface Promo {
+  id: string;
+  title: string;
+  description?: string;
+  type: string; // 'percentage', 'fixed', '2x1', 'bundle', 'wallet_multiplier'
+  value: number;
+  extra_config?: Record<string, any>;
+  start_at: string;
+  end_at: string;
+  is_active: boolean;
+  allows_wallet: boolean;
+  created_at?: string;
+  applicability?: Array<{
+    id: string;
+    promo_id: string;
+    applies_to: string; // 'product', 'category', 'variant', 'all'
+    product_id?: string;
+    product_name?: string;
+    category_id?: string;
+    category_name?: string;
+  }>;
+}
+
+/**
+ * Fetch all promos
+ */
+export async function fetchPromos(params?: {
+  is_active?: boolean;
+  valid_only?: boolean;
+  include_applicability?: boolean;
+}): Promise<Promo[]> {
+  try {
+    const queryParams = new URLSearchParams();
+    if (params?.is_active !== undefined) queryParams.append('is_active', params.is_active.toString());
+    if (params?.valid_only !== undefined) queryParams.append('valid_only', params.valid_only.toString());
+    if (params?.include_applicability !== undefined) queryParams.append('include_applicability', params.include_applicability.toString());
+    
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/promos?${queryParams.toString()}`
+      : `/api/promos?${queryParams.toString()}`;
+    
+    const headers = typeof window === "undefined"
+      ? getAuthHeadersServer()
+      : getAuthHeaders();
+    
+    const response = await fetch(url, { headers, cache: "no-store" });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch promos: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || "Failed to fetch promos");
+    }
+    
+    return data.data || [];
+  } catch (error) {
+    console.error("Error fetching promos:", error);
+    return [];
+  }
+}
+
+/**
+ * Create a new promo
+ */
+export async function createPromo(promoData: {
+  title: string;
+  description?: string;
+  type: string; // 'percentage', 'fixed', '2x1', 'bundle', 'wallet_multiplier'
+  value: number;
+  extra_config?: Record<string, any>;
+  start_at: string; // ISO date string
+  end_at: string; // ISO date string
+  is_active?: boolean;
+  allows_wallet?: boolean;
+  applicability?: Array<{
+    applies_to: string; // 'all', 'product', 'category'
+    product_id?: string;
+    category_id?: string;
+  }>;
+}): Promise<Promo> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/promos`
+      : `/api/promos`;
+    
+    const headers = typeof window === "undefined"
+      ? getAuthHeadersServer()
+      : getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(promoData),
+      cache: "no-store",
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Failed to create promo: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || "Failed to create promo");
+    }
+    
+    return data.data;
+  } catch (error) {
+    console.error("Error creating promo:", error);
+    throw error;
+  }
+}
+
+/**
+ * Update an existing promo
+ */
+export async function updatePromo(promoId: string, promoData: {
+  title?: string;
+  description?: string;
+  type?: string;
+  value?: number;
+  extra_config?: Record<string, any>;
+  start_at?: string;
+  end_at?: string;
+  is_active?: boolean;
+  allows_wallet?: boolean;
+  applicability?: Array<{
+    applies_to: string;
+    product_id?: string;
+    category_id?: string;
+  }>;
+}): Promise<Promo> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/promos/${promoId}`
+      : `/api/promos/${promoId}`;
+    
+    const headers = typeof window === "undefined"
+      ? getAuthHeadersServer()
+      : getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(promoData),
+      cache: "no-store",
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Failed to update promo: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || "Failed to update promo");
+    }
+    
+    return data.data;
+  } catch (error) {
+    console.error("Error updating promo:", error);
+    throw error;
+  }
+}
+
+/**
+ * Delete a promo
+ */
+export async function deletePromo(promoId: string): Promise<void> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/promos/${promoId}`
+      : `/api/promos/${promoId}`;
+    
+    const headers = typeof window === "undefined"
+      ? getAuthHeadersServer()
+      : getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers,
+      cache: "no-store",
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Failed to delete promo: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || "Failed to delete promo");
+    }
+  } catch (error) {
+    console.error("Error deleting promo:", error);
+    throw error;
   }
 }

@@ -47,6 +47,12 @@ export default function Configuracion() {
 
   const [general, setGeneral] = useState({
     telefono: "",
+    diasEstimadosEnvio: "",
+    email: "",
+    direccion: "",
+    instagramUrl: "",
+    facebookUrl: "",
+    tiktokUrl: "",
   });
 
   // Estados originales para comparar cambios
@@ -92,6 +98,12 @@ export default function Configuracion() {
       };
       const newGeneral = {
         telefono: settings.general?.telefono || "",
+        diasEstimadosEnvio: settings.general?.diasEstimadosEnvio !== undefined ? String(settings.general.diasEstimadosEnvio) : "3",
+        email: settings.general?.email || "",
+        direccion: settings.general?.direccion || "",
+        instagramUrl: settings.general?.instagramUrl || "",
+        facebookUrl: settings.general?.facebookUrl || "",
+        tiktokUrl: settings.general?.tiktokUrl || "",
       };
 
       // Establecer valores actuales y originales (son iguales al cargar)
@@ -172,11 +184,23 @@ export default function Configuracion() {
       }
       walletData.permitirAcumulacion = walletConfig.permitirAcumulacion;
 
+      // Preparar datos de general con conversión numérica
+      const generalData: any = {};
+      generalData.telefono = general.telefono;
+      generalData.email = general.email;
+      generalData.direccion = general.direccion;
+      generalData.instagramUrl = general.instagramUrl;
+      generalData.facebookUrl = general.facebookUrl;
+      generalData.tiktokUrl = general.tiktokUrl;
+      if (general.diasEstimadosEnvio && !isNaN(parseFloat(general.diasEstimadosEnvio))) {
+        generalData.diasEstimadosEnvio = parseFloat(general.diasEstimadosEnvio);
+      }
+
       // Guardar cada sección
       await updateWalletSettings(walletData);
       await updateMessageTemplates(mensajes);
       await updateNotificationSettings(notificaciones);
-      await updateGeneralSettings(general);
+      await updateGeneralSettings(generalData);
 
       // Actualizar valores originales después de guardar
       setOriginalWalletConfig(walletConfig);
@@ -356,6 +380,112 @@ export default function Configuracion() {
               />
               <p className="text-sm text-gray-500 mt-1">
                 Número de teléfono que se mostrará a los clientes para contacto
+              </p>
+            </div>
+
+            {/* Días estimados de envío */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Días estimados para envío de pedidos
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={general.diasEstimadosEnvio}
+                  onChange={(e) => {
+                    const validated = handleNumberChange(e.target.value, 1);
+                    setGeneral({ ...general, diasEstimadosEnvio: validated });
+                  }}
+                  className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                />
+                <span className="text-gray-600">días</span>
+              </div>
+              <p className="text-sm text-gray-500 mt-1">
+                Cantidad de días estimados para la entrega de pedidos (usado en el panel de logística)
+              </p>
+            </div>
+
+            {/* Email de contacto */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email de contacto
+              </label>
+              <input
+                type="email"
+                value={general.email}
+                onChange={(e) => setGeneral({ ...general, email: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                placeholder="Ej: hola@bausing.com"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Email que se mostrará en el footer del sitio
+              </p>
+            </div>
+
+            {/* Dirección */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Dirección física
+              </label>
+              <input
+                type="text"
+                value={general.direccion}
+                onChange={(e) => setGeneral({ ...general, direccion: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                placeholder="Ej: Av. Corrientes 1234, Córdoba, Argentina"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Dirección que se mostrará en el footer del sitio
+              </p>
+            </div>
+
+            {/* Redes Sociales */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-4">
+                Redes Sociales
+              </label>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1.5">
+                    Instagram URL
+                  </label>
+                  <input
+                    type="url"
+                    value={general.instagramUrl}
+                    onChange={(e) => setGeneral({ ...general, instagramUrl: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                    placeholder="https://instagram.com/bausing"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1.5">
+                    Facebook URL
+                  </label>
+                  <input
+                    type="url"
+                    value={general.facebookUrl}
+                    onChange={(e) => setGeneral({ ...general, facebookUrl: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                    placeholder="https://facebook.com/bausing"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1.5">
+                    TikTok URL
+                  </label>
+                  <input
+                    type="url"
+                    value={general.tiktokUrl}
+                    onChange={(e) => setGeneral({ ...general, tiktokUrl: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                    placeholder="https://tiktok.com/@bausing"
+                  />
+                </div>
+              </div>
+              <p className="text-sm text-gray-500 mt-2">
+                URLs de las redes sociales que se mostrarán en el footer
               </p>
             </div>
           </div>

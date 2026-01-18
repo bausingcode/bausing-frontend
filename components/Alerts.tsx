@@ -1,9 +1,11 @@
-import { AlertTriangle } from "lucide-react";
+"use client";
 
-interface Alert {
-  text: string;
-  count: number;
-  color: "red" | "yellow" | "blue";
+import { AlertTriangle, ArrowRight } from "lucide-react";
+import { Alert } from "@/lib/api";
+import { useRouter } from "next/navigation";
+
+interface AlertsProps {
+  alerts: Alert[];
 }
 
 const colorClasses = {
@@ -27,24 +29,30 @@ const colorClasses = {
   },
 };
 
-export default function Alerts() {
-  const alerts: Alert[] = [
-    {
-      text: "3 retrasos en entregas",
-      count: 3,
-      color: "red",
-    },
-    {
-      text: "7 reclamos abiertos pendientes",
-      count: 7,
-      color: "yellow",
-    },
-    {
-      text: "2 movimientos inusuales en billetera",
-      count: 2,
-      color: "blue",
-    },
-  ];
+export default function Alerts({ alerts }: AlertsProps) {
+  const router = useRouter();
+
+  if (!alerts || alerts.length === 0) {
+    return (
+      <div className="bg-white p-6 border border-gray-200" style={{ borderRadius: '14px' }}>
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center">
+            <AlertTriangle className="w-4 h-4 text-orange-600" />
+          </div>
+          <h2 className="text-md font-normal" style={{ color: '#484848' }}>
+            Alertas Importantes
+          </h2>
+        </div>
+        <div className="flex flex-col items-center justify-center py-8">
+          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+            <AlertTriangle className="w-8 h-8 text-gray-400" />
+          </div>
+          <p className="text-sm font-medium text-gray-900 mb-1">No hay alertas</p>
+          <p className="text-xs text-gray-500 text-center">Todo está en orden en este momento</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white p-6 border border-gray-200" style={{ borderRadius: '14px' }}>
@@ -62,14 +70,33 @@ export default function Alerts() {
           return (
             <div
               key={index}
-              className={`flex justify-between items-center ${colors.bg} ${colors.border} rounded-[10px] text-sm px-4 py-3`}
+              className={`flex items-center justify-between gap-3 ${colors.bg} ${colors.border} rounded-[10px] text-sm px-4 py-3`}
             >
-              <span className={colors.text}>{alert.text}</span>
-              <span
-                className={`px-3 py-1 rounded-[10px] ${colors.badge} text-sm font-medium`}
-              >
-                {alert.count}
-              </span>
+              <div className="flex items-center gap-3 flex-1">
+                <div 
+                  className="w-2 h-2 rounded-full flex-shrink-0" 
+                  style={{ 
+                    backgroundColor: alert.color === 'red' ? '#dc2626' : 
+                                    alert.color === 'yellow' ? '#ca8a04' : '#2563eb' 
+                  }}
+                ></div>
+                <span className={colors.text}>{alert.text}</span>
+              </div>
+              {alert.url && (
+                <button
+                  onClick={() => router.push(alert.url!)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-[6px] transition-colors flex items-center gap-1.5 flex-shrink-0 ${
+                    alert.color === 'red' 
+                      ? 'bg-red-600 text-white hover:bg-red-700'
+                      : alert.color === 'yellow'
+                      ? 'bg-yellow-600 text-white hover:bg-yellow-700'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  Ir a ver
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              )}
             </div>
           );
         })}
@@ -77,4 +104,3 @@ export default function Alerts() {
     </div>
   );
 }
-

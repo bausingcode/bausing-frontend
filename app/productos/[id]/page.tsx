@@ -10,6 +10,7 @@ import ProductCard from "@/components/ProductCard";
 import { useCart } from "@/contexts/CartContext";
 import { fetchProductById, Product as ApiProduct, fetchProducts, fetchProductCombos, ProductCombo } from "@/lib/api";
 import wsrvLoader from "@/lib/wsrvLoader";
+import { calculateProductPrice, formatPrice } from "@/utils/priceUtils";
 
 interface ProductImage {
   id: string;
@@ -133,30 +134,16 @@ export default function ProductDetailPage() {
             const shuffled = filteredProducts.sort(() => 0.5 - Math.random());
             const selected = shuffled.slice(0, 4);
             
-            const formatPrice = (price: number): string => {
-              return `$${Math.round(price).toLocaleString('es-AR')}`;
-            };
-            
             const similarProductsFormatted: SimilarProduct[] = selected.map(p => {
-              const minPrice = p.min_price || 0;
-              const maxPrice = p.max_price || minPrice;
-              const currentPrice = formatPrice(minPrice);
-              const originalPrice = maxPrice > minPrice ? formatPrice(maxPrice) : undefined;
-              
-              let discount: string | undefined;
-              if (p.promos && p.promos.length > 0) {
-                const promo = p.promos[0];
-                if (promo.discount_percentage) {
-                  discount = "OFERTA";
-                }
-              }
+              // Calcular precio usando función centralizada
+              const priceInfo = calculateProductPrice(p, 1);
               
               return {
                 id: p.id,
                 name: p.name,
-                currentPrice,
-                originalPrice,
-                discount,
+                currentPrice: priceInfo.currentPrice,
+                originalPrice: priceInfo.originalPrice,
+                discount: priceInfo.discount,
                 image: p.main_image || (p.images && p.images.length > 0 ? p.images[0].image_url : "") || "",
               };
             });
@@ -176,23 +163,8 @@ export default function ProductDetailPage() {
         }
 
         // Transformar datos del API al formato del componente
-        const formatPrice = (price: number): string => {
-          return `$${Math.round(price).toLocaleString('es-AR')}`;
-        };
-
-        const minPrice = apiProduct.min_price || 0;
-        const maxPrice = apiProduct.max_price || minPrice;
-        const currentPrice = formatPrice(minPrice);
-        const originalPrice = maxPrice > minPrice ? formatPrice(maxPrice) : undefined;
-        
-        // Calcular descuento si hay promoción
-        let discount: string | undefined;
-        if (apiProduct.promos && apiProduct.promos.length > 0) {
-          const promo = apiProduct.promos[0];
-          if (promo.discount_percentage) {
-            discount = "OFERTA";
-          }
-        }
+        // Calcular precio usando función centralizada
+        const priceInfo = calculateProductPrice(apiProduct, 1);
 
         // Transformar imágenes
         const images: ProductImage[] = apiProduct.images?.map((img) => ({
@@ -220,9 +192,9 @@ export default function ProductDetailPage() {
           id: apiProduct.id,
           name: apiProduct.name,
           description: apiProduct.description || "",
-          currentPrice,
-          originalPrice,
-          discount,
+          currentPrice: priceInfo.currentPrice,
+          originalPrice: priceInfo.originalPrice,
+          discount: priceInfo.discount,
           images: images.length > 0 ? images : [],
           variants: variants.length > 0 ? variants : [],
           // Información técnica desde el API

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { ArrowRight, Instagram, Facebook } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Instagram, Facebook } from "lucide-react";
+import { getFooterData } from "@/lib/api";
 
 // Icono de TikTok
 const TikTok = ({ className }: { className?: string }) => (
@@ -16,11 +17,50 @@ const TikTok = ({ className }: { className?: string }) => (
 );
 
 export default function Footer() {
-  const [currentYear, setCurrentYear] = useState<number>(2024);
+  const currentYear = new Date().getFullYear();
+  
+  const [footerData, setFooterData] = useState<{
+    phone: string | null;
+    email: string | null;
+    address: string | null;
+    instagram_url: string | null;
+    facebook_url: string | null;
+    tiktok_url: string | null;
+  }>({
+    phone: "+54 9 11 4049-0344",
+    email: "hola@bausing.com",
+    address: "Av. Corrientes 1234, Córdoba, Argentina",
+    instagram_url: "#",
+    facebook_url: "#",
+    tiktok_url: "#",
+  });
 
   useEffect(() => {
-    setCurrentYear(new Date().getFullYear());
+    const loadFooterData = async () => {
+      try {
+        const data = await getFooterData();
+        setFooterData({
+          phone: data.phone || "+54 9 11 4049-0344",
+          email: data.email || "hola@bausing.com",
+          address: data.address || "Av. Corrientes 1234, Córdoba, Argentina",
+          instagram_url: data.instagram_url || "#",
+          facebook_url: data.facebook_url || "#",
+          tiktok_url: data.tiktok_url || "#",
+        });
+      } catch (error) {
+        console.error("Error loading footer data:", error);
+        // Usar valores por defecto ya establecidos
+      }
+    };
+    loadFooterData();
   }, []);
+
+  const phone = footerData.phone || "+54 9 11 4049-0344";
+  const email = footerData.email || "hola@bausing.com";
+  const address = footerData.address || "Av. Corrientes 1234, Córdoba, Argentina";
+  const instagramUrl = footerData.instagram_url || "#";
+  const facebookUrl = footerData.facebook_url || "#";
+  const tiktokUrl = footerData.tiktok_url || "#";
 
   return (
     <footer className="bg-[#FAFAFA] text-gray-800" style={{ fontFamily: 'DM Sans, sans-serif' }}>
@@ -54,9 +94,15 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-gray-900 mb-4 capitalize">Contacto</h4>
             <ul className="space-y-1.5 text-sm text-gray-700">
-              <li>+54 9 11 4049-0344</li>
-              <li><a href="mailto:hola@bausing.com" className="hover:text-gray-900 transition-colors">hola@bausing.com</a></li>
-              <li>Av. Corrientes 1234, Córdoba, Argentina</li>
+              {phone && <li>{phone}</li>}
+              {email && (
+                <li>
+                  <a href={`mailto:${email}`} className="hover:text-gray-900 transition-colors">
+                    {email}
+                  </a>
+                </li>
+              )}
+              {address && <li>{address}</li>}
             </ul>
           </div>
 
@@ -66,15 +112,39 @@ export default function Footer() {
             
             {/* Social Media Icons */}
             <div className="flex gap-3">
-              <a href="#" className="w-10 h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors">
-                <Instagram className="w-5 h-5" />
-              </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors">
-                <Facebook className="w-5 h-5" />
-              </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors">
-                <TikTok className="w-5 h-5" />
-              </a>
+              {instagramUrl && (
+                <a 
+                  href={instagramUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="w-10 h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors"
+                  aria-label="Instagram"
+                >
+                  <Instagram className="w-5 h-5" />
+                </a>
+              )}
+              {facebookUrl && (
+                <a 
+                  href={facebookUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="w-10 h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors"
+                  aria-label="Facebook"
+                >
+                  <Facebook className="w-5 h-5" />
+                </a>
+              )}
+              {tiktokUrl && (
+                <a 
+                  href={tiktokUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="w-10 h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors"
+                  aria-label="TikTok"
+                >
+                  <TikTok className="w-5 h-5" />
+                </a>
+              )}
             </div>
           </div>
         </div>

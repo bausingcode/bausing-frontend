@@ -207,15 +207,15 @@ export default function Sidebar() {
                 >
                   Promos (X)
                 </NavLink>
-              </li>
-              <li key="envios">
+              </li> */}
+              <li key="logistica">
                 <NavLink
-                  href="/admin/envios"
+                  href="/admin/logistica"
                   icon={<Truck className="w-5 h-5" />}
                 >
-                  Logística (X)
+                  Logística
                 </NavLink>
-              </li> */}
+              </li>
               {/* <li key="reportes">
                 <NavLink
                   href="/admin/reportes"
