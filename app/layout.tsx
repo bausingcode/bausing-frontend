@@ -4,6 +4,9 @@ import "./globals.css";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { LocalityProvider } from "@/contexts/LocalityContext";
+import { HomepageDistributionProvider } from "@/contexts/HomepageDistributionContext";
+import LocalityDebugBar from "@/components/LocalityDebugBar";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -26,10 +29,15 @@ export default function RootLayout({
     <html lang="en" className={`${dmSans.variable} bg-white`}>
       <body className={`${dmSans.className} bg-white`}>
         <AuthProvider>
-          <CartProvider>
-            {children}
-            <WhatsAppButton />
-          </CartProvider>
+          <LocalityProvider>
+            <HomepageDistributionProvider>
+              <CartProvider>
+                {children}
+                <WhatsAppButton />
+                <LocalityDebugBar />
+              </CartProvider>
+            </HomepageDistributionProvider>
+          </LocalityProvider>
         </AuthProvider>
       </body>
     </html>

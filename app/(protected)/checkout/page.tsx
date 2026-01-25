@@ -827,7 +827,7 @@ export default function CheckoutPage() {
                     <Wallet className="w-5 h-5 text-gray-600" />
                     <div className="flex-1">
                       <span className="font-medium text-gray-900">Efectivo</span>
-                      <p className="text-xs text-gray-500 mt-0.5">Abonarás al recibir</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Abonás al recibir</p>
                     </div>
                     {paymentMethod === "cash" && (
                       <Check className="w-5 h-5 text-[#00C1A7] ml-auto" />
@@ -871,7 +871,7 @@ export default function CheckoutPage() {
                     <ArrowRightLeft className="w-5 h-5 text-gray-600" />
                     <div className="flex-1">
                       <span className="font-medium text-gray-900">Transferencia</span>
-                      <p className="text-xs text-gray-500 mt-0.5">Abonarás al recibir</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Abonás al recibir</p>
                     </div>
                     {paymentMethod === "transfer" && (
                       <Check className="w-5 h-5 text-[#00C1A7] ml-auto" />

@@ -41,6 +41,7 @@ import {
 import Cart from "./Cart";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
+import { fetchCategories, Category } from "@/lib/api";
 
 // Iconos personalizados
 const PillowIcon = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
@@ -614,7 +615,7 @@ const categoriesData: Record<string, CategoryData> = {
     imageUrl: "/images/home/4.png",
     imageAlt: "Colchón"
   },
-  "Sommiers": {
+  "Sommier y colchón": {
     name: "Sommiers",
     columns: {
       left: [
@@ -649,7 +650,7 @@ const categoriesData: Record<string, CategoryData> = {
     imageUrl: "/images/home/4.png",
     imageAlt: "Sommier"
   },
-  "Accesorios": {
+  "Almohadas y accesorios": {
     name: "Accesorios de descanso",
     columns: {
       left: [
@@ -716,7 +717,7 @@ const categoriesData: Record<string, CategoryData> = {
     imageUrl: "/images/home/4.png",
     imageAlt: "Electrodomésticos"
   },
-  "Muebles de cocina": {
+  "Otros": {
     name: "Muebles de cocina",
     columns: {
       left: [
@@ -751,6 +752,7 @@ export default function Navbar() {
   const [closingCategory, setClosingCategory] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [apiCategories, setApiCategories] = useState<Category[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -760,6 +762,36 @@ export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
   const isFavoritesPage = pathname === "/favoritos";
+
+  // Cargar categorías desde la API
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const cats = await fetchCategories(true); // include_options = true
+        setApiCategories(cats);
+      } catch (error) {
+        console.error("Error loading categories:", error);
+      }
+    };
+    loadCategories();
+  }, []);
+
+  // Obtener categorías principales (sin parent_id) ordenadas por el campo 'order' o usar las hardcoded si no hay API
+  const mainCategoriesToUse = apiCategories.length > 0 
+    ? apiCategories
+        .filter(cat => !cat.parent_id)
+        .sort((a, b) => {
+          // Ordenar por el campo 'order' (menor primero), si no existe usar 0
+          const orderA = a.order ?? 0;
+          const orderB = b.order ?? 0;
+          if (orderA !== orderB) {
+            return orderA - orderB;
+          }
+          // Si tienen el mismo order, ordenar alfabéticamente por nombre
+          return a.name.localeCompare(b.name);
+        })
+        .map(cat => cat.name)
+    : mainCategories;
 
   // Escuchar evento para abrir el carrito cuando se agrega un item
   useEffect(() => {
@@ -1025,6 +1057,7 @@ export default function Navbar() {
                 </div>
               </div>
             </div>
+
           </div>
         </header>
 
@@ -1096,21 +1129,30 @@ export default function Navbar() {
         >
           <div className="container mx-auto px-4">
             <div className="flex items-center justify-center gap-8 py-3">
-              {mainCategories.map((categoryName) => {
+              {mainCategoriesToUse.map((categoryName) => {
                 const categoryData = categoriesData[categoryName];
                 const CategoryIcon = categoryData?.icon;
                 // Mapear nombre de categoría a slug
                 const categorySlug = categoryName.toLowerCase()
+                  .normalize("NFD")
+                  .replace(/[\u0300-\u036f]/g, "")
                   .replace(/\s+/g, "-")
-                  .replace("ó", "o")
-                  .replace("é", "e");
+                  .replace(/[^a-z0-9-]/g, "");
                 const categoryUrl = `/catalogo/${categorySlug}`;
+                
+                // Buscar categoría en API para obtener ID real
+                const apiCategory = apiCategories.find(c => c.name === categoryName);
                 
                 return (
                   <a 
                     key={categoryName}
                     href={categoryUrl}
                     className="flex items-center gap-2 text-black hover:text-gray-600 font-medium"
+                    onClick={(e) => {
+                      // Navegar a la categoría correcta
+                      e.preventDefault();
+                      router.push(categoryUrl);
+                    }}
                     onMouseEnter={() => {
                       // Solo bloquear si se cerró muy recientemente (menos de 150ms) Y se está saliendo
                       const timeSinceClosing = Date.now() - closingTimestampRef.current;
@@ -1245,13 +1287,142 @@ export default function Navbar() {
                           const Icon = item.icon || Package;
                           const hasSubcategories = item.subcategories && item.subcategories.length > 0;
                           
-                          const ItemWrapper = item.href ? 'a' : 'div';
-                          const itemProps = item.href ? { href: item.href } : {};
+                          // Calcular la URL de destino basada en el href original
+                          let targetUrl = `/catalogo/${categoryName.toLowerCase()
+                            .normalize("NFD")
+                            .replace(/[\u0300-\u036f]/g, "")
+                            .replace(/\s+/g, "-")
+                            .replace(/[^a-z0-9-]/g, "")}`;
+                          
+                          // Buscar la categoría principal en la API
+                          const apiCategory = apiCategories.find(c => {
+                            const catSlug = c.name.toLowerCase()
+                              .normalize("NFD")
+                              .replace(/[\u0300-\u036f]/g, "")
+                              .replace(/\s+/g, "-")
+                              .replace(/[^a-z0-9-]/g, "");
+                            const categorySlug = categoryName.toLowerCase()
+                              .normalize("NFD")
+                              .replace(/[\u0300-\u036f]/g, "")
+                              .replace(/\s+/g, "-")
+                              .replace(/[^a-z0-9-]/g, "");
+                            return catSlug === categorySlug || c.name === categoryName;
+                          });
+                          
+                          // Buscar la opción o subcategoría para este item
+                          let foundOption = null;
+                          let foundSubcategory = null;
+                          
+                          if (apiCategory) {
+                            // Primero verificar si el item es una subcategoría en sí mismo (ej: "Grandes electros", "Pequeños electros")
+                            const allSubcategories = apiCategories.filter(c => c.parent_id === apiCategory.id);
+                            foundSubcategory = allSubcategories.find(subcat => 
+                              subcat.name.toLowerCase() === item.name.toLowerCase() ||
+                              subcat.name.toLowerCase().includes(item.name.toLowerCase()) ||
+                              item.name.toLowerCase().includes(subcat.name.toLowerCase())
+                            );
+                            
+                            // Si no es una subcategoría, buscar en las opciones de las subcategorías
+                            if (!foundSubcategory) {
+                              // Normalizar el nombre del item para búsqueda más flexible
+                              const normalizedItemName = item.name.toLowerCase().trim();
+                              // Extraer números del nombre (ej: "120", "140")
+                              const numbersInName = normalizedItemName.match(/\d+/);
+                              
+                              for (const subcat of allSubcategories) {
+                                if (subcat.options) {
+                                  const option = subcat.options.find(opt => {
+                                    const optValue = opt.value.toLowerCase().trim();
+                                    // Búsqueda exacta
+                                    if (optValue === normalizedItemName) return true;
+                                    // Búsqueda por inclusión
+                                    if (optValue.includes(normalizedItemName) || normalizedItemName.includes(optValue)) return true;
+                                    // Búsqueda por número si hay números en el nombre del item
+                                    if (numbersInName) {
+                                      const numbersInOpt = optValue.match(/\d+/);
+                                      if (numbersInOpt && numbersInOpt[0] === numbersInName[0]) {
+                                        // Si ambos tienen el mismo número, probablemente es la misma opción
+                                        // Verificar que ambos mencionen "bajo mesada" o "mesada" o el número solo
+                                        if (normalizedItemName.includes('mesada') && optValue.includes('mesada')) return true;
+                                        if (normalizedItemName.includes('bajo') && optValue.includes('bajo')) return true;
+                                        // Si el item es solo el número con "cm", y la opción tiene ese número
+                                        if (normalizedItemName.includes('cm') && numbersInName[0] === numbersInOpt[0]) return true;
+                                      }
+                                    }
+                                    return false;
+                                  });
+                                  if (option) {
+                                    foundOption = option;
+                                    break;
+                                  }
+                                }
+                              }
+                            }
+                            
+                            // Si no se encuentra en subcategorías, buscar en la categoría principal
+                            if (!foundOption && !foundSubcategory && apiCategory.options) {
+                              // Normalizar el nombre del item para búsqueda más flexible
+                              const normalizedItemName = item.name.toLowerCase().trim();
+                              // Extraer números del nombre (ej: "120", "140")
+                              const numbersInName = normalizedItemName.match(/\d+/);
+                              
+                              foundOption = apiCategory.options.find(opt => {
+                                const optValue = opt.value.toLowerCase().trim();
+                                // Búsqueda exacta
+                                if (optValue === normalizedItemName) return true;
+                                // Búsqueda por inclusión
+                                if (optValue.includes(normalizedItemName) || normalizedItemName.includes(optValue)) return true;
+                                // Búsqueda por número si hay números en el nombre del item
+                                if (numbersInName) {
+                                  const numbersInOpt = optValue.match(/\d+/);
+                                  if (numbersInOpt && numbersInOpt[0] === numbersInName[0]) {
+                                    // Si ambos tienen el mismo número, probablemente es la misma opción
+                                    if (normalizedItemName.includes('mesada') && optValue.includes('mesada')) return true;
+                                    if (normalizedItemName.includes('bajo') && optValue.includes('bajo')) return true;
+                                    if (normalizedItemName.includes('cm') && numbersInName[0] === numbersInOpt[0]) return true;
+                                  }
+                                }
+                                return false;
+                              });
+                            }
+                          }
+                          
+                          // Si se encontró una opción o subcategoría, construir la URL con el filtro
+                          if (foundOption) {
+                            const categorySlug = categoryName.toLowerCase()
+                              .normalize("NFD")
+                              .replace(/[\u0300-\u036f]/g, "")
+                              .replace(/\s+/g, "-")
+                              .replace(/[^a-z0-9-]/g, "");
+                            targetUrl = `/catalogo/${categorySlug}?filter=${encodeURIComponent(foundOption.id)}`;
+                          } else if (foundSubcategory) {
+                            // Si es una subcategoría, buscar una opción que represente a toda la subcategoría
+                            // O usar el ID de la subcategoría directamente si hay una opción con el mismo nombre
+                            const categorySlug = categoryName.toLowerCase()
+                              .normalize("NFD")
+                              .replace(/[\u0300-\u036f]/g, "")
+                              .replace(/\s+/g, "-")
+                              .replace(/[^a-z0-9-]/g, "");
+                            // Intentar encontrar una opción que coincida con el nombre de la subcategoría
+                            if (foundSubcategory.options && foundSubcategory.options.length > 0) {
+                              // Si la subcategoría tiene opciones, usar la primera como representativa
+                              // O mejor, navegar a la categoría principal y dejar que el usuario filtre
+                              targetUrl = `/catalogo/${categorySlug}`;
+                            } else {
+                              targetUrl = `/catalogo/${categorySlug}`;
+                            }
+                          } else if (item.href && !hasSubcategories) {
+                            // Si tiene href y no tiene subcategorías, usar la lógica anterior
+                            const hrefParts = item.href.split('/').filter(part => part && part !== 'catalogo');
+                            if (hrefParts.length > 0) {
+                              const mainCategorySlug = hrefParts[0];
+                              targetUrl = `/catalogo/${mainCategorySlug}`;
+                            }
+                          }
 
                           return (
-                            <ItemWrapper
+                            <div
                               key={idx}
-                              {...itemProps}
                               className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all"
                               onMouseEnter={() => {
                                 if (hasSubcategories) {
@@ -1277,9 +1448,11 @@ export default function Navbar() {
                                 setHoveredSubcategory(null);
                               }}
                               onClick={(e) => {
-                                // Si no tiene subcategorías, permitir navegación normal
-                                if (!hasSubcategories && item.href) {
+                                // Si se encontró una opción, subcategoría, o tiene href sin subcategorías, navegar
+                                if (foundOption || foundSubcategory || (item.href && !hasSubcategories)) {
+                                  e.preventDefault();
                                   e.stopPropagation();
+                                  router.push(targetUrl);
                                 }
                               }}
                             >
@@ -1324,7 +1497,7 @@ export default function Navbar() {
                                   <p className="text-sm text-gray-600 mt-0.5">{item.description}</p>
                                 )}
                               </div>
-                            </ItemWrapper>
+                            </div>
                           );
                         })}
                       </div>
@@ -1371,14 +1544,77 @@ export default function Navbar() {
                               <div className="space-y-3">
                                 {activeItem.subcategories.map((subcat, subIdx) => {
                                   const SubIcon = subcat.icon;
+                                  
+                                  // Extraer la categoría principal del href si existe
+                                  let mainCategorySlug = categoryName.toLowerCase()
+                                    .normalize("NFD")
+                                    .replace(/[\u0300-\u036f]/g, "")
+                                    .replace(/\s+/g, "-")
+                                    .replace(/[^a-z0-9-]/g, "");
+                                  
+                                  if (subcat.href) {
+                                    const hrefParts = subcat.href.split('/').filter(part => part && part !== 'catalogo');
+                                    if (hrefParts.length > 0) {
+                                      mainCategorySlug = hrefParts[0];
+                                    }
+                                  }
+                                  
+                                  // Buscar la opción de categoría correspondiente en la API
+                                  const findCategoryOption = () => {
+                                    // Buscar la categoría principal en la API
+                                    const apiMainCategory = apiCategories.find(c => {
+                                      const catSlug = c.name.toLowerCase()
+                                        .normalize("NFD")
+                                        .replace(/[\u0300-\u036f]/g, "")
+                                        .replace(/\s+/g, "-")
+                                        .replace(/[^a-z0-9-]/g, "");
+                                      return catSlug === mainCategorySlug || c.name === categoryName;
+                                    });
+                                    if (!apiMainCategory) return null;
+                                    
+                                    // Primero, buscar la opción en todas las subcategorías de la categoría principal
+                                    const allSubcategories = apiCategories.filter(c => c.parent_id === apiMainCategory.id);
+                                    
+                                    // Buscar en todas las subcategorías (no solo en la que corresponde a activeItem.name)
+                                    for (const apiSubcategory of allSubcategories) {
+                                      if (apiSubcategory.options) {
+                                        const option = apiSubcategory.options.find(opt => 
+                                          opt.value.toLowerCase() === subcat.name.toLowerCase() ||
+                                          opt.value.toLowerCase().includes(subcat.name.toLowerCase()) ||
+                                          subcat.name.toLowerCase().includes(opt.value.toLowerCase())
+                                        );
+                                        if (option) return option;
+                                      }
+                                    }
+                                    
+                                    // Si no se encuentra en las subcategorías, buscar en la categoría principal
+                                    if (apiMainCategory.options) {
+                                      const option = apiMainCategory.options.find(opt => 
+                                        opt.value.toLowerCase() === subcat.name.toLowerCase() ||
+                                        opt.value.toLowerCase().includes(subcat.name.toLowerCase()) ||
+                                        subcat.name.toLowerCase().includes(opt.value.toLowerCase())
+                                      );
+                                      if (option) return option;
+                                    }
+                                    
+                                    return null;
+                                  };
+                                  
+                                  const categoryOption = findCategoryOption();
+                                  
+                                  // Construir URL con filtro si hay opción encontrada - siempre a la categoría principal
+                                  const targetUrl = categoryOption 
+                                    ? `/catalogo/${mainCategorySlug}?filter=${encodeURIComponent(categoryOption.id)}`
+                                    : `/catalogo/${mainCategorySlug}`;
+                                  
                                   return (
-                                    <a 
+                                    <div 
                                       key={subIdx}
-                                      href={subcat.href} 
                                       className="flex items-center gap-3 text-base text-gray-700 hover:text-[#00C1A7] transition-colors py-2 border-b border-gray-100 cursor-pointer"
                                       onClick={(e) => {
-                                        // Permitir navegación normal
+                                        e.preventDefault();
                                         e.stopPropagation();
+                                        router.push(targetUrl);
                                       }}
                                       onMouseDown={(e) => {
                                         // Prevenir que el menú se cierre
@@ -1389,7 +1625,7 @@ export default function Navbar() {
                                         <SubIcon className="w-5 h-5 text-[#00C1A7] flex-shrink-0" />
                                       )}
                                       <span>{subcat.name}</span>
-                                    </a>
+                                    </div>
                                   );
                                 })}
                                 <button
@@ -1407,13 +1643,134 @@ export default function Navbar() {
                             const Icon = item.icon || Package;
                             const hasSubcategories = item.subcategories && item.subcategories.length > 0;
                             
-                            const ItemWrapper = item.href ? 'a' : 'div';
-                            const itemProps = item.href ? { href: item.href } : {};
+                            // Calcular la URL de destino basada en el href original
+                            let targetUrl = `/catalogo/${categoryName.toLowerCase()
+                              .normalize("NFD")
+                              .replace(/[\u0300-\u036f]/g, "")
+                              .replace(/\s+/g, "-")
+                              .replace(/[^a-z0-9-]/g, "")}`;
+                            
+                            // Buscar la categoría principal en la API
+                            const apiCategory = apiCategories.find(c => {
+                              const catSlug = c.name.toLowerCase()
+                                .normalize("NFD")
+                                .replace(/[\u0300-\u036f]/g, "")
+                                .replace(/\s+/g, "-")
+                                .replace(/[^a-z0-9-]/g, "");
+                              const categorySlug = categoryName.toLowerCase()
+                                .normalize("NFD")
+                                .replace(/[\u0300-\u036f]/g, "")
+                                .replace(/\s+/g, "-")
+                                .replace(/[^a-z0-9-]/g, "");
+                              return catSlug === categorySlug || c.name === categoryName;
+                            });
+                            
+                            // Buscar la opción o subcategoría para este item
+                            let foundOption = null;
+                            let foundSubcategory = null;
+                            
+                            if (apiCategory) {
+                              // Primero verificar si el item es una subcategoría en sí mismo (ej: "Grandes electros", "Pequeños electros")
+                              const allSubcategories = apiCategories.filter(c => c.parent_id === apiCategory.id);
+                              foundSubcategory = allSubcategories.find(subcat => 
+                                subcat.name.toLowerCase() === item.name.toLowerCase() ||
+                                subcat.name.toLowerCase().includes(item.name.toLowerCase()) ||
+                                item.name.toLowerCase().includes(subcat.name.toLowerCase())
+                              );
+                              
+                              // Si no es una subcategoría, buscar en las opciones de las subcategorías
+                              if (!foundSubcategory) {
+                                // Normalizar el nombre del item para búsqueda más flexible
+                                const normalizedItemName = item.name.toLowerCase().trim();
+                                // Extraer números del nombre (ej: "120", "140")
+                                const numbersInName = normalizedItemName.match(/\d+/);
+                                
+                                for (const subcat of allSubcategories) {
+                                  if (subcat.options) {
+                                    const option = subcat.options.find(opt => {
+                                      const optValue = opt.value.toLowerCase().trim();
+                                      // Búsqueda exacta
+                                      if (optValue === normalizedItemName) return true;
+                                      // Búsqueda por inclusión
+                                      if (optValue.includes(normalizedItemName) || normalizedItemName.includes(optValue)) return true;
+                                      // Búsqueda por número si hay números en el nombre del item
+                                      if (numbersInName) {
+                                        const numbersInOpt = optValue.match(/\d+/);
+                                        if (numbersInOpt && numbersInOpt[0] === numbersInName[0]) {
+                                          // Si ambos tienen el mismo número, probablemente es la misma opción
+                                          // Verificar que ambos mencionen "bajo mesada" o "mesada" o el número solo
+                                          if (normalizedItemName.includes('mesada') && optValue.includes('mesada')) return true;
+                                          if (normalizedItemName.includes('bajo') && optValue.includes('bajo')) return true;
+                                          // Si el item es solo el número con "cm", y la opción tiene ese número
+                                          if (normalizedItemName.includes('cm') && numbersInName[0] === numbersInOpt[0]) return true;
+                                        }
+                                      }
+                                      return false;
+                                    });
+                                    if (option) {
+                                      foundOption = option;
+                                      break;
+                                    }
+                                  }
+                                }
+                              }
+                              
+                              // Si no se encuentra en subcategorías, buscar en la categoría principal
+                              if (!foundOption && !foundSubcategory && apiCategory.options) {
+                                // Normalizar el nombre del item para búsqueda más flexible
+                                const normalizedItemName = item.name.toLowerCase().trim();
+                                // Extraer números del nombre (ej: "120", "140")
+                                const numbersInName = normalizedItemName.match(/\d+/);
+                                
+                                foundOption = apiCategory.options.find(opt => {
+                                  const optValue = opt.value.toLowerCase().trim();
+                                  // Búsqueda exacta
+                                  if (optValue === normalizedItemName) return true;
+                                  // Búsqueda por inclusión
+                                  if (optValue.includes(normalizedItemName) || normalizedItemName.includes(optValue)) return true;
+                                  // Búsqueda por número si hay números en el nombre del item
+                                  if (numbersInName) {
+                                    const numbersInOpt = optValue.match(/\d+/);
+                                    if (numbersInOpt && numbersInOpt[0] === numbersInName[0]) {
+                                      // Si ambos tienen el mismo número, probablemente es la misma opción
+                                      if (normalizedItemName.includes('mesada') && optValue.includes('mesada')) return true;
+                                      if (normalizedItemName.includes('bajo') && optValue.includes('bajo')) return true;
+                                      if (normalizedItemName.includes('cm') && numbersInName[0] === numbersInOpt[0]) return true;
+                                    }
+                                  }
+                                  return false;
+                                });
+                              }
+                            }
+                            
+                            // Si se encontró una opción o subcategoría, construir la URL con el filtro
+                            if (foundOption) {
+                              const categorySlug = categoryName.toLowerCase()
+                                .normalize("NFD")
+                                .replace(/[\u0300-\u036f]/g, "")
+                                .replace(/\s+/g, "-")
+                                .replace(/[^a-z0-9-]/g, "");
+                              targetUrl = `/catalogo/${categorySlug}?filter=${encodeURIComponent(foundOption.id)}`;
+                            } else if (foundSubcategory) {
+                              // Si es una subcategoría, navegar a la categoría principal
+                              const categorySlug = categoryName.toLowerCase()
+                                .normalize("NFD")
+                                .replace(/[\u0300-\u036f]/g, "")
+                                .replace(/\s+/g, "-")
+                                .replace(/[^a-z0-9-]/g, "");
+                              targetUrl = `/catalogo/${categorySlug}`;
+                            } else if (item.href && !hasSubcategories) {
+                              // Si tiene href y no tiene subcategorías, usar la lógica anterior
+                              const hrefParts = item.href.split('/').filter(part => part && part !== 'catalogo');
+                              if (hrefParts.length > 0) {
+                                const mainCategorySlug = hrefParts[0];
+                                targetUrl = `/catalogo/${mainCategorySlug}`;
+                              }
+                            }
 
                             return (
-                              <ItemWrapper
+                              <div
                                 key={idx}
-                                {...itemProps}
                                 className="flex items-center gap-4 cursor-pointer group hover:bg-gray-50 p-3 rounded-lg transition-all"
                                 onMouseEnter={() => {
                                   // Cancelar cualquier cierre pendiente y resetear banderas
@@ -1458,6 +1815,14 @@ export default function Navbar() {
                                     setHoveredSubcategory(null);
                                   }
                                 }}
+                                onClick={(e) => {
+                                  // Si se encontró una opción, subcategoría, o tiene href sin subcategorías, navegar
+                                  if (foundOption || foundSubcategory || (item.href && !hasSubcategories)) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    router.push(targetUrl);
+                                  }
+                                }}
                               >
                                 {item.icon && (
                                   <div className="flex-shrink-0" style={{ width: '80px' }}>
@@ -1500,7 +1865,7 @@ export default function Navbar() {
                                     <p className="text-sm text-gray-600 mt-0.5">{item.description}</p>
                                   )}
                                 </div>
-                              </ItemWrapper>
+                              </div>
                             );
                           })
                         )}
@@ -1544,10 +1909,65 @@ export default function Navbar() {
                             <div className="space-y-3">
                               {activeItem.subcategories.map((subcat, subIdx) => {
                                 const SubIcon = subcat.icon;
+                                
+                                // Calcular la URL de destino basada en el href original
+                                let targetUrl = `/catalogo/${categoryName.toLowerCase()
+                                  .normalize("NFD")
+                                  .replace(/[\u0300-\u036f]/g, "")
+                                  .replace(/\s+/g, "-")
+                                  .replace(/[^a-z0-9-]/g, "")}`;
+                                
+                                if (subcat.href) {
+                                  // Extraer la categoría principal del href
+                                  const hrefParts = subcat.href.split('/').filter(part => part && part !== 'catalogo');
+                                  if (hrefParts.length > 0) {
+                                    const mainCategorySlug = hrefParts[0];
+                                    
+                                    // Buscar la opción en la API
+                                    const apiCategory = apiCategories.find(c => {
+                                      const catSlug = c.name.toLowerCase()
+                                        .normalize("NFD")
+                                        .replace(/[\u0300-\u036f]/g, "")
+                                        .replace(/\s+/g, "-")
+                                        .replace(/[^a-z0-9-]/g, "");
+                                      return catSlug === mainCategorySlug || c.name === categoryName;
+                                    });
+                                    
+                                    let foundOption = null;
+                                    if (apiCategory && apiCategory.options) {
+                                      foundOption = apiCategory.options.find(opt => 
+                                        opt.value.toLowerCase() === subcat.name.toLowerCase() ||
+                                        opt.value.toLowerCase().includes(subcat.name.toLowerCase()) ||
+                                        subcat.name.toLowerCase().includes(opt.value.toLowerCase())
+                                      );
+                                    }
+                                    
+                                    if (!foundOption && apiCategory) {
+                                      const subcategories = apiCategories.filter(c => c.parent_id === apiCategory.id);
+                                      for (const subcatItem of subcategories) {
+                                        if (subcatItem.options) {
+                                          const option = subcatItem.options.find(opt => 
+                                            opt.value.toLowerCase() === subcat.name.toLowerCase() ||
+                                            opt.value.toLowerCase().includes(subcat.name.toLowerCase()) ||
+                                            subcat.name.toLowerCase().includes(opt.value.toLowerCase())
+                                          );
+                                          if (option) {
+                                            foundOption = option;
+                                            break;
+                                          }
+                                        }
+                                      }
+                                    }
+                                    
+                                    targetUrl = foundOption 
+                                      ? `/catalogo/${mainCategorySlug}?filter=${encodeURIComponent(foundOption.id)}`
+                                      : `/catalogo/${mainCategorySlug}`;
+                                  }
+                                }
+                                
                                 return (
-                                  <a 
+                                  <div 
                                     key={subIdx}
-                                    href={subcat.href} 
                                     className="flex items-center gap-3 text-base text-gray-700 hover:text-[#00C1A7] transition-colors py-2 border-b border-gray-100 cursor-pointer relative z-10"
                                     onClick={(e) => {
                                       // Cancelar cualquier cierre pendiente
@@ -1555,8 +1975,9 @@ export default function Navbar() {
                                         clearTimeout(closeTimeoutRef.current);
                                         closeTimeoutRef.current = null;
                                       }
-                                      // Permitir navegación normal
+                                      e.preventDefault();
                                       e.stopPropagation();
+                                      router.push(targetUrl);
                                     }}
                                     onMouseDown={(e) => {
                                       // Cancelar cualquier cierre pendiente
@@ -1583,7 +2004,7 @@ export default function Navbar() {
                                       <SubIcon className="w-5 h-5 text-[#00C1A7] flex-shrink-0" />
                                     )}
                                     <span>{subcat.name}</span>
-                                  </a>
+                                  </div>
                                 );
                               })}
                               <button
@@ -1733,19 +2154,82 @@ export default function Navbar() {
                             <div className="space-y-3">
                               {activeItem.subcategories.map((subcat, subIdx) => {
                                 const SubIcon = subcat.icon;
+                                
+                                // Extraer la categoría principal del href si existe
+                                let mainCategorySlug = categoryName.toLowerCase()
+                                  .normalize("NFD")
+                                  .replace(/[\u0300-\u036f]/g, "")
+                                  .replace(/\s+/g, "-")
+                                  .replace(/[^a-z0-9-]/g, "");
+                                
+                                if (subcat.href) {
+                                  const hrefParts = subcat.href.split('/').filter(part => part && part !== 'catalogo');
+                                  if (hrefParts.length > 0) {
+                                    mainCategorySlug = hrefParts[0];
+                                  }
+                                }
+                                
+                                // Buscar la opción de categoría correspondiente en la API
+                                const findCategoryOption = () => {
+                                  // Buscar la categoría principal en la API
+                                  const apiMainCategory = apiCategories.find(c => {
+                                    const catSlug = c.name.toLowerCase()
+                                      .normalize("NFD")
+                                      .replace(/[\u0300-\u036f]/g, "")
+                                      .replace(/\s+/g, "-")
+                                      .replace(/[^a-z0-9-]/g, "");
+                                    return catSlug === mainCategorySlug || c.name === categoryName;
+                                  });
+                                  if (!apiMainCategory) return null;
+                                  
+                                  // Primero, buscar la opción en todas las subcategorías de la categoría principal
+                                  const allSubcategories = apiCategories.filter(c => c.parent_id === apiMainCategory.id);
+                                  
+                                  // Buscar en todas las subcategorías (no solo en la que corresponde a activeItem.name)
+                                  for (const apiSubcategory of allSubcategories) {
+                                    if (apiSubcategory.options) {
+                                      const option = apiSubcategory.options.find(opt => 
+                                        opt.value.toLowerCase() === subcat.name.toLowerCase() ||
+                                        opt.value.toLowerCase().includes(subcat.name.toLowerCase()) ||
+                                        subcat.name.toLowerCase().includes(opt.value.toLowerCase())
+                                      );
+                                      if (option) return option;
+                                    }
+                                  }
+                                  
+                                  // Si no se encuentra en las subcategorías, buscar en la categoría principal
+                                  if (apiMainCategory.options) {
+                                    const option = apiMainCategory.options.find(opt => 
+                                      opt.value.toLowerCase() === subcat.name.toLowerCase() ||
+                                      opt.value.toLowerCase().includes(subcat.name.toLowerCase()) ||
+                                      subcat.name.toLowerCase().includes(opt.value.toLowerCase())
+                                    );
+                                    if (option) return option;
+                                  }
+                                  
+                                  return null;
+                                };
+                                
+                                const categoryOption = findCategoryOption();
+                                
+                                // Construir URL con filtro si hay opción encontrada - siempre a la categoría principal
+                                const targetUrl = categoryOption 
+                                  ? `/catalogo/${mainCategorySlug}?filter=${encodeURIComponent(categoryOption.id)}`
+                                  : `/catalogo/${mainCategorySlug}`;
+                                
                                 return (
-                                  <a 
+                                  <div 
                                     key={subIdx}
-                                    href={subcat.href} 
                                     className="flex items-center gap-3 text-base text-gray-700 hover:text-[#00C1A7] transition-colors py-2 border-b border-gray-100 cursor-pointer relative z-10"
                                     onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
                                       // Cancelar cualquier cierre pendiente
                                       if (closeTimeoutRef.current) {
                                         clearTimeout(closeTimeoutRef.current);
                                         closeTimeoutRef.current = null;
                                       }
-                                      // Permitir navegación normal
-                                      e.stopPropagation();
+                                      router.push(targetUrl);
                                     }}
                                     onMouseDown={(e) => {
                                       // Cancelar cualquier cierre pendiente
@@ -1772,7 +2256,7 @@ export default function Navbar() {
                                       <SubIcon className="w-5 h-5 text-[#00C1A7] flex-shrink-0" />
                                     )}
                                     <span>{subcat.name}</span>
-                                  </a>
+                                  </div>
                                 );
                               })}
                               <button
@@ -1801,6 +2285,7 @@ export default function Navbar() {
             );
           })}
         </nav>
+
       </div>
 
       {/* Cart Overlay */}

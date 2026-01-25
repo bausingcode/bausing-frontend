@@ -6,6 +6,7 @@ import ProductCard from "@/components/ProductCard";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { fetchProducts, fetchCategories, Product, Category } from "@/lib/api";
+import { useLocality } from "@/contexts/LocalityContext";
 import { ChevronDown, Minus, Plus } from "lucide-react";
 import { calculateProductPrice } from "@/utils/priceUtils";
 
@@ -854,6 +855,7 @@ export default function CatalogoPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const slug = params?.slug as string[];
+  const { locality } = useLocality();
   
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -866,20 +868,35 @@ export default function CatalogoPage() {
   const [filtersExpanded, setFiltersExpanded] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryIdMap, setCategoryIdMap] = useState<Record<string, string>>({});
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  
+  // Estado para rango de precios
+  const [priceRange, setPriceRange] = useState<{ min: number | null; max: number | null }>({ min: null, max: null });
+  const [priceRangeInput, setPriceRangeInput] = useState<{ min: string; max: string }>({ min: "", max: "" });
+  const [priceRangeError, setPriceRangeError] = useState<string | null>(null);
   
   // Obtener el término de búsqueda de la URL
   const searchQuery = searchParams?.get("search") || "";
   
-  // Cargar categorías al inicio
+  // Obtener el filtro inicial de la URL
+  const initialFilterId = searchParams?.get("filter") || null;
+  
+  // Cargar categorías con opciones al inicio
   useEffect(() => {
     const loadCategories = async () => {
       try {
-        const cats = await fetchCategories();
-        setCategories(cats);
+        setIsLoadingCategories(true);
+        // Fetch all categories with options to build complete map
+        const allCats = await fetchCategories(true); // include_options = true
         
-        // Crear un mapa de nombre de categoría a ID
+        setCategories(allCats);
+        
+        // Crear un mapa de nombre de categoría a ID y slug
         const nameToIdMap: Record<string, string> = {};
-        cats.forEach(cat => {
+        const idToCategoryMap: Record<string, Category> = {};
+        const slugToIdMap: Record<string, string> = {};
+        
+        allCats.forEach(cat => {
           // Normalizar el nombre para comparación (sin acentos, minúsculas)
           const normalizedName = cat.name.toLowerCase()
             .normalize("NFD")
@@ -888,11 +905,24 @@ export default function CatalogoPage() {
           
           // También mapear el nombre original
           nameToIdMap[cat.name.toLowerCase()] = cat.id;
+          
+          // Mapear por ID
+          idToCategoryMap[cat.id] = cat;
+          
+          // Crear slug desde el nombre
+          const slug = cat.name.toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/\s+/g, "-")
+            .replace(/[^a-z0-9-]/g, "");
+          slugToIdMap[slug] = cat.id;
         });
         
-        setCategoryIdMap(nameToIdMap);
+        setCategoryIdMap({ ...nameToIdMap, ...slugToIdMap });
       } catch (error) {
         console.error("Error loading categories:", error);
+      } finally {
+        setIsLoadingCategories(false);
       }
     };
     
@@ -904,6 +934,9 @@ export default function CatalogoPage() {
   
   // Estado para controlar qué filtros están abiertos/cerrados (todos cerrados por defecto)
   const [openFilters, setOpenFilters] = useState<Record<string, boolean>>({});
+  
+  // Estado para saber si se están aplicando filtros iniciales
+  const [isApplyingFilter, setIsApplyingFilter] = useState(false);
   
   // Función para toggle de cada filtro
   const toggleFilter = (filterTitle: string) => {
@@ -917,57 +950,266 @@ export default function CatalogoPage() {
   const getCategoryInfo = () => {
     // Si no hay slug o es un array vacío, retornar valores nulos
     if (!slug || !Array.isArray(slug) || slug.length === 0) {
-      return { categoryName: null, categoryId: null, subcategoryName: null, subcategory2Name: null };
+      return { categoryName: null, categoryId: null, subcategoryId: null, subcategoryName: null, subcategory2Name: null, category: null };
     }
     
     const mainCategorySlug = slug[0];
-    const categoryName = categorySlugMap[mainCategorySlug] || mainCategorySlug;
     
-    // Buscar el category_id correspondiente
+    // Buscar el category_id correspondiente desde el slug
     let categoryId: string | null = null;
+    let category: Category | null = null;
+    
     if (categoryIdMap && Object.keys(categoryIdMap).length > 0) {
-      // Intentar encontrar por nombre normalizado
-      const normalizedName = categoryName.toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "");
-      categoryId = categoryIdMap[normalizedName] || categoryIdMap[categoryName.toLowerCase()] || null;
+      // Intentar encontrar por slug
+      categoryId = categoryIdMap[mainCategorySlug] || null;
+      
+      // Si no se encuentra por slug, intentar por nombre normalizado
+      if (!categoryId) {
+        const categoryName = categorySlugMap[mainCategorySlug] || mainCategorySlug;
+        const normalizedName = categoryName.toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
+        categoryId = categoryIdMap[normalizedName] || categoryIdMap[categoryName.toLowerCase()] || null;
+      }
+      
+      // Encontrar el objeto Category completo
+      if (categoryId) {
+        category = categories.find(c => c.id === categoryId) || null;
+      }
     }
     
-    if (slug.length === 1) {
-      return { categoryName, categoryId, subcategoryName: null, subcategory2Name: null };
-    }
+    const categoryName = category?.name || categorySlugMap[mainCategorySlug] || mainCategorySlug;
+    let subcategoryId: string | null = null;
+    let subcategoryName: string | null = null;
+    let subcategory2Name: string | null = null;
     
-    if (slug.length === 2) {
+    // Si hay subcategoría en el slug
+    if (slug.length >= 2) {
       const subcategorySlug = slug[1];
-      const subcategoryInfo = subcategoryMap[subcategorySlug];
-      return {
-        categoryName,
-        categoryId,
-        subcategoryName: subcategoryInfo?.name || subcategorySlug,
-        subcategory2Name: null,
-      };
+      // Buscar subcategoría por slug en las categorías hijas de la categoría principal
+      if (category) {
+        // Las subcategorías tienen parent_id igual a categoryId
+        const subcategory = categories.find(c => {
+          const slugFromName = c.name.toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/\s+/g, "-")
+            .replace(/[^a-z0-9-]/g, "");
+          return c.parent_id === categoryId && (slugFromName === subcategorySlug || c.id === subcategorySlug);
+        });
+        
+        if (subcategory) {
+          subcategoryId = subcategory.id;
+          subcategoryName = subcategory.name;
+        } else {
+          subcategoryName = subcategoryMap[subcategorySlug]?.name || subcategorySlug;
+        }
+      } else {
+        subcategoryName = subcategoryMap[subcategorySlug]?.name || subcategorySlug;
+      }
+      
+      // Si hay segunda subcategoría
+      if (slug.length >= 3) {
+        const subcategory2Slug = slug[2];
+        if (subcategoryId) {
+          const subcategory2 = categories.find(c => {
+            const slugFromName = c.name.toLowerCase()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .replace(/\s+/g, "-")
+              .replace(/[^a-z0-9-]/g, "");
+            return c.parent_id === subcategoryId && (slugFromName === subcategory2Slug || c.id === subcategory2Slug);
+          });
+          
+          if (subcategory2) {
+            subcategory2Name = subcategory2.name;
+          } else {
+            subcategory2Name = subcategoryMap[subcategory2Slug]?.name || subcategory2Slug;
+          }
+        } else {
+          subcategory2Name = subcategoryMap[subcategory2Slug]?.name || subcategory2Slug;
+        }
+      }
     }
     
-    if (slug.length === 3) {
-      const subcategorySlug = slug[1];
-      const subcategory2Slug = slug[2];
-      const subcategoryInfo = subcategoryMap[subcategorySlug];
-      const subcategory2Info = subcategoryMap[subcategory2Slug];
-      return {
-        categoryName,
-        categoryId,
-        subcategoryName: subcategoryInfo?.name || subcategorySlug,
-        subcategory2Name: subcategory2Info?.name || subcategory2Slug,
-      };
-    }
-    
-    return { categoryName, categoryId, subcategoryName: null, subcategory2Name: null };
+    return { categoryName, categoryId, subcategoryId, subcategoryName, subcategory2Name, category };
   };
   
-  const { categoryName, categoryId, subcategoryName, subcategory2Name } = getCategoryInfo();
+  // Recalcular categoryInfo cuando cambian las categorías o el slug
+  const categoryInfo = getCategoryInfo();
+  const { categoryName, categoryId, subcategoryId, subcategoryName, subcategory2Name, category } = categoryInfo;
   
-  // Obtener filtros para la categoría actual
-  const currentFilters = categoryName ? categoryFilters[categoryName] || [] : [];
+  // Aplicar filtro inicial desde la URL cuando las categorías se cargan
+  useEffect(() => {
+    if (initialFilterId && categories.length > 0 && Object.keys(categoryIdMap).length > 0 && !isLoadingCategories) {
+      setIsApplyingFilter(true);
+      
+      // Buscar la opción en todas las categorías y subcategorías
+      let foundOption = null;
+      let foundFilterGroup = null;
+      
+      // Buscar en la categoría principal
+      if (categoryId) {
+        const mainCategory = categories.find(c => c.id === categoryId);
+        if (mainCategory && mainCategory.options) {
+          const option = mainCategory.options.find(opt => opt.id === initialFilterId);
+          if (option) {
+            foundOption = option;
+            foundFilterGroup = mainCategory.name;
+          }
+        }
+      }
+      
+      // Si no se encontró, buscar en las subcategorías
+      if (!foundOption && categoryId) {
+        const subcategories = categories.filter(c => c.parent_id === categoryId);
+        for (const subcat of subcategories) {
+          if (subcat.options) {
+            const option = subcat.options.find(opt => opt.id === initialFilterId);
+            if (option) {
+              foundOption = option;
+              foundFilterGroup = subcat.name;
+              break;
+            }
+          }
+        }
+      }
+      
+      // Si se encontró la opción, aplicar el filtro
+      if (foundOption && foundFilterGroup) {
+        setSelectedFilters(prev => {
+          // Solo aplicar si no está ya aplicado para evitar loops
+          if (prev[foundFilterGroup]?.includes(initialFilterId)) {
+            setIsApplyingFilter(false);
+            return prev;
+          }
+          return {
+            ...prev,
+            [foundFilterGroup]: [initialFilterId]
+          };
+        });
+        // Abrir el filtro automáticamente
+        setOpenFilters(prev => ({
+          ...prev,
+          [foundFilterGroup]: true
+        }));
+      }
+      
+      // Marcar como completado después de un pequeño delay para permitir que el estado se actualice
+      setTimeout(() => {
+        setIsApplyingFilter(false);
+      }, 100);
+    } else if (!initialFilterId) {
+      setIsApplyingFilter(false);
+    }
+  }, [initialFilterId, categories, categoryIdMap, isLoadingCategories, categoryId, subcategoryId]);
+  
+  // Construir filtros dinámicamente desde las opciones de categoría
+  const buildDynamicFilters = () => {
+    const filters: FilterGroup[] = [];
+    
+    if (!category && !subcategoryId) return filters;
+    
+    // Si hay subcategoría seleccionada, mostrar solo las opciones de esa subcategoría
+    if (subcategoryId) {
+      const subcategory = categories.find(c => c.id === subcategoryId);
+      if (subcategory && subcategory.options && subcategory.options.length > 0) {
+        filters.push({
+          title: subcategory.name,
+          type: "checkbox" as const,
+          options: subcategory.options.map(opt => ({
+            value: opt.id,
+            label: opt.value
+          }))
+        });
+      }
+    } else if (categoryId && category) {
+      // Si estamos en una categoría principal, agrupar opciones por subcategoría
+      const subcategories = categories.filter(c => c.parent_id === categoryId);
+      
+      // Si hay subcategorías, agrupar opciones por subcategoría
+      if (subcategories.length > 0) {
+        subcategories
+          .filter(subcat => subcat.options && subcat.options.length > 0)
+          .forEach(subcat => {
+            filters.push({
+              title: subcat.name,
+              type: "checkbox" as const,
+              options: subcat.options!.map(opt => ({
+                value: opt.id,
+                label: opt.value
+              }))
+            });
+          });
+      } else if (category.options && category.options.length > 0) {
+        // Si no hay subcategorías pero la categoría principal tiene opciones, mostrarlas
+        filters.push({
+          title: category.name,
+          type: "checkbox" as const,
+          options: category.options.map(opt => ({
+            value: opt.id,
+            label: opt.value
+          }))
+        });
+      }
+    }
+    
+    // Agregar filtros técnicos para colchones
+    if (categoryName === "Colchones" || category?.name === "Colchones") {
+      // Firmeza (mattress_firmness)
+      filters.push({
+        title: "Firmeza",
+        type: "checkbox" as const,
+        options: [
+          { value: "soft", label: "Soft" },
+          { value: "medio", label: "Medio" },
+          { value: "firme", label: "Firme" }
+        ]
+      });
+      
+      // Peso máximo soportado (max_supported_weight_kg)
+      filters.push({
+        title: "Peso Máximo Soportado",
+        type: "checkbox" as const,
+        options: [
+          { value: "85", label: "Hasta 85 kg" },
+          { value: "90", label: "Hasta 90 kg" },
+          { value: "100", label: "Hasta 100 kg" },
+          { value: "110", label: "Hasta 110 kg" },
+          { value: "120", label: "Hasta 120 kg" },
+          { value: "150", label: "Hasta 150 kg" },
+          { value: "150+", label: "Más de 150 kg" }
+        ]
+      });
+      
+      // Con pillow top (has_pillow_top)
+      filters.push({
+        title: "Pillow Top",
+        type: "checkbox" as const,
+        options: [
+          { value: "true", label: "Con pillow top" },
+          { value: "false", label: "Sin pillow top" }
+        ]
+      });
+      
+      // Colchón en caja (is_bed_in_box)
+      filters.push({
+        title: "Tipo de Entrega",
+        type: "checkbox" as const,
+        options: [
+          { value: "true", label: "Colchón en caja" },
+          { value: "false", label: "Colchón tradicional" }
+        ]
+      });
+    }
+    
+    return filters;
+  };
+  
+  // Obtener filtros para la categoría actual (dinámicos o hardcoded como fallback)
+  const currentFilters = buildDynamicFilters().length > 0 
+    ? buildDynamicFilters() 
+    : (categoryName ? categoryFilters[categoryName] || [] : []);
   
   // Función para manejar cambios en filtros
   const handleFilterChange = (filterTitle: string, value: string, checked: boolean) => {
@@ -987,11 +1229,52 @@ export default function CatalogoPage() {
   // Función para limpiar todos los filtros
   const clearAllFilters = () => {
     setSelectedFilters({});
+    setPriceRange({ min: null, max: null });
+    setPriceRangeInput({ min: "", max: "" });
     setPage(1);
   };
   
   // Verificar si hay filtros activos
-  const hasActiveFilters = Object.values(selectedFilters).some(values => values.length > 0);
+  const hasActiveFilters = Object.values(selectedFilters).some(values => values.length > 0) || 
+                          priceRange.min !== null || 
+                          priceRange.max !== null;
+  
+  // Función para aplicar el rango de precios
+  const handlePriceRangeApply = () => {
+    // Limpiar error anterior
+    setPriceRangeError(null);
+    
+    const min = priceRangeInput.min && priceRangeInput.min.trim() !== "" 
+      ? parseFloat(priceRangeInput.min) 
+      : null;
+    const max = priceRangeInput.max && priceRangeInput.max.trim() !== "" 
+      ? parseFloat(priceRangeInput.max) 
+      : null;
+    
+    // Validar que min no sea mayor que max
+    if (min !== null && max !== null && min > max) {
+      setPriceRangeError("El precio mínimo no puede ser mayor que el precio máximo");
+      return;
+    }
+    
+    // Validar que los valores sean positivos
+    if ((min !== null && (isNaN(min) || min < 0)) || (max !== null && (isNaN(max) || max < 0))) {
+      setPriceRangeError("Los precios deben ser valores numéricos positivos");
+      return;
+    }
+    
+    // Actualizar el rango de precios (esto disparará la recarga automática por el useEffect)
+    setPriceRange({ min, max });
+    setPage(1);
+  };
+  
+  // Función para limpiar el rango de precios
+  const handlePriceRangeClear = () => {
+    setPriceRange({ min: null, max: null });
+    setPriceRangeInput({ min: "", max: "" });
+    setPriceRangeError(null);
+    setPage(1);
+  };
   
   // Resetear página cuando cambia la búsqueda, categoría o perPage
   useEffect(() => {
@@ -1009,6 +1292,12 @@ export default function CatalogoPage() {
   
   // Obtener productos
   useEffect(() => {
+    // No cargar productos si las categorías aún no están cargadas y hay un slug
+    // Esto evita cargar productos con categoryId incorrecto
+    if (slug && slug.length > 0 && isLoadingCategories) {
+      return;
+    }
+    
     const loadProducts = async () => {
       setLoading(true);
       try {
@@ -1022,18 +1311,187 @@ export default function CatalogoPage() {
           include_promos: true,
         };
         
+        // Agregar localidad si está disponible
+        if (locality?.id) {
+          fetchParams.locality_id = locality.id;
+        }
+        
         // Si hay búsqueda, agregar el parámetro de búsqueda
         if (searchQuery) {
           fetchParams.search = searchQuery;
         }
         
-        // Si hay categoryId, filtrar por categoría
-        if (categoryId) {
+        // Si hay subcategoryId, usar esa; sino usar categoryId
+        if (subcategoryId) {
+          fetchParams.category_id = subcategoryId;
+        } else if (categoryId) {
           fetchParams.category_id = categoryId;
         }
         
         // Siempre usar la API real
-        const result = await fetchProducts(fetchParams);
+        let result = await fetchProducts(fetchParams);
+        
+        // Filtrar por opciones seleccionadas si hay filtros activos
+        if (hasActiveFilters && result.products.length > 0) {
+          let filteredProducts = result.products;
+          
+          // Filtrar por rango de precios primero
+          if (priceRange.min !== null || priceRange.max !== null) {
+            filteredProducts = filteredProducts.filter(product => {
+              // Obtener el precio mínimo y máximo del producto
+              const productMinPrice = product.min_price ?? null;
+              const productMaxPrice = product.max_price ?? productMinPrice;
+              
+              // Si el producto no tiene precio, excluirlo
+              if (productMinPrice === null || productMinPrice === undefined) {
+                return false;
+              }
+              
+              // Si solo hay un precio, usarlo como min y max
+              const minPrice = productMinPrice;
+              const maxPrice = productMaxPrice ?? productMinPrice;
+              
+              // Verificar si el rango de precios del producto se solapa con el filtro
+              // El producto debe tener al menos un precio dentro del rango
+              if (priceRange.min !== null && maxPrice < priceRange.min) {
+                return false;
+              }
+              if (priceRange.max !== null && minPrice > priceRange.max) {
+                return false;
+              }
+              
+              return true;
+            });
+          }
+          
+          // Separar filtros de opciones de categoría de filtros técnicos
+          const categoryOptionFilters: Record<string, string[]> = {};
+          const technicalFilters: Record<string, string[]> = {};
+          
+          Object.entries(selectedFilters).forEach(([filterKey, selectedValues]) => {
+            const technicalFilterKeys = ["Firmeza", "Peso Máximo Soportado", "Pillow Top", "Tipo de Entrega"];
+            if (technicalFilterKeys.includes(filterKey)) {
+              technicalFilters[filterKey] = selectedValues;
+            } else {
+              categoryOptionFilters[filterKey] = selectedValues;
+            }
+          });
+          
+          // Filtrar por opciones de categoría (IDs de category_option)
+          if (Object.keys(categoryOptionFilters).length > 0) {
+            const allSelectedOptionIds = new Set<string>();
+            Object.values(categoryOptionFilters).forEach(selectedValues => {
+              selectedValues.forEach(optionId => {
+                allSelectedOptionIds.add(optionId);
+              });
+            });
+            
+            if (allSelectedOptionIds.size > 0) {
+              filteredProducts = filteredProducts.filter(product => {
+                // Verificar si el producto tiene alguna de las opciones seleccionadas
+                // 1. Verificar category_option_id directo del producto
+                if (product.category_option_id && allSelectedOptionIds.has(product.category_option_id)) {
+                  return true;
+                }
+                
+                // 2. Verificar en las subcategorías asociadas
+                if (product.subcategories && product.subcategories.length > 0) {
+                  // El producto debe tener al menos UNA subcategoría con UNA de las opciones seleccionadas
+                  const hasMatchingOption = product.subcategories.some(subcat => {
+                    return subcat.category_option_id && allSelectedOptionIds.has(subcat.category_option_id);
+                  });
+                  
+                  if (hasMatchingOption) {
+                    return true;
+                  }
+                }
+                
+                // Si no coincide con ninguna opción, excluir el producto
+                return false;
+              });
+            }
+          }
+          
+          // Filtrar por filtros técnicos de colchones
+          Object.entries(technicalFilters).forEach(([filterKey, selectedValues]) => {
+            if (selectedValues.length === 0) return;
+            
+            // Firmeza
+            if (filterKey === "Firmeza") {
+              filteredProducts = filteredProducts.filter(product => {
+                if (!product.mattress_firmness) return false;
+                // Los valores en la DB son "MEDIO", "SOFT" o "FIRME" (mayúsculas)
+                const productFirmness = product.mattress_firmness.toUpperCase().trim();
+                return selectedValues.some(value => {
+                  // Mapear valores del filtro a valores en la BD (mayúsculas)
+                  const valueMap: Record<string, string[]> = {
+                    "soft": ["SOFT"],
+                    "medio": ["MEDIO"],
+                    "firme": ["FIRME"]
+                  };
+                  const possibleValues = valueMap[value] || [value.toUpperCase()];
+                  return possibleValues.includes(productFirmness);
+                });
+              });
+            }
+            
+            // Peso Máximo Soportado
+            if (filterKey === "Peso Máximo Soportado") {
+              filteredProducts = filteredProducts.filter(product => {
+                if (!product.max_supported_weight_kg) return false;
+                return selectedValues.some(value => {
+                  if (value === "150+") {
+                    return product.max_supported_weight_kg >= 150;
+                  }
+                  const maxWeight = parseInt(value);
+                  return product.max_supported_weight_kg <= maxWeight && 
+                         product.max_supported_weight_kg > (maxWeight - 15);
+                });
+              });
+            }
+            
+            // Pillow Top
+            if (filterKey === "Pillow Top") {
+              filteredProducts = filteredProducts.filter(product => {
+                const hasPillowTop = product.has_pillow_top === true;
+                return selectedValues.some(value => {
+                  if (value === "true") return hasPillowTop;
+                  if (value === "false") return !hasPillowTop;
+                  return false;
+                });
+              });
+            }
+            
+            // Colchón en caja
+            if (filterKey === "Tipo de Entrega") {
+              filteredProducts = filteredProducts.filter(product => {
+                const isBedInBox = product.is_bed_in_box === true;
+                return selectedValues.some(value => {
+                  if (value === "true") return isBedInBox;
+                  if (value === "false") return !isBedInBox;
+                  return false;
+                });
+              });
+            }
+          });
+          
+          // Recalcular total_pages basado en productos filtrados
+          const filteredTotal = filteredProducts.length;
+          const filteredTotalPages = Math.ceil(filteredTotal / perPage);
+          
+          // Paginar los productos filtrados
+          const startIndex = (page - 1) * perPage;
+          const endIndex = startIndex + perPage;
+          filteredProducts = filteredProducts.slice(startIndex, endIndex);
+          
+          result = {
+            products: filteredProducts,
+            total: filteredTotal,
+            page: page,
+            per_page: perPage,
+            total_pages: filteredTotalPages,
+          };
+        }
         
         setProducts(result.products);
         setTotalPages(result.total_pages);
@@ -1047,7 +1505,7 @@ export default function CatalogoPage() {
     };
     
     loadProducts();
-  }, [page, sortBy, categoryId, subcategoryName, subcategory2Name, searchQuery, perPage]);
+  }, [page, sortBy, categoryId, subcategoryId, subcategoryName, subcategory2Name, searchQuery, perPage, selectedFilters, hasActiveFilters, categories, categoryIdMap, slug, isLoadingCategories, locality?.id, priceRange]);
   
   const sortOptions = [
     { value: "created_at_desc", label: "Más recientes" },
@@ -1110,36 +1568,59 @@ export default function CatalogoPage() {
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumbs */}
         <nav className="mb-6">
-          <ol className="flex items-center gap-2 text-sm text-gray-600">
-            {breadcrumbs.map((crumb, index) => (
-              <li key={index} className="flex items-center gap-2">
-                {index > 0 && <span>/</span>}
-                {crumb.href ? (
-                  <a href={crumb.href} className="hover:text-gray-900 transition-colors">
-                    {crumb.name}
-                  </a>
-                ) : (
-                  <span className="text-gray-900 font-medium">{crumb.name}</span>
-                )}
-              </li>
-            ))}
-          </ol>
+          {isLoadingCategories && slug && slug.length > 0 ? (
+            <div className="flex items-center gap-2 animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-16"></div>
+              <span>/</span>
+              <div className="h-4 bg-gray-200 rounded w-32"></div>
+              {slug.length > 1 && (
+                <>
+                  <span>/</span>
+                  <div className="h-4 bg-gray-200 rounded w-24"></div>
+                </>
+              )}
+            </div>
+          ) : (
+            <ol className="flex items-center gap-2 text-sm text-gray-600">
+              {breadcrumbs.map((crumb, index) => (
+                <li key={index} className="flex items-center gap-2">
+                  {index > 0 && <span>/</span>}
+                  {crumb.href ? (
+                    <a href={crumb.href} className="hover:text-gray-900 transition-colors">
+                      {crumb.name}
+                    </a>
+                  ) : (
+                    <span className="text-gray-900 font-medium">{crumb.name}</span>
+                  )}
+                </li>
+              ))}
+            </ol>
+          )}
         </nav>
         
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {searchQuery ? `Resultados de búsqueda` : (subcategory2Name || subcategoryName || categoryName || "Catálogo")}
-          </h1>
-          {searchQuery && (
-            <p className="text-gray-600 mb-2">
-              Buscando: <span className="font-semibold text-gray-900">"{searchQuery}"</span>
-            </p>
-          )}
-          {(categoryName || searchQuery) && (
-            <p className="text-gray-600">
-              {products.length} {products.length === 1 ? "producto encontrado" : "productos encontrados"}
-            </p>
+          {isLoadingCategories && slug && slug.length > 0 ? (
+            <div className="animate-pulse">
+              <div className="h-9 bg-gray-200 rounded w-64 mb-2"></div>
+              <div className="h-5 bg-gray-200 rounded w-48"></div>
+            </div>
+          ) : (
+            <>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                {searchQuery ? `Resultados de búsqueda` : (subcategory2Name || subcategoryName || categoryName || "Catálogo")}
+              </h1>
+              {searchQuery && (
+                <p className="text-gray-600 mb-2">
+                  Buscando: <span className="font-semibold text-gray-900">"{searchQuery}"</span>
+                </p>
+              )}
+              {(categoryName || searchQuery) && !loading && (
+                <p className="text-gray-600">
+                  {products.length} {products.length === 1 ? "producto encontrado" : "productos encontrados"}
+                </p>
+              )}
+            </>
           )}
         </div>
         
@@ -1250,67 +1731,164 @@ export default function CatalogoPage() {
           {/* Sidebar de Filtros - 3 columnas, oculto cuando está cerrado o hay búsqueda */}
           {filtersExpanded && !searchQuery && (
             <aside className="col-span-12 lg:col-span-3 transition-all duration-300 ease-in-out">
-              <div className="bg-white rounded-[10px] border border-gray-200 p-6 sticky top-[210px] max-h-[calc(100vh-12rem)] overflow-y-auto custom-scrollbar">
+              <div className="bg-white rounded-[10px] border border-gray-200 p-6 sticky top-[210px] overflow-y-auto custom-scrollbar" style={{ maxHeight: 'calc(100vh - 12rem)', height: 'fit-content' }}>
                 {/* Contenido de filtros - alineado con el grid de productos (después del mb-6 del dropdown) */}
-                {hasActiveFilters && (
-                  <div className="flex justify-start mb-4">
-                    <button
-                      onClick={clearAllFilters}
-                      className="text-sm text-[#00C1A7] hover:text-[#00A892] transition-colors"
-                    >
-                      Limpiar
-                    </button>
-                  </div>
-                )}
-                
-                {currentFilters.length === 0 ? (
-                  <p className="text-sm text-gray-500">No hay filtros disponibles para esta categoría</p>
-                ) : (
-                  <div className="space-y-6">
-                    {currentFilters.map((filterGroup, index) => {
-                      const filterKey = filterGroup.title;
-                      const isOpen = openFilters[filterKey] || false;
-                      
-                      return (
-                        <div key={index} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
-                          <button
-                            onClick={() => toggleFilter(filterKey)}
-                            className="flex items-center justify-between w-full text-left mb-3 group"
-                          >
-                            <h3 className="text-sm font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">
-                              {filterGroup.title}
-                            </h3>
-                            {isOpen ? (
-                              <Minus className="w-4 h-4 text-gray-600 flex-shrink-0" />
-                            ) : (
-                              <Plus className="w-4 h-4 text-gray-600 flex-shrink-0" />
-                            )}
-                          </button>
-                          {isOpen && (
-                            <div className="space-y-2">
-                              {filterGroup.options.map((option) => {
-                                const isChecked = selectedFilters[filterKey]?.includes(option.value) || false;
-                                
-                                return (
-                                  <label key={option.value} className="flex items-center cursor-pointer group">
-                                    <input
-                                      type={filterGroup.type}
-                                      checked={isChecked}
-                                      onChange={(e) => handleFilterChange(filterKey, option.value, e.target.checked)}
-                                      className="w-4 h-4 text-[#00C1A7] focus:ring-[#00C1A7] focus:ring-2 rounded border-gray-300 cursor-pointer"
-                                    />
-                                    <span className="ml-2 text-sm text-gray-700 group-hover:text-gray-900 transition-colors">
-                                      {option.label}
-                                    </span>
-                                  </label>
-                                );
-                              })}
+                {(isLoadingCategories && slug && slug.length > 0) || isApplyingFilter ? (
+                  <div className="space-y-6 animate-pulse">
+                    {/* Skeleton para rango de precios */}
+                    <div className="border-b border-gray-100 pb-4 mb-4">
+                      <div className="h-5 bg-gray-200 rounded w-32 mb-3"></div>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <div className="h-10 bg-gray-200 rounded w-full"></div>
+                          <span className="text-gray-500">-</span>
+                          <div className="h-10 bg-gray-200 rounded w-full"></div>
+                        </div>
+                        <div className="h-9 bg-gray-200 rounded w-full"></div>
+                      </div>
+                    </div>
+                    {/* Skeleton para grupos de filtros */}
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="border-b border-gray-100 pb-4">
+                        <div className="h-5 bg-gray-200 rounded w-32 mb-4"></div>
+                        <div className="space-y-3">
+                          {[1, 2, 3, 4].map((j) => (
+                            <div key={j} className="flex items-center gap-2">
+                              <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                              <div className="h-4 bg-gray-200 rounded w-24"></div>
                             </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    {hasActiveFilters && (
+                      <div className="flex justify-start mb-4">
+                        <button
+                          onClick={clearAllFilters}
+                          className="text-sm text-[#00C1A7] hover:text-[#00A892] transition-colors"
+                        >
+                          Limpiar
+                        </button>
+                      </div>
+                    )}
+                    
+                    {/* Filtro de Rango de Precios - Siempre visible */}
+                    <div className="border-b border-gray-100 pb-4 mb-4">
+                      <h3 className="text-sm font-semibold text-gray-900 mb-3">Rango de Precios</h3>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            placeholder="Mín"
+                            value={priceRangeInput.min}
+                            onChange={(e) => setPriceRangeInput(prev => ({ ...prev, min: e.target.value }))}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-[#00C1A7] placeholder:text-gray-600 placeholder:opacity-100 text-gray-900"
+                            min="0"
+                            step="0.01"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                handlePriceRangeApply();
+                              }
+                            }}
+                          />
+                          <span className="text-gray-500">-</span>
+                          <input
+                            type="number"
+                            placeholder="Máx"
+                            value={priceRangeInput.max}
+                            onChange={(e) => setPriceRangeInput(prev => ({ ...prev, max: e.target.value }))}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-[#00C1A7] placeholder:text-gray-600 placeholder:opacity-100 text-gray-900"
+                            min="0"
+                            step="0.01"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                handlePriceRangeApply();
+                              }
+                            }}
+                          />
+                        </div>
+                        {priceRangeError && (
+                          <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1.5">
+                            {priceRangeError}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={handlePriceRangeApply}
+                            className="flex-1 px-3 py-2 text-sm bg-[#00C1A7] text-white rounded-lg hover:bg-[#00A892] transition-colors"
+                          >
+                            Aplicar
+                          </button>
+                          {(priceRange.min !== null || priceRange.max !== null) && (
+                            <button
+                              onClick={handlePriceRangeClear}
+                              className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                            >
+                              Limpiar
+                            </button>
                           )}
                         </div>
-                      );
-                    })}
-                  </div>
+                        {(priceRange.min !== null || priceRange.max !== null) && (
+                          <p className="text-xs text-gray-600">
+                            ${priceRange.min !== null ? priceRange.min.toLocaleString() : "0"} - ${priceRange.max !== null ? priceRange.max.toLocaleString() : "∞"}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {currentFilters.length === 0 ? (
+                      <p className="text-sm text-gray-500">No hay filtros disponibles para esta categoría</p>
+                    ) : (
+                      <div className="space-y-6">
+                        {currentFilters.map((filterGroup, index) => {
+                          const filterKey = filterGroup.title;
+                          const isOpen = openFilters[filterKey] || false;
+                          
+                          return (
+                            <div key={index} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
+                              <button
+                                onClick={() => toggleFilter(filterKey)}
+                                className="flex items-center justify-between w-full text-left mb-3 group"
+                              >
+                                <h3 className="text-sm font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">
+                                  {filterGroup.title}
+                                </h3>
+                                {isOpen ? (
+                                  <Minus className="w-4 h-4 text-gray-600 flex-shrink-0" />
+                                ) : (
+                                  <Plus className="w-4 h-4 text-gray-600 flex-shrink-0" />
+                                )}
+                              </button>
+                              {isOpen && (
+                                <div className="space-y-2">
+                                  {filterGroup.options.map((option) => {
+                                    const isChecked = selectedFilters[filterKey]?.includes(option.value) || false;
+                                    
+                                    return (
+                                      <label key={option.value} className="flex items-center cursor-pointer group">
+                                        <input
+                                          type={filterGroup.type}
+                                          checked={isChecked}
+                                          onChange={(e) => handleFilterChange(filterKey, option.value, e.target.checked)}
+                                          className="w-4 h-4 text-[#00C1A7] focus:ring-[#00C1A7] focus:ring-2 rounded border-gray-300 cursor-pointer"
+                                        />
+                                        <span className="ml-2 text-sm text-gray-700 group-hover:text-gray-900 transition-colors">
+                                          {option.label}
+                                        </span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </aside>

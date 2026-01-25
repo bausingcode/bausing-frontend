@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, Plus, ChevronRight, ChevronLeft, Trash2, ChevronDown, ChevronUp } from "lucide-react";
-import { CrmProduct, CrmCombo, completeCrmProduct, uploadProductImageFile, fetchLocalities, Locality, createCompleteProduct, fetchProductById, Product } from "@/lib/api";
+import { CrmProduct, CrmCombo, completeCrmProduct, uploadProductImageFile, fetchCatalogs, Catalog, createCompleteProduct, fetchProductById, Product } from "@/lib/api";
 
 interface Category {
   id: string;
@@ -20,6 +20,7 @@ interface CategoryFromPage {
   categoriaPadre?: string;
   parentId?: string;
   opciones?: string[];
+  opcionesConIds?: Array<{ id: string; value: string; category_id: string }>; // Opciones con IDs
 }
 
 interface Attribute {
@@ -32,7 +33,7 @@ interface Attribute {
 interface Variant {
   attributes: Record<string, string>;
   stock: number;
-  prices: Record<string, number>; // locality_id -> price
+  prices: Record<string, number>; // catalog_id -> price
 }
 
 interface CreateProductModalProps {
@@ -51,7 +52,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [subcategoryIds, setSubcategoryIds] = useState<string[]>([]); // Múltiples subcategorías
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({}); // Opciones seleccionadas por subcategoría
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string[]>>({}); // Opciones seleccionadas por subcategoría (múltiples)
+  const [pendingSubcategories, setPendingSubcategories] = useState<{ ids: string[], options: Record<string, string[]> } | null>(null);
   const [isActive, setIsActive] = useState(true);
   
   // Technical fields
@@ -79,7 +81,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   
   // Step 3: Variantes
   const [variants, setVariants] = useState<Variant[]>([]);
-  const [localities, setLocalities] = useState<Locality[]>([]);
+  const [catalogs, setCatalogs] = useState<Catalog[]>([]);
   const [expandedVariant, setExpandedVariant] = useState<number | null>(null);
   
   // Otros estados
@@ -103,28 +105,17 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   const hasCategoryOptions = selectedCategory?.opciones && selectedCategory.opciones.length > 0;
   
   // Filtrar subcategorías según la categoría seleccionada
-  // Para Colchones, mostrar "Por tipo" y "Por tamaño" como subcategorías seleccionables
+  // Mostrar todas las subcategorías disponibles para la categoría seleccionada
   const availableSubcategories = categoryId 
-    ? (() => {
-        if (selectedCategory?.nombre === "Colchones") {
-          // Para Colchones, mostrar "Por tipo" y "Por tamaño" como subcategorías
-          return propCategories.filter(cat => 
-            cat.parentId === categoryId && 
-            (cat.nombre === "Por tipo" || cat.nombre === "Por tamaño")
-          ).map(cat => ({
-            id: cat.id,
-            name: cat.nombre,
-            description: undefined,
-            parent_id: categoryId,
-            opciones: cat.opciones,
-          }));
-        }
-        // Para otras categorías, usar el comportamiento normal
-        return subcategories.filter((subcat) => {
-          const subcatFromPage = propCategories.find((cat) => cat.id === subcat.id);
-          return subcatFromPage?.parentId === categoryId;
-        });
-      })()
+    ? propCategories
+        .filter(cat => (cat.parentId === categoryId) || (cat.parent_id === categoryId))
+        .map(cat => ({
+          id: cat.id,
+          name: cat.nombre,
+          description: undefined,
+          parent_id: categoryId,
+          opciones: cat.opciones || [],
+        }))
     : [];
   
   // Verificar si alguna subcategoría seleccionada tiene opciones
@@ -142,6 +133,36 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       const subcat = propCategories.find(c => c.id === id);
       return subcat?.nombre === "Por tamaño";
     });
+
+  // Obtener opciones seleccionadas para una subcategoría específica
+  const getSelectedOptionsForSubcategory = (subcatId: string): string[] => {
+    return selectedOptions[subcatId] || [];
+  };
+  
+  // Verificar si una opción está seleccionada para una subcategoría
+  const isOptionSelected = (subcatId: string, option: string): boolean => {
+    return getSelectedOptionsForSubcategory(subcatId).includes(option);
+  };
+  
+  // Toggle opción para una subcategoría
+  const toggleOption = (subcatId: string, option: string) => {
+    const currentOptions = getSelectedOptionsForSubcategory(subcatId);
+    const isSelected = currentOptions.includes(option);
+    
+    if (isSelected) {
+      // Remover opción
+      setSelectedOptions({
+        ...selectedOptions,
+        [subcatId]: currentOptions.filter(opt => opt !== option)
+      });
+    } else {
+      // Agregar opción
+      setSelectedOptions({
+        ...selectedOptions,
+        [subcatId]: [...currentOptions, option]
+      });
+    }
+  };
 
   // Función para generar atributos según la categoría seleccionada
   const generateAttributesForCategory = (catId: string, selectedSubcatIds: string[], selectedOptions: Record<string, string>): Attribute[] => {
@@ -201,7 +222,9 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
     const categoryName = finalCategory?.nombre || category?.nombre || "";
     
     // Respaldos - modelos y colores
-    const respaldosOption = selectedOptions["direct"] || Object.values(selectedOptions)[0];
+    const directOptions = getSelectedOptionsForSubcategory("direct");
+    const firstSubcatOptions = subcategoryIds.length > 0 ? getSelectedOptionsForSubcategory(subcategoryIds[0]) : [];
+    const respaldosOption = directOptions[0] || firstSubcatOptions[0] || "";
     if (categoryName === "Sommier" && respaldosOption === "Respaldos") {
       return [
         {
@@ -246,7 +269,9 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
     
     // Accesorios de descanso - según la opción seleccionada
     if (categoryName === "Accesorios de descanso") {
-      const accesoriosOption = selectedOptions["direct"] || (Object.values(selectedOptions).length > 0 ? Object.values(selectedOptions)[0] : "");
+      const directOptions = getSelectedOptionsForSubcategory("direct");
+      const firstSubcatOptions = subcategoryIds.length > 0 ? getSelectedOptionsForSubcategory(subcategoryIds[0]) : [];
+      const accesoriosOption = directOptions[0] || firstSubcatOptions[0] || "";
       if (accesoriosOption === "Almohadas") {
         return [{
           id: "tipo-almohada",
@@ -267,12 +292,12 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
     return [];
   };
 
-  // Fetch localities when modal opens
+  // Fetch catalogs when modal opens
   useEffect(() => {
     if (isOpen) {
-      fetchLocalities().then(setLocalities).catch((err) => {
-        console.error("Error fetching localities:", err);
-        setError("Error al cargar localidades");
+      fetchCatalogs(false).then(setCatalogs).catch((err) => {
+        console.error("Error fetching catalogs:", err);
+        setError("Error al cargar catálogos");
       });
     }
   }, [isOpen]);
@@ -375,30 +400,116 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           })));
         }
 
-        // Cargar subcategorías si el producto tiene category_id y hay subcategorías relacionadas
-        if (fullProduct.category_id) {
-          // Buscar si hay subcategorías que pertenezcan a esta categoría
-          const productSubcategories = propCategories.filter(cat => 
-            cat.parentId === fullProduct.category_id || cat.parent_id === fullProduct.category_id
-          );
+        // Cargar categoría y subcategorías
+        let loadedCategoryId = "";
+        const loadedSubcatIds: string[] = [];
+        const loadedOptions: Record<string, string[]> = {};
+        
+        // PRIMERO: Cargar desde product_subcategories (tabla de relación muchos-a-muchos)
+        if (fullProduct.subcategories && Array.isArray(fullProduct.subcategories) && fullProduct.subcategories.length > 0) {
+          fullProduct.subcategories.forEach((subcat: any, index: number) => {
+            if (subcat.subcategory_id) {
+              // Normalizar a string para consistencia
+              const subcatIdStr = String(subcat.subcategory_id);
+              
+              // Si esta subcategoría ya está en loadedSubcatIds, solo agregar la opción
+              // Si no está, agregarla a loadedSubcatIds
+              if (!loadedSubcatIds.includes(subcatIdStr)) {
+                loadedSubcatIds.push(subcatIdStr);
+                loadedOptions[subcatIdStr] = [];
+              }
+              
+              // Cargar opción si existe (puede haber múltiples opciones para la misma subcategoría)
+              if (subcat.category_option_id && subcat.category_option_value) {
+                const optionValue = String(subcat.category_option_value);
+                // Solo agregar si no está ya en el array (evitar duplicados)
+                if (!loadedOptions[subcatIdStr].includes(optionValue)) {
+                  loadedOptions[subcatIdStr].push(optionValue);
+                }
+              }
+            }
+          });
+        }
+        
+        // SEGUNDO: Si no hay subcategorías desde product_subcategories, verificar category_id legacy
+        if (loadedSubcatIds.length === 0 && fullProduct.category_id) {
+          const categoryFromProduct = propCategories.find(cat => cat.id === fullProduct.category_id);
           
-          // Si el producto tiene un category_id que es una subcategoría, agregarlo
-          const isSubcategory = propCategories.some(cat => cat.id === fullProduct.category_id && cat.parentId);
-          if (isSubcategory) {
-            setSubcategoryIds([fullProduct.category_id]);
-          } else if (productSubcategories.length > 0) {
-            // Intentar inferir las subcategorías desde las variantes o atributos
-            // Por ahora, esto se manejará mejor cuando tengamos más información del backend
+          if (categoryFromProduct?.parentId || categoryFromProduct?.parent_id) {
+            // Es una subcategoría (caso legacy)
+            const parentId = categoryFromProduct.parentId || categoryFromProduct.parent_id;
+            if (parentId) {
+              loadedCategoryId = parentId;
+              loadedSubcatIds.push(fullProduct.category_id);
+              
+              // Cargar opción si existe
+              if (fullProduct.category_option_id && categoryFromProduct.opciones) {
+                const optionObj = categoryFromProduct.opciones.find(opt => opt.id === fullProduct.category_option_id);
+                if (optionObj) {
+                  loadedOptions[fullProduct.category_id] = [optionObj.value];
+                }
+              }
+            }
+          } else {
+            // Es una categoría principal
+            loadedCategoryId = fullProduct.category_id;
           }
+        }
+        
+        // TERCERO: Establecer los valores cargados
+        if (loadedSubcatIds.length > 0) {
+          // PRIMERO establecer la categoría padre ANTES de establecer las subcategorías
+          // (esto asegura que availableSubcategories se calcule correctamente)
+          if (!loadedCategoryId && loadedSubcatIds.length > 0) {
+            const firstSubcat = propCategories.find(c => c.id === loadedSubcatIds[0]);
+            if (firstSubcat?.parentId || firstSubcat?.parent_id) {
+              loadedCategoryId = firstSubcat.parentId || firstSubcat.parent_id;
+            }
+          }
+          
+          // Establecer categoría padre PRIMERO
+          if (loadedCategoryId) {
+            setCategoryId(loadedCategoryId);
+            
+            // Guardar las subcategorías pendientes para establecerlas cuando categoryId se actualice
+            setPendingSubcategories({
+              ids: loadedSubcatIds,
+              options: loadedOptions
+            });
+          } else {
+            setSubcategoryIds(loadedSubcatIds);
+            if (Object.keys(loadedOptions).length > 0) {
+              setSelectedOptions(loadedOptions);
+            }
+          }
+        } else if (loadedCategoryId) {
+          // Solo hay categoría, sin subcategorías
+          setCategoryId(loadedCategoryId);
         }
 
         // Cargar variantes y atributos desde el producto completo
         if (fullProduct.variants && fullProduct.variants.length > 0) {
+          // El backend estructura las variantes así:
+          // - Cada variant tiene un sku que es el nombre del atributo (ej: "Tamaño")
+          // - Cada variant tiene options, donde cada option.name es el valor del atributo (ej: "M")
+          // - Cada variant tiene prices (array) con precios por catálogo
+          // - El stock está en cada option
+          
           // Extraer atributos únicos de las variantes
           const attributeMap: Record<string, Set<string>> = {};
           
+          // Primero, recopilar todos los atributos y sus valores
           fullProduct.variants.forEach((variant: any) => {
-            if (variant.attributes) {
+            if (variant.options && variant.options.length > 0) {
+              const attrName = variant.sku || 'Atributo';
+              variant.options.forEach((option: any) => {
+                if (!attributeMap[attrName]) {
+                  attributeMap[attrName] = new Set();
+                }
+                attributeMap[attrName].add(option.name);
+              });
+            } else if (variant.attributes) {
+              // Si tiene attributes directamente, usarlos
               Object.entries(variant.attributes).forEach(([attrName, attrValue]) => {
                 if (!attributeMap[attrName]) {
                   attributeMap[attrName] = new Set();
@@ -407,6 +518,140 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
               });
             }
           });
+          
+          // Crear un mapa de combinaciones de atributos a precios y stock
+          // Cada variant tiene un atributo (sku) y múltiples options con stock
+          // Los precios están en la variant (compartidos entre todas las options)
+          const variantMap: Map<string, Variant> = new Map();
+          const attributeNames = Object.keys(attributeMap);
+          
+          if (attributeNames.length > 0) {
+            // Recorrer todas las variants para obtener precios y stocks
+            fullProduct.variants.forEach((variant: any, variantIndex: number) => {
+              const variantAttrName = variant.sku || 'Atributo';
+              
+              // Los precios ahora están en cada option, no en la variant
+              // Si esta variant tiene options, crear una variante por cada option con sus precios
+              if (variant.options && variant.options.length > 0) {
+                variant.options.forEach((option: any) => {
+                  // Crear atributos para esta combinación
+                  const attributes: Record<string, string> = {
+                    [variantAttrName]: option.name
+                  };
+                  
+                  const attrKey = JSON.stringify(attributes);
+                  
+                  // Cargar precios desde esta opción específica
+                  const optionPrices: Record<string, number> = {};
+                  if (option.prices && Array.isArray(option.prices)) {
+                    console.log(`[PRICES] Option "${option.name}" - Precios encontrados:`, option.prices);
+                    option.prices.forEach((price: any) => {
+                      // Preferir catalog_id, pero mantener compatibilidad con locality_id
+                      const priceKey = price.catalog_id || price.locality_id;
+                      if (priceKey) {
+                        optionPrices[priceKey] = price.price;
+                        console.log(`[PRICES] Precio cargado: option="${option.name}", catalog_id=${price.catalog_id || 'N/A'}, locality_id=${price.locality_id || 'N/A'}, price=${price.price}`);
+                      }
+                    });
+                  }
+                  
+                  // Si ya existe esta combinación, actualizar precios (merge)
+                  if (variantMap.has(attrKey)) {
+                    const existing = variantMap.get(attrKey)!;
+                    variantMap.set(attrKey, {
+                      ...existing,
+                      prices: { ...existing.prices, ...optionPrices }, // Merge de precios
+                    });
+                  } else {
+                    variantMap.set(attrKey, {
+                      attributes,
+                      stock: 0, // No guardamos stock
+                      prices: { ...optionPrices }, // Precios de esta opción específica
+                    });
+                    
+                    if (Object.keys(optionPrices).length > 0) {
+                      console.log(`[PRICES] Variante creada con precios:`, {
+                        attributes,
+                        optionName: option.name,
+                        prices: optionPrices,
+                      });
+                    }
+                  }
+                });
+              } else {
+                // Si no tiene options, verificar si la variant tiene precios directamente
+                const attributes: Record<string, string> = {};
+                if (variant.attributes) {
+                  Object.assign(attributes, variant.attributes);
+                } else if (variantAttrName !== 'Atributo') {
+                  attributes[variantAttrName] = variantAttrName;
+                }
+                
+                const attrKey = JSON.stringify(attributes);
+                
+                // Intentar cargar precios desde variant.prices (por compatibilidad)
+                const variantPrices: Record<string, number> = {};
+                if (variant.prices && Array.isArray(variant.prices)) {
+                  variant.prices.forEach((price: any) => {
+                    // Preferir catalog_id, pero mantener compatibilidad con locality_id
+                    const priceKey = price.catalog_id || price.locality_id;
+                    if (priceKey) {
+                      variantPrices[priceKey] = price.price;
+                    }
+                  });
+                }
+                
+                variantMap.set(attrKey, {
+                  attributes,
+                  stock: 0, // No guardamos stock
+                  prices: variantPrices,
+                });
+              }
+            });
+          } else {
+            // Si no hay atributos estructurados, usar las variants directamente
+            // Los precios pueden estar en variant.prices o en option.prices
+            fullProduct.variants.forEach((variant: any) => {
+              const prices: Record<string, number> = {};
+              
+              // Primero intentar cargar desde las opciones (nueva estructura)
+              if (variant.options && variant.options.length > 0) {
+                variant.options.forEach((option: any) => {
+                  if (option.prices && Array.isArray(option.prices)) {
+                    option.prices.forEach((price: any) => {
+                      // Preferir catalog_id, pero mantener compatibilidad con locality_id
+                      const priceKey = price.catalog_id || price.locality_id;
+                      if (priceKey) {
+                        prices[priceKey] = price.price;
+                      }
+                    });
+                  }
+                });
+              }
+              
+              // Si no hay precios en las opciones, intentar desde variant.prices (compatibilidad)
+              if (Object.keys(prices).length === 0 && variant.prices && Array.isArray(variant.prices)) {
+                variant.prices.forEach((price: any) => {
+                  // Preferir catalog_id, pero mantener compatibilidad con locality_id
+                  const priceKey = price.catalog_id || price.locality_id;
+                  if (priceKey) {
+                    prices[priceKey] = price.price;
+                  }
+                });
+              }
+              
+              const attributes: Record<string, string> = variant.attributes || {};
+              const attrKey = JSON.stringify(attributes);
+              
+              if (!variantMap.has(attrKey)) {
+                variantMap.set(attrKey, {
+                  attributes,
+                  stock: 0, // No guardamos stock
+                  prices,
+                });
+              }
+            });
+          }
 
           // Convertir el mapa de atributos al formato esperado
           const loadedAttributes: Attribute[] = Object.entries(attributeMap).map(([name, values], index) => ({
@@ -420,20 +665,17 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
             setAttributes(loadedAttributes);
           }
 
-          // Cargar variantes con sus precios
-          const loadedVariants: Variant[] = fullProduct.variants.map((variant: any) => {
-            const prices: Record<string, number> = {};
-            if (variant.prices) {
-              variant.prices.forEach((price: any) => {
-                prices[price.locality_id] = price.price;
+          // Cargar variantes desde el mapa
+          const loadedVariants: Variant[] = Array.from(variantMap.values());
+          loadedVariants.forEach((variant, index) => {
+            const pricesCount = Object.keys(variant.prices).length;
+            if (pricesCount > 0) {
+              console.log(`[PRICES] Variante ${index} (${JSON.stringify(variant.attributes)}) tiene ${pricesCount} precio(s):`, variant.prices);
+              Object.entries(variant.prices).forEach(([catalogId, price]) => {
+                const catalog = catalogs.find(c => c.id === catalogId);
+                console.log(`[PRICES]   - Catálogo ${catalogId} (${catalog?.name || 'N/A'}): ${price}`);
               });
             }
-
-            return {
-              attributes: variant.attributes || {},
-              stock: variant.stock || 0,
-              prices,
-            };
           });
 
           if (loadedVariants.length > 0) {
@@ -448,6 +690,20 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 
     loadCompleteProductData();
   }, [isOpen, crmProduct?.product_id, propCategories]);
+
+  // Establecer subcategorías pendientes cuando categoryId se actualice
+  useEffect(() => {
+    if (categoryId && pendingSubcategories) {
+      setSubcategoryIds(pendingSubcategories.ids);
+      
+      if (Object.keys(pendingSubcategories.options).length > 0) {
+        setSelectedOptions(pendingSubcategories.options);
+      }
+      
+      // Limpiar las subcategorías pendientes
+      setPendingSubcategories(null);
+    }
+  }, [categoryId, pendingSubcategories]);
 
   // Generar atributos cuando cambia la categoría, subcategorías u opción (solo si no hay atributos ya)
   useEffect(() => {
@@ -533,18 +789,58 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 
   useEffect(() => {
     // Generar variantes cuando cambian los atributos o cuando se llega al paso 3
+    // IMPORTANTE: Preservar variantes existentes si ya coinciden con los atributos (para mantener precios cargados)
     if (currentStep === 3) {
       if (attributes.length === 0) {
-        // Si no hay atributos, crear una variante única
-        setVariants([
-          {
-            attributes: {},
-            stock: 0,
-            prices: {},
-          },
-        ]);
+        // Si no hay atributos, crear una variante única solo si no hay variantes
+        setVariants((prev) => {
+          if (prev.length === 0) {
+            return [{
+              attributes: {},
+              stock: 0,
+              prices: {},
+            }];
+          }
+          return prev; // Preservar variantes existentes
+        });
       } else {
-        generateVariants();
+        // Verificar si las variantes actuales ya coinciden con los atributos antes de regenerar
+        setVariants((prev) => {
+          // Si ya hay variantes, verificar si coinciden
+          if (prev.length > 0) {
+            // Generar todas las combinaciones esperadas
+            const expectedCombos: string[] = [];
+            const generateExpected = (current: Record<string, string>, attrIndex: number) => {
+              if (attrIndex === attributes.length) {
+                expectedCombos.push(JSON.stringify(current));
+                return;
+              }
+              const attr = attributes[attrIndex];
+              if (attr.options.length === 0) {
+                generateExpected(current, attrIndex + 1);
+              } else {
+                attr.options.forEach(opt => {
+                  generateExpected({ ...current, [attr.name]: opt }, attrIndex + 1);
+                });
+              }
+            };
+            generateExpected({}, 0);
+            
+            const currentCombos = prev.map(v => JSON.stringify(v.attributes)).sort();
+            const expectedSorted = expectedCombos.sort();
+            
+            // Si coinciden, preservar las variantes existentes (con sus precios)
+            if (currentCombos.length === expectedSorted.length && 
+                currentCombos.every((combo, i) => combo === expectedSorted[i])) {
+              console.log("[PRICES] Variantes actuales coinciden con atributos, preservando precios");
+              return prev;
+            }
+          }
+          
+          // No coinciden o no hay variantes, generar nuevas preservando precios
+          generateVariants();
+          return prev; // generateVariants actualizará el estado
+        });
       }
     }
   }, [attributes, currentStep]);
@@ -580,14 +876,30 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 
     generateCombinations({}, 0);
 
-    // Crear variantes iniciales con precios vacíos por localidad
-    const newVariants: Variant[] = combinations.map((combo) => ({
-      attributes: combo,
-      stock: 0,
-      prices: {},
-    }));
+    // Crear variantes preservando precios existentes si las variantes ya existen
+    setVariants((prevVariants) => {
+      const newVariants: Variant[] = combinations.map((combo) => {
+        // Buscar si ya existe una variante con estos atributos para preservar sus precios
+        const existingVariant = prevVariants.find((v) => {
+          const comboKey = JSON.stringify(combo);
+          const variantKey = JSON.stringify(v.attributes);
+          return comboKey === variantKey;
+        });
+        
+        if (existingVariant) {
+          console.log(`[PRICES] Preservando precios para variante ${JSON.stringify(combo)}:`, existingVariant.prices);
+        }
+        
+        return {
+          attributes: combo,
+          stock: 0,
+          prices: existingVariant?.prices || {}, // Preservar precios existentes
+        };
+      });
 
-    setVariants(newVariants);
+      console.log(`[PRICES] Variantes generadas: ${newVariants.length}, precios preservados`);
+      return newVariants;
+    });
   };
 
 
@@ -605,16 +917,16 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
     );
   };
 
-  const handlePriceChange = (variantIndex: number, localityId: string, value: string | number) => {
+  const handlePriceChange = (variantIndex: number, catalogId: string, value: string | number) => {
     setVariants((prev) =>
       prev.map((variant, i) => {
         if (i === variantIndex) {
           const newPrices = { ...variant.prices };
           const numValue = Number(value);
           if (numValue > 0) {
-            newPrices[localityId] = numValue;
+            newPrices[catalogId] = numValue;
           } else {
-            delete newPrices[localityId];
+            delete newPrices[catalogId];
           }
           return {
             ...variant,
@@ -636,17 +948,27 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       // Validar opciones según el caso
       const selectedCat = propCategories.find((cat) => cat.id === categoryId);
       
-      // Si es Colchones, requiere al menos una subcategoría
-      if (selectedCat?.nombre === "Colchones" && subcategoryIds.length === 0) {
-        setError("Por favor selecciona al menos una subcategoría");
-        return;
+      // Si la categoría tiene opciones directas (sin subcategorías), validar opción
+      if (selectedCat?.opciones && selectedCat.opciones.length > 0 && availableSubcategories.length === 0) {
+        const directOptions = Array.isArray(selectedOptions["direct"]) ? selectedOptions["direct"] : (selectedOptions["direct"] ? [selectedOptions["direct"]] : []);
+        if (directOptions.length === 0) {
+          setError("Por favor selecciona al menos una opción");
+          return;
+        }
       }
       
-      // Si la categoría tiene opciones directas (sin subcategorías), validar opción
-      if (selectedCat?.opciones && selectedCat.opciones.length > 0 && availableSubcategories.length === 0 && !selectedOptions["direct"]) {
-        setError("Por favor selecciona una opción");
-        return;
+      // Si hay subcategorías seleccionadas, validar que cada una tenga al menos una opción seleccionada si tiene opciones
+      for (const subcatId of subcategoryIds) {
+        const subcat = propCategories.find((cat) => cat.id === subcatId);
+        if (subcat?.opciones && subcat.opciones.length > 0) {
+          const subcatOptions = selectedOptions[subcatId] || [];
+          if (subcatOptions.length === 0) {
+            setError(`Por favor selecciona al menos una opción para la subcategoría "${subcat.nombre}"`);
+            return;
+          }
+        }
       }
+      
       setError("");
       setCurrentStep(2);
     } else if (currentStep === 2) {
@@ -669,9 +991,9 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
     setLoading(true);
 
     try {
-      // Validar variantes
+      // Validar variantes (solo precios, sin stock)
       const invalidVariants = variants.filter(
-        (v) => v.stock < 0 || Object.values(v.prices).some(price => price <= 0)
+        (v) => Object.values(v.prices).some(price => price <= 0)
       );
 
       if (invalidVariants.length > 0) {
@@ -686,15 +1008,25 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       );
 
       if (variantsWithPrices.length === 0) {
-        setError("Por favor agrega al menos un precio por localidad para las variantes");
+        setError("Por favor agrega al menos un precio por catálogo para las variantes");
         setLoading(false);
         return;
       }
 
       // Si es un producto CRM, usar completeCrmProduct
       if (crmProduct) {
+        // Determinar category_id (categoría padre)
+        let finalCategoryId = categoryId;
+        if (subcategoryIds.length > 0) {
+          // Si hay subcategorías, usar la categoría padre de la primera subcategoría
+          const firstSubcat = propCategories.find(c => c.id === subcategoryIds[0]);
+          if (firstSubcat?.parentId || firstSubcat?.parent_id) {
+            finalCategoryId = firstSubcat.parentId || firstSubcat.parent_id;
+          }
+        }
+        
         const productData = {
-          product_id: crmProduct.product_id,
+          product_id: crmProduct.product_id || undefined, // Permitir que el backend lo busque automáticamente
           name,
           description: description || undefined,
           technical_description: technicalDescription || undefined,
@@ -707,8 +1039,29 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           is_bed_in_box: isBedInBox,
           mattress_firmness: mattressFirmness || undefined,
           size_label: sizeLabel || undefined,
-          category_id: subcategoryIds.length > 0 ? subcategoryIds[0] : categoryId,
-          category_option_id: selectedOptions[subcategoryIds[0]] || selectedOptions["direct"] ? undefined : undefined, // TODO: map to category_option_id
+          category_id: finalCategoryId || undefined, // Categoría padre
+          subcategory_ids: subcategoryIds.length > 0 ? subcategoryIds : undefined, // Múltiples subcategorías
+          subcategory_options: Object.keys(selectedOptions).length > 0 ? selectedOptions : undefined, // Opciones por subcategoría
+          category_option_id: (() => {
+            // Obtener el ID de la primera opción seleccionada (para compatibilidad)
+            // Si hay subcategorías seleccionadas, usar la primera subcategoría
+            if (subcategoryIds.length > 0) {
+              const subcatId = subcategoryIds[0];
+              const selectedOpts = selectedOptions[subcatId] || [];
+              if (selectedOpts.length > 0) {
+                const subcat = propCategories.find(c => c.id === subcatId);
+                const optionObj = subcat?.opcionesConIds?.find(opt => opt.value === selectedOpts[0]);
+                return optionObj?.id;
+              }
+            }
+            // Si no hay subcategorías, usar opciones directas
+            const directOpts = selectedOptions["direct"] || [];
+            if (directOpts.length > 0) {
+              const optionObj = selectedCategory?.opcionesConIds?.find(opt => opt.value === directOpts[0]);
+              return optionObj?.id;
+            }
+            return undefined;
+          })(),
           is_active: isActive,
           images: images,
           variants: variants.map((variant) => {
@@ -719,10 +1072,10 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
             
             return {
               sku: variantName || undefined,
-              stock: variant.stock,
+              // stock removido - no se guarda stock en las variants
               attributes: variant.attributes,
-              prices: Object.entries(variant.prices).map(([locality_id, price]) => ({
-                locality_id,
+              prices: Object.entries(variant.prices).map(([catalog_id, price]) => ({
+                catalog_id,
                 price,
               })),
             };
@@ -757,10 +1110,10 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
             
             return {
               sku: variantName || undefined,
-              stock: variant.stock,
+              // stock removido - no se guarda stock en las variants
               attributes: variant.attributes,
-              prices: Object.entries(variant.prices).map(([locality_id, price]) => ({
-                locality_id,
+              prices: Object.entries(variant.prices).map(([catalog_id, price]) => ({
+                catalog_id,
                 price,
               })),
             };
@@ -1047,21 +1400,26 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
               {categoryId && hasCategoryOptions && availableSubcategories.length === 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Opción <span className="text-red-500">*</span>
+                    Opciones <span className="text-red-500">*</span> <span className="text-xs font-normal text-gray-500">(puedes seleccionar múltiples)</span>
                   </label>
-                  <select
-                    value={selectedOptions["direct"] || ""}
-                    onChange={(e) => setSelectedOptions({ ...selectedOptions, "direct": e.target.value })}
-                    required
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
-                  >
-                    <option value="">Selecciona una opción</option>
+                  <div className="space-y-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
                     {selectedCategory?.opciones?.map((opcion, index) => (
-                      <option key={index} value={opcion}>
-                        {opcion}
-                      </option>
+                      <label key={index} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isOptionSelected("direct", opcion)}
+                          onChange={() => toggleOption("direct", opcion)}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">{opcion}</span>
+                      </label>
                     ))}
-                  </select>
+                    {getSelectedOptionsForSubcategory("direct").length > 0 && (
+                      <div className="text-xs text-gray-500 mt-2">
+                        {getSelectedOptionsForSubcategory("direct").length} opción(es) seleccionada(s)
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1069,12 +1427,14 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
               {categoryId && availableSubcategories.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Subcategorías {selectedCategory?.nombre === "Colchones" && <span className="text-red-500">*</span>}
+                    Subcategorías {subcategoryIds.length > 1 && <span className="text-xs font-normal text-gray-500">({subcategoryIds.length} seleccionadas, se guardará la primera)</span>}
                   </label>
                   <div className="space-y-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
                     {availableSubcategories.map((subcat) => {
-                      const isSelected = subcategoryIds.includes(subcat.id);
-                      const subcatFromPage = propCategories.find(c => c.id === subcat.id);
+                      // Asegurar que la comparación se hace con strings
+                      const subcatIdStr = String(subcat.id);
+                      const isSelected = subcategoryIds.some(id => String(id) === subcatIdStr);
+                      const subcatFromPage = propCategories.find(c => String(c.id) === subcatIdStr);
                       return (
                         <div key={subcat.id} className="space-y-2">
                           <label className="flex items-center gap-3 cursor-pointer group">
@@ -1103,29 +1463,32 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                           {isSelected && subcatFromPage?.opciones && subcatFromPage.opciones.length > 0 && (
                             <div className="ml-8 mt-2 space-y-2">
                               <label className="block text-xs font-medium text-gray-600 mb-1">
-                                Selecciona opciones de {subcat.name}:
+                                Selecciona opciones de {subcat.name} (puedes seleccionar múltiples):
                               </label>
                               <div className="flex flex-wrap gap-2">
-                                {subcatFromPage.opciones.map((opcion, index) => (
-                                  <label key={index} className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                      type="radio"
-                                      name={`subcat-${subcat.id}`}
-                                      checked={selectedOptions[subcat.id] === opcion}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setSelectedOptions({
-                                            ...selectedOptions,
-                                            [subcat.id]: opcion
-                                          });
-                                        }
-                                      }}
-                                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                    />
-                                    <span className="text-sm text-gray-700">{opcion}</span>
-                                  </label>
-                                ))}
+                                {subcatFromPage.opciones.map((opcion, index) => {
+                                  // Opciones pueden ser strings o objetos {id, value}
+                                  const optionValue = typeof opcion === 'string' ? opcion : opcion.value;
+                                  const optionId = typeof opcion === 'string' ? undefined : opcion.id;
+                                  const isOptSelected = isOptionSelected(subcat.id, optionValue);
+                                  return (
+                                    <label key={index} className="flex items-center gap-2 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={!!isOptSelected}
+                                        onChange={() => toggleOption(subcat.id, optionValue)}
+                                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                      />
+                                      <span className="text-sm text-gray-700">{optionValue}</span>
+                                    </label>
+                                  );
+                                })}
                               </div>
+                              {getSelectedOptionsForSubcategory(subcat.id).length > 0 && (
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {getSelectedOptionsForSubcategory(subcat.id).length} opción(es) seleccionada(s)
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1490,7 +1853,18 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                 <div className="space-y-3">
                   {variants.map((variant, index) => {
                     const isExpanded = expandedVariant === index;
-                    const variantPricesCount = Object.keys(variant.prices).length;
+                    
+                    // Log detallado del estado de la variante
+                    console.log(`[PRICES] Variante ${index} en render:`, {
+                      attributes: variant.attributes,
+                      pricesObject: variant.prices,
+                      pricesType: typeof variant.prices,
+                      pricesIsObject: variant.prices instanceof Object,
+                      pricesKeys: variant.prices ? Object.keys(variant.prices) : [],
+                      hasPrices: variant.prices && Object.keys(variant.prices).length > 0,
+                      variantObject: variant,
+                    });
+                    
                     return (
                       <div key={index} className="border border-gray-200 rounded-lg shadow-sm overflow-hidden">
                         {/* Header row - always visible */}
@@ -1510,27 +1884,6 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                                   </span>
                                 </div>
                               ))}
-                              <div className="flex-shrink-0">
-                                <span className="text-xs font-medium text-gray-500 uppercase">
-                                  Stock:
-                                </span>
-                                <input
-                                  type="number"
-                                  value={variant.stock}
-                                  onChange={(e) => {
-                                    e.stopPropagation();
-                                    handleVariantChange(index, "stock", e.target.value);
-                                  }}
-                                  onClick={(e) => e.stopPropagation()}
-                                  min="0"
-                                  className="ml-2 w-24 px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 text-sm transition-colors"
-                                />
-                              </div>
-                              <div className="flex-shrink-0">
-                                <span className="text-xs font-medium text-gray-500">
-                                  Precios: {variantPricesCount} localidad{variantPricesCount !== 1 ? "es" : ""}
-                                </span>
-                              </div>
                             </div>
                             <button
                               type="button"
@@ -1549,30 +1902,41 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                           </div>
                         </div>
 
-                        {/* Expanded content - prices by locality */}
+                        {/* Expanded content - prices by catalog */}
                         {isExpanded && (
                           <div className="border-t border-gray-200 bg-gray-50 p-4">
                             <h4 className="text-sm font-medium text-gray-900 mb-3">
-                              Precios por Localidad
+                              Precios por Catálogo
                             </h4>
-                            {localities.length === 0 ? (
-                              <p className="text-sm text-gray-500">Cargando localidades...</p>
+                            {catalogs.length === 0 ? (
+                              <p className="text-sm text-gray-500">Cargando catálogos...</p>
                             ) : (
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                {localities.map((locality) => {
-                                  const currentPrice = variant.prices[locality.id] || "";
+                                {catalogs.map((catalog) => {
+                                  const currentPrice = variant.prices[catalog.id] || "";
+                                  console.log(`[PRICES] Renderizando precio para variante ${index}, catálogo ${catalog.id} (${catalog.name}):`, {
+                                    catalogId: catalog.id,
+                                    catalogIdType: typeof catalog.id,
+                                    variantPrices: variant.prices,
+                                    variantPricesKeys: Object.keys(variant.prices),
+                                    currentPrice,
+                                    priceFound: variant.prices[catalog.id],
+                                  });
                                   return (
-                                    <div key={locality.id} className="bg-white rounded-lg border border-gray-200 p-3">
+                                    <div key={catalog.id} className="bg-white rounded-lg border border-gray-200 p-3">
                                       <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                                        {locality.name}
+                                        {catalog.name}
                                       </label>
+                                      {catalog.description && (
+                                        <p className="text-xs text-gray-500 mb-1.5">{catalog.description}</p>
+                                      )}
                                       <div className="flex items-center gap-2">
                                         <span className="text-sm text-gray-500">$</span>
                                         <input
                                           type="number"
                                           value={currentPrice}
                                           onChange={(e) =>
-                                            handlePriceChange(index, locality.id, e.target.value)
+                                            handlePriceChange(index, catalog.id, e.target.value)
                                           }
                                           min="0"
                                           step="0.01"

@@ -184,6 +184,14 @@ export default function Sidebar() {
                   Productos
                 </NavLink>
               </li>
+              <li key="distribucion-inicio">
+                <NavLink
+                  href="/admin/distribucion-inicio"
+                  icon={<Package className="w-5 h-5" />}
+                >
+                  Distribución Inicio
+                </NavLink>
+              </li>
               <li key="imagenes">
                 <NavLink
                   href="/admin/imagenes"
@@ -200,14 +208,14 @@ export default function Sidebar() {
                   Blog
                 </NavLink>
               </li>
-              {/* <li key="promos">
+              <li key="promos">
                 <NavLink
                   href="/admin/promos"
                   icon={<Tag className="w-5 h-5" />}
                 >
-                  Promos (X)
+                  Promos
                 </NavLink>
-              </li> */}
+              </li>
               <li key="logistica">
                 <NavLink
                   href="/admin/logistica"

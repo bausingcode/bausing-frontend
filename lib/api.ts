@@ -71,6 +71,7 @@ export interface Category {
   description?: string;
   parent_id?: string;
   parent_name?: string;
+  order?: number;
   created_at?: string;
   options?: CategoryOption[];
 }
@@ -136,6 +137,213 @@ export async function fetchLocalities(cookieHeader?: string | null): Promise<Loc
   return data.success ? data.data : [];
 }
 
+// Catalogs API
+export interface Catalog {
+  id: string;
+  name: string;
+  description?: string;
+  created_at?: string;
+  updated_at?: string;
+  localities?: Locality[];
+}
+
+/**
+ * Fetch all catalogs from the backend
+ */
+export async function fetchCatalogs(includeLocalities = false, cookieHeader?: string | null): Promise<Catalog[]> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/catalogs?include_localities=${includeLocalities}`
+    : `/api/catalogs?include_localities=${includeLocalities}`;
+  
+  const headers = typeof window === "undefined" 
+    ? getAuthHeadersServer(cookieHeader)
+    : getAuthHeaders();
+  
+  const response = await fetch(url, { headers, cache: "no-store" });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch catalogs: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.success ? data.data : [];
+}
+
+/**
+ * Fetch a single catalog by ID
+ */
+export async function fetchCatalogById(catalogId: string, cookieHeader?: string | null): Promise<Catalog> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/catalogs/${catalogId}`
+    : `/api/catalogs/${catalogId}`;
+  
+  const headers = typeof window === "undefined" 
+    ? getAuthHeadersServer(cookieHeader)
+    : getAuthHeaders();
+  
+  const response = await fetch(url, { headers, cache: "no-store" });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch catalog: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.success ? data.data : null;
+}
+
+/**
+ * Create a new catalog
+ */
+export async function createCatalog(catalog: { name: string; description?: string }, cookieHeader?: string | null): Promise<Catalog> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/catalogs`
+    : `/api/catalogs`;
+  
+  const headers = typeof window === "undefined" 
+    ? getAuthHeadersServer(cookieHeader)
+    : getAuthHeaders();
+  
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(catalog),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to create catalog: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.success ? data.data : null;
+}
+
+/**
+ * Update a catalog
+ */
+export async function updateCatalog(catalogId: string, catalog: { name?: string; description?: string }, cookieHeader?: string | null): Promise<Catalog> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/catalogs/${catalogId}`
+    : `/api/catalogs/${catalogId}`;
+  
+  const headers = typeof window === "undefined" 
+    ? getAuthHeadersServer(cookieHeader)
+    : getAuthHeaders();
+  
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(catalog),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to update catalog: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.success ? data.data : null;
+}
+
+/**
+ * Delete a catalog
+ */
+export async function deleteCatalog(catalogId: string, cookieHeader?: string | null): Promise<void> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/catalogs/${catalogId}`
+    : `/api/catalogs/${catalogId}`;
+  
+  const headers = typeof window === "undefined" 
+    ? getAuthHeadersServer(cookieHeader)
+    : getAuthHeaders();
+  
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers,
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to delete catalog: ${response.statusText}`);
+  }
+}
+
+/**
+ * Update catalog localities (replace entire list)
+ */
+export async function updateCatalogLocalities(catalogId: string, localityIds: string[], cookieHeader?: string | null): Promise<Catalog> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/catalogs/${catalogId}/localities`
+    : `/api/catalogs/${catalogId}/localities`;
+  
+  const headers = typeof window === "undefined" 
+    ? getAuthHeadersServer(cookieHeader)
+    : getAuthHeaders();
+  
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ locality_ids: localityIds }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to update catalog localities: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.success ? data.data : null;
+}
+
+/**
+ * Detect locality based on IP or coordinates
+ */
+export async function detectLocality(params?: {
+  lat?: number;
+  lon?: number;
+  ip?: string;
+}): Promise<{
+  locality: Locality;
+  coordinates: { lon: number; lat: number };
+}> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/api/detect-locality`
+    : `/api/detect-locality`;
+  
+  const queryParams = new URLSearchParams();
+  if (params?.lat !== undefined) queryParams.append('lat', params.lat.toString());
+  if (params?.lon !== undefined) queryParams.append('lon', params.lon.toString());
+  if (params?.ip) queryParams.append('ip', params.ip);
+  
+  const fullUrl = queryParams.toString() ? `${url}?${queryParams.toString()}` : url;
+  
+  const headers = typeof window === "undefined" 
+    ? getAuthHeadersServer()
+    : getAuthHeaders();
+  
+  const response = await fetch(fullUrl, { headers, cache: "no-store" });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to detect locality: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success) {
+    throw new Error(data.error || "Failed to detect locality");
+  }
+  
+  return data.data;
+}
+
 // Products API
 export interface Product {
   id: string;
@@ -144,6 +352,23 @@ export interface Product {
   sku?: string;
   category_id?: string;
   category_name?: string;
+  category_option_id?: string;
+  category_option_value?: string;
+  subcategories?: Array<{
+    id: string;
+    product_id: string;
+    subcategory_id: string;
+    subcategory_name?: string;
+    category_option_id?: string;
+    category_option_value?: string;
+    created_at?: string;
+  }>;
+  // Campos técnicos para colchones
+  filling_type?: string;
+  max_supported_weight_kg?: number;
+  has_pillow_top?: boolean;
+  is_bed_in_box?: boolean;
+  mattress_firmness?: string;
   is_active: boolean;
   min_price?: number;
   max_price?: number;
@@ -277,11 +502,21 @@ export async function fetchProducts(params?: {
 /**
  * Fetch a single product by ID
  */
-export async function fetchProductById(productId: string): Promise<Product | null> {
+export async function fetchProductById(productId: string, localityId?: string): Promise<Product | null> {
   try {
-    const url = `/api/products/${productId}?include_variants=true&include_images=true&include_promos=true`;
+    const queryParams = new URLSearchParams({
+      include_variants: 'true',
+      include_images: 'true',
+      include_promos: 'true',
+    });
+    
+    if (localityId) {
+      queryParams.append('locality_id', localityId);
+    }
+    
+    const url = `/api/products/${productId}?${queryParams.toString()}`;
     const response = await fetch(url, {
-      cache: "default", // Permitir cache del navegador para cargar más rápido
+      cache: "no-store", // No cache para que siempre obtenga precios actualizados
     });
     
     if (!response.ok) {
@@ -792,6 +1027,27 @@ export async function createCategoryOption(
     throw new Error("Failed to create category option: Invalid response");
   }
   return data.data;
+}
+
+/**
+ * Delete a category
+ */
+export async function deleteCategory(categoryId: string): Promise<void> {
+  const url = `/api/categories/${categoryId}`;
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to delete category: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success) {
+    throw new Error(data.error || "Failed to delete category");
+  }
 }
 
 // Admin User API
@@ -3172,5 +3428,154 @@ export async function deletePromo(promoId: string): Promise<void> {
   } catch (error) {
     console.error("Error deleting promo:", error);
     throw error;
+  }
+}
+
+/**
+ * Homepage Product Distribution Types
+ */
+export interface HomepageDistribution {
+  featured: (HomepageDistributionItem | null)[];
+  discounts: (HomepageDistributionItem | null)[];
+  mattresses: (HomepageDistributionItem | null)[];
+  complete_purchase: (HomepageDistributionItem | null)[];
+}
+
+export interface HomepageDistributionItem {
+  id: string;
+  section: string;
+  position: number;
+  product_id: string | null;
+  product?: Product;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/**
+ * Fetch homepage product distribution (admin)
+ */
+export async function fetchHomepageDistribution(): Promise<HomepageDistribution> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/homepage-distribution`
+      : `/api/admin/homepage-distribution`;
+    
+    const headers = typeof window === "undefined"
+      ? getAuthHeadersServer()
+      : getAuthHeaders();
+    
+    const response = await fetch(url, { headers, cache: "no-store" });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch homepage distribution: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || "Failed to fetch homepage distribution");
+    }
+    
+    return data.data;
+  } catch (error) {
+    console.error("Error fetching homepage distribution:", error);
+    throw error;
+  }
+}
+
+/**
+ * Set homepage product distribution (admin)
+ */
+export async function setHomepageDistribution(params: {
+  section: 'featured' | 'discounts' | 'mattresses' | 'complete_purchase';
+  position: number;
+  product_id: string | null;
+}): Promise<HomepageDistributionItem> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/homepage-distribution`
+      : `/api/admin/homepage-distribution`;
+    
+    const headers = typeof window === "undefined"
+      ? getAuthHeadersServer()
+      : getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(params),
+      cache: "no-store",
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Failed to set homepage distribution: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || "Failed to set homepage distribution");
+    }
+    
+    return data.data;
+  } catch (error) {
+    console.error("Error setting homepage distribution:", error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch public homepage product distribution (no auth)
+ */
+export async function fetchPublicHomepageDistribution(localityId?: string): Promise<{
+  featured: Product[];
+  discounts: Product[];
+  mattresses: Product[];
+  complete_purchase: Product[];
+}> {
+  try {
+    let url = typeof window === "undefined"
+      ? `${BACKEND_URL}/homepage-distribution`
+      : `/api/homepage-distribution`;
+    
+    // Agregar locality_id como query parameter si está presente
+    if (localityId) {
+      const separator = url.includes('?') ? '&' : '?';
+      url = `${url}${separator}locality_id=${localityId}`;
+    }
+    
+    const response = await fetch(url, { cache: "no-store" });
+    
+    if (!response.ok) {
+      // Si el endpoint no existe o hay un error, retornar arrays vacíos
+      console.warn("Homepage distribution endpoint not available, using fallback");
+      return {
+        featured: [],
+        discounts: [],
+        mattresses: [],
+        complete_purchase: []
+      };
+    }
+    
+    const data = await response.json();
+    if (!data.success) {
+      console.warn("Homepage distribution request failed, using fallback");
+      return {
+        featured: [],
+        discounts: [],
+        mattresses: [],
+        complete_purchase: []
+      };
+    }
+    
+    return data.data;
+  } catch (error) {
+    // Silenciosamente retornar arrays vacíos si hay cualquier error
+    // Esto permite que la página funcione aunque el endpoint no esté disponible
+    return {
+      featured: [],
+      discounts: [],
+      mattresses: [],
+      complete_purchase: []
+    };
   }
 }

@@ -41,8 +41,33 @@ export default function ProductCard({
   }, [productId, isInFavorites, isInCart]);
 
   // Generar URL optimizada con wsrv (usando ancho de 400px para productos)
-  // Si la imagen ya es una URL de wsrv, no la optimizamos de nuevo
-  const optimizedUrl = image.includes('wsrv.nl') ? image : wsrvLoader({ src: image, width: 400 });
+  // Validar que la imagen sea válida antes de procesarla
+  const getOptimizedUrl = () => {
+    // Si no hay imagen o está vacía, usar placeholder
+    if (!image || image.trim() === '' || image === '/images/placeholder.png') {
+      return '/images/placeholder.png';
+    }
+    
+    // Si la imagen ya es una URL de wsrv, no la optimizamos de nuevo
+    if (image.includes('wsrv.nl')) {
+      return image;
+    }
+    
+    // Si la imagen es una URL válida (http/https), procesarla con wsrv
+    if (image.startsWith('http://') || image.startsWith('https://') || image.startsWith('/')) {
+      try {
+        return wsrvLoader({ src: image, width: 400 });
+      } catch (error) {
+        console.error('[ProductCard] Error processing image:', image, error);
+        return '/images/placeholder.png';
+      }
+    }
+    
+    // Si no es una URL válida, usar placeholder
+    return '/images/placeholder.png';
+  };
+  
+  const optimizedUrl = getOptimizedUrl();
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -85,6 +110,14 @@ export default function ProductCard({
           src={optimizedUrl}
           alt={alt}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          onError={(e) => {
+            // Si la imagen falla al cargar, usar placeholder
+            const target = e.target as HTMLImageElement;
+            if (target.src !== '/images/placeholder.png') {
+              target.src = '/images/placeholder.png';
+            }
+          }}
+          loading="lazy"
         />
         {discount && (
           <div className="absolute top-2 right-2 bg-[#00C1A7] text-white px-2 py-1 rounded-[4px] font-semibold text-xs z-10">

@@ -15,46 +15,23 @@ import {
 import ProductCard from "@/components/ProductCard";
 import BannerCarousel from "@/components/BannerCarousel";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import ReviewsSection from "@/components/ReviewsSection";
+import dynamic from "next/dynamic";
 import wsrvLoader from "@/lib/wsrvLoader";
-import { fetchHeroImages, HeroImage, fetchProducts, Product } from "@/lib/api";
-import { calculateProductPrice } from "@/utils/priceUtils";
+import { fetchHeroImages, HeroImage } from "@/lib/api";
+import HomeProducts from "@/components/HomeProducts";
+import ReviewsSectionLazy from "@/components/ReviewsSectionLazy";
 
-// Helper function to repeat products if not enough
-function repeatProducts<T>(products: T[], count: number): T[] {
-  if (products.length === 0) return [];
-  const result: T[] = [];
-  for (let i = 0; i < count; i++) {
-    result.push(products[i % products.length]);
-  }
-  return result;
-}
-
-// Helper function to convert Product to ProductCard props
-function productToCardProps(product: Product) {
-  const image = product.main_image || (product.images && product.images[0]?.image_url) || "/images/placeholder.png";
-  
-  // Calcular precio usando función centralizada
-  const priceInfo = calculateProductPrice(product, 1);
-  
-  return {
-    id: product.id,
-    image,
-    alt: product.name,
-    name: product.name,
-    currentPrice: priceInfo.currentPrice,
-    originalPrice: priceInfo.originalPrice,
-    discount: priceInfo.discount,
-  };
-}
+const Footer = dynamic(() => import("@/components/Footer"), {
+  loading: () => null,
+  ssr: true,
+});
 
 export default async function Home() {
   // Fetch hero images (position 1), info banner (position 2), and descuentazos banner (position 3) from server
   let heroImages: HeroImage[] = [];
   let infoBanner: HeroImage | null = null;
   let descuentazosBanner: HeroImage | null = null;
-  let allProducts: Product[] = [];
+  // Los productos ahora se cargan en el cliente con HomeProducts component
 
   try {
     // Fetch active hero images (position 1)
@@ -68,14 +45,8 @@ export default async function Home() {
     const descuentazosBanners = await fetchHeroImages(3, true);
     descuentazosBanner = descuentazosBanners.length > 0 ? descuentazosBanners[0] : null;
     
-    // Fetch all active products
-    const productsResult = await fetchProducts({
-      is_active: true,
-      include_images: true,
-      include_promos: true,
-      per_page: 100, // Get a good amount of products
-    });
-    allProducts = productsResult.products;
+    // Los productos ahora se cargan en el cliente con HomeProducts component
+    // para que puedan usar la localidad del contexto
   } catch (error) {
     console.error("Error fetching data:", error);
     // Continue with empty arrays if fetch fails
@@ -88,11 +59,7 @@ export default async function Home() {
     alt: img.title || img.subtitle || "Banner"
   }));
 
-  // Convert products to card props and repeat if needed
-  const productCardProps = allProducts.map(productToCardProps);
-  const products = repeatProducts(productCardProps, 4);
-  const pillows = repeatProducts(productCardProps, 4);
-  const sommiers = repeatProducts(productCardProps, 4);
+  // Los productos se cargan dinámicamente en el cliente con HomeProducts
 
   return (
     <div className="min-h-screen bg-white">
@@ -175,42 +142,7 @@ export default async function Home() {
 
           {/* Product Grid */}
           <div className="grid grid-cols-4 gap-6">
-            {products.length > 0 ? (
-              products.map((product, index) => (
-                <ProductCard
-                  key={`${product.id}-${index}`}
-                  id={product.id}
-                  image={product.image}
-                  alt={product.alt}
-                  name={product.name}
-                  currentPrice={product.currentPrice}
-                  originalPrice={product.originalPrice}
-                  discount={product.discount}
-                />
-              ))
-            ) : (
-              // Skeleton for products
-              [...Array(4)].map((_, index) => (
-                <div key={index} className="relative group block animate-pulse">
-                  {/* Skeleton Image */}
-                  <div className="relative w-full h-80 rounded-[10px] overflow-hidden bg-gray-200"></div>
-                  {/* Skeleton Content */}
-                  <div className="pt-3">
-                    <div className="mb-1">
-                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                    <div className="flex items-baseline gap-2 mt-2">
-                      <div className="h-6 bg-gray-200 rounded w-24"></div>
-                      <div className="h-4 bg-gray-200 rounded w-20"></div>
-                    </div>
-                    <div className="mt-2">
-                      <div className="h-4 bg-gray-200 rounded w-32"></div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
+            <HomeProducts section="featured" count={4} />
           </div>
         </div>
       </section>
@@ -258,43 +190,7 @@ export default async function Home() {
             )}
 
             {/* Productos */}
-            {products.length > 0 ? (
-              products.slice(0, 3).map((product, index) => (
-                <div key={`${product.id}-${index}`} className="bg-white p-4 rounded-[20px] h-full cursor-pointer">
-                  <div className="h-full flex flex-col">
-                    <ProductCard
-                      id={product.id}
-                      image={product.image}
-                      alt={product.alt}
-                      name={product.name}
-                      currentPrice={product.currentPrice}
-                      originalPrice={product.originalPrice}
-                      discount={product.discount}
-                    />
-                  </div>
-                </div>
-              ))
-            ) : (
-              // Skeleton for products
-              [...Array(3)].map((_, index) => (
-                <div key={index} className="bg-white p-4 rounded-[20px] h-full animate-pulse">
-                  <div className="relative w-full h-80 rounded-[10px] overflow-hidden bg-gray-200"></div>
-                  <div className="pt-3">
-                    <div className="mb-1">
-                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                    <div className="flex items-baseline gap-2 mt-2">
-                      <div className="h-6 bg-gray-200 rounded w-24"></div>
-                      <div className="h-4 bg-gray-200 rounded w-20"></div>
-                    </div>
-                    <div className="mt-2">
-                      <div className="h-4 bg-gray-200 rounded w-32"></div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
+            <HomeProducts section="discounts" count={3} />
           </div>
         </div>
       </section>
@@ -356,40 +252,7 @@ export default async function Home() {
 
           {/* Product Grid */}
           <div className="grid grid-cols-4 gap-6">
-            {pillows.length > 0 ? (
-              pillows.map((product, index) => (
-                <ProductCard
-                  key={`${product.id}-pillows-${index}`}
-                  id={product.id}
-                  image={product.image}
-                  alt={product.alt}
-                  name={product.name}
-                  currentPrice={product.currentPrice}
-                  originalPrice={product.originalPrice}
-                  discount={product.discount}
-                />
-              ))
-            ) : (
-              // Skeleton for products
-              [...Array(4)].map((_, index) => (
-                <div key={index} className="relative group block animate-pulse">
-                  <div className="relative w-full h-80 rounded-[10px] overflow-hidden bg-gray-200"></div>
-                  <div className="pt-3">
-                    <div className="mb-1">
-                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                    <div className="flex items-baseline gap-2 mt-2">
-                      <div className="h-6 bg-gray-200 rounded w-24"></div>
-                      <div className="h-4 bg-gray-200 rounded w-20"></div>
-                    </div>
-                    <div className="mt-2">
-                      <div className="h-4 bg-gray-200 rounded w-32"></div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
+            <HomeProducts section="mattresses" count={4} />
           </div>
         </div>
       </section>
@@ -408,40 +271,7 @@ export default async function Home() {
 
           {/* Product Grid */}
           <div className="grid grid-cols-4 gap-6">
-            {sommiers.length > 0 ? (
-              sommiers.map((product, index) => (
-                <ProductCard
-                  key={`${product.id}-sommiers-${index}`}
-                  id={product.id}
-                  image={product.image}
-                  alt={product.alt}
-                  name={product.name}
-                  currentPrice={product.currentPrice}
-                  originalPrice={product.originalPrice}
-                  discount={product.discount}
-                />
-              ))
-            ) : (
-              // Skeleton for products
-              [...Array(4)].map((_, index) => (
-                <div key={index} className="relative group block animate-pulse">
-                  <div className="relative w-full h-80 rounded-[10px] overflow-hidden bg-gray-200"></div>
-                  <div className="pt-3">
-                    <div className="mb-1">
-                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                    <div className="flex items-baseline gap-2 mt-2">
-                      <div className="h-6 bg-gray-200 rounded w-24"></div>
-                      <div className="h-4 bg-gray-200 rounded w-20"></div>
-                    </div>
-                    <div className="mt-2">
-                      <div className="h-4 bg-gray-200 rounded w-32"></div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
+            <HomeProducts section="complete_purchase" count={4} />
           </div>
         </div>
       </section>
@@ -501,7 +331,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <ReviewsSection />
+      <ReviewsSectionLazy />
 
       {/* Newsletter Section */}
       <section className="bg-white py-16">

@@ -329,6 +329,20 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
   const [loadingData, setLoadingData] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [showProductDropdown, setShowProductDropdown] = useState(false);
+  
+  // Separar categorías principales y subcategorías
+  const mainCategories = categories.filter((cat) => !cat.parent_id);
+  const subcategories = categories.filter((cat) => cat.parent_id);
+  
+  // Obtener subcategorías de una categoría específica
+  const getSubcategoriesForCategory = (categoryId: string) => {
+    return subcategories.filter((subcat) => subcat.parent_id === categoryId);
+  };
+  
+  // Verificar si una categoría tiene subcategorías
+  const categoryHasSubcategories = (categoryId: string) => {
+    return subcategories.some((subcat) => subcat.parent_id === categoryId);
+  };
 
   // Cargar datos y prellenar formulario si es edición
   useEffect(() => {
@@ -644,7 +658,7 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
             {formData.applies_to === "category" && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Categoría <span className="text-red-500">*</span>
+                  Categoría o Subcategoría <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={formData.selected_category_id}
@@ -652,12 +666,21 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
                   className="w-full px-3 py-2 border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
                   required
                 >
-                  <option value="">Selecciona una categoría</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
+                  <option value="">Selecciona una categoría o subcategoría</option>
+                  {mainCategories.flatMap((cat) => {
+                    const hasSubs = categoryHasSubcategories(cat.id);
+                    const subcats = getSubcategoriesForCategory(cat.id);
+                    return [
+                      <option key={cat.id} value={cat.id} style={{ fontWeight: '500' }}>
+                        {cat.name}
+                      </option>,
+                      ...(hasSubs ? subcats.map((subcat) => (
+                        <option key={subcat.id} value={subcat.id} style={{ paddingLeft: '20px' }}>
+                          └─ {subcat.name}
+                        </option>
+                      )) : [])
+                    ];
+                  })}
                 </select>
               </div>
             )}

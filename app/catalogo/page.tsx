@@ -8,11 +8,13 @@ import Footer from "@/components/Footer";
 import { fetchProducts, fetchCategories, Product, Category } from "@/lib/api";
 import { ChevronDown } from "lucide-react";
 import { calculateProductPrice } from "@/utils/priceUtils";
+import { useLocality } from "@/contexts/LocalityContext";
 
 // Esta página maneja /catalogo sin slug (solo con query params como search)
 // Es básicamente la misma lógica que [...slug]/page.tsx pero sin manejo de categorías
 export default function CatalogoPage() {
   const searchParams = useSearchParams();
+  const { locality } = useLocality();
   
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,14 +28,15 @@ export default function CatalogoPage() {
   // Obtener el término de búsqueda de la URL
   const searchQuery = searchParams?.get("search") || "";
   
-  // Resetear página cuando cambia la búsqueda o perPage
+  // Resetear página cuando cambia la búsqueda, perPage o localidad
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, perPage]);
+  }, [searchQuery, perPage, locality?.id]);
   
   // Obtener productos
   useEffect(() => {
     const loadProducts = async () => {
+      console.log("[CatalogoPage] Cargando productos con localidad:", locality?.id, locality?.name);
       setLoading(true);
       try {
         const fetchParams: any = {
@@ -45,12 +48,24 @@ export default function CatalogoPage() {
           include_promos: true,
         };
         
+        // Agregar localidad si está disponible
+        if (locality?.id) {
+          fetchParams.locality_id = locality.id;
+          console.log("[CatalogoPage] Agregando locality_id a fetchParams:", locality.id);
+        } else {
+          console.log("[CatalogoPage] No hay localidad disponible");
+        }
+        
         // Si hay búsqueda, agregar el parámetro de búsqueda
         if (searchQuery) {
           fetchParams.search = searchQuery;
         }
         
         const result = await fetchProducts(fetchParams);
+        console.log("[CatalogoPage] Productos cargados:", result.products.length, "productos");
+        if (result.products.length > 0) {
+          console.log("[CatalogoPage] Primer producto - min_price:", result.products[0].min_price, "max_price:", result.products[0].max_price);
+        }
         
         setProducts(result.products);
         setTotalPages(result.total_pages);
@@ -64,7 +79,21 @@ export default function CatalogoPage() {
     };
     
     loadProducts();
-  }, [page, sortBy, searchQuery, perPage]);
+  }, [page, sortBy, searchQuery, perPage, locality?.id]);
+  
+  // Escuchar cambios de localidad desde el evento personalizado
+  useEffect(() => {
+    const handleLocalityChange = () => {
+      console.log("[CatalogoPage] Evento localityChanged recibido, forzando recarga");
+      // Forzar recarga de productos
+      setPage(1);
+    };
+    
+    window.addEventListener('localityChanged', handleLocalityChange);
+    return () => {
+      window.removeEventListener('localityChanged', handleLocalityChange);
+    };
+  }, []);
   
   const sortOptions = [
     { value: "created_at_desc", label: "Más recientes" },

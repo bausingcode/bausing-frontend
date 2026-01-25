@@ -8,9 +8,10 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import { useCart } from "@/contexts/CartContext";
+import { useLocality } from "@/contexts/LocalityContext";
 import { fetchProductById, Product as ApiProduct, fetchProducts, fetchProductCombos, ProductCombo } from "@/lib/api";
 import wsrvLoader from "@/lib/wsrvLoader";
-import { calculateProductPrice, formatPrice } from "@/utils/priceUtils";
+import { calculateProductPrice, formatPrice, getVariantPriceByLocality, initializeCatalogCache } from "@/utils/priceUtils";
 
 interface ProductImage {
   id: string;
@@ -83,6 +84,7 @@ export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const productId = params.id as string;
+  const { locality } = useLocality();
   
   const [product, setProduct] = useState<Product | null>(null);
   const [similarProducts, setSimilarProducts] = useState<SimilarProduct[]>([]);
@@ -106,29 +108,55 @@ export default function ProductDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId, favorites]);
 
+  // Inicializar cache de catálogos cuando se carga la localidad
+  useEffect(() => {
+    if (locality?.id) {
+      console.log('[ProductDetailPage] Inicializando cache de catálogos para localidad:', locality.id);
+      initializeCatalogCache()
+        .then(() => {
+          console.log('[ProductDetailPage] Cache de catálogos inicializado correctamente');
+        })
+        .catch((error) => {
+          console.error('[ProductDetailPage] Error inicializando cache de catálogos:', error);
+        });
+    }
+  }, [locality?.id]);
+
   useEffect(() => {
     const loadProduct = async () => {
+      console.log("[ProductDetailPage] Cargando producto con localidad:", locality?.id, locality?.name);
       try {
         setLoading(true);
         
         // Cargar producto y combos en paralelo (productos similares se cargan después para no bloquear)
         const [apiProduct, combos] = await Promise.all([
-          fetchProductById(productId),
+          fetchProductById(productId, locality?.id),
           fetchProductCombos(productId).catch(() => [])
         ]);
+        
+        if (apiProduct) {
+          console.log("[ProductDetailPage] Producto cargado - min_price:", apiProduct.min_price, "max_price:", apiProduct.max_price);
+        }
 
         // Establecer combos inmediatamente
         setProductCombos(combos);
         
         // Cargar productos similares de forma asíncrona sin bloquear la renderización
-        fetchProducts({
+        const similarParams: any = {
           is_active: true,
           page: 1,
           per_page: 10, // Reducido de 20 a 10 para cargar más rápido
           include_images: true,
           include_variants: false, // No necesitamos variantes para productos similares
           include_promos: true,
-        }).then((similarProductsResult) => {
+        };
+        
+        // Agregar localidad si está disponible
+        if (locality?.id) {
+          similarParams.locality_id = locality.id;
+        }
+        
+        fetchProducts(similarParams).then((similarProductsResult) => {
           if (similarProductsResult.products) {
             const filteredProducts = similarProductsResult.products.filter(p => p.id !== productId);
             const shuffled = filteredProducts.sort(() => 0.5 - Math.random());
@@ -232,8 +260,20 @@ export default function ProductDetailPage() {
     };
 
     loadProduct();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId]);
+  }, [productId, locality?.id]);
+  
+  // Escuchar cambios de localidad desde el evento personalizado
+  useEffect(() => {
+    const handleLocalityChange = () => {
+      console.log("[ProductDetailPage] Evento localityChanged recibido, forzando recarga");
+      // El useEffect anterior se ejecutará automáticamente porque locality?.id cambió
+    };
+    
+    window.addEventListener('localityChanged', handleLocalityChange);
+    return () => {
+      window.removeEventListener('localityChanged', handleLocalityChange);
+    };
+  }, [locality?.id]);
 
   // Los productos similares ahora se cargan en paralelo con el producto principal
 
@@ -452,8 +492,98 @@ export default function ProductDetailPage() {
     );
   }
 
-  const priceIn12Installments = calculatePriceInInstallments(product.currentPrice);
-  const priceWithoutTaxes = parseFloat(product.currentPrice.replace(/[$.]/g, '').replace(/\./g, '')) * 1.21;
+  // Calcular precio basado en variante/opción seleccionada y localidad
+  const getCurrentProductPrice = (): { price: number; formattedPrice: string } => {
+    console.log('[getCurrentProductPrice] Iniciando cálculo de precio:', {
+      hasProduct: !!product,
+      localityId: locality?.id,
+      localityName: locality?.name,
+      hasVariants: product?.variants && product.variants.length > 0,
+      variantsCount: product?.variants?.length || 0,
+      selectedVariantOptions,
+      selectedVariant
+    });
+
+    if (!product) {
+      console.log('[getCurrentProductPrice] No hay producto, retornando 0');
+      return { price: 0, formattedPrice: formatPrice(0) };
+    }
+
+    if (!locality?.id) {
+      // Si no hay localidad, usar el precio del producto (ya calculado con min_price/max_price)
+      const numericPrice = parseFloat(product.currentPrice.replace(/[$.]/g, '').replace(/\./g, '')) || 0;
+      console.log('[getCurrentProductPrice] No hay localidad, usando precio del producto:', numericPrice);
+      return { price: numericPrice, formattedPrice: product.currentPrice };
+    }
+
+    // Buscar precio de la variante/opción seleccionada
+    let selectedPrice = 0;
+
+    // Si hay variantes seleccionadas
+    if (product.variants && product.variants.length > 0) {
+      console.log('[getCurrentProductPrice] Hay variantes, buscando precio...');
+      for (const variant of product.variants) {
+        const variantKey = variant.id || variant.name || variant.sku || 'default';
+        const selectedOptionId = selectedVariantOptions[variantKey];
+        
+        console.log('[getCurrentProductPrice] Procesando variante:', {
+          variantId: variant.id,
+          variantSku: variant.sku,
+          variantKey,
+          selectedOptionId,
+          hasOptions: variant.options && Array.isArray(variant.options),
+          optionsCount: variant.options?.length || 0
+        });
+        
+        if (selectedOptionId) {
+          // Buscar precio de la opción seleccionada
+          console.log('[getCurrentProductPrice] Llamando getVariantPriceByLocality con optionId:', selectedOptionId);
+          const price = getVariantPriceByLocality(variant, selectedOptionId, locality.id);
+          console.log('[getCurrentProductPrice] Precio obtenido de getVariantPriceByLocality:', price);
+          if (price > 0) {
+            selectedPrice = price;
+            break;
+          }
+        } else if (selectedVariant === variant.id) {
+          // Si no hay opciones pero la variante está seleccionada
+          console.log('[getCurrentProductPrice] Llamando getVariantPriceByLocality sin optionId para variant:', variant.id);
+          const price = getVariantPriceByLocality(variant, undefined, locality.id);
+          console.log('[getCurrentProductPrice] Precio obtenido de getVariantPriceByLocality:', price);
+          if (price > 0) {
+            selectedPrice = price;
+            break;
+          }
+        }
+      }
+    } else {
+      console.log('[getCurrentProductPrice] No hay variantes o el producto no tiene variantes');
+    }
+
+    // Si no se encontró precio específico, usar el precio del producto (ya filtrado por localidad en el backend)
+    if (selectedPrice === 0) {
+      const numericPrice = parseFloat(product.currentPrice.replace(/[$.]/g, '').replace(/\./g, '')) || 0;
+      console.log('[getCurrentProductPrice] No se encontró precio específico, usando precio del producto:', numericPrice);
+      return { price: numericPrice, formattedPrice: product.currentPrice };
+    }
+
+    // Aplicar promociones si existen
+    const apiProduct = product as any;
+    if (apiProduct.promos && apiProduct.promos.length > 0) {
+      console.log('[getCurrentProductPrice] Aplicando promociones');
+      // Usar calculateProductPrice para aplicar promociones
+      const tempProduct = { ...apiProduct, min_price: selectedPrice, max_price: selectedPrice };
+      const priceInfo = calculateProductPrice(tempProduct, 1);
+      console.log('[getCurrentProductPrice] Precio final con promociones:', priceInfo.currentPriceValue);
+      return { price: priceInfo.currentPriceValue, formattedPrice: priceInfo.currentPrice };
+    }
+
+    console.log('[getCurrentProductPrice] Precio final sin promociones:', selectedPrice);
+    return { price: selectedPrice, formattedPrice: formatPrice(selectedPrice) };
+  };
+
+  const currentPriceInfo = getCurrentProductPrice();
+  const priceIn12Installments = calculatePriceInInstallments(currentPriceInfo.formattedPrice);
+  const priceWithoutTaxes = currentPriceInfo.price * 1.21;
 
   return (
     <>
@@ -577,11 +707,11 @@ export default function ProductDetailPage() {
                         </span>
                       )}
                     </div>
-                    <div className="text-2xl font-semibold text-gray-900 mb-2">{product.currentPrice}</div>
+                    <div className="text-2xl font-semibold text-gray-900 mb-2">{currentPriceInfo.formattedPrice}</div>
                   </>
                 )}
                 {!product.originalPrice && (
-                  <div className="text-2xl font-semibold text-gray-900 mb-2">{product.currentPrice}</div>
+                  <div className="text-2xl font-semibold text-gray-900 mb-2">{currentPriceInfo.formattedPrice}</div>
                 )}
                 <div className="text-sm text-gray-600 mb-1">
                   En 12 cuotas de {priceIn12Installments}
@@ -592,7 +722,7 @@ export default function ProductDetailPage() {
               </div>
 
               {/* Variant Selection */}
-              {product.variants && product.variants.length > 0 && (
+              {product.variants && product.variants.filter((variant: any) => variant.sku !== null && variant.sku !== undefined).length > 0 && (
                 <div className="mb-8">
                   <h3 className="text-sm font-medium text-gray-700 mb-3">Opciones disponibles:</h3>
                   <div className="relative">
@@ -600,7 +730,9 @@ export default function ProductDetailPage() {
                       className="space-y-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar"
                       id="variants-container"
                     >
-                    {product.variants.map((variant: any) => {
+                    {product.variants
+                      .filter((variant: any) => variant.sku !== null && variant.sku !== undefined)
+                      .map((variant: any) => {
                       // Siempre mostrar variant como título, y si tiene options, mostrar las options como opciones
                       const variantKey = variant.id || variant.name || variant.sku || 'default';
                       const hasOptions = variant.options && Array.isArray(variant.options) && variant.options.length > 0;

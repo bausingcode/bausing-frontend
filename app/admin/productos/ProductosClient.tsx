@@ -5,7 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import { Plus, Edit, Trash2, FolderTree, Package, PackageSearch, FolderX, Sparkles, ChevronDown, ChevronRight, Search, RefreshCw, Eye, X, ExternalLink, Loader2 } from "lucide-react";
 import CreateCategoryModal from "@/components/CreateCategoryModal";
 import CreateProductModal from "@/components/CreateProductModal";
-import { Category, fetchCrmProducts, fetchCrmCombos, CrmProduct, CrmCombo, fetchProductById, Product } from "@/lib/api";
+import { Category, CategoryOption, fetchCrmProducts, fetchCrmCombos, CrmProduct, CrmCombo, fetchProductById, Product, deleteCategory } from "@/lib/api";
 import { fetchCategories as fetchCategoriesClient } from "@/lib/api";
 
 interface CategoryFromBackend extends Category {
@@ -16,6 +16,7 @@ interface CategoryFromBackend extends Category {
   categoriaPadre?: string;
   parentId?: string;
   opciones?: string[];
+  opcionesConIds?: CategoryOption[]; // Opciones completas con IDs
 }
 
 interface ProductosClientProps {
@@ -36,6 +37,7 @@ function convertBackendCategoryToLocal(cat: Category, allCategories: Category[])
     categoriaPadre: cat.parent_name,
     subcategorias: isSubcategory ? undefined : children.length || 0,
     opciones: cat.options?.map(opt => opt.value) || [],
+    opcionesConIds: cat.options || [], // Guardar opciones completas con IDs
   };
 
   return localCat;
@@ -309,6 +311,42 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
     // Refrescar las categorías desde el backend
     await refreshCategories();
     setRefreshKey(prev => prev + 1);
+  };
+
+  // Función para manejar la eliminación de categorías
+  const handleDeleteCategory = async (categoryId: string, categoryName: string, isSubcategory: boolean = false) => {
+    // Verificar si la categoría tiene productos o subcategorías
+    const category = categories.find(c => c.id === categoryId);
+    const hasProducts = category?.productos && category.productos > 0;
+    const hasSubcategories = isSubcategory ? false : (category?.subcategorias && category.subcategorias > 0);
+    
+    // Construir mensaje de confirmación
+    let confirmMessage = `¿Estás seguro de que deseas eliminar ${isSubcategory ? 'la subcategoría' : 'la categoría'} "${categoryName}"?`;
+    
+    if (hasProducts || hasSubcategories) {
+      confirmMessage += '\n\n';
+      if (hasProducts) {
+        confirmMessage += `⚠️ Esta categoría tiene ${category?.productos || 0} producto(s) asociado(s). `;
+      }
+      if (hasSubcategories) {
+        confirmMessage += `⚠️ Esta categoría tiene ${category?.subcategorias || 0} subcategoría(s). `;
+      }
+      confirmMessage += '\n\nNo se puede eliminar una categoría que tiene productos o subcategorías asociadas.';
+    }
+    
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+    
+    try {
+      await deleteCategory(categoryId);
+      // Refrescar las categorías después de eliminar
+      await refreshCategories();
+      setRefreshKey(prev => prev + 1);
+    } catch (error: any) {
+      alert(`Error al eliminar la categoría: ${error.message || 'Error desconocido'}`);
+      console.error("Error deleting category:", error);
+    }
   };
 
   // Función para manejar la visualización de producto
@@ -1016,7 +1054,11 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                               <button className="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer">
                                 <Edit className="w-5 h-5" />
                               </button>
-                              <button className="text-red-600 hover:text-red-800 transition-colors cursor-pointer">
+                              <button 
+                                onClick={() => handleDeleteCategory(category.id, category.nombre || category.name, false)}
+                                className="text-red-600 hover:text-red-800 transition-colors cursor-pointer"
+                                title="Eliminar categoría"
+                              >
                                 <Trash2 className="w-5 h-5" />
                               </button>
                             </div>
@@ -1051,7 +1093,11 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                                 <button className="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer">
                                   <Edit className="w-5 h-5" />
                                 </button>
-                                <button className="text-red-600 hover:text-red-800 transition-colors cursor-pointer">
+                                <button 
+                                  onClick={() => handleDeleteCategory(subcategory.id, subcategory.nombre || subcategory.name, true)}
+                                  className="text-red-600 hover:text-red-800 transition-colors cursor-pointer"
+                                  title="Eliminar subcategoría"
+                                >
                                   <Trash2 className="w-5 h-5" />
                                 </button>
                               </div>
@@ -1101,6 +1147,7 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
           categoriaPadre: cat.categoriaPadre || cat.parent_name,
           parentId: cat.parentId || cat.parent_id,
           opciones: cat.opciones || [],
+          opcionesConIds: cat.opcionesConIds || [],
         }))}
       />
 
@@ -1356,9 +1403,11 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                           {/* Variantes */}
                           {viewingProductData.variants && viewingProductData.variants.length > 0 && (
                             <div>
-                              <span className="text-sm font-medium text-gray-600 block mb-2">Variantes ({viewingProductData.variants.length}):</span>
+                              <span className="text-sm font-medium text-gray-600 block mb-2">Variantes ({viewingProductData.variants.filter((v: any) => v.sku !== null && v.sku !== undefined).length}):</span>
                               <div className="space-y-2 max-h-60 overflow-y-auto">
-                                {viewingProductData.variants.map((variant, idx) => (
+                                {viewingProductData.variants
+                                  .filter((variant: any) => variant.sku !== null && variant.sku !== undefined)
+                                  .map((variant, idx) => (
                                   <div key={variant.id || idx} className="bg-white rounded p-3 border border-gray-200">
                                     {variant.name && (
                                       <div className="font-medium text-sm text-gray-900 mb-1">{variant.name}</div>

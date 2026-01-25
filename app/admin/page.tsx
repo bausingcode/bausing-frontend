@@ -10,17 +10,38 @@ import { DollarSign, FileText, TrendingUp, Package, CheckCircle, Clock, Info } f
 import { getDashboardStats, getDashboardAlerts, getWalletUsageStats, Alert, WalletUsageStats } from "@/lib/api";
 import { Suspense } from "react";
 
-function formatCurrency(value: number): string {
+function formatCurrency(value: number | null | undefined): string {
+  // Convertir a número si es string o manejar null/undefined
+  const numValue = typeof value === 'number' ? value : (value != null ? parseFloat(String(value)) : 0);
+  
+  // Si no es un número válido, retornar $0
+  if (isNaN(numValue)) {
+    return new Intl.NumberFormat('es-AR', {
+      style: 'currency',
+      currency: 'ARS',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(0);
+  }
+  
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
     currency: 'ARS',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(numValue);
 }
 
-function formatPercent(value: number): string {
-  return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
+function formatPercent(value: number | null | undefined): string {
+  // Convertir a número si es string o manejar null/undefined
+  const numValue = typeof value === 'number' ? value : (value != null ? parseFloat(String(value)) : 0);
+  
+  // Si no es un número válido, retornar 0%
+  if (isNaN(numValue)) {
+    return '+0.0%';
+  }
+  
+  return `${numValue >= 0 ? '+' : ''}${numValue.toFixed(1)}%`;
 }
 
 async function DashboardContent() {
@@ -64,7 +85,7 @@ async function DashboardContent() {
           title="Ventas de hoy"
           value={formatCurrency(stats.ventas_hoy)}
           change={formatPercent(stats.cambio_hoy_pct)}
-          changeType={stats.cambio_hoy_pct >= 0 ? "positive" : "negative"}
+          changeType={(stats.cambio_hoy_pct ?? 0) >= 0 ? "positive" : "negative"}
           icon={<DollarSign className="w-5 h-5" />}
           comparisonText="vs día anterior"
         />
@@ -72,7 +93,7 @@ async function DashboardContent() {
           title="Ventas semanales"
           value={formatCurrency(stats.ventas_semana)}
           change={formatPercent(stats.cambio_semana_pct)}
-          changeType={stats.cambio_semana_pct >= 0 ? "positive" : "negative"}
+          changeType={(stats.cambio_semana_pct ?? 0) >= 0 ? "positive" : "negative"}
           icon={<FileText className="w-4 h-4" />}
           comparisonText="vs semana anterior"
         />
@@ -80,15 +101,15 @@ async function DashboardContent() {
           title="Ventas mensuales"
           value={formatCurrency(stats.ventas_mes)}
           change={formatPercent(stats.cambio_mes_pct)}
-          changeType={stats.cambio_mes_pct >= 0 ? "positive" : "negative"}
+          changeType={(stats.cambio_mes_pct ?? 0) >= 0 ? "positive" : "negative"}
           icon={<TrendingUp className="w-4 h-4" />}
           comparisonText="vs mes anterior"
         />
         <MetricCard
           title="Total de pedidos"
           value={stats.total_pedidos.toString()}
-          change={`${stats.cambio_pedidos >= 0 ? '+' : ''}${stats.cambio_pedidos}`}
-          changeType={stats.cambio_pedidos >= 0 ? "positive" : "negative"}
+          change={`${(stats.cambio_pedidos ?? 0) >= 0 ? '+' : ''}${stats.cambio_pedidos ?? 0}`}
+          changeType={(stats.cambio_pedidos ?? 0) >= 0 ? "positive" : "negative"}
           icon={<Package className="w-5 h-5" />}
           comparisonText="vs mes anterior"
         />
