@@ -399,61 +399,61 @@ export default function ProductDetailPage() {
     return (
       <div className="min-h-screen bg-white">
         <Navbar />
-        <div className="container mx-auto px-4 py-14">
+        <div className="container mx-auto px-4 py-6 md:py-14">
           {/* Main Product Section Skeleton */}
-          <div className="grid grid-cols-7 gap-12 mb-12 animate-pulse">
+          <div className="grid grid-cols-1 lg:grid-cols-7 gap-6 lg:gap-12 mb-8 md:mb-12 animate-pulse">
             {/* Left: Image Skeleton */}
-            <div className="relative flex col-span-4">
-              <div className="relative w-full h-[520px] rounded-[10px] overflow-hidden bg-gray-200"></div>
+            <div className="relative flex lg:col-span-4">
+              <div className="relative w-full h-[300px] sm:h-[400px] lg:h-[520px] rounded-[10px] overflow-hidden bg-gray-200"></div>
             </div>
 
             {/* Right: Product Info Skeleton */}
-            <div className="flex flex-col h-[520px] col-span-3">
+            <div className="flex flex-col lg:h-[520px] lg:col-span-3">
               <div className="flex-1">
                 {/* Title Skeleton */}
-                <div className="h-8 bg-gray-200 rounded w-3/4 mb-6"></div>
+                <div className="h-6 md:h-8 bg-gray-200 rounded w-3/4 mb-4 md:mb-6"></div>
 
                 {/* Pricing Skeleton */}
-                <div className="mb-6">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="h-5 bg-gray-200 rounded w-24"></div>
-                    <div className="h-6 bg-gray-200 rounded w-16"></div>
+                <div className="mb-4 md:mb-6">
+                  <div className="flex items-center gap-2 md:gap-3 mb-2">
+                    <div className="h-4 md:h-5 bg-gray-200 rounded w-20 md:w-24"></div>
+                    <div className="h-5 md:h-6 bg-gray-200 rounded w-14 md:w-16"></div>
                   </div>
-                  <div className="h-8 bg-gray-200 rounded w-32 mb-2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-40 mb-1"></div>
-                  <div className="h-3 bg-gray-200 rounded w-48"></div>
+                  <div className="h-6 md:h-8 bg-gray-200 rounded w-28 md:w-32 mb-2"></div>
+                  <div className="h-3 md:h-4 bg-gray-200 rounded w-36 md:w-40 mb-1"></div>
+                  <div className="h-3 bg-gray-200 rounded w-40 md:w-48"></div>
                 </div>
 
                 {/* Variant Selection Skeleton */}
-                <div className="mb-8">
-                  <div className="h-4 bg-gray-200 rounded w-40 mb-3"></div>
-                  <div className="flex flex-wrap gap-2">
+                <div className="mb-6 md:mb-8">
+                  <div className="h-3 md:h-4 bg-gray-200 rounded w-36 md:w-40 mb-2 md:mb-3"></div>
+                  <div className="flex flex-wrap gap-1.5 md:gap-2">
                     {[...Array(4)].map((_, i) => (
-                      <div key={i} className="h-9 bg-gray-200 rounded-[4px] w-24"></div>
+                      <div key={i} className="h-8 md:h-9 bg-gray-200 rounded-[4px] w-20 md:w-24"></div>
                     ))}
                   </div>
                 </div>
               </div>
 
               {/* Action Buttons Skeleton */}
-              <div className="flex flex-col gap-4">
-                <div className="w-full h-12 bg-gray-200 rounded-[4px]"></div>
-                <div className="w-full h-12 bg-gray-200 rounded-[4px]"></div>
+              <div className="flex flex-col gap-3 md:gap-4">
+                <div className="w-full h-10 md:h-12 bg-gray-200 rounded-[4px]"></div>
+                <div className="w-full h-10 md:h-12 bg-gray-200 rounded-[4px]"></div>
               </div>
             </div>
           </div>
 
           {/* Bottom Section Skeleton */}
-          <div className="grid grid-cols-7 gap-12 mb-12">
+          <div className="grid grid-cols-1 lg:grid-cols-7 gap-8 lg:gap-12 mb-8 md:mb-12">
             {/* Left: Technical Info Skeleton */}
-            <div className="col-span-4">
-              <div className="h-6 bg-gray-200 rounded w-48 mb-6"></div>
+            <div className="lg:col-span-4 order-2 lg:order-1">
+              <div className="h-5 md:h-6 bg-gray-200 rounded w-40 md:w-48 mb-4 md:mb-6"></div>
               <div className="space-y-2">
                 {[...Array(3)].map((_, i) => (
                   <div key={i} className="border-b border-gray-200">
-                    <div className="w-full flex items-center justify-between py-4">
-                      <div className="h-5 bg-gray-200 rounded w-32"></div>
-                      <div className="h-5 w-5 bg-gray-200 rounded"></div>
+                    <div className="w-full flex items-center justify-between py-3 md:py-4">
+                      <div className="h-4 md:h-5 bg-gray-200 rounded w-28 md:w-32"></div>
+                      <div className="h-4 md:h-5 w-4 md:w-5 bg-gray-200 rounded"></div>
                     </div>
                   </div>
                 ))}
@@ -461,14 +461,14 @@ export default function ProductDetailPage() {
             </div>
 
             {/* Right: Combos Skeleton */}
-            <div className="col-span-3">
-              <div className="h-6 bg-gray-200 rounded w-40 mb-6"></div>
-              <div className="space-y-4">
+            <div className="lg:col-span-3 order-1 lg:order-2">
+              <div className="h-5 md:h-6 bg-gray-200 rounded w-36 md:w-40 mb-4 md:mb-6"></div>
+              <div className="space-y-3 md:space-y-4">
                 {[...Array(2)].map((_, i) => (
-                  <div key={i} className="bg-gray-100 rounded-lg p-4">
-                    <div className="h-5 bg-gray-200 rounded w-3/4 mb-3"></div>
-                    <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                    <div className="h-6 bg-gray-200 rounded w-24"></div>
+                  <div key={i} className="bg-gray-100 rounded-lg p-3 md:p-4">
+                    <div className="h-4 md:h-5 bg-gray-200 rounded w-3/4 mb-2 md:mb-3"></div>
+                    <div className="h-3 md:h-4 bg-gray-200 rounded w-1/2 mb-1 md:mb-2"></div>
+                    <div className="h-5 md:h-6 bg-gray-200 rounded w-20 md:w-24"></div>
                   </div>
                 ))}
               </div>
@@ -621,12 +621,12 @@ export default function ProductDetailPage() {
       <div className="min-h-screen bg-white">
         <Navbar />
 
-      <div className="container mx-auto px-4 py-14">
+      <div className="container mx-auto px-4 py-6 md:py-14">
         {/* Main Product Section */}
-        <div className="grid grid-cols-7 gap-12 mb-12">
+        <div className="grid grid-cols-1 lg:grid-cols-7 gap-6 lg:gap-12 mb-8 md:mb-12">
           {/* Left: Image Carousel */}
-          <div className="relative flex col-span-4">
-            <div className="relative w-full h-[520px] rounded-[10px] overflow-hidden bg-gray-100">
+          <div className="relative flex lg:col-span-4">
+            <div className="relative w-full h-[300px] sm:h-[400px] lg:h-[520px] rounded-[10px] overflow-hidden bg-gray-100">
               {product.images.length > 0 && (
                 <>
                   <img
@@ -641,17 +641,17 @@ export default function ProductDetailPage() {
                     <>
                       <button
                         onClick={prevImage}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-all z-10"
+                        className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-all z-10"
                         aria-label="Imagen anterior"
                       >
-                        <ChevronLeft className="w-6 h-6 text-gray-700" />
+                        <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 text-gray-700" />
                       </button>
                       <button
                         onClick={nextImage}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-all z-10"
+                        className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-all z-10"
                         aria-label="Imagen siguiente"
                       >
-                        <ChevronRight className="w-6 h-6 text-gray-700" />
+                        <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-gray-700" />
                       </button>
                     </>
                   )}
@@ -676,14 +676,14 @@ export default function ProductDetailPage() {
                   <button
                     type="button"
                     onClick={handleToggleFavorite}
-                    className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all z-10 ${
+                    className={`absolute top-2 right-2 md:top-4 md:right-4 w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center shadow-lg transition-all z-10 ${
                       isFavorite
                         ? "bg-red-500 text-white hover:bg-red-600"
                         : "bg-white text-gray-700 hover:bg-gray-50"
                     }`}
                     aria-label={isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}
                   >
-                    <Heart className={`w-5 h-5 ${isFavorite ? "fill-current" : ""}`} />
+                    <Heart className={`w-4 h-4 md:w-5 md:h-5 ${isFavorite ? "fill-current" : ""}`} />
                   </button>
                 </>
               )}
@@ -691,29 +691,29 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Right: Product Info */}
-          <div className="flex flex-col h-[520px] col-span-3">
+          <div className="flex flex-col lg:h-[520px] lg:col-span-3">
             <div className="flex-1">
-              <h1 className="text-2xl font-semibold text-gray-900 mb-6">{product.name}</h1>
+              <h1 className="text-xl md:text-2xl font-semibold text-gray-900 mb-4 md:mb-6">{product.name}</h1>
 
               {/* Pricing */}
-              <div className="mb-6">
+              <div className="mb-4 md:mb-6">
                 {product.originalPrice && (
                   <>
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-lg text-gray-400 line-through">{product.originalPrice}</span>
+                    <div className="flex items-center gap-2 md:gap-3 mb-1 md:mb-2">
+                      <span className="text-base md:text-lg text-gray-400 line-through">{product.originalPrice}</span>
                       {product.discount && (
-                        <span className="bg-[#00C1A7] text-white px-2 py-1 rounded-[4px] font-semibold text-sm">
+                        <span className="bg-[#00C1A7] text-white px-2 py-0.5 md:py-1 rounded-[4px] font-semibold text-xs md:text-sm">
                           {product.discount}
                         </span>
                       )}
                     </div>
-                    <div className="text-2xl font-semibold text-gray-900 mb-2">{currentPriceInfo.formattedPrice}</div>
+                    <div className="text-xl md:text-2xl font-semibold text-gray-900 mb-1 md:mb-2">{currentPriceInfo.formattedPrice}</div>
                   </>
                 )}
                 {!product.originalPrice && (
-                  <div className="text-2xl font-semibold text-gray-900 mb-2">{currentPriceInfo.formattedPrice}</div>
+                  <div className="text-xl md:text-2xl font-semibold text-gray-900 mb-1 md:mb-2">{currentPriceInfo.formattedPrice}</div>
                 )}
-                <div className="text-sm text-gray-600 mb-1">
+                <div className="text-xs md:text-sm text-gray-600 mb-1">
                   En 12 cuotas de {priceIn12Installments}
                 </div>
                 <div className="text-xs text-gray-500">
@@ -723,11 +723,11 @@ export default function ProductDetailPage() {
 
               {/* Variant Selection */}
               {product.variants && product.variants.filter((variant: any) => variant.sku !== null && variant.sku !== undefined).length > 0 && (
-                <div className="mb-8">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">Opciones disponibles:</h3>
+                <div className="mb-6 md:mb-8">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2 md:mb-3">Opciones disponibles:</h3>
                   <div className="relative">
                     <div 
-                      className="space-y-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar"
+                      className="space-y-3 md:space-y-4 max-h-60 md:max-h-96 overflow-y-auto pr-2 custom-scrollbar"
                       id="variants-container"
                     >
                     {product.variants
@@ -739,10 +739,10 @@ export default function ProductDetailPage() {
                       
                       return (
                         <div key={variantKey}>
-                          <h4 className="text-sm font-bold text-gray-700 mb-3">
+                          <h4 className="text-xs md:text-sm font-bold text-gray-700 mb-2 md:mb-3">
                             {variant.name || variant.sku || variant.id || "Opción"}
                           </h4>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-1.5 md:gap-2">
                             {hasOptions ? (
                               // Si tiene options, mostrar las options como opciones seleccionables
                               variant.options.map((option: any) => {
@@ -760,7 +760,7 @@ export default function ProductDetailPage() {
                                       }
                                     }}
                                     disabled={isOutOfStock}
-                                    className={`px-4 py-2 rounded-[4px] border transition-all ${
+                                    className={`px-3 py-1.5 md:px-4 md:py-2 rounded-[4px] border transition-all text-xs md:text-sm ${
                                       isOutOfStock
                                         ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
                                         : isSelected
@@ -770,7 +770,7 @@ export default function ProductDetailPage() {
                                   >
                                     {option.name}
                                     {isOutOfStock && (
-                                      <span className="ml-2 text-xs">(Sin stock)</span>
+                                      <span className="ml-1 md:ml-2 text-xs">(Sin stock)</span>
                                     )}
                                   </button>
                                 );
@@ -787,7 +787,7 @@ export default function ProductDetailPage() {
                                       }
                                     }}
                                     disabled={isVariantOutOfStock}
-                                    className={`px-4 py-2 rounded-[4px] border transition-all ${
+                                    className={`px-3 py-1.5 md:px-4 md:py-2 rounded-[4px] border transition-all text-xs md:text-sm ${
                                       isVariantOutOfStock
                                         ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
                                         : selectedVariant === variant.id
@@ -797,7 +797,7 @@ export default function ProductDetailPage() {
                                   >
                                     {variant.name || variant.sku || variant.id}
                                     {isVariantOutOfStock && (
-                                      <span className="ml-2 text-xs">(Sin stock)</span>
+                                      <span className="ml-1 md:ml-2 text-xs">(Sin stock)</span>
                                     )}
                                   </button>
                                 );
@@ -823,16 +823,16 @@ export default function ProductDetailPage() {
             </div>
 
             {/* Action Buttons - Alineados con el fondo de la imagen */}
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 md:gap-4 mt-4 lg:mt-0">
               <button
                 onClick={handleBuyNow}
-                className="w-full bg-[#00C1A7] text-white py-3 px-6 rounded-[4px] hover:bg-[#00A890] transition-colors cursor-pointer"
+                className="w-full bg-[#00C1A7] text-white py-2.5 md:py-3 px-4 md:px-6 rounded-[4px] hover:bg-[#00A890] transition-colors cursor-pointer text-sm md:text-base font-medium"
               >
                 Comprar ahora
               </button>
               <button
                 onClick={handleAddToCart}
-                className="w-full border border-[#00C1A7] text-[#00C1A7] py-3 px-6 rounded-[4px] hover:bg-[#00C1A7] hover:text-white transition-colors cursor-pointer"
+                className="w-full border border-[#00C1A7] text-[#00C1A7] py-2.5 md:py-3 px-4 md:px-6 rounded-[4px] hover:bg-[#00C1A7] hover:text-white transition-colors cursor-pointer text-sm md:text-base font-medium"
               >
                 Agregar al carrito
               </button>
@@ -841,10 +841,10 @@ export default function ProductDetailPage() {
         </div>
 
         {/* Bottom Section: Technical Info (Left) and Combos (Right) */}
-        <div className="grid grid-cols-7 gap-12 mb-12">
+        <div className="grid grid-cols-1 lg:grid-cols-7 gap-8 lg:gap-12 mb-8 md:mb-12">
           {/* Left: Collapsible Sections */}
-          <div className="col-span-4">
-            <h2 className="text-xl text-gray-900 mb-6">Información técnica</h2>
+          <div className="lg:col-span-4 order-2 lg:order-1">
+            <h2 className="text-lg md:text-xl text-gray-900 mb-4 md:mb-6">Información técnica</h2>
             <div className="space-y-2">
               {/* Descripción */}
               <div className="border-b border-gray-200">
@@ -1025,20 +1025,20 @@ export default function ProductDetailPage() {
 
           {/* Right: Combo Section */}
           {productCombos.filter(combo => combo.is_completed).length > 0 && (
-            <div className="col-span-3">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl text-gray-900">Elegí tu combo</h2>
+            <div className="lg:col-span-3 order-1 lg:order-2">
+              <div className="flex items-center justify-between mb-4 md:mb-6">
+                <h2 className="text-lg md:text-xl text-gray-900">Elegí tu combo</h2>
                 {productCombos.filter(combo => combo.is_completed).length > 3 && (
                   <Link
                     href={`/productos/${productId}/combos`}
-                    className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors text-sm font-medium"
+                    className="flex items-center gap-1 md:gap-2 text-gray-700 hover:text-gray-900 transition-colors text-xs md:text-sm font-medium"
                   >
-                    <span>Ver todos los combos</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <span>Ver todos</span>
+                    <ArrowRight className="w-3 h-3 md:w-4 md:h-4" />
                   </Link>
                 )}
               </div>
-              <div className="space-y-6">
+              <div className="space-y-4 md:space-y-6">
                 {productCombos.filter(combo => combo.is_completed).slice(0, 3).map((combo) => {
                   const formatPrice = (price: number): string => {
                     return `$${Math.round(price).toLocaleString('es-AR')}`;
@@ -1078,10 +1078,10 @@ export default function ProductDetailPage() {
                   return (
                     <div
                       key={combo.id}
-                      className="bg-white border border-gray-200 rounded-[10px] p-4 flex items-center gap-4"
+                      className="bg-white border border-gray-200 rounded-[10px] p-3 md:p-4 flex items-center gap-3 md:gap-4"
                     >
                       {comboImage && (
-                        <div className="w-20 h-20 bg-gray-100 rounded-[4px] flex-shrink-0 overflow-hidden">
+                        <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-100 rounded-[4px] flex-shrink-0 overflow-hidden">
                           <img
                             src={wsrvLoader({ src: comboImage, width: 200 })}
                             alt={comboName}
@@ -1089,25 +1089,25 @@ export default function ProductDetailPage() {
                           />
                         </div>
                       )}
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900 mb-1">{comboName}</h3>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-900 mb-0.5 md:mb-1 text-sm md:text-base line-clamp-2">{comboName}</h3>
                         {itemsDescription && (
-                          <p className="text-sm text-gray-600 mb-2">{itemsDescription}</p>
+                          <p className="text-xs md:text-sm text-gray-600 mb-1 md:mb-2 line-clamp-1">{itemsDescription}</p>
                         )}
                         {currentPrice && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg font-semibold text-gray-900">{currentPrice}</span>
+                          <div className="flex items-center gap-1.5 md:gap-2">
+                            <span className="text-base md:text-lg font-semibold text-gray-900">{currentPrice}</span>
                             {originalPrice && (
-                              <span className="text-sm text-gray-400 line-through">{originalPrice}</span>
+                              <span className="text-xs md:text-sm text-gray-400 line-through">{originalPrice}</span>
                             )}
                           </div>
                         )}
                       </div>
                       <Link 
                         href={combo.product_id ? `/productos/${combo.product_id}` : "#"}
-                        className="w-8 h-8 rounded-full border border-[#484848] text-[#484848] flex items-center justify-center hover:bg-[#484848] hover:text-white transition-colors cursor-pointer"
+                        className="w-7 h-7 md:w-8 md:h-8 rounded-full border border-[#484848] text-[#484848] flex items-center justify-center hover:bg-[#484848] hover:text-white transition-colors cursor-pointer flex-shrink-0"
                       >
-                        <Plus className="w-4 h-4" />
+                        <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
                       </Link>
                     </div>
                   );
@@ -1120,14 +1120,14 @@ export default function ProductDetailPage() {
         {/* Similar Products */}
         {similarProducts.length > 0 && (
           <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-semibold text-gray-900">Productos similares</h2>
-              <a href="#" className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors">
-                <span className="font-medium">Ver todos</span>
-                <ArrowRight className="w-5 h-5" />
+            <div className="flex items-center justify-between mb-4 md:mb-6">
+              <h2 className="text-lg md:text-2xl font-semibold text-gray-900">Productos similares</h2>
+              <a href="#" className="flex items-center gap-1 md:gap-2 text-gray-700 hover:text-gray-900 transition-colors">
+                <span className="font-medium text-sm md:text-base">Ver todos</span>
+                <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
               </a>
             </div>
-            <div className="grid grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
               {similarProducts.map((similarProduct) => (
                 <ProductCard
                   key={similarProduct.id}

@@ -7,7 +7,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { fetchProducts, fetchCategories, Product, Category } from "@/lib/api";
 import { useLocality } from "@/contexts/LocalityContext";
-import { ChevronDown, Minus, Plus } from "lucide-react";
+import { ChevronDown, Minus, Plus, SlidersHorizontal, X } from "lucide-react";
 import { calculateProductPrice } from "@/utils/priceUtils";
 
 // ============================================
@@ -866,6 +866,7 @@ export default function CatalogoPage() {
   const [perPage, setPerPage] = useState(20);
   const [showPerPageMenu, setShowPerPageMenu] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(true);
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryIdMap, setCategoryIdMap] = useState<Record<string, string>>({});
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
@@ -1567,7 +1568,7 @@ export default function CatalogoPage() {
       
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumbs */}
-        <nav className="mb-6">
+        <nav className="mb-4 md:mb-6 overflow-x-auto">
           {isLoadingCategories && slug && slug.length > 0 ? (
             <div className="flex items-center gap-2 animate-pulse">
               <div className="h-4 bg-gray-200 rounded w-16"></div>
@@ -1581,9 +1582,9 @@ export default function CatalogoPage() {
               )}
             </div>
           ) : (
-            <ol className="flex items-center gap-2 text-sm text-gray-600">
+            <ol className="flex items-center gap-1 md:gap-2 text-xs md:text-sm text-gray-600 whitespace-nowrap">
               {breadcrumbs.map((crumb, index) => (
-                <li key={index} className="flex items-center gap-2">
+                <li key={index} className="flex items-center gap-1 md:gap-2">
                   {index > 0 && <span>/</span>}
                   {crumb.href ? (
                     <a href={crumb.href} className="hover:text-gray-900 transition-colors">
@@ -1599,24 +1600,24 @@ export default function CatalogoPage() {
         </nav>
         
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-4 md:mb-6">
           {isLoadingCategories && slug && slug.length > 0 ? (
             <div className="animate-pulse">
-              <div className="h-9 bg-gray-200 rounded w-64 mb-2"></div>
-              <div className="h-5 bg-gray-200 rounded w-48"></div>
+              <div className="h-7 md:h-9 bg-gray-200 rounded w-48 md:w-64 mb-2"></div>
+              <div className="h-4 md:h-5 bg-gray-200 rounded w-36 md:w-48"></div>
             </div>
           ) : (
             <>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              <h1 className="text-xl md:text-3xl font-bold text-gray-900 mb-1 md:mb-2">
                 {searchQuery ? `Resultados de búsqueda` : (subcategory2Name || subcategoryName || categoryName || "Catálogo")}
               </h1>
               {searchQuery && (
-                <p className="text-gray-600 mb-2">
+                <p className="text-sm md:text-base text-gray-600 mb-1 md:mb-2">
                   Buscando: <span className="font-semibold text-gray-900">"{searchQuery}"</span>
                 </p>
               )}
               {(categoryName || searchQuery) && !loading && (
-                <p className="text-gray-600">
+                <p className="text-sm md:text-base text-gray-600">
                   {products.length} {products.length === 1 ? "producto encontrado" : "productos encontrados"}
                 </p>
               )}
@@ -1625,28 +1626,44 @@ export default function CatalogoPage() {
         </div>
         
         {/* Barra superior con filtros, items por página y ordenar (sticky junto al navbar) */}
-        <div className="sticky top-[150px] z-30 bg-white -mx-4 px-4 pb-3 pt-4 mb-6">
+        <div className="sticky top-[56px] md:top-[150px] z-30 bg-white -mx-4 px-4 pb-3 pt-3 md:pt-4 mb-4 md:mb-6 border-b border-gray-100 md:border-b-0">
           <div className="container mx-auto flex items-center justify-between">
           {!searchQuery && (
-            <div className="flex items-center gap-2 w-full max-w-[290px]">
-              <h2 className="text-lg font-semibold text-gray-900">Filtros</h2>
+            <>
+              {/* Desktop filters toggle */}
+              <div className="hidden md:flex items-center gap-2 w-full max-w-[290px]">
+                <h2 className="text-lg font-semibold text-gray-900">Filtros</h2>
+                <button
+                  onClick={() => setFiltersExpanded(!filtersExpanded)}
+                  className="ml-auto text-gray-600 hover:text-gray-900 transition-all duration-300"
+                >
+                  {filtersExpanded ? (
+                    <Minus className="w-4 h-4 transition-transform duration-300" />
+                  ) : (
+                    <Plus className="w-4 h-4 transition-transform duration-300" />
+                  )}
+                </button>
+              </div>
+              {/* Mobile filters button */}
               <button
-                onClick={() => setFiltersExpanded(!filtersExpanded)}
-                className="ml-auto text-gray-600 hover:text-gray-900 transition-all duration-300"
+                onClick={() => setIsMobileFiltersOpen(true)}
+                className="md:hidden flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
               >
-                {filtersExpanded ? (
-                  <Minus className="w-4 h-4 transition-transform duration-300" />
-                ) : (
-                  <Plus className="w-4 h-4 transition-transform duration-300" />
+                <SlidersHorizontal className="w-4 h-4" />
+                Filtros
+                {hasActiveFilters && (
+                  <span className="bg-[#00C1A7] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {Object.values(selectedFilters).reduce((acc, arr) => acc + arr.length, 0) + (priceRange.min !== null || priceRange.max !== null ? 1 : 0)}
+                  </span>
                 )}
               </button>
-            </div>
+            </>
           )}
           {searchQuery && <div></div>}
           
-          <div className="flex items-center gap-4">
-            {/* Items por página */}
-            <div className="relative">
+          <div className="flex items-center gap-2 md:gap-4">
+            {/* Items por página - hidden on mobile */}
+            <div className="relative hidden md:block">
               <button
                 onClick={() => setShowPerPageMenu(!showPerPageMenu)}
                 className="flex items-center gap-2 text-sm text-black hover:text-gray-900 transition-colors"
@@ -1688,10 +1705,13 @@ export default function CatalogoPage() {
             <div className="relative">
               <button
                 onClick={() => setShowSortMenu(!showSortMenu)}
-                className="flex items-center gap-2 text-sm text-black hover:text-gray-900 transition-colors"
+                className="flex items-center gap-1 md:gap-2 text-xs md:text-sm text-black hover:text-gray-900 transition-colors"
               >
-                <span>
+                <span className="hidden md:inline">
                   Ordenar por: {sortOptions.find(opt => opt.value === sortBy)?.label}
+                </span>
+                <span className="md:hidden">
+                  {sortOptions.find(opt => opt.value === sortBy)?.label}
                 </span>
                 <ChevronDown className={`w-4 h-4 text-gray-600 transition-transform ${showSortMenu ? "rotate-180" : ""}`} />
               </button>
@@ -1726,11 +1746,154 @@ export default function CatalogoPage() {
           </div>
         </div>
         
+        {/* Mobile Filters Modal */}
+        {isMobileFiltersOpen && (
+          <div className="md:hidden fixed inset-0 z-50 bg-white overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-4 flex items-center justify-between z-10">
+              <h2 className="text-lg font-semibold text-gray-900">Filtros</h2>
+              <button
+                onClick={() => setIsMobileFiltersOpen(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-600" />
+              </button>
+            </div>
+            
+            <div className="p-4">
+              {hasActiveFilters && (
+                <div className="flex justify-start mb-4">
+                  <button
+                    onClick={clearAllFilters}
+                    className="text-sm text-[#00C1A7] hover:text-[#00A892] transition-colors"
+                  >
+                    Limpiar todos los filtros
+                  </button>
+                </div>
+              )}
+              
+              {/* Filtro de Rango de Precios */}
+              <div className="border-b border-gray-100 pb-4 mb-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Rango de Precios</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      placeholder="Mín"
+                      value={priceRangeInput.min}
+                      onChange={(e) => setPriceRangeInput(prev => ({ ...prev, min: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-[#00C1A7] placeholder:text-gray-600 text-gray-900"
+                      min="0"
+                      step="0.01"
+                    />
+                    <span className="text-gray-500">-</span>
+                    <input
+                      type="number"
+                      placeholder="Máx"
+                      value={priceRangeInput.max}
+                      onChange={(e) => setPriceRangeInput(prev => ({ ...prev, max: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-[#00C1A7] placeholder:text-gray-600 text-gray-900"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  {priceRangeError && (
+                    <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1.5">
+                      {priceRangeError}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handlePriceRangeApply}
+                      className="flex-1 px-3 py-2 text-sm bg-[#00C1A7] text-white rounded-lg hover:bg-[#00A892] transition-colors"
+                    >
+                      Aplicar
+                    </button>
+                    {(priceRange.min !== null || priceRange.max !== null) && (
+                      <button
+                        onClick={handlePriceRangeClear}
+                        className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                      >
+                        Limpiar
+                      </button>
+                    )}
+                  </div>
+                  {(priceRange.min !== null || priceRange.max !== null) && (
+                    <p className="text-xs text-gray-600">
+                      ${priceRange.min !== null ? priceRange.min.toLocaleString() : "0"} - ${priceRange.max !== null ? priceRange.max.toLocaleString() : "∞"}
+                    </p>
+                  )}
+                </div>
+              </div>
+              
+              {/* Grupos de filtros */}
+              {currentFilters.length === 0 ? (
+                <p className="text-sm text-gray-500">No hay filtros disponibles para esta categoría</p>
+              ) : (
+                <div className="space-y-4">
+                  {currentFilters.map((filterGroup, index) => {
+                    const filterKey = filterGroup.title;
+                    const isOpen = openFilters[filterKey] || false;
+                    
+                    return (
+                      <div key={index} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
+                        <button
+                          onClick={() => toggleFilter(filterKey)}
+                          className="flex items-center justify-between w-full text-left mb-3 group"
+                        >
+                          <h3 className="text-sm font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">
+                            {filterGroup.title}
+                          </h3>
+                          {isOpen ? (
+                            <Minus className="w-4 h-4 text-gray-600 flex-shrink-0" />
+                          ) : (
+                            <Plus className="w-4 h-4 text-gray-600 flex-shrink-0" />
+                          )}
+                        </button>
+                        {isOpen && (
+                          <div className="space-y-3">
+                            {filterGroup.options.map((option) => {
+                              const isChecked = selectedFilters[filterKey]?.includes(option.value) || false;
+                              
+                              return (
+                                <label key={option.value} className="flex items-center cursor-pointer group">
+                                  <input
+                                    type={filterGroup.type}
+                                    checked={isChecked}
+                                    onChange={(e) => handleFilterChange(filterKey, option.value, e.target.checked)}
+                                    className="w-5 h-5 text-[#00C1A7] focus:ring-[#00C1A7] focus:ring-2 rounded border-gray-300 cursor-pointer"
+                                  />
+                                  <span className="ml-3 text-sm text-gray-700 group-hover:text-gray-900 transition-colors">
+                                    {option.label}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            
+            {/* Bottom action button */}
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4">
+              <button
+                onClick={() => setIsMobileFiltersOpen(false)}
+                className="w-full py-3 bg-[#00C1A7] text-white rounded-lg font-medium hover:bg-[#00A892] transition-colors"
+              >
+                Ver {products.length} productos
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Main Content Grid: Sidebar + Products */}
-        <div className={`grid grid-cols-12 gap-6 ${searchQuery ? 'lg:grid-cols-12' : ''}`}>
-          {/* Sidebar de Filtros - 3 columnas, oculto cuando está cerrado o hay búsqueda */}
+        <div className={`grid grid-cols-12 gap-4 md:gap-6 ${searchQuery ? 'lg:grid-cols-12' : ''}`}>
+          {/* Sidebar de Filtros - 3 columnas, oculto cuando está cerrado o hay búsqueda, solo desktop */}
           {filtersExpanded && !searchQuery && (
-            <aside className="col-span-12 lg:col-span-3 transition-all duration-300 ease-in-out">
+            <aside className="hidden md:block col-span-12 lg:col-span-3 transition-all duration-300 ease-in-out">
               <div className="bg-white rounded-[10px] border border-gray-200 p-6 sticky top-[210px] overflow-y-auto custom-scrollbar" style={{ maxHeight: 'calc(100vh - 12rem)', height: 'fit-content' }}>
                 {/* Contenido de filtros - alineado con el grid de productos (después del mb-6 del dropdown) */}
                 {(isLoadingCategories && slug && slug.length > 0) || isApplyingFilter ? (
@@ -1894,11 +2057,11 @@ export default function CatalogoPage() {
             </aside>
           )}
           
-          {/* Productos - 3 columnas si hay filtros, 4 columnas si no */}
-          <div className={`col-span-12 ${filtersExpanded ? 'lg:col-span-9' : 'lg:col-span-12'} transition-all duration-300`}>
+          {/* Productos - 2 columnas en móvil, 3 en tablet, 3-4 en desktop */}
+          <div className={`col-span-12 ${filtersExpanded ? 'md:col-span-12 lg:col-span-9' : 'lg:col-span-12'} transition-all duration-300`}>
             {/* Products Grid */}
             {loading ? (
-              <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 transition-all duration-300 ease-in-out ${filtersExpanded ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
+              <div className={`grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6 mb-8 transition-all duration-300 ease-in-out ${filtersExpanded ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
                 {[...Array(8)].map((_, index) => (
                   <div key={index} className="relative group block animate-pulse">
                     {/* Skeleton Image */}
@@ -1927,7 +2090,7 @@ export default function CatalogoPage() {
               </div>
             ) : (
               <>
-                <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 transition-all duration-300 ease-in-out ${filtersExpanded ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
+                <div className={`grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6 mb-8 transition-all duration-300 ease-in-out ${filtersExpanded ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
                   {products.map((product) => (
                     <ProductCard key={product.id} {...getProductCardProps(product)} />
                   ))}

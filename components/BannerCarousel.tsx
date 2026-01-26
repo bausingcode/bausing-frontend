@@ -48,7 +48,7 @@ export default function BannerCarousel({
   if (images.length === 0) return null;
 
   return (
-    <section className="relative bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0f0f0f] min-h-[450px] flex items-center overflow-hidden">
+    <section className="relative bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0f0f0f] min-h-[200px] sm:min-h-[300px] md:min-h-[400px] lg:min-h-[450px] flex items-center overflow-hidden">
       {/* Background pattern/texture */}
       <div className="absolute inset-0 opacity-10 z-0">
         <div className="absolute inset-0" style={{
@@ -58,7 +58,7 @@ export default function BannerCarousel({
       </div>
 
       {/* Carousel Images */}
-      <div className="relative w-full h-full min-h-[450px]">
+      <div className="relative w-full h-full min-h-[200px] sm:min-h-[300px] md:min-h-[400px] lg:min-h-[450px]">
         {images.map((image, index) => {
           // Generar URL optimizada con wsrv (usando ancho de 1920px para banners hero)
           const optimizedUrl = wsrvLoader({ src: image.url, width: 1920 });
@@ -85,31 +85,31 @@ export default function BannerCarousel({
         <>
           <button
             onClick={goToPrevious}
-            className="absolute left-4 top-1/2 transform -translate-y-1/2 z-20 bg-white/20 hover:bg-white/30 text-white p-2 rounded-full transition-all"
+            className="absolute left-2 md:left-4 top-1/2 transform -translate-y-1/2 z-20 bg-white/20 hover:bg-white/30 text-white p-1.5 md:p-2 rounded-full transition-all"
             aria-label="Previous image"
           >
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronLeft className="w-4 h-4 md:w-6 md:h-6" />
           </button>
           <button
             onClick={goToNext}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 z-20 bg-white/20 hover:bg-white/30 text-white p-2 rounded-full transition-all"
+            className="absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 z-20 bg-white/20 hover:bg-white/30 text-white p-1.5 md:p-2 rounded-full transition-all"
             aria-label="Next image"
           >
-            <ChevronRight className="w-6 h-6" />
+            <ChevronRight className="w-4 h-4 md:w-6 md:h-6" />
           </button>
         </>
       )}
 
       {/* Dots Indicator */}
       {images.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 flex gap-2">
+        <div className="absolute bottom-2 md:bottom-4 left-1/2 transform -translate-x-1/2 z-20 flex gap-1.5 md:gap-2">
           {images.map((_, index) => (
             <button
               key={index}
               onClick={() => goToSlide(index)}
-              className={`w-2 h-2 rounded-full transition-all ${
+              className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full transition-all ${
                 index === currentIndex
-                  ? 'bg-white w-8'
+                  ? 'bg-white w-6 md:w-8'
                   : 'bg-white/50 hover:bg-white/75'
               }`}
               aria-label={`Go to slide ${index + 1}`}

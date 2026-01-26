@@ -24,6 +24,7 @@ interface CartContextType {
   favorites: FavoritesItem[];
   addToCart: (item: Omit<CartItem, "quantity">) => void;
   removeFromCart: (id: string) => void;
+  updateCartQuantity: (id: string, quantity: number) => void;
   addToFavorites: (item: FavoritesItem) => void;
   removeFromFavorites: (id: string) => void;
   isInCart: (id: string) => boolean;
@@ -94,6 +95,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCart((prev) => prev.filter((item) => item.id !== id));
   };
 
+  const updateCartQuantity = (id: string, quantity: number) => {
+    if (quantity <= 0) {
+      removeFromCart(id);
+      return;
+    }
+    setCart((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, quantity } : item))
+    );
+  };
+
   const addToFavorites = (item: FavoritesItem) => {
     if (!isAuthenticated) {
       // Use replace instead of push to avoid adding to history, but this shouldn't cause page reload
@@ -129,6 +140,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         favorites,
         addToCart,
         removeFromCart,
+        updateCartQuantity,
         addToFavorites,
         removeFromFavorites,
         isInCart,
