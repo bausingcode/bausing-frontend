@@ -36,7 +36,9 @@ import {
   Square,
   Box,
   Shield,
-  MapPin
+  MapPin,
+  Menu,
+  X
 } from "lucide-react";
 import Cart from "./Cart";
 import Image from "next/image";
@@ -753,6 +755,7 @@ export default function Navbar() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [apiCategories, setApiCategories] = useState<Category[]>([]);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -871,8 +874,8 @@ export default function Navbar() {
   return (
     <>
       <div className="sticky top-0 z-50 bg-white">
-        {/* Top Header - Light Green Bar */}
-        <div className="bg-[#00C1A7]/80 py-1.5">
+        {/* Top Header - Light Green Bar (hidden on mobile) */}
+        <div className="hidden md:block bg-[#00C1A7]/80 py-1.5">
           <div className="container mx-auto px-4">
             <div className="flex items-center justify-center gap-6 text-sm text-white">
               <div className="flex items-center gap-2">
@@ -893,20 +896,34 @@ export default function Navbar() {
 
         {/* Main Header - White Bar */}
         <header className="bg-white border-b border-gray-200">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between gap-8">
+          <div className="container mx-auto px-4 py-3 md:py-4">
+            <div className="flex items-center justify-between gap-4 md:gap-8">
+              {/* Hamburger Menu Button - Mobile Only */}
+              <button
+                type="button"
+                className="md:hidden p-2 -ml-2 text-gray-700"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                aria-label="Abrir menú"
+              >
+                {isMobileMenuOpen ? (
+                  <X className="w-6 h-6" />
+                ) : (
+                  <Menu className="w-6 h-6" />
+                )}
+              </button>
+
               {/* Logo */}
               <a href="/" className="flex items-center flex-shrink-0 cursor-pointer">
                 <img
-                  src="/images/logo/logo.svg"
+                  src="/images/logo/logobausing1.svg"
                   alt="BAUSING Logo"
-                  className="h-10 w-auto"
+                  className="h-8 md:h-10 w-auto"
                 />
               </a>
 
-              {/* Search Bar - Centered */}
-              <div className="flex-1 flex justify-center px-8">
-                <form onSubmit={handleSearch} className="relative w-full max-w-4xl">
+              {/* Search Bar - Centered (hidden on mobile) */}
+              <div className="hidden md:flex flex-1 justify-center px-8">
+                <form onSubmit={handleSearch} className="relative w-full max-w-2xl">
                   <input
                     ref={searchInputRef}
                     type="text"
@@ -921,21 +938,21 @@ export default function Navbar() {
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer hover:opacity-70 transition-opacity"
                     aria-label="Buscar"
                   >
-                    <Search className="w-5 h-5 text-black" />
+                    <Search className="w-5 h-5 text-gray-400" />
                   </button>
                 </form>
               </div>
 
               {/* User and Cart Icons */}
-              <div className="flex items-center justify-end gap-6 flex-shrink-0">
-                {/* User Menu */}
+              <div className="flex items-center justify-end gap-4 md:gap-6 flex-shrink-0">
+                {/* User Menu - Hidden on mobile */}
                 <div 
                   ref={userMenuRef}
-                  className="relative z-[60]"
+                  className="relative z-[60] hidden md:block"
                 >
                   {isAuthenticated && user ? (
                     <div 
-                      className="flex items-center gap-2 cursor-pointer group relative"
+                      className="flex items-center gap-2 cursor-pointer group relative hover:bg-gray-100 rounded-lg px-2 py-1 transition-colors duration-200"
                       onClick={() => setShowUserMenu(!showUserMenu)}
                     >
                       <User className="w-7 h-7 text-gray-700 group-hover:text-gray-900" strokeWidth={1.5} />
@@ -951,7 +968,7 @@ export default function Navbar() {
                     </div>
                   ) : (
                     <div 
-                      className="flex items-center gap-2 cursor-pointer group"
+                      className="flex items-center gap-2 cursor-pointer group hover:bg-gray-100 rounded-lg px-2 py-1 transition-colors duration-200"
                       onClick={() => router.push("/login")}
                     >
                       <User className="w-7 h-7 text-gray-700 group-hover:text-gray-900" strokeWidth={1.5} />
@@ -1032,8 +1049,8 @@ export default function Navbar() {
                   )}
                 </div>
                 
-                {/* Favorites */}
-                <div className="group">
+                {/* Favorites - Hidden on mobile */}
+                <div className="group hidden md:block">
                   <Heart 
                     className={`w-6 h-6 cursor-pointer transition-all duration-300 group-hover:animate-wiggle ${
                       isFavoritesPage
@@ -1052,7 +1069,7 @@ export default function Navbar() {
                   onClick={handleCartClick}
                 >
                   <ShoppingCart 
-                    className="w-6 h-6 text-gray-700 fill-transparent group-hover:text-black group-hover:fill-black transition-[color,fill] duration-300 ease-in-out" 
+                    className="w-5 h-5 md:w-6 md:h-6 text-gray-700 fill-transparent group-hover:text-black group-hover:fill-black transition-[color,fill] duration-300 ease-in-out" 
                   />
                 </div>
               </div>
@@ -1061,9 +1078,123 @@ export default function Navbar() {
           </div>
         </header>
 
-        {/* Navigation Bar */}
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden bg-white fixed inset-0 top-[56px] z-50 overflow-y-auto">
+            <div className="container mx-auto px-4 py-4">
+              {/* Mobile Search */}
+              <form onSubmit={(e) => { handleSearch(e); setIsMobileMenuOpen(false); }} className="relative mb-4">
+                <input
+                  type="text"
+                  placeholder="Buscar productos..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-900 placeholder:text-gray-500"
+                />
+                <button
+                  type="submit"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                  aria-label="Buscar"
+                >
+                  <Search className="w-5 h-5 text-gray-400" />
+                </button>
+              </form>
+
+              {/* Mobile User Actions */}
+              <div className="border-b border-gray-200 pb-4 mb-4">
+                {isAuthenticated && user ? (
+                  <div className="space-y-2">
+                    <div className="px-2 py-2 text-sm text-gray-500">
+                      Hola, <span className="font-semibold text-gray-900">{user.first_name}</span>
+                    </div>
+                    <button
+                      onClick={() => { router.push("/usuario"); setIsMobileMenuOpen(false); }}
+                      className="w-full flex items-center gap-3 px-2 py-2 text-gray-700 hover:bg-gray-50 rounded-lg"
+                    >
+                      <User className="w-5 h-5" />
+                      <span>Mi perfil</span>
+                    </button>
+                    <button
+                      onClick={() => { router.push("/usuario?section=pedidos"); setIsMobileMenuOpen(false); }}
+                      className="w-full flex items-center gap-3 px-2 py-2 text-gray-700 hover:bg-gray-50 rounded-lg"
+                    >
+                      <Package className="w-5 h-5" />
+                      <span>Mis pedidos</span>
+                    </button>
+                    <button
+                      onClick={() => { handleFavoritesClick(); setIsMobileMenuOpen(false); }}
+                      className="w-full flex items-center gap-3 px-2 py-2 text-gray-700 hover:bg-gray-50 rounded-lg"
+                    >
+                      <Heart className="w-5 h-5" />
+                      <span>Mis favoritos</span>
+                    </button>
+                    <button
+                      onClick={() => { logout(); setIsMobileMenuOpen(false); }}
+                      className="w-full flex items-center gap-3 px-2 py-2 text-red-600 hover:bg-red-50 rounded-lg"
+                    >
+                      <LogOut className="w-5 h-5" />
+                      <span>Cerrar sesión</span>
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { router.push("/login"); setIsMobileMenuOpen(false); }}
+                    className="w-full flex items-center gap-3 px-2 py-2 text-gray-700 hover:bg-gray-50 rounded-lg"
+                  >
+                    <User className="w-5 h-5" />
+                    <span>Iniciar sesión</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Mobile Categories */}
+              <div className="space-y-1">
+                <p className="px-2 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Categorías</p>
+                {mainCategories.map((categoryName) => {
+                  const categorySlug = categoryName.toLowerCase()
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .replace(/\s+/g, "-")
+                    .replace(/[^a-z0-9-]/g, "");
+                  const categoryUrl = `/catalogo/${categorySlug}`;
+                  
+                  return (
+                    <a
+                      key={categoryName}
+                      href={categoryUrl}
+                      className="flex items-center gap-3 px-2 py-3 text-gray-700 hover:bg-gray-50 rounded-lg"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <span>{categoryName}</span>
+                    </a>
+                  );
+                })}
+              </div>
+
+              {/* Mobile Blog & Locales */}
+              <div className="border-t border-gray-200 mt-4 pt-4 space-y-1">
+                <a
+                  href="/blog"
+                  className="flex items-center gap-3 px-2 py-3 text-gray-700 hover:bg-gray-50 rounded-lg"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <span>Blog</span>
+                </a>
+                <a
+                  href="/locales"
+                  className="flex items-center gap-3 px-2 py-3 text-gray-700 hover:bg-gray-50 rounded-lg"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <span>Locales</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Navigation Bar - Hidden on mobile */}
         <nav 
-          className="bg-white border-b border-gray-200 relative"
+          className="hidden md:block bg-white border-b border-gray-200 relative"
           onMouseLeave={(e) => {
             // Verificar si el cursor va hacia un dropdown
             const relatedTarget = e.relatedTarget;
@@ -1128,70 +1259,108 @@ export default function Navbar() {
           }}
         >
           <div className="container mx-auto px-4">
-            <div className="flex items-center justify-center gap-8 py-3">
-              {mainCategoriesToUse.map((categoryName) => {
-                const categoryData = categoriesData[categoryName];
-                const CategoryIcon = categoryData?.icon;
-                // Mapear nombre de categoría a slug
-                const categorySlug = categoryName.toLowerCase()
-                  .normalize("NFD")
-                  .replace(/[\u0300-\u036f]/g, "")
-                  .replace(/\s+/g, "-")
-                  .replace(/[^a-z0-9-]/g, "");
-                const categoryUrl = `/catalogo/${categorySlug}`;
-                
-                // Buscar categoría en API para obtener ID real
-                const apiCategory = apiCategories.find(c => c.name === categoryName);
-                
-                return (
-                  <a 
-                    key={categoryName}
-                    href={categoryUrl}
-                    className="flex items-center gap-2 text-black hover:text-gray-600 font-medium"
-                    onClick={(e) => {
-                      // Navegar a la categoría correcta
-                      e.preventDefault();
-                      router.push(categoryUrl);
-                    }}
-                    onMouseEnter={() => {
-                      // Solo bloquear si se cerró muy recientemente (menos de 150ms) Y se está saliendo
-                      const timeSinceClosing = Date.now() - closingTimestampRef.current;
-                      if (isExitingRef.current && timeSinceClosing < 150) {
-                        // Solo bloquear si realmente se está saliendo y fue muy reciente
-                        return;
-                      }
-                      
-                      // Cancelar cualquier cierre pendiente cuando cambias de categoría
-                      if (closeTimeoutRef.current) {
-                        clearTimeout(closeTimeoutRef.current);
-                        closeTimeoutRef.current = null;
-                      }
-                      
-                      // Resetear las banderas si el mouse entra a una categoría
-                      isExitingRef.current = false;
-                      closingTimestampRef.current = 0;
-                      
-                      const wasOpen = hoveredCategory !== null;
-                      const isDifferentCategory = hoveredCategory !== categoryName;
-                      
-                      // Si cambias a una categoría diferente, resetear el estado de cierre
-                      if (isDifferentCategory) {
-                        setIsClosing(false);
-                        setClosingCategory(null);
-                        setHoveredSubcategory(null);
-                      }
-                      
-                      setPreviousCategory(hoveredCategory);
-                      setHoveredCategory(categoryName);
-                    }}
-                  >
-                    {CategoryIcon && (
-                      <CategoryIcon className="w-5 h-5 text-[#00C1A7]" />
-                    )}
-                    <span>{categoryName}</span>
-                  </a>
-                );
-              })}
+            <div className="flex items-center justify-between py-3">
+              <div className="flex items-center justify-center gap-8 flex-1">
+                {mainCategoriesToUse.map((categoryName) => {
+                  const categoryData = categoriesData[categoryName];
+                  const CategoryIcon = categoryData?.icon;
+                  
+                  // Mapear nombre de categoría a slug
+                  const categorySlug = categoryName.toLowerCase()
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .replace(/\s+/g, "-")
+                    .replace(/[^a-z0-9-]/g, "");
+                  const categoryUrl = `/catalogo/${categorySlug}`;
+                  
+                  // Verificar si la categoría tiene subcategorías
+                  const hasSubcategories = categoryData && (
+                    (categoryData.columns?.left && categoryData.columns.left.length > 0) ||
+                    (categoryData.columns?.middle && categoryData.columns.middle.length > 0)
+                  );
+                  
+                  // Buscar categoría en API para obtener ID real
+                  const apiCategory = apiCategories.find(c => c.name === categoryName);
+                  
+                  return (
+                    <a 
+                      key={categoryName}
+                      href={categoryUrl}
+                      className="flex items-center gap-2 text-black hover:text-gray-600 font-medium"
+                      onClick={(e) => {
+                        // Navegar a la categoría correcta
+                        e.preventDefault();
+                        router.push(categoryUrl);
+                      }}
+                      onMouseEnter={() => {
+                        // Si no tiene subcategorías, no abrir el dropdown
+                        if (!hasSubcategories) {
+                          return;
+                        }
+                        // Solo bloquear si se cerró muy recientemente (menos de 150ms) Y se está saliendo
+                        const timeSinceClosing = Date.now() - closingTimestampRef.current;
+                        if (isExitingRef.current && timeSinceClosing < 150) {
+                          // Solo bloquear si realmente se está saliendo y fue muy reciente
+                          return;
+                        }
+                        
+                        // Cancelar cualquier cierre pendiente cuando cambias de categoría
+                        if (closeTimeoutRef.current) {
+                          clearTimeout(closeTimeoutRef.current);
+                          closeTimeoutRef.current = null;
+                        }
+                        
+                        // Resetear las banderas si el mouse entra a una categoría
+                        isExitingRef.current = false;
+                        closingTimestampRef.current = 0;
+                        
+                        const wasOpen = hoveredCategory !== null;
+                        const isDifferentCategory = hoveredCategory !== categoryName;
+                        
+                        // Si cambias a una categoría diferente, resetear el estado de cierre
+                        if (isDifferentCategory) {
+                          setIsClosing(false);
+                          setClosingCategory(null);
+                          setHoveredSubcategory(null);
+                        }
+                        
+                        setPreviousCategory(hoveredCategory);
+                        setHoveredCategory(categoryName);
+                      }}
+                    >
+                      {CategoryIcon && (
+                        <CategoryIcon className="w-5 h-5 text-[#00C1A7]" />
+                      )}
+                      <span>{categoryName}</span>
+                    </a>
+                  );
+                })}
+              </div>
+              
+              {/* Blog y Locales - Pegados a la derecha */}
+              <div className="flex items-center gap-6">
+                <a
+                  href="/blog"
+                  className="text-sm text-black hover:text-gray-600 font-normal"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    router.push("/blog");
+                  }}
+                >
+                  Blog
+                </a>
+
+                <a
+                  href="/locales"
+                  className="text-sm text-black hover:text-gray-600 font-normal"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    router.push("/locales");
+                  }}
+                >
+                  Locales
+                </a>
+              </div>
             </div>
           </div>
 

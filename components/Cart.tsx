@@ -1,6 +1,6 @@
 "use client";
 
-import { X, Trash2 } from "lucide-react";
+import { X, Trash2, Plus, Minus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
 
@@ -11,7 +11,7 @@ interface CartProps {
 
 export default function Cart({ isOpen, onClose }: CartProps) {
   const router = useRouter();
-  const { cart, removeFromCart, cartCount } = useCart();
+  const { cart, removeFromCart, updateCartQuantity, cartCount } = useCart();
 
   // Función helper para parsear precio desde formato string argentino
   const parsePrice = (priceStr: string): number => {
@@ -92,22 +92,38 @@ export default function Cart({ isOpen, onClose }: CartProps) {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-medium text-gray-900 truncate mb-1">
-                        {item.name}
-                      </h3>
-                      <p className="text-sm text-gray-500 mb-2">
-                        Cantidad: {item.quantity}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-gray-900">
-                          {formatPrice(parsePrice(item.price) * item.quantity)}
-                        </p>
+                      <div className="flex items-start justify-between mb-1">
+                        <h3 className="text-sm font-medium text-gray-900 truncate flex-1">
+                          {item.name}
+                        </h3>
                         <button
                           onClick={() => removeFromCart(item.id)}
-                          className="p-1.5 hover:bg-red-50 rounded transition-colors"
+                          className="p-1.5 hover:bg-red-50 rounded transition-colors flex-shrink-0 ml-2"
                           aria-label="Eliminar del carrito"
                         >
                           <Trash2 className="w-4 h-4 text-gray-500 hover:text-red-500" />
+                        </button>
+                      </div>
+                      <p className="text-sm font-semibold text-gray-900 mb-2">
+                        {formatPrice(parsePrice(item.price) * item.quantity)}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => updateCartQuantity(item.id, item.quantity - 1)}
+                          className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+                          title="Disminuir cantidad"
+                        >
+                          <Minus className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="text-sm font-medium text-gray-900 min-w-[2rem] text-center">
+                          {item.quantity}
+                        </span>
+                        <button
+                          onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
+                          className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+                          title="Aumentar cantidad"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>

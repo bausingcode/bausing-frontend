@@ -21,6 +21,8 @@ import {
   Check,
   Loader2,
   ArrowRightLeft,
+  Trash2,
+  Minus,
 } from "lucide-react";
 
 type PaymentMethod = "card" | "cash" | "transfer" | "wallet" | null;
@@ -28,7 +30,7 @@ type DocumentType = "dni" | "passport" | "cuit" | "";
 
 export default function CheckoutPage() {
   const { user, isAuthenticated } = useAuth();
-  const { cart } = useCart();
+  const { cart, removeFromCart, updateCartQuantity } = useCart();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -368,16 +370,16 @@ export default function CheckoutPage() {
     <div className="min-h-screen bg-white flex flex-col">
       <Navbar />
 
-      <main className="flex-1 container mx-auto px-4 lg:px-8 py-8 lg:py-12">
+      <main className="flex-1 container mx-auto px-4 py-6 md:py-8 lg:py-12">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">Checkout</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 md:mb-8">Checkout</h1>
 
-          <form onSubmit={handleSubmit} className="grid lg:grid-cols-3 gap-8">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
             {/* Left Column - Form */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-4 md:space-y-6 order-2 lg:order-1">
               {/* Personal Information */}
-              <div className="bg-white border border-gray-200 rounded-[14px] p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">
+              <div className="bg-white border border-gray-200 rounded-[14px] p-4 md:p-6">
+                <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4 md:mb-6">
                   Información personal
                 </h2>
                 <div className="grid md:grid-cols-2 gap-4">
@@ -494,9 +496,9 @@ export default function CheckoutPage() {
               </div>
 
               {/* Delivery Address */}
-              <div className="bg-white border border-gray-200 rounded-[14px] p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-semibold text-gray-900">
+              <div className="bg-white border border-gray-200 rounded-[14px] p-4 md:p-6">
+                <div className="flex items-center justify-between mb-4 md:mb-6">
+                  <h2 className="text-lg md:text-xl font-semibold text-gray-900">
                     Dirección de entrega
                   </h2>
                   {!showAddressForm && (
@@ -747,16 +749,16 @@ export default function CheckoutPage() {
               </div>
 
               {/* Payment Method */}
-              <div className="bg-white border border-gray-200 rounded-[14px] p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">
+              <div className="bg-white border border-gray-200 rounded-[14px] p-4 md:p-6">
+                <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4 md:mb-6">
                   Método de pago
                 </h2>
                 {errors.payment_method && (
                   <p className="text-red-500 text-sm mb-4">{errors.payment_method}</p>
                 )}
-                <div className="space-y-3">
+                <div className="space-y-2 md:space-y-3">
                   <label
-                    className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${
+                    className={`flex items-center gap-3 md:gap-4 p-3 md:p-4 border rounded-lg cursor-pointer transition-colors ${
                       paymentMethod === "card"
                         ? "border-[#00C1A7] bg-[#00C1A7]/5"
                         : "border-gray-200 hover:border-gray-300"
@@ -769,7 +771,7 @@ export default function CheckoutPage() {
                       checked={paymentMethod === "card"}
                       onChange={() => {
                         setPaymentMethod("card");
-                        setPayOnDelivery(false);
+                        // Don't automatically set payOnDelivery to false
                         // Clear card errors when switching to card
                         setErrors((prev) => {
                           const newErrors = { ...prev };
@@ -784,13 +786,13 @@ export default function CheckoutPage() {
                       className="w-4 h-4"
                     />
                     <CreditCard className="w-5 h-5 text-gray-600" />
-                    <span className="font-medium text-gray-900">Tarjeta</span>
+                    <span className="font-medium text-gray-900 text-sm md:text-base">Tarjeta</span>
                     {paymentMethod === "card" && (
                       <Check className="w-5 h-5 text-[#00C1A7] ml-auto" />
                     )}
                   </label>
                   <label
-                    className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${
+                    className={`flex items-center gap-3 md:gap-4 p-3 md:p-4 border rounded-lg cursor-pointer transition-colors ${
                       paymentMethod === "cash"
                         ? "border-[#00C1A7] bg-[#00C1A7]/5"
                         : "border-gray-200 hover:border-gray-300"
@@ -826,7 +828,7 @@ export default function CheckoutPage() {
                     />
                     <Wallet className="w-5 h-5 text-gray-600" />
                     <div className="flex-1">
-                      <span className="font-medium text-gray-900">Efectivo</span>
+                      <span className="font-medium text-gray-900 text-sm md:text-base">Efectivo</span>
                       <p className="text-xs text-gray-500 mt-0.5">Abonás al recibir</p>
                     </div>
                     {paymentMethod === "cash" && (
@@ -834,7 +836,7 @@ export default function CheckoutPage() {
                     )}
                   </label>
                   <label
-                    className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${
+                    className={`flex items-center gap-3 md:gap-4 p-3 md:p-4 border rounded-lg cursor-pointer transition-colors ${
                       paymentMethod === "transfer"
                         ? "border-[#00C1A7] bg-[#00C1A7]/5"
                         : "border-gray-200 hover:border-gray-300"
@@ -870,7 +872,7 @@ export default function CheckoutPage() {
                     />
                     <ArrowRightLeft className="w-5 h-5 text-gray-600" />
                     <div className="flex-1">
-                      <span className="font-medium text-gray-900">Transferencia</span>
+                      <span className="font-medium text-gray-900 text-sm md:text-base">Transferencia</span>
                       <p className="text-xs text-gray-500 mt-0.5">Abonás al recibir</p>
                     </div>
                     {paymentMethod === "transfer" && (
@@ -880,7 +882,7 @@ export default function CheckoutPage() {
                   {/* Billetera Bausing - Solo como método de pago si el saldo cubre el total */}
                   {canPayWithWallet ? (
                     <label
-                      className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${
+                      className={`flex items-center gap-3 md:gap-4 p-3 md:p-4 border rounded-lg cursor-pointer transition-colors ${
                         paymentMethod === "wallet"
                           ? "border-[#00C1A7] bg-[#00C1A7]/5"
                           : "border-gray-200 hover:border-gray-300"
@@ -917,13 +919,13 @@ export default function CheckoutPage() {
                         className="w-4 h-4"
                       />
                       <CreditCard className="w-5 h-5 text-gray-600" />
-                      <div className="flex-1">
-                        <span className="font-medium text-gray-900">Billetera Bausing</span>
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium text-gray-900 text-sm md:text-base">Billetera Bausing</span>
                         {walletLoading ? (
                           <p className="text-xs text-gray-500 mt-0.5">Cargando saldo...</p>
                         ) : (
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            Saldo disponible: ${walletBalance.toLocaleString("es-AR", {
+                          <p className="text-xs text-gray-500 mt-0.5 truncate">
+                            Saldo: ${walletBalance.toLocaleString("es-AR", {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
                             })}
@@ -931,12 +933,12 @@ export default function CheckoutPage() {
                         )}
                       </div>
                       {paymentMethod === "wallet" && (
-                        <Check className="w-5 h-5 text-[#00C1A7] ml-auto" />
+                        <Check className="w-5 h-5 text-[#00C1A7] ml-auto flex-shrink-0" />
                       )}
                     </label>
                   ) : walletBalance > 0 && (
-                    <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
-                      <label className="flex items-center gap-3 cursor-pointer">
+                    <div className="p-3 md:p-4 border border-gray-200 rounded-lg bg-gray-50">
+                      <label className="flex items-start md:items-center gap-3 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={useWalletBalance}
@@ -956,13 +958,13 @@ export default function CheckoutPage() {
                               });
                             }
                           }}
-                          className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7]"
+                          className="w-4 h-4 mt-0.5 md:mt-0 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7]"
                         />
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <CreditCard className="w-5 h-5 text-gray-600" />
-                            <span className="font-medium text-gray-900">
-                              Aplicar saldo de Billetera Bausing
+                            <CreditCard className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                            <span className="font-medium text-gray-900 text-sm md:text-base">
+                              Aplicar saldo de Billetera
                             </span>
                           </div>
                           {walletLoading ? (
@@ -972,7 +974,7 @@ export default function CheckoutPage() {
                               Aplicar ${walletBalance.toLocaleString("es-AR", {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2,
-                              })} de tu saldo disponible. Restante: ${remainingAfterWallet.toLocaleString("es-AR", {
+                              })}. Restante: ${remainingAfterWallet.toLocaleString("es-AR", {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2,
                               })}
@@ -984,10 +986,51 @@ export default function CheckoutPage() {
                   )}
                 </div>
 
+                {/* Pay on delivery option for card */}
+                {paymentMethod === "card" && (
+                  <div className="mt-6 pt-6 border-t border-gray-200">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={payOnDelivery}
+                        onChange={(e) => {
+                          setPayOnDelivery(e.target.checked);
+                          // Clear card data and errors when enabling pay on delivery
+                          if (e.target.checked) {
+                            setCardData({
+                              number: "",
+                              cvv: "",
+                              expiry: "",
+                              holder_name: "",
+                              holder_dni: "",
+                            });
+                            setErrors((prev) => {
+                              const newErrors = { ...prev };
+                              Object.keys(newErrors).forEach((key) => {
+                                if (key.startsWith("card_")) {
+                                  delete newErrors[key];
+                                }
+                              });
+                              return newErrors;
+                            });
+                          }
+                        }}
+                        className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7]"
+                      />
+                      <div>
+                        <span className="font-medium text-gray-900">Pagar al recibir</span>
+                        <p className="text-sm text-gray-500">
+                          Pagas con tarjeta cuando recibas tu pedido
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                )}
+
                 {/* Card payment fields */}
                 {paymentMethod === "card" && !payOnDelivery && (
-                  <div className="mt-6 pt-6 border-t border-gray-200 space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-gray-200 space-y-3 md:space-y-4">
+                    <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">
                       Información de la tarjeta
                     </h3>
                     <div>
@@ -1100,7 +1143,7 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                {/* Pay on delivery option */}
+                {/* Pay on delivery option for cash and transfer */}
                 {(paymentMethod === "cash" || paymentMethod === "transfer") && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <label className="flex items-center gap-3">
@@ -1113,7 +1156,7 @@ export default function CheckoutPage() {
                       <div>
                         <span className="font-medium text-gray-900">Pagar al recibir</span>
                         <p className="text-sm text-gray-500">
-                          Pagarás cuando recibas tu pedido
+                          Pagas cuando recibas tu pedido
                         </p>
                       </div>
                     </label>
@@ -1123,15 +1166,15 @@ export default function CheckoutPage() {
             </div>
 
             {/* Right Column - Order Summary */}
-            <div className="lg:col-span-1">
-              <div className="bg-white border border-gray-200 rounded-[14px] p-6 sticky top-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">
+            <div className="lg:col-span-1 order-1 lg:order-2">
+              <div className="bg-white border border-gray-200 rounded-[14px] p-4 md:p-6 lg:sticky lg:top-8">
+                <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4 md:mb-6">
                   Resumen del pedido
                 </h2>
-                <div className="space-y-4 mb-6">
+                <div className="space-y-3 md:space-y-4 mb-4 md:mb-6">
                   {cart.map((item) => (
-                    <div key={item.id} className="flex gap-3">
-                      <div className="w-16 h-16 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
+                    <div key={item.id} className="flex gap-2 md:gap-3">
+                      <div className="w-14 h-14 md:w-16 md:h-16 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
                         {item.image && (
                           <img
                             src={item.image}
@@ -1141,24 +1184,50 @@ export default function CheckoutPage() {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
+                        <p className="text-xs md:text-sm font-medium text-gray-900 truncate">
                           {item.name}
                         </p>
-                        <p className="text-sm text-gray-500">
-                          Cantidad: {item.quantity}
-                        </p>
-                        <p className="text-sm font-semibold text-gray-900 mt-1">
+                        <p className="text-xs md:text-sm font-semibold text-gray-900 mt-0.5 md:mt-1">
                           ${(parseFloat(item.price) * item.quantity).toLocaleString("es-AR", {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2,
                           })}
                         </p>
+                        <div className="flex items-center gap-1.5 md:gap-2 mt-1.5 md:mt-2">
+                          <button
+                            type="button"
+                            onClick={() => updateCartQuantity(item.id, item.quantity - 1)}
+                            className="w-6 h-6 md:w-7 md:h-7 flex items-center justify-center border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+                            title="Disminuir cantidad"
+                          >
+                            <Minus className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                          </button>
+                          <span className="text-xs md:text-sm font-medium text-gray-900 min-w-[1.5rem] md:min-w-[2rem] text-center">
+                            {item.quantity}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
+                            className="w-6 h-6 md:w-7 md:h-7 flex items-center justify-center border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+                            title="Aumentar cantidad"
+                          >
+                            <Plus className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                          </button>
+                        </div>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => removeFromCart(item.id)}
+                        className="flex-shrink-0 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Eliminar producto"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                      </button>
                     </div>
                   ))}
                 </div>
-                <div className="border-t border-gray-200 pt-4 space-y-2">
-                  <div className="flex justify-between text-sm text-gray-600">
+                <div className="border-t border-gray-200 pt-3 md:pt-4 space-y-1.5 md:space-y-2">
+                  <div className="flex justify-between text-xs md:text-sm text-gray-600">
                     <span>Subtotal</span>
                     <span>
                       ${calculateTotal().toLocaleString("es-AR", {
@@ -1168,8 +1237,8 @@ export default function CheckoutPage() {
                     </span>
                   </div>
                   {useWalletBalance && walletBalance > 0 && (
-                    <div className="flex justify-between text-sm text-green-600">
-                      <span>Descuento Billetera Bausing</span>
+                    <div className="flex justify-between text-xs md:text-sm text-green-600">
+                      <span>Desc. Billetera</span>
                       <span>
                         -${walletBalance.toLocaleString("es-AR", {
                           minimumFractionDigits: 2,
@@ -1178,14 +1247,14 @@ export default function CheckoutPage() {
                       </span>
                     </div>
                   )}
-                  <div className="flex justify-between text-sm text-gray-600">
+                  <div className="flex justify-between text-xs md:text-sm text-gray-600">
                     <span>Envío</span>
-                    <span className="text-gray-400">Calculado al finalizar</span>
+                    <span className="text-gray-400 text-xs">Calculado al finalizar</span>
                   </div>
-                  <div className="border-t border-gray-200 pt-4 mt-4">
+                  <div className="border-t border-gray-200 pt-3 md:pt-4 mt-3 md:mt-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-lg font-semibold text-gray-900">Total</span>
-                      <span className="text-xl font-bold text-gray-900">
+                      <span className="text-base md:text-lg font-semibold text-gray-900">Total</span>
+                      <span className="text-lg md:text-xl font-bold text-gray-900">
                         ${(useWalletBalance 
                           ? Math.max(0, totalAmount - walletBalance)
                           : totalAmount
@@ -1196,11 +1265,11 @@ export default function CheckoutPage() {
                       </span>
                     </div>
                     {useWalletBalance && remainingAfterWallet > 0 && (
-                      <p className="text-xs text-gray-500 mt-2">
+                      <p className="text-xs text-gray-500 mt-1.5 md:mt-2">
                         Se aplicará ${walletBalance.toLocaleString("es-AR", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
-                        })} de tu billetera. Restante a pagar: ${remainingAfterWallet.toLocaleString("es-AR", {
+                        })} de tu billetera. Restante: ${remainingAfterWallet.toLocaleString("es-AR", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
@@ -1209,16 +1278,16 @@ export default function CheckoutPage() {
                   </div>
                 </div>
                 {errors.submit && (
-                  <p className="text-red-500 text-sm mt-4">{errors.submit}</p>
+                  <p className="text-red-500 text-xs md:text-sm mt-3 md:mt-4">{errors.submit}</p>
                 )}
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full mt-6 bg-[#00C1A7] text-white py-3 px-6 rounded-lg font-semibold hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full mt-4 md:mt-6 bg-[#00C1A7] text-white py-2.5 md:py-3 px-4 md:px-6 rounded-lg font-semibold text-sm md:text-base hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {submitting ? (
                     <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
                       Procesando...
                     </>
                   ) : (

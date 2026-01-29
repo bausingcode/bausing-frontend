@@ -64,63 +64,63 @@ export default function Footer() {
 
   return (
     <footer className="bg-[#FAFAFA] text-gray-800" style={{ fontFamily: 'DM Sans, sans-serif' }}>
-      <div className="container mx-auto px-4 py-12">
-        <div className="flex justify-between mb-12">
+      <div className="container mx-auto px-4 py-8 md:py-12">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8 md:mb-12">
           {/* Categorías */}
           <div>
-            <h4 className="font-semibold text-gray-900 mb-4 capitalize">Categorías</h4>
-            <ul className="space-y-1.5 text-sm text-gray-700">
-              <li><a href="#" className="hover:text-gray-900 transition-colors">Colchones</a></li>
-              <li><a href="#" className="hover:text-gray-900 transition-colors">Sommiers</a></li>
-              <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Accesorios de descanso</a></li>
-              <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Electrodomésticos</a></li>
-              <li><a href="#" className="hover:text-gray-900 transition-colors">Muebles de Cocina</a></li>
+            <h4 className="font-semibold text-gray-900 mb-3 md:mb-4 capitalize text-sm md:text-base">Categorías</h4>
+            <ul className="space-y-2 md:space-y-3 text-xs md:text-sm text-gray-700">
+              <li><a href="/catalogo/colchones" className="hover:text-gray-900 transition-colors relative group inline-block">Colchones<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              <li><a href="/catalogo/sommiers" className="hover:text-gray-900 transition-colors relative group inline-block">Sommier y colchón<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              <li><a href="/catalogo/accesorios" className="hover:text-gray-900 transition-colors capitalize relative group inline-block">Almohadas<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              <li><a href="/catalogo/electrodomesticos" className="hover:text-gray-900 transition-colors capitalize relative group inline-block">Electrodomésticos<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              <li><a href="/catalogo/muebles-cocina" className="hover:text-gray-900 transition-colors relative group inline-block">Otros<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
             </ul>
           </div>
 
           {/* Nosotros */}
           <div>
-            <h4 className="font-semibold text-gray-900 mb-4 capitalize">Nosotros</h4>
-            <ul className="space-y-1.5 text-sm text-gray-700">
-              <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">¿Qué Es Bausing?</a></li>
-              <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Preguntas Frecuentes</a></li>
-              <li><a href="/blog" className="hover:text-gray-900 transition-colors capitalize">Blog</a></li>
-              <li><a href="#" className="hover:text-gray-900 transition-colors capitalize">Donde Encontrarnos</a></li>
-              <li><a href="#" className="hover:text-gray-900 transition-colors">Términos y Condiciones</a></li>
+            <h4 className="font-semibold text-gray-900 mb-3 md:mb-4 capitalize text-sm md:text-base">Nosotros</h4>
+            <ul className="space-y-2 md:space-y-3 text-xs md:text-sm text-gray-700">
+              <li><a href="/blog" className="hover:text-gray-900 transition-colors capitalize relative group inline-block">Blog<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              <li><a href="/locales" className="hover:text-gray-900 transition-colors capitalize relative group inline-block">Locales<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              <li><a href="/terminos-y-condiciones" className="hover:text-gray-900 transition-colors relative group inline-block">Términos<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              <li><a href="/politica-de-privacidad" className="hover:text-gray-900 transition-colors relative group inline-block">Privacidad<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
             </ul>
           </div>
 
           {/* Contacto */}
           <div>
-            <h4 className="font-semibold text-gray-900 mb-4 capitalize">Contacto</h4>
-            <ul className="space-y-1.5 text-sm text-gray-700">
+            <h4 className="font-semibold text-gray-900 mb-3 md:mb-4 capitalize text-sm md:text-base">Contacto</h4>
+            <ul className="space-y-2 md:space-y-3 text-xs md:text-sm text-gray-700">
               {phone && <li>{phone}</li>}
               {email && (
                 <li>
-                  <a href={`mailto:${email}`} className="hover:text-gray-900 transition-colors">
+                  <a href={`mailto:${email}`} className="hover:text-gray-900 transition-colors relative group inline-block break-all">
                     {email}
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span>
                   </a>
                 </li>
               )}
-              {address && <li>{address}</li>}
+              {address && <li className="hidden md:block">{address}</li>}
             </ul>
           </div>
 
           {/* Redes Sociales */}
-          <div className="-ml-2">
-            <h4 className="font-semibold text-gray-900 mb-4 whitespace-nowrap">Seguinos</h4>
+          <div>
+            <h4 className="font-semibold text-gray-900 mb-3 md:mb-4 whitespace-nowrap text-sm md:text-base">Seguinos</h4>
             
             {/* Social Media Icons */}
-            <div className="flex gap-3">
+            <div className="flex gap-2 md:gap-3">
               {instagramUrl && (
                 <a 
                   href={instagramUrl} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="w-10 h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors"
+                  className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors"
                   aria-label="Instagram"
                 >
-                  <Instagram className="w-5 h-5" />
+                  <Instagram className="w-4 h-4 md:w-5 md:h-5" />
                 </a>
               )}
               {facebookUrl && (
@@ -128,10 +128,10 @@ export default function Footer() {
                   href={facebookUrl} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="w-10 h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors"
+                  className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors"
                   aria-label="Facebook"
                 >
-                  <Facebook className="w-5 h-5" />
+                  <Facebook className="w-4 h-4 md:w-5 md:h-5" />
                 </a>
               )}
               {tiktokUrl && (
@@ -139,10 +139,10 @@ export default function Footer() {
                   href={tiktokUrl} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="w-10 h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors"
+                  className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors"
                   aria-label="TikTok"
                 >
-                  <TikTok className="w-5 h-5" />
+                  <TikTok className="w-4 h-4 md:w-5 md:h-5" />
                 </a>
               )}
             </div>
@@ -150,9 +150,9 @@ export default function Footer() {
         </div>
 
         {/* Bottom Section - Copyright */}
-        <div className="border-t border-gray-300 pt-8">
+        <div className="border-t border-gray-300 pt-6 md:pt-8">
           <div className="flex items-center justify-center">
-            <div className="text-sm text-gray-700">
+            <div className="text-xs md:text-sm text-gray-700 text-center">
               <p>&copy; {currentYear} BAUSING. Todos los derechos reservados.</p>
             </div>
           </div>
