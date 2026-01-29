@@ -1,10 +1,11 @@
 interface MetricCardProps {
   title: string;
   value: string;
-  change: string;
-  changeType: "positive" | "negative";
+  change?: string;
+  changeType?: "positive" | "negative";
   icon: React.ReactNode;
-  comparisonText?: string; // Texto de comparación personalizado
+  comparisonText?: string;
+  subtitle?: string;
 }
 
 export default function MetricCard({
@@ -13,7 +14,8 @@ export default function MetricCard({
   change,
   changeType,
   icon,
-  comparisonText = "vs mes anterior",
+  comparisonText,
+  subtitle,
 }: MetricCardProps) {
   return (
     <div className="bg-white p-3 border border-gray-200" style={{ borderRadius: '14px' }}>
@@ -24,40 +26,47 @@ export default function MetricCard({
         </div>
       </div>
       <p className="text-2xl font-normal text-gray-900 mb-1.5">{value}</p>
-      <div className="flex items-center gap-1 text-xs">
-        <svg
-          className={`w-2.5 h-2.5 ${
-            changeType === "positive" ? "text-green-600" : "text-red-600"
-          }`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          {changeType === "positive" ? (
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-            />
-          ) : (
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"
-            />
+      {subtitle && (
+        <p className="text-xs text-gray-500">{subtitle}</p>
+      )}
+      {change && changeType && (
+        <div className="flex items-center gap-1 text-xs mt-1.5">
+          <svg
+            className={`w-2.5 h-2.5 ${
+              changeType === "positive" ? "text-green-600" : "text-red-600"
+            }`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            {changeType === "positive" ? (
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+              />
+            ) : (
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"
+              />
+            )}
+          </svg>
+          <span
+            className={`font-medium ${
+              changeType === "positive" ? "text-green-600" : "text-red-600"
+            }`}
+          >
+            {change}
+          </span>
+          {comparisonText && (
+            <span className="text-gray-500">{comparisonText}</span>
           )}
-        </svg>
-        <span
-          className={`font-medium ${
-            changeType === "positive" ? "text-green-600" : "text-red-600"
-          }`}
-        >
-          {change}
-        </span>
-        <span className="text-gray-500">{comparisonText}</span>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

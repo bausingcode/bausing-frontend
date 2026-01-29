@@ -1637,6 +1637,221 @@ export async function getWalletUsageStats(cookieHeader?: string | null): Promise
   return data.data;
 }
 
+// User Metrics API
+export interface UserOrderMetrics {
+  total: number;
+  completed: number;
+  pending: number;
+  cancelled?: number;
+}
+
+export interface UserPurchaseMetrics {
+  total_spent: number;
+  avg_order_value: number;
+  last_purchase_date: string | null;
+  first_purchase_date?: string | null;
+  days_since_last_purchase: number | null;
+}
+
+export interface UserAbandonedCartMetrics {
+  count: number;
+  total_value: number;
+}
+
+export interface UserWalletMetrics {
+  balance: number;
+}
+
+export interface UserMetrics {
+  user_id: string;
+  user_name: string;
+  user_email: string;
+  orders: UserOrderMetrics;
+  purchases: UserPurchaseMetrics;
+  abandoned_carts: UserAbandonedCartMetrics;
+  wallet: UserWalletMetrics;
+  conversion_rate: number;
+  user_created_at?: string | null;
+}
+
+export interface UsersMetricsResponse {
+  users: UserMetrics[];
+  pagination: {
+    page: number;
+    per_page: number;
+    total: number;
+    total_pages: number;
+  };
+}
+
+/**
+ * Get metrics for a specific user
+ */
+export async function getUserMetrics(
+  userId: string,
+  cookieHeader?: string | null
+): Promise<UserMetrics> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/users/${userId}/metrics`
+    : `/api/admin/users/${userId}/metrics`;
+  
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+  
+  if (typeof window === "undefined") {
+    const token = cookieHeader ? getAdminTokenServer(cookieHeader) : null;
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  } else {
+    const authHeaders = getAuthHeaders();
+    Object.assign(headers, authHeaders);
+  }
+  
+  const response = await fetch(url, {
+    headers,
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to fetch user metrics: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to fetch user metrics: Invalid response");
+  }
+  
+  return data.data;
+}
+
+/**
+ * Get metrics for all users with pagination
+ */
+export async function getUsersMetrics(
+  params?: {
+    page?: number;
+    per_page?: number;
+    search?: string;
+  },
+  cookieHeader?: string | null
+): Promise<UsersMetricsResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+  if (params?.search) queryParams.append('search', params.search);
+  
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/users/metrics?${queryParams.toString()}`
+    : `/api/admin/users/metrics?${queryParams.toString()}`;
+  
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+  
+  if (typeof window === "undefined") {
+    const token = cookieHeader ? getAdminTokenServer(cookieHeader) : null;
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  } else {
+    const authHeaders = getAuthHeaders();
+    Object.assign(headers, authHeaders);
+  }
+  
+  const response = await fetch(url, {
+    headers,
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to fetch users metrics: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to fetch users metrics: Invalid response");
+  }
+  
+  return data.data;
+}
+
+// General Metrics API
+export interface GeneralMetrics {
+  total_users: number;
+  users_with_orders: number;
+  users_with_purchases: number;
+  users_with_abandoned_carts: number;
+  averages: {
+    orders_per_user: number;
+    completed_orders_per_user: number;
+    pending_orders_per_user: number;
+    spent_per_user: number;
+    order_value: number;
+  };
+  totals: {
+    orders: number;
+    completed_orders: number;
+    pending_orders: number;
+    total_spent: number;
+    abandoned_carts_value: number;
+  };
+  conversion_rate: number;
+}
+
+/**
+ * Get general/average metrics for all users
+ */
+export async function getGeneralMetrics(
+  params?: {
+    start_date?: string;
+    end_date?: string;
+  },
+  cookieHeader?: string | null
+): Promise<GeneralMetrics> {
+  const queryParams = new URLSearchParams();
+  if (params?.start_date) queryParams.append('start_date', params.start_date);
+  if (params?.end_date) queryParams.append('end_date', params.end_date);
+  
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/metrics/general${queryParams.toString() ? '?' + queryParams.toString() : ''}`
+    : `/api/admin/metrics/general${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+  
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+  
+  if (typeof window === "undefined") {
+    const token = cookieHeader ? getAdminTokenServer(cookieHeader) : null;
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  } else {
+    const authHeaders = getAuthHeaders();
+    Object.assign(headers, authHeaders);
+  }
+  
+  const response = await fetch(url, {
+    headers,
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to fetch general metrics: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to fetch general metrics: Invalid response");
+  }
+  
+  return data.data;
+}
+
 // Hero Images API
 export interface HeroImage {
   id: string;
