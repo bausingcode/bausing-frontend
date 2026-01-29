@@ -3524,7 +3524,101 @@ export async function setHomepageDistribution(params: {
 }
 
 /**
+ * Fetch public homepage product distribution (quick - without prices/promos)
+ */
+export async function fetchPublicHomepageDistributionQuick(): Promise<{
+  featured: Product[];
+  discounts: Product[];
+  mattresses: Product[];
+  complete_purchase: Product[];
+}> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/homepage-distribution/quick`
+      : `/api/homepage-distribution/quick`;
+    
+    const response = await fetch(url, { cache: "no-store" });
+    
+    if (!response.ok) {
+      console.warn("Homepage distribution quick endpoint not available, using fallback");
+      return {
+        featured: [],
+        discounts: [],
+        mattresses: [],
+        complete_purchase: []
+      };
+    }
+    
+    const data = await response.json();
+    if (!data.success) {
+      console.warn("Homepage distribution quick request failed, using fallback");
+      return {
+        featured: [],
+        discounts: [],
+        mattresses: [],
+        complete_purchase: []
+      };
+    }
+    
+    return data.data;
+  } catch (error) {
+    console.error("Error fetching quick homepage distribution:", error);
+    return {
+      featured: [],
+      discounts: [],
+      mattresses: [],
+      complete_purchase: []
+    };
+  }
+}
+
+/**
+ * Fetch prices and promos for specific products
+ */
+export async function fetchProductsPrices(productIds: string[], localityId?: string): Promise<Record<string, {
+  min_price: number;
+  max_price: number;
+  price_range: string;
+  promos: any[];
+}>> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/homepage-distribution/prices`
+      : `/api/homepage-distribution/prices`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        product_ids: productIds,
+        locality_id: localityId
+      }),
+      cache: "no-store"
+    });
+    
+    if (!response.ok) {
+      console.warn("Products prices endpoint not available");
+      return {};
+    }
+    
+    const data = await response.json();
+    if (!data.success) {
+      console.warn("Products prices request failed");
+      return {};
+    }
+    
+    return data.data;
+  } catch (error) {
+    console.error("Error fetching products prices:", error);
+    return {};
+  }
+}
+
+/**
  * Fetch public homepage product distribution (no auth)
+ * @deprecated Use fetchPublicHomepageDistributionQuick + fetchProductsPrices for better performance
  */
 export async function fetchPublicHomepageDistribution(localityId?: string): Promise<{
   featured: Product[];

@@ -14,6 +14,7 @@ interface ProductCardProps {
   currentPrice: string;
   originalPrice: string;
   discount?: string;
+  isPriceLoading?: boolean;
 }
 
 export default function ProductCard({
@@ -24,6 +25,7 @@ export default function ProductCard({
   currentPrice,
   originalPrice,
   discount,
+  isPriceLoading = false,
 }: ProductCardProps) {
   // Generar ID único si no se proporciona
   const productId = id || `product-${name.toLowerCase().replace(/\s+/g, "-")}`;
@@ -171,9 +173,19 @@ export default function ProductCard({
           </h4>
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-xl font-semibold text-gray-900">{currentPrice}</span>
-          {originalPrice && (
-            <span className="text-sm text-gray-400 line-through">{originalPrice}</span>
+          {isPriceLoading ? (
+            <div className="animate-pulse">
+              <div className="h-6 bg-gray-200 rounded w-24"></div>
+            </div>
+          ) : currentPrice ? (
+            <>
+              <span className="text-xl font-semibold text-gray-900">{currentPrice}</span>
+              {originalPrice && (
+                <span className="text-sm text-gray-400 line-through">{originalPrice}</span>
+              )}
+            </>
+          ) : (
+            <span className="text-xl font-semibold text-gray-500">Sin Precio</span>
           )}
         </div>
       </div>

@@ -18,7 +18,7 @@ function repeatProducts<T>(products: T[], count: number): T[] {
 }
 
 // Helper function to convert Product to ProductCard props
-function productToCardProps(product: Product) {
+function productToCardProps(product: Product, isPriceLoading: boolean = false) {
   // Obtener imagen con validación
   let image = "/images/placeholder.png";
   
@@ -34,17 +34,53 @@ function productToCardProps(product: Product) {
     }
   }
   
-  // Calcular precio usando función centralizada
-  const priceInfo = calculateProductPrice(product, 1);
+  // Si el precio está cargando, usar skeleton
+  // Si no hay precio después de cargar, mostrar "Sin Precio"
+  // Si hay precio, calcular con promociones
+  const hasPrice = product.min_price !== null && product.min_price !== undefined && product.min_price > 0;
+  
+  let priceInfo;
+  if (isPriceLoading) {
+    // Mientras carga, usar skeleton
+    priceInfo = {
+      currentPrice: "",
+      originalPrice: undefined,
+      discount: undefined,
+    };
+  } else if (!hasPrice) {
+    // Si no hay precio después de cargar, mostrar "Sin Precio"
+    priceInfo = {
+      currentPrice: "",
+      originalPrice: undefined,
+      discount: undefined,
+    };
+  } else {
+    // Calcular precio usando función centralizada (esto incluye promociones)
+    // Asegurarse de que las promociones estén disponibles
+    const productWithPromos = {
+      ...product,
+      promos: product.promos && Array.isArray(product.promos) ? product.promos : []
+    };
+    
+    priceInfo = calculateProductPrice(productWithPromos, 1);
+    
+    // Debug: verificar si hay promociones
+    if (product.promos && product.promos.length > 0) {
+      console.log(`[HomeProducts] Producto ${product.id} tiene ${product.promos.length} promociones:`, product.promos);
+      console.log(`[HomeProducts] Precio calculado con descuento:`, priceInfo);
+    }
+  }
   
   return {
     id: product.id,
     image,
     alt: product.name,
     name: product.name,
-    currentPrice: priceInfo.currentPrice,
-    originalPrice: priceInfo.originalPrice,
+    currentPrice: priceInfo.currentPrice || "",
+    originalPrice: priceInfo.originalPrice || "",
     discount: priceInfo.discount,
+    // Solo mostrar skeleton si está cargando, no si no hay precio
+    isPriceLoading: isPriceLoading,
   };
 }
 
@@ -55,7 +91,7 @@ interface HomeProductsProps {
 
 export default function HomeProducts({ section, count }: HomeProductsProps) {
   const { locality } = useLocality();
-  const { distribution, isLoading: distributionLoading } = useHomepageDistribution();
+  const { distribution, isLoadingPrices, isLoading: distributionLoading } = useHomepageDistribution();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -80,10 +116,30 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
   useEffect(() => {
     // Si hay productos en la distribución, usarlos inmediatamente
     if (sectionProducts.length > 0) {
+      // Debug: verificar promociones en productos
+      sectionProducts.forEach(p => {
+        if (p.promos && p.promos.length > 0) {
+          console.log(`[HomeProducts] Producto ${p.id} en sección ${section} tiene promociones:`, p.promos);
+        }
+      });
+      
+      // Recalcular props de cards cada vez que cambian los productos o el estado de carga
+      // Esto asegura que cuando los precios se cargan, se recalculen con promociones
       const cardProps = repeatProducts(
-        sectionProducts.map(productToCardProps),
+        sectionProducts.map(p => {
+          // Pasar isLoadingPrices para saber si mostrar skeleton
+          const card = productToCardProps(p, isLoadingPrices);
+          
+          // Debug: verificar descuentos calculados
+          if (card.discount) {
+            console.log(`[HomeProducts] Card ${card.id} tiene descuento:`, card.discount);
+          }
+          
+          return card;
+        }),
         count
       ).slice(0, count);
+      
       setProducts(cardProps);
       setLoading(false);
       return;
@@ -94,7 +150,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
       setProducts([]);
       setLoading(false);
     }
-  }, [section, count, sectionProducts, distributionLoading]);
+  }, [section, count, sectionProducts, distributionLoading, isLoadingPrices]);
 
   if (loading) {
     // Skeleton mientras carga
@@ -141,6 +197,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
                 currentPrice={product.currentPrice}
                 originalPrice={product.originalPrice}
                 discount={product.discount}
+                isPriceLoading={product.isPriceLoading}
               />
             </div>
           </div>
@@ -161,6 +218,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
           currentPrice={product.currentPrice}
           originalPrice={product.originalPrice}
           discount={product.discount}
+          isPriceLoading={product.isPriceLoading}
         />
       ))}
     </>

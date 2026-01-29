@@ -75,37 +75,23 @@ export default function LocalityDebugBar() {
   const handleSelectLocality = async (selectedLocality: Locality) => {
     console.log("[LocalityDebugBar] Seleccionando localidad:", selectedLocality);
     
-    // Guardar en localStorage PRIMERO para asegurar que se persista
-    localStorage.setItem("bausing_locality", JSON.stringify(selectedLocality));
-    console.log("[LocalityDebugBar] Localidad guardada en localStorage:", selectedLocality.id);
-    
     // Cerrar el panel primero para que se vea el cambio en el botón
     setIsOpen(false);
     
-    // Actualizar el contexto (esto actualiza el estado inmediatamente y se verá en el botón)
+    // Actualizar el contexto (esto actualiza el estado inmediatamente y dispara eventos)
+    // El contexto ya guarda en localStorage y dispara el evento 'localityChanged'
     setLocality(selectedLocality);
     
-    // Hacer refresh de la página después de un delay para asegurar que se guardó
-    // El delay permite que el usuario vea el cambio en el botón antes del reload
-    setTimeout(() => {
-      console.log("[LocalityDebugBar] Refrescando página con nueva localidad:", selectedLocality.name);
-      // Verificar que se guardó correctamente antes de recargar
-      const verify = localStorage.getItem("bausing_locality");
-      if (verify) {
-        const parsed = JSON.parse(verify);
-        console.log("[LocalityDebugBar] Verificación antes de reload - Localidad en localStorage:", parsed.id, parsed.name);
-      }
-      window.location.reload();
-    }, 200);
+    console.log("[LocalityDebugBar] Localidad actualizada sin recargar página:", selectedLocality.name);
   };
 
   const handleAutoDetect = async () => {
-    await detectLocality();
-    // Refrescar página después de detectar
-    setTimeout(() => {
-      console.log("[LocalityDebugBar] Refrescando página después de auto-detectar");
-      window.location.reload();
-    }, 500);
+    try {
+      await detectLocality();
+      console.log("[LocalityDebugBar] Localidad auto-detectada sin recargar página");
+    } catch (error) {
+      console.error("[LocalityDebugBar] Error en auto-detección:", error);
+    }
   };
 
   const handleDetectWithIp = async () => {
@@ -116,11 +102,7 @@ export default function LocalityDebugBar() {
     try {
       console.log("[LocalityDebugBar] Detectando localidad con IP:", simulatedIp.trim());
       await detectLocality(simulatedIp.trim());
-      // Esperar un poco más para asegurar que la localidad se guardó
-      setTimeout(() => {
-        console.log("[LocalityDebugBar] Refrescando página después de detectar con IP:", simulatedIp.trim());
-        window.location.reload();
-      }, 1000);
+      console.log("[LocalityDebugBar] Localidad detectada con IP sin recargar página:", simulatedIp.trim());
     } catch (error) {
       console.error("[LocalityDebugBar] Error detectando localidad con IP:", error);
       alert(`Error al detectar localidad: ${error instanceof Error ? error.message : 'Error desconocido'}`);
@@ -250,13 +232,9 @@ export default function LocalityDebugBar() {
             {/* Botón para limpiar */}
             <button
               onClick={() => {
-                localStorage.removeItem("bausing_locality");
                 setLocality(null);
                 setIsOpen(false);
-                // Refrescar página después de limpiar
-                setTimeout(() => {
-                  window.location.reload();
-                }, 100);
+                console.log("[LocalityDebugBar] Localidad limpiada sin recargar página");
               }}
               className="w-full mt-4 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
             >

@@ -69,6 +69,8 @@ interface Product {
   size_label?: string;
   // Otras secciones
   warranty?: string;
+  // Stock de CRM
+  has_crm_stock?: boolean;
 }
 
 interface SimilarProduct {
@@ -246,6 +248,8 @@ export default function ProductDetailPage() {
           fillingType: apiProductWithTech.filling_type || "",
           warranty: apiProductWithTech.warranty_description || 
                    (apiProductWithTech.warranty_months ? `Garantía de ${apiProductWithTech.warranty_months} meses` : ""),
+          // Stock de CRM
+          has_crm_stock: apiProductWithTech.has_crm_stock !== undefined ? apiProductWithTech.has_crm_stock : true,
         };
 
         setProduct(transformedProduct);
@@ -354,19 +358,25 @@ export default function ProductDetailPage() {
   };
 
   const handleAddToCart = () => {
-    if (product) {
+    if (product && product.has_crm_stock !== false) {
       addToCart({
         id: product.id,
         name: product.name,
         image: product.images[0]?.url || "",
         price: product.currentPrice,
       });
+    } else {
+      alert("Este producto no está disponible en este momento");
     }
   };
 
   const handleBuyNow = () => {
-    handleAddToCart();
-    router.push("/checkout");
+    if (product && product.has_crm_stock !== false) {
+      handleAddToCart();
+      router.push("/checkout");
+    } else {
+      alert("Este producto no está disponible en este momento");
+    }
   };
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
@@ -824,18 +834,26 @@ export default function ProductDetailPage() {
 
             {/* Action Buttons - Alineados con el fondo de la imagen */}
             <div className="flex flex-col gap-4">
-              <button
-                onClick={handleBuyNow}
-                className="w-full bg-[#00C1A7] text-white py-3 px-6 rounded-[4px] hover:bg-[#00A890] transition-colors cursor-pointer"
-              >
-                Comprar ahora
-              </button>
-              <button
-                onClick={handleAddToCart}
-                className="w-full border border-[#00C1A7] text-[#00C1A7] py-3 px-6 rounded-[4px] hover:bg-[#00C1A7] hover:text-white transition-colors cursor-pointer"
-              >
-                Agregar al carrito
-              </button>
+              {product?.has_crm_stock === false ? (
+                <div className="w-full bg-gray-300 text-gray-600 py-3 px-6 rounded-[4px] text-center font-medium">
+                  Sin Stock
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={handleBuyNow}
+                    className="w-full bg-[#00C1A7] text-white py-3 px-6 rounded-[4px] hover:bg-[#00A890] transition-colors cursor-pointer"
+                  >
+                    Comprar ahora
+                  </button>
+                  <button
+                    onClick={handleAddToCart}
+                    className="w-full border border-[#00C1A7] text-[#00C1A7] py-3 px-6 rounded-[4px] hover:bg-[#00C1A7] hover:text-white transition-colors cursor-pointer"
+                  >
+                    Agregar al carrito
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
