@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Search, RefreshCw, Truck, Package, AlertCircle, MapPin, Calendar, Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, RefreshCw, Truck, Package, AlertCircle, MapPin, Calendar, Clock, ChevronLeft, ChevronRight, Eye, X } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { getLogisticaPedidos, LogisticaPedido, getAppSettings, GeneralSettings } from "@/lib/api";
 
@@ -29,6 +29,7 @@ export default function LogisticaClient({ initialVentas, diasEstimados: initialD
   const [pedidosPerPage] = useState(5);
   const [soloRetrasos, setSoloRetrasos] = useState(false);
   const [pedidosPagesPorZona, setPedidosPagesPorZona] = useState<Record<number, number>>({});
+  const [selectedPedido, setSelectedPedido] = useState<LogisticaPedido | null>(null);
 
   // Actualizar días estimados si cambian
   useEffect(() => {
@@ -305,25 +306,19 @@ export default function LogisticaClient({ initialVentas, diasEstimados: initialD
                         N° Pedido
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                        Cliente
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                         Dirección
                       </th>
                       <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
                         Estado
                       </th>
                       <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
-                        Transporte
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
                         Fecha Pedido
                       </th>
                       <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
-                        Fecha Entrega
+                        Alerta
                       </th>
                       <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
-                        Alerta
+                        Acciones
                       </th>
                     </tr>
                   </thead>
@@ -343,9 +338,6 @@ export default function LogisticaClient({ initialVentas, diasEstimados: initialD
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                               {pedido.numero_comprobante || `#${pedido.id}`}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                              {pedido.cliente_nombre || "N/A"}
-                            </td>
                             <td className="px-6 py-4 text-sm text-gray-700">
                               <div>
                                 <div>{pedido.cliente_direccion || "N/A"}</div>
@@ -362,24 +354,7 @@ export default function LogisticaClient({ initialVentas, diasEstimados: initialD
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-700">
-                              <div className="flex items-center justify-center gap-2">
-                                <Truck className="w-4 h-4 text-gray-500" />
-                                {getTipoTransporte(pedido)}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-700">
                               {formatFecha(pedido.fecha_detalle)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-700">
-                              {fechaEntrega ? (
-                                <div className="flex items-center justify-center gap-2">
-                                  <Calendar className="w-4 h-4 text-gray-500" />
-                                  {formatFecha(fechaEntrega.toISOString())}
-                                  {isReal && <span className="ml-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">Real</span>}
-                                </div>
-                              ) : (
-                                "N/A"
-                              )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-center">
                               {pedido.estado?.toLowerCase() === 'entregado' ? (
@@ -397,6 +372,15 @@ export default function LogisticaClient({ initialVentas, diasEstimados: initialD
                               ) : (
                                 <span className="text-xs text-gray-400">-</span>
                               )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                              <button
+                                onClick={() => setSelectedPedido(pedido)}
+                                className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors cursor-pointer"
+                                title="Ver detalles"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
                             </td>
                           </tr>
                         );
@@ -505,6 +489,159 @@ export default function LogisticaClient({ initialVentas, diasEstimados: initialD
               {debouncedSearchTerm && soloRetrasos && " y "}
               {soloRetrasos && `Filtro de retrasos activo: Mostrando solo pedidos con retraso`}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Overlay de detalles del pedido */}
+      {selectedPedido && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="bg-white w-full max-w-2xl h-full shadow-2xl overflow-y-auto animate-slideInRight">
+            {/* Header del overlay */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Detalles del Pedido {selectedPedido.numero_comprobante || `#${selectedPedido.id}`}
+              </h2>
+              <button
+                onClick={() => setSelectedPedido(null)}
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+
+            {/* Contenido del overlay */}
+            <div className="p-6 space-y-6">
+              {/* Información del pedido */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">N° Pedido</label>
+                  <p className="mt-1 text-sm font-medium text-gray-900">
+                    {selectedPedido.numero_comprobante || `#${selectedPedido.id}`}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</label>
+                  <p className="mt-1">
+                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getEstadoColor(selectedPedido.estado || "")}`}>
+                      {capitalize(selectedPedido.estado || "N/A")}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Información del cliente */}
+              <div>
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedPedido.cliente_nombre || "N/A"}</p>
+              </div>
+
+              {/* Dirección */}
+              <div>
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Dirección</label>
+                <div className="mt-1 text-sm text-gray-900">
+                  <p>{selectedPedido.cliente_direccion || "N/A"}</p>
+                  {selectedPedido.localidad && (
+                    <p className="text-gray-600 mt-1">{selectedPedido.localidad}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Zona */}
+              <div>
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Zona</label>
+                <p className="mt-1 text-sm text-gray-900">Zona {selectedPedido.zona_id}</p>
+              </div>
+
+              {/* Fechas */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Pedido</label>
+                  <p className="mt-1 text-sm text-gray-900">{formatFecha(selectedPedido.fecha_detalle)}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Entrega</label>
+                  {(() => {
+                    const { date: fechaEntrega, isReal } = obtenerFechaEntrega(selectedPedido);
+                    return (
+                      <div className="mt-1">
+                        {fechaEntrega ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-900">{formatFecha(fechaEntrega.toISOString())}</span>
+                            {isReal && (
+                              <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">Real</span>
+                            )}
+                            {!isReal && (
+                              <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs">Estimada</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-500">N/A</span>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Transporte */}
+              <div>
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Transporte</label>
+                <div className="mt-1 flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-gray-500" />
+                  <p className="text-sm text-gray-900">{getTipoTransporte(selectedPedido)}</p>
+                </div>
+              </div>
+
+              {/* Montos */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Venta</label>
+                  <p className="mt-1 text-sm font-medium text-gray-900">
+                    ${selectedPedido.total_venta?.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || "0.00"}
+                  </p>
+                </div>
+                {selectedPedido.venta_cancelada !== undefined && selectedPedido.venta_cancelada > 0 && (
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Venta Cancelada</label>
+                    <p className="mt-1 text-sm font-medium text-red-600">
+                      ${selectedPedido.venta_cancelada.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Alerta */}
+              {(() => {
+                const { date: fechaEntrega, isReal } = obtenerFechaEntrega(selectedPedido);
+                const retraso = tieneRetraso(selectedPedido);
+                return (
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Alerta</label>
+                    <div className="mt-1">
+                      {selectedPedido.estado?.toLowerCase() === 'entregado' ? (
+                        <div className="flex items-center gap-2 text-green-600">
+                          <AlertCircle className="w-4 h-4" />
+                          <span className="text-sm font-medium">Entregado</span>
+                        </div>
+                      ) : retraso ? (
+                        <div className="flex items-center gap-2 text-red-600">
+                          <AlertCircle className="w-4 h-4" />
+                          <span className="text-sm font-medium">Retraso {isReal ? 'real' : 'estimado'}</span>
+                        </div>
+                      ) : fechaEntrega && new Date() >= fechaEntrega ? (
+                        <div className="flex items-center gap-2 text-yellow-600">
+                          <Clock className="w-4 h-4" />
+                          <span className="text-sm font-medium">Por vencer</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-400">Sin alertas</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         </div>
       )}
