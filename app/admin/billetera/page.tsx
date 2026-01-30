@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import PageHeader from "@/components/PageHeader";
+import DatePicker from "@/components/DatePicker";
 import {
   Search,
   CreditCard,
@@ -12,7 +13,6 @@ import {
   AlertTriangle,
   X,
   ChevronRight,
-  Calendar,
   User,
   Filter,
   Check,
@@ -368,7 +368,8 @@ export default function BilleteraAdmin() {
     }).format(amount);
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null | undefined) => {
+    if (dateString == null) return "-";
     return new Date(dateString).toLocaleDateString("es-AR", {
       year: "numeric",
       month: "2-digit",
@@ -751,13 +752,13 @@ export default function BilleteraAdmin() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
                   Tipo de Movimiento
                 </label>
                 <select
                   value={filters.type}
                   onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-[6px] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300 text-gray-800 bg-white hover:bg-gray-50/80 transition-colors select-arrow"
                 >
                   <option value="">Todos</option>
                   <option value="manual_credit">Carga Manual</option>
@@ -768,31 +769,28 @@ export default function BilleteraAdmin() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fecha Inicio
-                </label>
-                <input
-                  type="date"
+                <DatePicker
+                  label="Fecha Inicio"
                   value={filters.start_date}
-                  onChange={(e) => setFilters({ ...filters, start_date: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-[6px] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  onChange={(fecha) => setFilters({ ...filters, start_date: fecha })}
+                  placeholder="Seleccionar fecha"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fecha Fin
-                </label>
-                <input
-                  type="date"
+                <DatePicker
+                  label="Fecha Fin"
                   value={filters.end_date}
-                  onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-[6px] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  onChange={(fecha) => setFilters({ ...filters, end_date: fecha })}
+                  placeholder="Seleccionar fecha"
                 />
               </div>
-              <div className="flex items-end">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3 invisible select-none" aria-hidden="true">
+                  Exportar
+                </label>
                 <button
                   onClick={handleExport}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-[6px] hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                  className="w-full px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
                 >
                   <Download className="w-4 h-4" />
                   Exportar Excel

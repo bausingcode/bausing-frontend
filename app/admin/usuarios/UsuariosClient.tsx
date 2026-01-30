@@ -295,7 +295,7 @@ export default function UsuariosClient({ initialUsers = [] }: UsuariosClientProp
 
       {/* Modal de creación de usuario */}
       {showCreateModal && (
-        <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowCreateModal(false)}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCreateModal(false)}>
           <div className="bg-white rounded-[14px] p-6 max-w-md w-full mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Crear nuevo usuario
@@ -343,7 +343,14 @@ export default function UsuariosClient({ initialUsers = [] }: UsuariosClientProp
               </div>
             </div>
 
-            <div className="flex gap-3 justify-end">
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleCreateUser}
+                className="w-full px-4 py-2 text-white cursor-pointer rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isCreating || !adminRoleId}
+              >
+                {isCreating ? "Creando..." : "Crear usuario"}
+              </button>
               <button
                 onClick={() => {
                   setShowCreateModal(false);
@@ -351,18 +358,10 @@ export default function UsuariosClient({ initialUsers = [] }: UsuariosClientProp
                   setNewUserPassword("");
                   setCreateError(null);
                 }}
-                className="px-4 py-2 text-gray-700 cursor-pointer bg-gray-100 rounded-[6px] text-sm font-medium hover:bg-gray-200 transition-colors"
+                className="w-full px-4 py-2 text-gray-700 cursor-pointer border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
                 disabled={isCreating}
               >
                 Cancelar
-              </button>
-              <button
-                onClick={handleCreateUser}
-                className="px-4 py-2 text-white cursor-pointer rounded-[6px] text-sm font-medium hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ backgroundColor: '#155DFC' }}
-                disabled={isCreating || !adminRoleId}
-              >
-                {isCreating ? "Creando..." : "Crear usuario"}
               </button>
             </div>
           </div>

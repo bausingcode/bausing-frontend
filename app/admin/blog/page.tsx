@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import PageHeader from "@/components/PageHeader";
 import Loader from "@/components/Loader";
 import Spinner from "@/components/Spinner";
@@ -13,16 +13,17 @@ import {
   BlogPost
 } from "@/lib/api";
 import wsrvLoader from "@/lib/wsrvLoader";
+import AutoResizeTextarea from "@/components/AutoResizeTextarea";
 import { 
   FileText, 
-  Upload, 
   X, 
   Edit2, 
   Trash2, 
   Check, 
   AlertCircle,
   Plus,
-  Save
+  Save,
+  ImagePlus
 } from "lucide-react";
 
 // Función para formatear la fecha
@@ -52,6 +53,8 @@ export default function BlogPage() {
   // Estados para el modal de crear/editar
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
+  // Estado para el modal de eliminar
+  const [postToDelete, setPostToDelete] = useState<BlogPost | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     slug: "",
@@ -67,6 +70,7 @@ export default function BlogPage() {
   
   // Estados para imágenes
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const coverImageInputRef = useRef<HTMLInputElement>(null);
   
   // Estado para keyword input
   const [keywordInput, setKeywordInput] = useState("");
@@ -219,15 +223,12 @@ export default function BlogPage() {
   };
 
   const handleDelete = async (postId: string) => {
-    if (!confirm("¿Estás seguro de que deseas eliminar este post?")) {
-      return;
-    }
-
     try {
       setSubmitting(true);
       setError("");
       await deleteBlogPost(postId);
       setSuccess("Post eliminado correctamente");
+      setPostToDelete(null);
       await loadPosts();
     } catch (err: any) {
       setError(err.message || "Error al eliminar el post");
@@ -325,7 +326,7 @@ export default function BlogPage() {
                   <Edit2 className="w-5 h-5" />
                 </button>
                 <button
-                  onClick={() => handleDelete(post.id)}
+                  onClick={() => setPostToDelete(post)}
                   className="text-red-600 hover:text-red-800 transition-colors cursor-pointer"
                 >
                   <Trash2 className="w-5 h-5" />
@@ -362,9 +363,49 @@ export default function BlogPage() {
         </div>
       )}
 
+      {/* Modal de eliminar */}
+      {postToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-[14px] max-w-md w-full p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900 text-center">Eliminar post</h3>
+            <p className="mt-2 text-sm text-gray-600 text-center">
+              ¿Estás seguro de que querés eliminar <strong>"{postToDelete.title}"</strong>?
+            </p>
+            <p className="mt-1 text-sm text-gray-600 text-center">
+              Esta acción no se puede deshacer.
+            </p>
+            <div className="mt-6 flex flex-col gap-3">
+              <button
+                onClick={() => handleDelete(postToDelete.id)}
+                disabled={submitting}
+                className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center justify-center gap-2"
+              >
+                {submitting ? (
+                  <>
+                    <Spinner size="sm" />
+                    <span>Eliminando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Eliminar</span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setPostToDelete(null)}
+                className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal de crear/editar */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-[14px] max-w-4xl w-full max-h-[90vh] overflow-y-auto relative">
             <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10">
               <h2 className="text-xl font-semibold text-gray-900">
@@ -379,6 +420,75 @@ export default function BlogPage() {
             </div>
 
             <div className="p-6 space-y-6">
+              {/* Imagen de portada */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Imagen de Portada
+                </label>
+                <input
+                  ref={coverImageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileSelect(file);
+                    e.target.value = '';
+                  }}
+                />
+                {(coverImageFile || formData.cover_image_url) ? (
+                  <div className="relative group">
+                    <div className="w-full min-h-[180px] max-h-64 bg-gray-100 rounded-xl overflow-hidden border border-gray-200">
+                      <img
+                        src={coverImageFile ? URL.createObjectURL(coverImageFile) : formData.cover_image_url}
+                        alt="Portada"
+                        className="w-full h-full min-h-[180px] max-h-64 object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          if (target.src && !coverImageFile) {
+                            target.src = wsrvLoader({ src: formData.cover_image_url, width: 800 });
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-xl flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => coverImageInputRef.current?.click()}
+                        className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-white/90 text-gray-800 rounded-lg text-sm font-medium hover:bg-white transition-all cursor-pointer"
+                      >
+                        Cambiar imagen
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCoverImageFile(null);
+                          setFormData({ ...formData, cover_image_url: "" });
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-opacity cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => coverImageInputRef.current?.click()}
+                    className="flex flex-col items-center justify-center min-h-[160px] rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/50 hover:border-blue-400 hover:bg-blue-50/30 transition-all duration-200 cursor-pointer group"
+                  >
+                    <div className="flex flex-col items-center gap-2 text-gray-500 group-hover:text-blue-600 transition-colors">
+                      <div className="w-12 h-12 rounded-full bg-gray-100 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
+                        <ImagePlus className="w-6 h-6 text-gray-400 group-hover:text-blue-500" />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm font-medium">Arrastrá la imagen o hacé clic para subir</p>
+                        <p className="text-xs text-gray-400 mt-0.5">JPG, PNG o WebP. Imagen de portada.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Título */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -406,7 +516,7 @@ export default function BlogPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Extracto
                 </label>
-                <textarea
+                <AutoResizeTextarea
                   value={formData.excerpt}
                   onChange={(e) => {
                     const newExcerpt = e.target.value;
@@ -419,7 +529,7 @@ export default function BlogPage() {
                     });
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                  rows={3}
+                  minRows={3}
                   placeholder="Breve descripción del post"
                 />
               </div>
@@ -429,7 +539,7 @@ export default function BlogPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Contenido
                 </label>
-                <textarea
+                <AutoResizeTextarea
                   value={formData.content}
                   onChange={(e) => {
                     const newContent = e.target.value;
@@ -442,61 +552,9 @@ export default function BlogPage() {
                     });
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                  rows={10}
+                  minRows={10}
                   placeholder="Contenido del post"
                 />
-              </div>
-
-              {/* Imagen de portada */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Imagen de Portada
-                </label>
-                <input
-                  type="file"
-                  id="cover-image-input"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleFileSelect(file);
-                    e.target.value = '';
-                  }}
-                />
-                <label
-                  htmlFor="cover-image-input"
-                  className="px-3 py-2 text-sm rounded-lg flex items-center gap-2 transition-colors cursor-pointer bg-blue-600 text-white hover:bg-blue-700 w-fit"
-                >
-                  <Upload className="w-4 h-4" />
-                  <span>Subir Imagen de Portada</span>
-                </label>
-                
-                {(coverImageFile || formData.cover_image_url) && (
-                  <div className="mt-3 relative group">
-                    <div className="w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
-                      <img
-                        src={coverImageFile ? URL.createObjectURL(coverImageFile) : formData.cover_image_url}
-                        alt="Portada"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          if (target.src && !coverImageFile) {
-                            target.src = wsrvLoader({ src: formData.cover_image_url, width: 800 });
-                          }
-                        }}
-                      />
-                    </div>
-                    <button
-                      onClick={() => {
-                        setCoverImageFile(null);
-                        setFormData({ ...formData, cover_image_url: "" });
-                      }}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 cursor-pointer"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
               </div>
 
               {/* Keywords */}

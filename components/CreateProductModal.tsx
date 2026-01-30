@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, Plus, ChevronRight, ChevronLeft, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { X, Plus, ChevronRight, ChevronLeft, Trash2, ChevronDown, ChevronUp, ImagePlus } from "lucide-react";
+import AutoResizeTextarea from "@/components/AutoResizeTextarea";
 import { CrmProduct, CrmCombo, completeCrmProduct, uploadProductImageFile, fetchCatalogs, Catalog, createCompleteProduct, fetchProductById, Product } from "@/lib/api";
 
 interface Category {
@@ -72,7 +73,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   // Images
   const [images, setImages] = useState<Array<{ image_url: string; alt_text?: string; position: number }>>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
-  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Step 2: Atributos (generados automáticamente según categoría, pero editables)
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [newAttributeName, setNewAttributeName] = useState("");
@@ -1176,8 +1178,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto"
-      style={{ pointerEvents: "none", backgroundColor: "rgba(0, 0, 0, 0.05)" }}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 overflow-y-auto"
+      style={{ pointerEvents: "none" }}
     >
       <div
         className="bg-white rounded-[16px] w-full max-w-5xl shadow-2xl flex flex-col max-h-[90vh] my-auto"
@@ -1296,54 +1298,88 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
               )}
 
               {/* Imágenes - Movidas al principio */}
-              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Imágenes del Producto</h3>
+              <div className="border border-gray-200 rounded-xl p-5 bg-gray-50/50">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Imágenes del Producto</h3>
                 
                 {/* Imágenes existentes */}
                 {images.length > 0 && (
-                  <div className="grid grid-cols-4 gap-4 mb-4">
+                  <div className="grid grid-cols-4 gap-3 mb-4">
                     {images.map((img, idx) => (
                       <div key={idx} className="relative group">
                         <img
                           src={img.image_url}
                           alt={img.alt_text || `Imagen ${idx + 1}`}
-                          className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                          className="w-full h-28 object-cover rounded-lg border border-gray-200 shadow-sm"
                         />
                         <button
                           type="button"
                           onClick={() => {
                             setImages(images.filter((_, i) => i !== idx));
                           }}
-                          className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-1.5 right-1.5 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-sm"
                         >
-                          <X className="w-4 h-4" />
+                          <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     ))}
                   </div>
                 )}
 
-                {/* Input para subir imágenes */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Agregar Imágenes
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files || []);
-                      setImageFiles([...imageFiles, ...files]);
-                    }}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
-                  />
-                  {imageFiles.length > 0 && (
-                    <div className="mt-2 text-sm text-gray-600">
-                      {imageFiles.length} archivo(s) seleccionado(s)
+                {/* Zona para agregar imágenes */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    setImageFiles((prev) => [...prev, ...files]);
+                    e.target.value = "";
+                  }}
+                  className="hidden"
+                />
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="relative flex flex-col items-center justify-center min-h-[140px] rounded-xl border-2 border-dashed border-gray-300 bg-white hover:border-blue-400 hover:bg-blue-50/30 transition-all duration-200 cursor-pointer group"
+                >
+                  <div className="flex flex-col items-center gap-2 text-gray-500 group-hover:text-blue-600 transition-colors">
+                    <div className="w-12 h-12 rounded-full bg-gray-100 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
+                      <ImagePlus className="w-6 h-6 text-gray-400 group-hover:text-blue-500" />
                     </div>
-                  )}
+                    <div className="text-center">
+                      <p className="text-sm font-medium">Arrastrá imágenes o hacé clic para subir</p>
+                      <p className="text-xs text-gray-400 mt-0.5">JPG, PNG o WebP. Múltiples archivos.</p>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Previews de archivos seleccionados */}
+                {imageFiles.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-xs font-medium text-gray-500 mb-2">{imageFiles.length} archivo(s) nuevo(s)</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {imageFiles.map((file, idx) => (
+                        <div key={idx} className="relative group">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`Preview ${idx + 1}`}
+                            className="w-full h-20 object-cover rounded-lg border border-gray-200"
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setImageFiles(imageFiles.filter((_, i) => i !== idx));
+                            }}
+                            className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -1364,11 +1400,11 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Descripción
                 </label>
-                <textarea
+                <AutoResizeTextarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  rows={4}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                  minRows={3}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors resize-none"
                   placeholder="Descripción del producto"
                 />
               </div>
@@ -1509,11 +1545,11 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Descripción Técnica
                         </label>
-                        <textarea
+                        <AutoResizeTextarea
                           value={technicalDescription}
                           onChange={(e) => setTechnicalDescription(e.target.value)}
-                          rows={3}
-                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                          minRows={2}
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors resize-none"
                           placeholder="Descripción técnica del producto"
                         />
                       </div>
@@ -1536,11 +1572,11 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Descripción de Garantía
                         </label>
-                        <textarea
+                        <AutoResizeTextarea
                           value={warrantyDescription}
                           onChange={(e) => setWarrantyDescription(e.target.value)}
-                          rows={2}
-                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                          minRows={2}
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors resize-none"
                           placeholder="Detalles de la garantía"
                         />
                       </div>
@@ -1549,11 +1585,11 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Materiales
                         </label>
-                        <textarea
+                        <AutoResizeTextarea
                           value={materials}
                           onChange={(e) => setMaterials(e.target.value)}
-                          rows={2}
-                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                          minRows={2}
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors resize-none"
                           placeholder="Materiales utilizados en el producto"
                         />
                       </div>
@@ -1961,6 +1997,13 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 
           </div>
         </div>
+
+        {/* Advertencia abajo - misma que arriba */}
+        {error && (
+          <div className="px-6 py-3 bg-red-50 border-t border-red-200 text-red-700 text-sm">
+            {error}
+          </div>
+        )}
 
         {/* Footer con botones de navegación - Sticky */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-white sticky bottom-0 rounded-b-[16px]">

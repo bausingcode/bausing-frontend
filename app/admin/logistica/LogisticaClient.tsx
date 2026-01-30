@@ -201,8 +201,8 @@ export default function LogisticaClient({ initialVentas, diasEstimados: initialD
 
       {/* Barra de búsqueda y acciones */}
       <div className="bg-white rounded-[14px] border border-gray-200 p-4 mb-6">
-        <div className="flex gap-4 items-center">
-          <div className="flex-1 relative">
+        <div className="flex gap-3 items-center flex-wrap">
+          <div className="flex-1 min-w-[200px] relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
@@ -220,31 +220,12 @@ export default function LogisticaClient({ initialVentas, diasEstimados: initialD
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             Actualizar
           </button>
-        </div>
-      </div>
-
-      {/* Resumen de alertas y botón ver retrasos */}
-      {!isLoading && (soloRetrasos || totalRetrasos > 0) && (
-        <div className="mb-6 flex items-center justify-between gap-4">
-          {soloRetrasos && totalRetrasos > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-[14px] p-4 flex items-center gap-3 flex-1">
-              <AlertCircle className="w-5 h-5 text-red-600" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-red-900">
-                  {totalRetrasos} pedido(s) con retraso
-                </p>
-                <p className="text-xs text-red-700 mt-1">
-                  Hay pedidos que exceden los {diasEstimados} días estimados de envío
-                </p>
-              </div>
-            </div>
-          )}
           <button
             onClick={() => {
               setSoloRetrasos(!soloRetrasos);
               setZonaPage(1);
             }}
-            className={`px-4 py-3 text-sm font-medium rounded-[6px] transition-colors flex items-center gap-2 ${
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-[6px] transition-colors cursor-pointer ${
               soloRetrasos
                 ? "bg-red-600 text-white hover:bg-red-700"
                 : "bg-blue-600 text-white hover:bg-blue-700"
@@ -253,15 +234,32 @@ export default function LogisticaClient({ initialVentas, diasEstimados: initialD
             {soloRetrasos ? (
               <>
                 <Package className="w-4 h-4" />
-                Ver Todos
+                Ver todo
               </>
             ) : (
               <>
                 <AlertCircle className="w-4 h-4" />
-                Ver Retrasos
+                Ver retrasos
               </>
             )}
           </button>
+        </div>
+      </div>
+
+      {/* Resumen de alertas cuando hay retrasos activos */}
+      {!isLoading && soloRetrasos && totalRetrasos > 0 && (
+        <div className="mb-6">
+          <div className="bg-red-50 border border-red-200 rounded-[14px] p-4 flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-red-900">
+                {totalRetrasos} pedido(s) con retraso
+              </p>
+              <p className="text-xs text-red-700 mt-1">
+                Hay pedidos que exceden los {diasEstimados} días estimados de envío
+              </p>
+            </div>
+          </div>
         </div>
       )}
 

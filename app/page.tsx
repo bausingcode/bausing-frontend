@@ -147,9 +147,9 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Info Banner (position 2) */}
+      {/* Info Banner (position 2) - Hidden on mobile */}
       {infoBanner && (
-        <section className="bg-white px-4 md:px-0">
+        <section className="hidden md:block bg-white">
           <div className="container mx-auto">
             <div className="flex justify-center">
               <div className="relative rounded-[10px] overflow-hidden w-full max-w-[1650px] aspect-[1650/350]">

@@ -150,24 +150,24 @@ export default function DateRangePicker({
   const renderVistaMeses = () => {
     return (
       <div className="flex flex-col">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-4">
           <button
             onClick={() => navegarAño("anterior")}
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600"
           >
-            <ChevronLeft className="w-4 h-4 text-gray-600" />
+            <ChevronLeft className="w-4 h-4" />
           </button>
           <button
             onClick={() => setVista("años")}
-            className="flex-1 text-xs font-medium text-gray-900 hover:text-blue-600 transition-colors px-2 text-center"
+            className="flex-1 text-sm font-semibold text-gray-900 hover:text-gray-700 px-2 text-center"
           >
             {añoVista}
           </button>
           <button
             onClick={() => navegarAño("siguiente")}
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600"
           >
-            <ChevronRight className="w-4 h-4 text-gray-600" />
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
         <div className="grid grid-cols-3 gap-2">
@@ -175,7 +175,7 @@ export default function DateRangePicker({
             <button
               key={index}
               onClick={() => seleccionarMes(index, añoVista)}
-              className="px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors font-medium"
             >
               {mes}
             </button>
@@ -194,21 +194,21 @@ export default function DateRangePicker({
 
     return (
       <div className="flex flex-col">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-4">
           <button
             onClick={() => navegarAño("anterior")}
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600"
           >
-            <ChevronLeft className="w-4 h-4 text-gray-600" />
+            <ChevronLeft className="w-4 h-4" />
           </button>
-          <span className="flex-1 text-xs font-medium text-gray-900 px-2 text-center">
-            {Math.floor(añoVista / 12) * 12 - 1} - {Math.floor(añoVista / 12) * 12 + 12}
+          <span className="flex-1 text-sm font-semibold text-gray-900 px-2 text-center">
+            {Math.floor(añoVista / 12) * 12 - 1} – {Math.floor(añoVista / 12) * 12 + 12}
           </span>
           <button
             onClick={() => navegarAño("siguiente")}
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600"
           >
-            <ChevronRight className="w-4 h-4 text-gray-600" />
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
         <div className="grid grid-cols-3 gap-2">
@@ -219,9 +219,9 @@ export default function DateRangePicker({
                 setAñoVista(año);
                 setVista("meses");
               }}
-              className={`px-3 py-2 text-xs rounded-lg transition-colors ${
+              className={`px-3 py-2.5 text-sm rounded-lg transition-colors font-medium ${
                 año === añoVista
-                  ? "bg-blue-600 text-white"
+                  ? "bg-gray-900 text-white hover:bg-gray-800"
                   : "text-gray-700 hover:bg-gray-100"
               }`}
             >
@@ -303,7 +303,8 @@ export default function DateRangePicker({
 
     return (
       <div className="flex flex-col">
-        <div className="flex items-center justify-between mb-2">
+        {/* Header estilo Airbnb: mes/año + flechas */}
+        <div className="flex items-center justify-between mb-5">
           <button
             onClick={() => {
               if (vista === "dias") {
@@ -312,9 +313,10 @@ export default function DateRangePicker({
                 navegarAño("anterior");
               }
             }}
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600 hover:text-gray-900"
+            aria-label="Anterior"
           >
-            <ChevronLeft className="w-4 h-4 text-gray-600" />
+            <ChevronLeft className="w-4 h-4" />
           </button>
           <button
             onClick={() => {
@@ -325,7 +327,7 @@ export default function DateRangePicker({
                 setVista("años");
               }
             }}
-            className="flex-1 text-xs font-medium text-gray-900 hover:text-blue-600 transition-colors px-2 text-center"
+            className="flex-1 text-sm font-semibold text-gray-900 px-2 text-center hover:text-gray-700 transition-colors"
           >
             {vista === "dias" && `${meses[mes.getMonth()]} ${mes.getFullYear()}`}
             {vista === "meses" && `${añoVista}`}
@@ -339,39 +341,43 @@ export default function DateRangePicker({
                 navegarAño("siguiente");
               }
             }}
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600 hover:text-gray-900"
+            aria-label="Siguiente"
           >
-            <ChevronRight className="w-4 h-4 text-gray-600" />
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="grid grid-cols-7 gap-0.5 mb-1">
+        {/* Días de la semana - tipografía limpia */}
+        <div className="grid grid-cols-7 gap-0 mb-2">
           {diasSemana.map((dia) => (
-            <div key={dia} className="text-center text-[10px] font-medium text-gray-500 py-1">
+            <div key={dia} className="text-center text-[11px] font-medium text-gray-500 py-1.5">
               {dia}
             </div>
           ))}
         </div>
 
+        {/* Grid de días - estilo Airbnb: círculo oscuro inicio/fin, franja gris en el medio */}
         <div className="grid grid-cols-7 gap-0.5">
           {dias.map((dia, index) => {
             if (dia === null) {
-              return <div key={`empty-${index}`} className="h-8" />;
+              return <div key={`empty-${index}`} className="h-10" />;
             }
 
             const fecha = new Date(mes.getFullYear(), mes.getMonth(), dia);
             fecha.setHours(0, 0, 0, 0);
-            const esPasado = false; // Permitir seleccionar cualquier fecha
-            const enRango = esFechaEnRango(fecha);
+            const esPasado = false;
             const enRangoMedio = esFechaEnRangoMedio(fecha);
             const esInicio = esFechaInicio(fecha);
             const esFin = esFechaFin(fecha);
             const esHoy = fecha.getTime() === hoy.getTime();
 
-            // Determinar posición en la semana para el estilo del rango
             const posicionSemana = index % 7;
             const esPrimerDiaSemana = posicionSemana === 0;
             const esUltimoDiaSemana = posicionSemana === 6;
+
+            const redondoInicio = esInicio && (esFin || enRangoMedio) && !esUltimoDiaSemana;
+            const redondoFin = esFin && (esInicio || enRangoMedio) && !esPrimerDiaSemana;
 
             return (
               <button
@@ -379,22 +385,16 @@ export default function DateRangePicker({
                 onClick={() => !esPasado && manejarClickFecha(dia, mes)}
                 disabled={esPasado}
                 className={`
-                  relative h-8 w-8 flex items-center justify-center text-xs transition-colors z-10
-                  ${esPasado ? "text-gray-300 cursor-not-allowed" : "text-gray-700 hover:bg-gray-100 cursor-pointer"}
-                  
-                  ${enRangoMedio ? "bg-blue-50" : ""}
-                  
-                  ${esInicio ? "bg-blue-600 text-white hover:bg-blue-700 z-20" : ""}
-                  ${esFin ? "bg-blue-600 text-white hover:bg-blue-700 z-20" : ""}
-                  
-                  ${esInicio && !esFin ? (esUltimoDiaSemana ? "rounded-lg" : "rounded-l-lg") : ""}
-                  ${esFin && !esInicio ? (esPrimerDiaSemana ? "rounded-lg" : "rounded-r-lg") : ""}
-                  ${esInicio && esFin ? "rounded-lg" : ""}
-                  ${!esInicio && !esFin && enRangoMedio ? "rounded-none" : ""}
-                  
-                  ${esHoy && !esInicio && !esFin && !enRango ? "border-2 border-blue-500 rounded-lg" : ""}
-                  
-                  ${!esInicio && !esFin && !enRango && !esHoy && !esPasado && !enRangoMedio ? "rounded-lg" : ""}
+                  relative h-10 w-full min-w-[2.25rem] flex items-center justify-center text-sm transition-all duration-150 z-10
+                  ${esPasado ? "text-gray-300 cursor-not-allowed" : "text-gray-900 cursor-pointer"}
+                  ${!esInicio && !esFin && !enRangoMedio && !esPasado ? "hover:bg-gray-100 rounded-full" : ""}
+                  ${enRangoMedio ? "bg-gray-100 text-gray-900 rounded-none" : ""}
+                  ${esInicio ? "bg-gray-900 text-white hover:bg-gray-800 font-semibold z-20 " : ""}
+                  ${esFin ? "bg-gray-900 text-white hover:bg-gray-800 font-semibold z-20 " : ""}
+                  ${esInicio ? (redondoInicio ? "rounded-l-full" : "rounded-full") : ""}
+                  ${esFin ? (redondoFin ? "rounded-r-full" : "rounded-full") : ""}
+                  ${esInicio && esFin ? "rounded-full" : ""}
+                  ${esHoy && !esInicio && !esFin && !enRangoMedio ? "font-semibold text-gray-900 ring-1 ring-gray-900 ring-inset rounded-full" : ""}
                 `}
               >
                 {dia}
@@ -404,6 +404,20 @@ export default function DateRangePicker({
         </div>
       </div>
     );
+  };
+
+  const irAHoy = () => {
+    const hoy = new Date();
+    setMesActual(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
+    setAñoVista(hoy.getFullYear());
+    setVista("dias");
+  };
+
+  const limpiarFechas = () => {
+    setFechaInicioSeleccionada(null);
+    setFechaFinSeleccionada(null);
+    onFechaDesdeChange("");
+    onFechaHastaChange("");
   };
 
   return (
@@ -417,11 +431,11 @@ export default function DateRangePicker({
         <button
           ref={buttonRef}
           onClick={() => setIsOpen(true)}
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 bg-white hover:bg-gray-50 transition-colors flex items-center justify-between gap-2"
+          className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300 text-gray-800 bg-white hover:bg-gray-50/80 transition-colors flex items-center justify-between gap-2"
         >
           <span className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-gray-400" />
-            <span className={fechaDesde || fechaHasta ? "text-gray-900" : "text-gray-500"}>
+            <Calendar className="w-4 h-4 text-gray-500" />
+            <span className={fechaDesde || fechaHasta ? "text-gray-900 font-medium" : "text-gray-500"}>
               {obtenerTextoBoton()}
             </span>
           </span>
@@ -430,36 +444,55 @@ export default function DateRangePicker({
       )}
 
       <div
-        className={`overflow-hidden transition-all duration-500 ease-out ${
+        className={`overflow-hidden transition-all duration-300 ease-out ${
           isOpen && !isClosing ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"
         }`}
       >
         {(isOpen || isClosing) && (
           <div
             ref={popoverRef}
-            className={`bg-white rounded-lg border border-gray-200 shadow-xl p-4 w-full ${
+            className={`bg-white rounded-2xl border border-gray-200 shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-5 w-full ${
               isClosing ? "animate-slideUp" : "animate-slideDown"
             }`}
-            style={{ minWidth: "280px" }}
+            style={{ minWidth: "320px" }}
           >
-            <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-200">
-              <h3 className="text-sm font-medium text-gray-700">Rango de Fechas</h3>
-            <button
-              onClick={() => {
-                setIsClosing(true);
-                setTimeout(() => {
-                  setIsOpen(false);
-                  setIsClosing(false);
-                }, 500);
-              }}
-              className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <X className="w-4 h-4 text-gray-600" />
-            </button>
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-900">Seleccionar fechas</h3>
+              <button
+                onClick={() => {
+                  setIsClosing(true);
+                  setTimeout(() => {
+                    setIsOpen(false);
+                    setIsClosing(false);
+                  }, 300);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 hover:text-gray-700"
+                aria-label="Cerrar"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
             {vista === "dias" && renderCalendario(mesActual)}
             {vista === "meses" && renderVistaMeses()}
             {vista === "años" && renderVistaAños()}
+            {vista === "dias" && (
+              <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={limpiarFechas}
+                  className="text-sm font-medium text-gray-900 hover:underline"
+                >
+                  Limpiar
+                </button>
+                <button
+                  type="button"
+                  onClick={irAHoy}
+                  className="text-sm font-medium text-gray-900 hover:underline"
+                >
+                  Hoy
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

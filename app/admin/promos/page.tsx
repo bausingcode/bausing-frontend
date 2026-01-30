@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import PageHeader from "@/components/PageHeader";
 import { Edit, Trash2, CreditCard, X, Plus, Search, ChevronDown } from "lucide-react";
+import AutoResizeTextarea from "@/components/AutoResizeTextarea";
 import { fetchPromos, createPromo, updatePromo, deletePromo, type Promo, fetchCategories, fetchProducts, type Category, type Product } from "@/lib/api";
 
 export default function Promos() {
@@ -497,61 +498,64 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
     }
   };
 
-  return (
-    <div className="fixed inset-0 backdrop-blur-sm bg-white/30 z-[200] flex items-center justify-center p-4">
-      <div className="bg-white rounded-[14px] w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">{promo ? "Editar Promoción" : "Crear Promoción"}</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
+  const inputClass = "w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white transition-colors";
+  const labelClass = "block text-sm font-medium text-gray-700 mb-2";
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+  return (
+    <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4">
+      <div className="bg-white rounded-[14px] w-full max-w-2xl max-h-[90vh] overflow-y-auto relative flex flex-col">
+        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10 rounded-t-[14px]">
+          <h2 className="text-xl font-semibold text-gray-900">{promo ? "Editar Promoción" : "Crear Promoción"}</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer p-1"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="p-6 space-y-6 overflow-y-auto">
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-[6px] text-sm">
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
                 {error}
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className={labelClass}>
                 Título <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                className={inputClass}
+                placeholder="Ej: 20% off en colchones"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Descripción
-              </label>
-              <textarea
+              <label className={labelClass}>Descripción</label>
+              <AutoResizeTextarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
-                rows={3}
+                className={inputClass}
+                minRows={3}
+                placeholder="Descripción opcional de la promoción"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className={labelClass}>
                   Tipo <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                  className={inputClass}
                   required
                 >
                   <option value="percentage">Porcentaje (%)</option>
@@ -563,7 +567,7 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className={labelClass}>
                   Valor <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -572,73 +576,69 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
                   min="0"
                   value={formData.value}
                   onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                  className={inputClass}
                   required
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Fecha Inicio <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="datetime-local"
-                  value={formData.start_at}
-                  onChange={(e) => setFormData({ ...formData, start_at: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Fecha Fin <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="datetime-local"
-                  value={formData.end_at}
-                  onChange={(e) => setFormData({ ...formData, end_at: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="is_active"
-                  checked={formData.is_active}
-                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
-                  Activa
-                </label>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="allows_wallet"
-                  checked={formData.allows_wallet}
-                  onChange={(e) => setFormData({ ...formData, allows_wallet: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <label htmlFor="allows_wallet" className="text-sm font-medium text-gray-700">
-                  Compatible con Pesos Bausing
-                </label>
-              </div>
-            </div>
-
-            {/* Aplicabilidad */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Aplicar a <span className="text-red-500">*</span>
-              </label>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Vigencia</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>
+                    Fecha Inicio <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={formData.start_at}
+                    onChange={(e) => setFormData({ ...formData, start_at: e.target.value })}
+                    className={inputClass}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClass}>
+                    Fecha Fin <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={formData.end_at}
+                    onChange={(e) => setFormData({ ...formData, end_at: e.target.value })}
+                    className={inputClass}
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Estado</p>
+              <div className="flex flex-wrap gap-6">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_active}
+                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Activa</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.allows_wallet}
+                    onChange={(e) => setFormData({ ...formData, allows_wallet: e.target.checked })}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Compatible con Pesos Bausing</span>
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Aplicar a</p>
               <select
                 value={formData.applies_to}
                 onChange={(e) => {
@@ -646,7 +646,7 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
                   setProductSearchQuery("");
                   setShowProductDropdown(false);
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                className={inputClass}
                 required
               >
                 <option value="all">Todos los productos</option>
@@ -657,13 +657,13 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
 
             {formData.applies_to === "category" && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className={labelClass}>
                   Categoría o Subcategoría <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={formData.selected_category_id}
                   onChange={(e) => setFormData({ ...formData, selected_category_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                  className={inputClass}
                   required
                 >
                   <option value="">Selecciona una categoría o subcategoría</option>
@@ -687,12 +687,12 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
 
             {formData.applies_to === "product" && (
               <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className={labelClass}>
                   Producto <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                     <input
                       type="text"
                       placeholder="Buscar producto por nombre..."
@@ -702,7 +702,7 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
                         setShowProductDropdown(true);
                       }}
                       onFocus={() => setShowProductDropdown(true)}
-                      className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                      className={inputClass + " pl-10 pr-10"}
                     />
                     {formData.selected_product_id && (
                       <button
@@ -724,7 +724,7 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
                         className="fixed inset-0 z-10" 
                         onClick={() => setShowProductDropdown(false)}
                       />
-                      <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-[6px] shadow-lg max-h-60 overflow-y-auto">
+                      <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                         {(() => {
                           const filteredProducts = products.filter((prod) =>
                             prod.name.toLowerCase().includes(productSearchQuery.toLowerCase())
@@ -761,9 +761,9 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
                 </div>
                 
                 {formData.selected_product_id && (
-                  <div className="mt-2 text-xs text-gray-600">
-                    Producto seleccionado: {products.find(p => p.id === formData.selected_product_id)?.name}
-                  </div>
+                  <p className="mt-2 text-sm text-gray-500">
+                    Seleccionado: <span className="font-medium text-gray-700">{products.find(p => p.id === formData.selected_product_id)?.name}</span>
+                  </p>
                 )}
               </div>
             )}
@@ -773,27 +773,26 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
                 Cargando categorías y productos...
               </div>
             )}
+          </div>
 
-            <div className="flex gap-3 justify-end pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-gray-700 cursor-pointer bg-gray-100 rounded-[6px] text-sm font-medium hover:bg-gray-200 transition-colors"
-                disabled={isLoading}
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 text-white cursor-pointer rounded-[6px] text-sm font-medium hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ backgroundColor: '#155DFC' }}
-                disabled={isLoading}
-              >
-                {isLoading ? (promo ? "Actualizando..." : "Creando...") : (promo ? "Actualizar Promoción" : "Crear Promoción")}
-              </button>
-            </div>
-          </form>
-        </div>
+          <div className="sticky bottom-0 bg-white border-t border-gray-200 p-6 flex items-center justify-end gap-3 z-10 rounded-b-[14px]">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer font-medium"
+              disabled={isLoading}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer font-medium flex items-center gap-2"
+              disabled={isLoading}
+            >
+              {isLoading ? (promo ? "Actualizando..." : "Creando...") : (promo ? "Actualizar Promoción" : "Crear Promoción")}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
