@@ -1439,14 +1439,15 @@ export default function CatalogoPage() {
             // Peso Máximo Soportado
             if (filterKey === "Peso Máximo Soportado") {
               filteredProducts = filteredProducts.filter(product => {
-                if (!product.max_supported_weight_kg) return false;
+                const maxWeightKg = product.max_supported_weight_kg;
+                if (!maxWeightKg) return false;
                 return selectedValues.some(value => {
                   if (value === "150+") {
-                    return product.max_supported_weight_kg >= 150;
+                    return maxWeightKg >= 150;
                   }
                   const maxWeight = parseInt(value);
-                  return product.max_supported_weight_kg <= maxWeight && 
-                         product.max_supported_weight_kg > (maxWeight - 15);
+                  return maxWeightKg <= maxWeight && 
+                         maxWeightKg > (maxWeight - 15);
                 });
               });
             }

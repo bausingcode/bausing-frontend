@@ -51,6 +51,15 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
   const [viewingCrmProduct, setViewingCrmProduct] = useState<CrmProduct | CrmCombo | null>(null);
   const [viewingProductData, setViewingProductData] = useState<Product | null>(null);
   const [isLoadingViewingProduct, setIsLoadingViewingProduct] = useState(false);
+  const [isOverlayAnimating, setIsOverlayAnimating] = useState(false);
+  const [shouldRenderOverlay, setShouldRenderOverlay] = useState(false);
+
+  // Resetear estado de animación cuando se cierra completamente
+  useEffect(() => {
+    if (!shouldRenderOverlay) {
+      setIsOverlayAnimating(false);
+    }
+  }, [shouldRenderOverlay]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   
@@ -366,6 +375,35 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
         setIsLoadingViewingProduct(false);
       }
     }
+  };
+
+  // Manejar animaciones del overlay
+  useEffect(() => {
+    if (viewingCrmProduct) {
+      setShouldRenderOverlay(true);
+      // Usar requestAnimationFrame para asegurar que la animación se active después del renderizado
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsOverlayAnimating(true);
+        });
+      });
+    } else if (shouldRenderOverlay) {
+      // Solo animar el cierre si ya estaba renderizado
+      setIsOverlayAnimating(false);
+      const timer = setTimeout(() => {
+        setShouldRenderOverlay(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [viewingCrmProduct, shouldRenderOverlay]);
+
+  // Función para cerrar el overlay con animación
+  const handleCloseOverlay = () => {
+    setIsOverlayAnimating(false);
+    setTimeout(() => {
+      setViewingCrmProduct(null);
+      setViewingProductData(null);
+    }, 500);
   };
 
 
@@ -1152,17 +1190,31 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
       />
 
       {/* Product View Overlay */}
-      {viewingCrmProduct && (
-          <div className="fixed right-0 top-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out overflow-y-auto border-l border-gray-200">
+      {shouldRenderOverlay && (
+        <>
+          {/* Backdrop oscuro */}
+          <div
+            className={`fixed inset-0 bg-black/50 z-[49] transition-opacity duration-500 ease-in-out ${
+              isOverlayAnimating ? "opacity-100" : "opacity-0"
+            }`}
+            onClick={handleCloseOverlay}
+          />
+
+          {/* Overlay Panel */}
+          <div
+            className={`fixed right-0 top-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 transform transition-transform duration-500 ease-in-out overflow-y-auto border-l border-gray-200 ${
+              isOverlayAnimating ? "translate-x-0" : "translate-x-full"
+            }`}
+            style={{
+              boxShadow: '-4px 0 24px rgba(0, 0, 0, 0.15)',
+            }}
+          >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
               <h2 className="text-xl font-semibold text-gray-900">
-                {viewingCrmProduct.combo ? 'Detalles del Combo' : 'Detalles del Producto'}
+                {viewingCrmProduct?.combo ? 'Detalles del Combo' : 'Detalles del Producto'}
               </h2>
               <button
-                onClick={() => {
-                  setViewingCrmProduct(null);
-                  setViewingProductData(null);
-                }}
+                onClick={handleCloseOverlay}
                 className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
               >
                 <X className="w-6 h-6" />
@@ -1178,57 +1230,59 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
               ) : (
                 <>
                   {/* Información del CRM Product */}
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Información del CRM</h3>
-                    <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-sm font-medium text-gray-600">ID CRM:</span>
-                        <span className="text-sm text-gray-900">{viewingCrmProduct.crm_product_id}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm font-medium text-gray-600">Estado:</span>
-                        <span className={`text-sm px-2 py-1 rounded ${
-                          viewingCrmProduct.is_completed 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {viewingCrmProduct.is_completed ? 'Completado' : 'Pendiente'}
-                        </span>
-                      </div>
-                      {viewingCrmProduct.description && (
-                        <div>
-                          <span className="text-sm font-medium text-gray-600 block mb-1">Descripción:</span>
-                          <span className="text-sm text-gray-900">{viewingCrmProduct.description}</span>
-                        </div>
-                      )}
-                      {viewingCrmProduct.alt_description && (
-                        <div>
-                          <span className="text-sm font-medium text-gray-600 block mb-1">Descripción Alternativa:</span>
-                          <span className="text-sm text-gray-900">{viewingCrmProduct.alt_description}</span>
-                        </div>
-                      )}
-                      {viewingCrmProduct.price_sale && (
+                  {viewingCrmProduct && (
+                    <div className="mb-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Información del CRM</h3>
+                      <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                         <div className="flex justify-between">
-                          <span className="text-sm font-medium text-gray-600">Precio Venta:</span>
-                          <span className="text-sm text-gray-900">${viewingCrmProduct.price_sale.toLocaleString()}</span>
+                          <span className="text-sm font-medium text-gray-600">ID CRM:</span>
+                          <span className="text-sm text-gray-900">{viewingCrmProduct.crm_product_id}</span>
                         </div>
-                      )}
-                      {viewingCrmProduct.commission && (
                         <div className="flex justify-between">
-                          <span className="text-sm font-medium text-gray-600">Comisión:</span>
-                          <span className="text-sm text-gray-900">{viewingCrmProduct.commission}%</span>
+                          <span className="text-sm font-medium text-gray-600">Estado:</span>
+                          <span className={`text-sm px-2 py-1 rounded ${
+                            viewingCrmProduct.is_completed 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {viewingCrmProduct.is_completed ? 'Completado' : 'Pendiente'}
+                          </span>
                         </div>
-                      )}
+                        {viewingCrmProduct.description && (
+                          <div>
+                            <span className="text-sm font-medium text-gray-600 block mb-1">Descripción:</span>
+                            <span className="text-sm text-gray-900">{viewingCrmProduct.description}</span>
+                          </div>
+                        )}
+                        {viewingCrmProduct.alt_description && (
+                          <div>
+                            <span className="text-sm font-medium text-gray-600 block mb-1">Descripción Alternativa:</span>
+                            <span className="text-sm text-gray-900">{viewingCrmProduct.alt_description}</span>
+                          </div>
+                        )}
+                        {viewingCrmProduct.price_sale && (
+                          <div className="flex justify-between">
+                            <span className="text-sm font-medium text-gray-600">Precio Venta:</span>
+                            <span className="text-sm text-gray-900">${viewingCrmProduct.price_sale.toLocaleString()}</span>
+                          </div>
+                        )}
+                        {viewingCrmProduct.commission && (
+                          <div className="flex justify-between">
+                            <span className="text-sm font-medium text-gray-600">Comisión:</span>
+                            <span className="text-sm text-gray-900">{viewingCrmProduct.commission}%</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Información del Producto Completo (si está completado) */}
-                  {viewingCrmProduct.is_completed && viewingCrmProduct.product_id && (
+                  {viewingCrmProduct?.is_completed && viewingCrmProduct?.product_id && (
                     <div className="mb-6">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold text-gray-900">Información del Producto</h3>
                         <button
-                          onClick={() => window.open(`/productos/${viewingCrmProduct.product_id}`, '_blank')}
+                          onClick={() => window.open(`/productos/${viewingCrmProduct?.product_id}`, '_blank')}
                           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-[6px] hover:opacity-90 transition-opacity cursor-pointer"
                           style={{ backgroundColor: '#155DFC' }}
                         >
@@ -1443,7 +1497,7 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                   )}
 
                   {/* Items del Combo (si es combo) */}
-                  {viewingCrmProduct.combo && 'items' in viewingCrmProduct && viewingCrmProduct.items && viewingCrmProduct.items.length > 0 && (
+                  {viewingCrmProduct?.combo && 'items' in viewingCrmProduct && viewingCrmProduct.items && viewingCrmProduct.items.length > 0 && (
                     <div className="mb-6">
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Items del Combo</h3>
                       <div className="bg-gray-50 rounded-lg p-4 space-y-2">
@@ -1471,6 +1525,7 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
               )}
             </div>
           </div>
+        </>
       )}
     </div>
   );

@@ -1,74 +1,154 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
-import { Mail, Lock, User, Phone, ArrowRight, Loader2, Eye, EyeOff } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Lock, ArrowRight, Loader2, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
-export default function RegisterPage() {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    first_name: "",
-    last_name: "",
-    phone: "",
-  });
+export default function ResetPasswordPage() {
+  const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { register, isAuthenticated } = useAuth();
+  const [tokenValid, setTokenValid] = useState(true);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  // Redirigir al home si ya está autenticado
+  // Simular validación del token (mock)
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push("/");
+    const token = searchParams.get("token");
+    // Mock: simular que el token es válido
+    if (!token) {
+      setTokenValid(false);
     }
-  }, [isAuthenticated, router]);
-
-  // No renderizar si está autenticado (evitar flash del contenido)
-  if (isAuthenticated) {
-    return null;
-  }
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
     // Validaciones
-    if (formData.password !== confirmPassword) {
-      setError("Las contraseñas no coinciden");
+    if (password.length < 6) {
+      setError("La contraseña debe tener al menos 6 caracteres");
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres");
+    if (password !== confirmPassword) {
+      setError("Las contraseñas no coinciden");
       return;
     }
 
     setLoading(true);
 
     try {
-      await register(formData);
-      router.push("/");
+      // Mock: simular petición al backend
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Simular éxito
+      setSuccess(true);
+      
+      // Redirigir al login después de 3 segundos
+      setTimeout(() => {
+        router.push("/login");
+      }, 3000);
     } catch (err: any) {
-      setError(err.message || "Error al registrarse");
+      setError(err.message || "Error al restablecer la contraseña");
     } finally {
       setLoading(false);
     }
   };
+
+  if (!tokenValid) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center py-8 px-4">
+          <div className="w-full max-w-sm">
+            <div className="bg-white rounded-2xl shadow-lg shadow-gray-200/50 p-8">
+              <div className="flex justify-center mb-8">
+                <img
+                  src="/images/logo/logobausing1.svg"
+                  alt="Bausing Logo"
+                  className="h-10 w-auto"
+                />
+              </div>
+              <div className="text-center space-y-4">
+                <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                  <Lock className="h-8 w-8 text-red-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Enlace inválido
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Este enlace de restablecimiento de contraseña no es válido o ha expirado.
+                </p>
+                <Link
+                  href="/forgot-password"
+                  className="block w-full text-center py-2.5 px-4 rounded-lg text-sm font-medium text-[#00C1A7] bg-[#00C1A7]/10 hover:bg-[#00C1A7]/20 border border-[#00C1A7]/20 transition-all mt-4"
+                >
+                  Solicitar nuevo enlace
+                </Link>
+                <Link
+                  href="/login"
+                  className="block w-full text-center py-2.5 px-4 rounded-lg text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-all"
+                >
+                  Volver al login
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center py-8 px-4">
+          <div className="w-full max-w-sm">
+            <div className="bg-white rounded-2xl shadow-lg shadow-gray-200/50 p-8">
+              <div className="flex justify-center mb-8">
+                <img
+                  src="/images/logo/logobausing1.svg"
+                  alt="Bausing Logo"
+                  className="h-10 w-auto"
+                />
+              </div>
+              <div className="text-center space-y-4">
+                <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                  <CheckCircle2 className="h-8 w-8 text-green-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Contraseña restablecida
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Tu contraseña ha sido restablecida exitosamente.
+                </p>
+                <p className="text-xs text-gray-500">
+                  Serás redirigido al login en unos segundos...
+                </p>
+                <Link
+                  href="/login"
+                  className="block w-full text-center py-2.5 px-4 rounded-lg text-sm font-medium bg-[#00C1A7] text-white hover:bg-[#00a892] transition-all mt-4"
+                >
+                  Ir al login
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col">
@@ -86,102 +166,17 @@ export default function RegisterPage() {
               />
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Name Row */}
-              <div className="grid grid-cols-2 gap-3">
-                {/* First Name */}
-                <div className="space-y-1.5">
-                  <label htmlFor="first_name" className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
-                    Nombre
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <User className="h-4 w-4 text-gray-400" />
-                    </div>
-                    <input
-                      id="first_name"
-                      name="first_name"
-                      type="text"
-                      required
-                      value={formData.first_name}
-                      onChange={handleChange}
-                      className="block w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#00C1A7]/20 focus:border-[#00C1A7] transition-all"
-                      placeholder="Juan"
-                    />
-                  </div>
-                </div>
-
-                {/* Last Name */}
-                <div className="space-y-1.5">
-                  <label htmlFor="last_name" className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
-                    Apellido
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <User className="h-4 w-4 text-gray-400" />
-                    </div>
-                    <input
-                      id="last_name"
-                      name="last_name"
-                      type="text"
-                      required
-                      value={formData.last_name}
-                      onChange={handleChange}
-                      className="block w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#00C1A7]/20 focus:border-[#00C1A7] transition-all"
-                      placeholder="Pérez"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Email */}
-              <div className="space-y-1.5">
-                <label htmlFor="email" className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
-                  Email
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <Mail className="h-4 w-4 text-gray-400" />
-                  </div>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="block w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#00C1A7]/20 focus:border-[#00C1A7] transition-all"
-                    placeholder="tu@email.com"
-                  />
-                </div>
-              </div>
-
-              {/* Phone */}
-              <div className="space-y-1.5">
-                <label htmlFor="phone" className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
-                  Teléfono <span className="text-gray-400 normal-case">(opcional)</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <Phone className="h-4 w-4 text-gray-400" />
-                  </div>
-                  <input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="block w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#00C1A7]/20 focus:border-[#00C1A7] transition-all"
-                    placeholder="+54 9 11 1234-5678"
-                  />
-                </div>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="text-center mb-2">
+                <p className="text-sm text-gray-600">
+                  Ingresa tu nueva contraseña
+                </p>
               </div>
 
               {/* Password */}
               <div className="space-y-1.5">
                 <label htmlFor="password" className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
-                  Contraseña
+                  Nueva Contraseña
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -193,8 +188,8 @@ export default function RegisterPage() {
                     type={showPassword ? "text" : "password"}
                     autoComplete="new-password"
                     required
-                    value={formData.password}
-                    onChange={handleChange}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     className="block w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#00C1A7]/20 focus:border-[#00C1A7] transition-all"
                     placeholder="••••••••"
                   />
@@ -259,16 +254,16 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 bg-[#00C1A7] text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-[#00a892] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 mt-2"
+                className="w-full flex items-center justify-center gap-2 bg-[#00C1A7] text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-[#00a892] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
               >
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Creando cuenta...</span>
+                    <span>Restableciendo...</span>
                   </>
                 ) : (
                   <>
-                    <span>Crear cuenta</span>
+                    <span>Restablecer contraseña</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -285,12 +280,12 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Login Link */}
+            {/* Back to Login Link */}
             <Link
               href="/login"
               className="block w-full text-center py-2.5 px-4 rounded-lg text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-all"
             >
-              Ya tengo cuenta
+              Volver al login
             </Link>
           </div>
         </div>
@@ -299,4 +294,3 @@ export default function RegisterPage() {
     </div>
   );
 }
-

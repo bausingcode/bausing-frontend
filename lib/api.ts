@@ -224,7 +224,7 @@ export async function createCatalog(catalog: { name: string; description?: strin
 /**
  * Update a catalog
  */
-export async function updateCatalog(catalogId: string, catalog: { name?: string; description?: string }, cookieHeader?: string | null): Promise<Catalog> {
+export async function updateCatalog(catalogId: string, catalog: { name?: string; description?: string }, cookieHeader?: string | null): Promise<Catalog | null> {
   const url = typeof window === "undefined"
     ? `${BACKEND_URL}/catalogs/${catalogId}`
     : `/api/catalogs/${catalogId}`;

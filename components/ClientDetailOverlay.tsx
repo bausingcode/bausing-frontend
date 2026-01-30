@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ConfirmModal from "./ConfirmModal";
 
 interface Client {
@@ -31,6 +31,32 @@ export default function ClientDetailOverlay({
   onSuspend,
 }: ClientDetailOverlayProps) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [shouldRender, setShouldRender] = useState(false);
+
+  // Manejar el renderizado y la animación de apertura
+  useEffect(() => {
+    if (isOpen) {
+      setShouldRender(true);
+      // Pequeño delay para activar la animación
+      setTimeout(() => setIsClosing(false), 10);
+    } else {
+      setIsClosing(true);
+      // Esperar a que termine la animación antes de desmontar
+      const timer = setTimeout(() => {
+        setShouldRender(false);
+        setIsClosing(false);
+      }, 300); // Duración de la animación
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      onClose();
+    }, 300);
+  };
 
   const handleSuspendClick = () => {
     setShowConfirmModal(true);
@@ -41,17 +67,28 @@ export default function ClientDetailOverlay({
       onSuspend(client.id, client.is_suspended || false);
       // Cerrar el overlay después de suspender/reactivar
       setTimeout(() => {
-        onClose();
+        handleClose();
       }, 500);
     }
     setShowConfirmModal(false);
   };
+
+  if (!shouldRender) return null;
+
   return (
     <>
+      {/* Backdrop oscuro */}
+      <div
+        className={`fixed inset-0 bg-black/50 z-[99] transition-opacity duration-300 ${
+          isClosing ? "opacity-0" : "opacity-100"
+        }`}
+        onClick={handleClose}
+      />
+      
       {/* Overlay Panel */}
       <div
         className={`fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[100] transform transition-transform duration-300 ease-out ${
-          isOpen ? "translate-x-0" : "translate-x-full"
+          isClosing ? "translate-x-full" : "translate-x-0"
         }`}
         style={{
           boxShadow: '-4px 0 24px rgba(0, 0, 0, 0.15)',
@@ -64,7 +101,7 @@ export default function ClientDetailOverlay({
               Detalles del Cliente
             </h2>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
             >
               <X className="w-6 h-6" />
@@ -169,7 +206,7 @@ export default function ClientDetailOverlay({
               </button>
             )}
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-[6px] font-medium hover:bg-gray-200 transition-colors cursor-pointer"
             >
               Cerrar

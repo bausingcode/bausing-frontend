@@ -205,52 +205,58 @@ export default function VentasPedidos() {
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Estado del Envío
                 </label>
-                <div className="space-y-2">
-                  {estadosDisponibles.map((estado) => {
-                    const isChecked = selectedEstados.includes(estado);
-                    return (
-                      <label
-                        key={estado}
-                        className="flex items-center cursor-pointer group"
-                      >
-                        <div className="relative">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => toggleEstado(estado)}
-                            className="sr-only"
-                          />
-                          <div
-                            className={`w-4 h-4 border-2 rounded flex items-center justify-center transition-colors ${
-                              isChecked
-                                ? "border-blue-600"
-                                : "border-gray-300"
-                            }`}
-                            style={{
-                              backgroundColor: isChecked ? '#155DFC' : 'white',
-                            }}
-                          >
-                            {isChecked && (
-                              <svg
-                                className="w-3 h-3 text-white"
-                                fill="none"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="3"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {estadosDisponibles.length > 0 ? (
+                    estadosDisponibles.map((estado) => {
+                      const isChecked = selectedEstados.includes(estado);
+                      return (
+                        <label
+                          key={estado}
+                          className="flex items-center cursor-pointer group"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            toggleEstado(estado);
+                          }}
+                        >
+                          <div className="relative">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleEstado(estado)}
+                              className="sr-only"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <div
+                              className={`w-4 h-4 border-2 rounded flex items-center justify-center transition-all ${
+                                isChecked
+                                  ? "border-blue-600 bg-blue-600"
+                                  : "border-gray-300 bg-white hover:border-blue-400"
+                              }`}
+                            >
+                              {isChecked && (
+                                <svg
+                                  className="w-3 h-3 text-white"
+                                  fill="none"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="3"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <span className="ml-2 text-sm text-gray-700 group-hover:text-gray-900">
-                          {capitalize(estado)}
-                        </span>
-                      </label>
-                    );
-                  })}
+                          <span className="ml-2 text-sm text-gray-700 group-hover:text-gray-900 transition-colors">
+                            {capitalize(estado)}
+                          </span>
+                        </label>
+                      );
+                    })
+                  ) : (
+                    <p className="text-xs text-gray-500 italic">No hay estados disponibles</p>
+                  )}
                 </div>
               </div>
 
@@ -259,52 +265,58 @@ export default function VentasPedidos() {
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Medio de Pago
                 </label>
-                <div className="space-y-2">
-                  {mediosPagoDisponibles.map((medio) => {
-                    const isChecked = selectedMediosPago.includes(medio);
-                    return (
-                      <label
-                        key={medio}
-                        className="flex items-center cursor-pointer group"
-                      >
-                        <div className="relative">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => toggleMedioPago(medio)}
-                            className="sr-only"
-                          />
-                          <div
-                            className={`w-4 h-4 border-2 rounded flex items-center justify-center transition-colors ${
-                              isChecked
-                                ? "border-blue-600"
-                                : "border-gray-300"
-                            }`}
-                            style={{
-                              backgroundColor: isChecked ? '#155DFC' : 'white',
-                            }}
-                          >
-                            {isChecked && (
-                              <svg
-                                className="w-3 h-3 text-white"
-                                fill="none"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="3"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {mediosPagoDisponibles.length > 0 ? (
+                    mediosPagoDisponibles.map((medio) => {
+                      const isChecked = selectedMediosPago.includes(medio);
+                      return (
+                        <label
+                          key={medio}
+                          className="flex items-center cursor-pointer group"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            toggleMedioPago(medio);
+                          }}
+                        >
+                          <div className="relative">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleMedioPago(medio)}
+                              className="sr-only"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <div
+                              className={`w-4 h-4 border-2 rounded flex items-center justify-center transition-all ${
+                                isChecked
+                                  ? "border-blue-600 bg-blue-600"
+                                  : "border-gray-300 bg-white hover:border-blue-400"
+                              }`}
+                            >
+                              {isChecked && (
+                                <svg
+                                  className="w-3 h-3 text-white"
+                                  fill="none"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="3"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <span className="ml-2 text-sm text-gray-700 group-hover:text-gray-900">
-                          {medio}
-                        </span>
-                      </label>
-                    );
-                  })}
+                          <span className="ml-2 text-sm text-gray-700 group-hover:text-gray-900 transition-colors">
+                            {medio}
+                          </span>
+                        </label>
+                      );
+                    })
+                  ) : (
+                    <p className="text-xs text-gray-500 italic">No hay medios de pago disponibles</p>
+                  )}
                 </div>
               </div>
 

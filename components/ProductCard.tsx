@@ -12,7 +12,7 @@ interface ProductCardProps {
   alt: string;
   name: string;
   currentPrice: string;
-  originalPrice: string;
+  originalPrice?: string;
   discount?: string;
 }
 
