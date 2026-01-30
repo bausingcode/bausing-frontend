@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "./AuthContext";
+import { createCart, deleteCart } from "@/lib/api";
 
 interface CartItem {
   id: string;
@@ -65,17 +66,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // Guardar en localStorage cuando cambie
   useEffect(() => {
     localStorage.setItem("bausing_cart", JSON.stringify(cart));
-  }, [cart]);
+    
+    // Si el carrito se vacía y el usuario está autenticado, eliminar el carrito de la DB
+    if (cart.length === 0 && isAuthenticated) {
+      deleteCart().catch((error) => {
+        // Silenciosamente ignorar errores (el carrito local seguirá funcionando)
+        console.error("Error al eliminar carrito de la base de datos:", error);
+      });
+    }
+  }, [cart, isAuthenticated]);
 
   useEffect(() => {
     localStorage.setItem("bausing_favorites", JSON.stringify(favorites));
   }, [favorites]);
 
-  const addToCart = (item: Omit<CartItem, "quantity">) => {
-    if (!isAuthenticated) {
-      router.push("/login");
-      return;
-    }
+  const addToCart = async (item: Omit<CartItem, "quantity">) => {
+    // Permitir agregar al carrito sin autenticación (carrito local)
+    const isFirstItem = cart.length === 0;
+    
     setCart((prev) => {
       const existing = prev.find((i) => i.id === item.id);
       if (existing) {
@@ -85,6 +93,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
       return [...prev, { ...item, quantity: 1 }];
     });
+    
+    // Si es el primer artículo y el usuario está autenticado, crear el carrito en la DB
+    if (isFirstItem && isAuthenticated) {
+      try {
+        await createCart();
+      } catch (error) {
+        // Silenciosamente ignorar errores (el carrito local seguirá funcionando)
+        console.error("Error al crear carrito en la base de datos:", error);
+      }
+    }
+    
     // Disparar evento personalizado para abrir el carrito
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('cartItemAdded'));

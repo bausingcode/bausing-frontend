@@ -2136,6 +2136,48 @@ export async function loginUser(email: string, password: string): Promise<LoginR
 }
 
 /**
+ * Create cart for authenticated user (only if user doesn't have one)
+ */
+export async function createCart(): Promise<{ id: string; user_id: string; created_at: string }> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/carts`
+    : `/api/carts`;
+  
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getUserAuthHeaders(),
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.error || "Error al crear el carrito");
+  }
+  
+  return data.data;
+}
+
+/**
+ * Delete cart for authenticated user
+ */
+export async function deleteCart(): Promise<void> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/carts`
+    : `/api/carts`;
+  
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: getUserAuthHeaders(),
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.error || "Error al eliminar el carrito");
+  }
+}
+
+/**
  * Register user
  */
 export async function registerUser(userData: {
@@ -2594,9 +2636,28 @@ export interface Address {
   additional_info?: string;
   postal_code: string;
   city: string;
-  province: string;
+  province_id?: string;
+  province?: string;
   is_default: boolean;
   created_at?: string;
+}
+
+export interface DocType {
+  id: string;
+  code?: string;
+  name: string;
+  crm_doc_type_id?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Province {
+  id: string;
+  name: string;
+  code?: string;
+  country_code?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 /**
@@ -2676,6 +2737,54 @@ export async function getUserAddresses(): Promise<Address[]> {
 }
 
 /**
+ * Get document types
+ */
+export async function getDocTypes(): Promise<DocType[]> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/auth/doc-types`
+    : `/api/auth/doc-types`;
+  
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.error || "Error al obtener tipos de documento");
+  }
+  
+  return data.data;
+}
+
+/**
+ * Get provinces
+ */
+export async function getProvinces(): Promise<Province[]> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/auth/provinces`
+    : `/api/auth/provinces`;
+  
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.error || "Error al obtener provincias");
+  }
+  
+  return data.data;
+}
+
+/**
  * Create user address
  */
 export async function createUserAddress(addressData: {
@@ -2686,7 +2795,7 @@ export async function createUserAddress(addressData: {
   additional_info?: string;
   postal_code: string;
   city: string;
-  province: string;
+  province_id: string;
   is_default?: boolean;
 }): Promise<Address> {
   const url = typeof window === "undefined"
@@ -2719,7 +2828,7 @@ export async function updateUserAddress(addressId: string, addressData: {
   additional_info?: string;
   postal_code?: string;
   city?: string;
-  province?: string;
+  province_id?: string;
   is_default?: boolean;
 }): Promise<Address> {
   const url = typeof window === "undefined"

@@ -65,6 +65,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     loadSession();
+
+    // Escuchar cambios en localStorage para actualizar el estado automáticamente
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'user_token' || e.key === 'user_data') {
+        loadSession();
+      }
+    };
+
+    // Escuchar eventos personalizados para actualizar el estado inmediatamente
+    const handleAuthStateChanged = (e: CustomEvent) => {
+      if (e.detail?.user && e.detail?.token) {
+        // Actualizar estado inmediatamente sin esperar
+        setUser(e.detail.user);
+        setToken(e.detail.token);
+        // Asegurar que localStorage esté sincronizado
+        localStorage.setItem("user_token", e.detail.token);
+        localStorage.setItem("user_data", JSON.stringify(e.detail.user));
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('authStateChanged', handleAuthStateChanged as EventListener);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('authStateChanged', handleAuthStateChanged as EventListener);
+    };
   }, []);
 
   const login = async (email: string, password: string) => {

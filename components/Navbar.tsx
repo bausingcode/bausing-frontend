@@ -799,16 +799,15 @@ export default function Navbar() {
   // Escuchar evento para abrir el carrito cuando se agrega un item
   useEffect(() => {
     const handleCartItemAdded = () => {
-      if (isAuthenticated) {
-        setIsCartOpen(true);
-      }
+      // Abrir el carrito automáticamente cuando se agrega un item (con o sin autenticación)
+      setIsCartOpen(true);
     };
 
     window.addEventListener('cartItemAdded', handleCartItemAdded);
     return () => {
       window.removeEventListener('cartItemAdded', handleCartItemAdded);
     };
-  }, [isAuthenticated]);
+  }, []);
 
   // Cerrar menú de usuario al hacer click fuera
   useEffect(() => {
@@ -836,10 +835,7 @@ export default function Navbar() {
   };
 
   const handleCartClick = () => {
-    if (!isAuthenticated) {
-      router.push("/login");
-      return;
-    }
+    // Permitir abrir el carrito sin autenticación (carrito local)
     setIsCartOpen(true);
   };
 

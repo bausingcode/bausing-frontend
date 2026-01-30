@@ -18,9 +18,11 @@ import {
   transferWalletBalance,
   getUserOrders,
   getUserOrder,
+  getProvinces,
   type Address,
   type WalletMovement,
   type Order,
+  type Province,
 } from "@/lib/api";
 import {
   Calendar,
@@ -94,9 +96,11 @@ export default function UsuarioPage() {
     full_name: "",
     phone: "",
     city: "",
-    province: "",
+    province_id: "",
     is_default: false,
   });
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [loadingProvinces, setLoadingProvinces] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -136,6 +140,23 @@ export default function UsuarioPage() {
       loadOrders();
     }
   }, [activeSection, isAuthenticated]);
+
+  // Cargar provincias al montar
+  useEffect(() => {
+    const loadProvinces = async () => {
+      setLoadingProvinces(true);
+      try {
+        const data = await getProvinces();
+        setProvinces(data);
+      } catch (error) {
+        console.error("Error loading provinces:", error);
+      } finally {
+        setLoadingProvinces(false);
+      }
+    };
+
+    loadProvinces();
+  }, []);
 
   const loadOrders = async () => {
     setOrdersLoading(true);
@@ -604,7 +625,7 @@ export default function UsuarioPage() {
                         setAddressStatus(null);
                         setAddressSaving(true);
                         try {
-                          if (!addressForm.street || !addressForm.number || !addressForm.postal_code || !addressForm.city || !addressForm.province) {
+                          if (!addressForm.street || !addressForm.number || !addressForm.postal_code || !addressForm.city || !addressForm.province_id) {
                             throw new Error("Calle, número, código postal, ciudad y provincia son obligatorios.");
                           }
                           if (!addressForm.full_name || !addressForm.phone) {
@@ -620,7 +641,7 @@ export default function UsuarioPage() {
                               full_name: addressForm.full_name.trim(),
                               phone: addressForm.phone.trim(),
                               city: addressForm.city.trim(),
-                              province: addressForm.province.trim(),
+                              province_id: addressForm.province_id,
                               is_default: addressForm.is_default,
                             });
                             await loadAddresses();
@@ -637,7 +658,7 @@ export default function UsuarioPage() {
                               full_name: addressForm.full_name.trim(),
                               phone: addressForm.phone.trim(),
                               city: addressForm.city.trim(),
-                              province: addressForm.province.trim(),
+                              province_id: addressForm.province_id,
                               is_default: addressForm.is_default,
                             });
                             await loadAddresses();
@@ -655,7 +676,7 @@ export default function UsuarioPage() {
                             full_name: "",
                             phone: "",
                             city: "",
-                            province: "",
+                            province_id: "",
                             is_default: false,
                           });
                           setShowAddressForm(false);
@@ -719,14 +740,20 @@ export default function UsuarioPage() {
 
                         <div className="space-y-2">
                           <label className="text-sm font-medium text-gray-700">Provincia *</label>
-                          <input
-                            type="text"
-                            value={addressForm.province}
-                            onChange={(e) => setAddressForm((prev) => ({ ...prev, province: e.target.value }))}
+                          <select
+                            value={addressForm.province_id || ""}
+                            onChange={(e) => setAddressForm((prev) => ({ ...prev, province_id: e.target.value }))}
                             className="block w-full px-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
-                            placeholder="Ej: CABA"
                             required
-                          />
+                            disabled={loadingProvinces}
+                          >
+                            <option value="">Seleccione una provincia</option>
+                            {provinces.map((province) => (
+                              <option key={province.id} value={province.id}>
+                                {province.name}
+                              </option>
+                            ))}
+                          </select>
                         </div>
 
                         <div className="space-y-2">
@@ -799,7 +826,7 @@ export default function UsuarioPage() {
                               full_name: "",
                               phone: "",
                               city: "",
-                              province: "",
+                              province_id: "",
                               is_default: false,
                             });
                             setEditingAddressId(null);
@@ -869,7 +896,7 @@ export default function UsuarioPage() {
                                   full_name: address.full_name,
                                   phone: address.phone,
                                   city: address.city,
-                                  province: address.province,
+                                  province_id: address.province_id || "",
                                   is_default: address.is_default,
                                 });
                                 setShowAddressForm(true);

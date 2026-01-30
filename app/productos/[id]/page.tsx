@@ -253,7 +253,35 @@ export default function ProductDetailPage() {
         };
 
         setProduct(transformedProduct);
-        setSelectedVariant(variants.length > 0 ? variants[0]?.id || "" : "");
+        
+        // Inicializar selecciones de variantes y opciones
+        // Si hay variantes con solo opción "Default" y nombre "Atributo", autoseleccionarlas
+        const initialSelectedOptions: Record<string, string> = {};
+        if (variants.length > 0) {
+          variants.forEach((variant: any) => {
+            const variantKey = variant.id || variant.name || variant.sku || 'default';
+            const hasOptions = variant.options && Array.isArray(variant.options) && variant.options.length > 0;
+            
+            if (hasOptions && variant.options.length === 1) {
+              const option = variant.options[0];
+              // Si la variante se llama "Atributo" o no tiene nombre/sku, y la opción es "Default", autoseleccionarla
+              const variantName = variant.name || variant.sku || '';
+              if ((variantName === 'Atributo' || variantName === '' || variant.sku === null || variant.sku === undefined) && option.name === 'Default') {
+                initialSelectedOptions[variantKey] = option.id;
+              } else if (hasOptions) {
+                // Si tiene opciones pero no es el caso especial, seleccionar la primera
+                initialSelectedOptions[variantKey] = option.id;
+              }
+            } else if (hasOptions && variant.options.length > 1) {
+              // Si tiene múltiples opciones, seleccionar la primera
+              initialSelectedOptions[variantKey] = variant.options[0].id;
+            }
+          });
+          
+          setSelectedVariantOptions(initialSelectedOptions);
+          setSelectedVariant(variants[0]?.id || "");
+        }
+        
         setIsFavorite(isInFavorites(productId));
       } catch (error) {
         console.error("Error loading product:", error);
@@ -595,6 +623,36 @@ export default function ProductDetailPage() {
   const priceIn12Installments = calculatePriceInInstallments(currentPriceInfo.formattedPrice);
   const priceWithoutTaxes = currentPriceInfo.price * 1.21;
 
+  // Función helper para verificar si una variante es del tipo "Atributo" con opción "Default"
+  const isDefaultAttributeVariant = (variant: any): boolean => {
+    const variantName = variant.name || variant.sku || '';
+    const hasOptions = variant.options && Array.isArray(variant.options) && variant.options.length > 0;
+    
+    if (hasOptions && variant.options.length === 1) {
+      const option = variant.options[0];
+      // Detectar variantes "Atributo" con opción "Default" o variantes sin sku con opción "Default"
+      return ((variantName === 'Atributo' || variantName === '' || variant.sku === null || variant.sku === undefined) && option.name === 'Default');
+    }
+    
+    return false;
+  };
+
+  // Verificar si todas las variantes son del tipo "Atributo" con opción "Default"
+  const shouldHideVariantsSection = (): boolean => {
+    if (!product || !product.variants || product.variants.length === 0) {
+      return true;
+    }
+    
+    const variantsWithSku = product.variants.filter((variant: any) => variant.sku !== null && variant.sku !== undefined);
+    
+    if (variantsWithSku.length === 0) {
+      return true;
+    }
+    
+    // Si todas las variantes son del tipo "Atributo" con opción "Default", ocultar la sección
+    return variantsWithSku.every((variant: any) => isDefaultAttributeVariant(variant));
+  };
+
   return (
     <>
       <style jsx global>{`
@@ -732,7 +790,7 @@ export default function ProductDetailPage() {
               </div>
 
               {/* Variant Selection */}
-              {product.variants && product.variants.filter((variant: any) => variant.sku !== null && variant.sku !== undefined).length > 0 && (
+              {product.variants && product.variants.filter((variant: any) => variant.sku !== null && variant.sku !== undefined).length > 0 && !shouldHideVariantsSection() && (
                 <div className="mb-6 md:mb-8">
                   <h3 className="text-sm font-medium text-gray-700 mb-2 md:mb-3">Opciones disponibles:</h3>
                   <div className="relative">
@@ -742,6 +800,7 @@ export default function ProductDetailPage() {
                     >
                     {product.variants
                       .filter((variant: any) => variant.sku !== null && variant.sku !== undefined)
+                      .filter((variant: any) => !isDefaultAttributeVariant(variant))
                       .map((variant: any) => {
                       // Siempre mostrar variant como título, y si tiene options, mostrar las options como opciones
                       const variantKey = variant.id || variant.name || variant.sku || 'default';

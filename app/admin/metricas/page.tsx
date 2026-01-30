@@ -240,12 +240,9 @@ export default function Metricas() {
                   <ShoppingCart className="w-5 h-5 text-orange-600" />
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500 mb-1">Órdenes Abandonadas</div>
+                  <div className="text-sm text-gray-500 mb-1">Carritos Abandonados</div>
                   <div className="text-2xl font-semibold text-orange-600">
                     {generalMetrics.totals.pending_orders}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    {formatCurrency(generalMetrics.totals.abandoned_carts_value)}
                   </div>
                 </div>
               </div>
@@ -254,9 +251,9 @@ export default function Metricas() {
                   <Users className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500 mb-1">Usuarios con Órdenes</div>
+                  <div className="text-sm text-gray-500 mb-1">Usuarios con Carritos</div>
                   <div className="text-2xl font-semibold text-blue-600">
-                    {generalMetrics.users_with_orders}
+                    {generalMetrics.users_with_abandoned_carts}
                   </div>
                 </div>
               </div>
