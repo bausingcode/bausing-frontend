@@ -168,6 +168,14 @@ export default function Sidebar() {
                   Clientes
                 </NavLink>
               </li>
+              <li key="metricas">
+                <NavLink
+                  href="/admin/metricas"
+                  icon={<BarChart3 className="w-5 h-5" />}
+                >
+                  Métricas
+                </NavLink>
+              </li>
               <li key="billetera">
                 <NavLink
                   href="/admin/billetera"
