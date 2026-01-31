@@ -2660,6 +2660,17 @@ export interface Province {
   updated_at?: string;
 }
 
+export interface SaleType {
+  id: string;
+  crm_sale_type_id: number;
+  code?: string;
+  description?: string;
+  number?: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 /**
  * Update user profile
  */
@@ -2782,6 +2793,118 @@ export async function getProvinces(): Promise<Province[]> {
   }
   
   return data.data;
+}
+
+/**
+ * Get sale types
+ */
+export async function getSaleTypes(): Promise<SaleType[]> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/auth/sale-types`
+    : `/api/auth/sale-types`;
+  
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.error || "Error al obtener tipos de venta");
+  }
+  
+  return data.data;
+}
+
+/**
+ * Create order
+ */
+export async function createOrder(orderData: {
+  customer: {
+    first_name: string;
+    last_name: string;
+    document_type: string;
+    dni: string;
+    phone: string;
+    alternate_phone?: string;
+    email: string;
+  };
+  address: Address | {
+    full_name: string;
+    phone: string;
+    street: string;
+    number: string;
+    additional_info?: string;
+    postal_code: string;
+    city: string;
+    province_id: string;
+  };
+  payment_method: string;
+  pay_on_delivery: boolean;
+  crm_sale_type_id?: number;
+  total: number;
+  items: Array<{
+    product_id: string;
+    quantity: number;
+    price: number;
+  }>;
+  use_wallet_balance?: boolean;
+  wallet_amount?: number;
+  card_data?: {
+    number: string;
+    cvv: string;
+    expiry: string;
+    holder_name: string;
+    holder_dni: string;
+  };
+  observations?: string;
+}): Promise<any> {
+  // Para orders, necesitamos usar la URL completa porque el rewrite elimina /api
+  // El backend tiene la ruta en /api/orders (blueprint con url_prefix='/api' + ruta '/orders')
+  const url = typeof window === "undefined"
+    ? `/api/api/orders`
+    : `${BACKEND_URL}/api/orders`;
+  
+  console.log("[API] URL:", url);
+  console.log("[API] Order data being sent:", JSON.stringify(orderData, null, 2));
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: getUserAuthHeaders(),
+      body: JSON.stringify(orderData),
+    });
+    
+    console.log("[API] Response status:", response.status, response.statusText);
+    
+    // Verificar si la respuesta es JSON
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      const text = await response.text();
+      console.error("[API] Response is not JSON. Text:", text);
+      throw new Error(`Error al crear orden: ${response.status} ${response.statusText}. ${text}`);
+    }
+    
+    const data = await response.json();
+    console.log("[API] Response data:", JSON.stringify(data, null, 2));
+    
+    if (!response.ok) {
+      console.error("[API] Response not OK. Error:", data.error || data.message);
+      throw new Error(data.error || data.message || `Error al crear orden: ${response.status}`);
+    }
+    
+    const result = data.data || data;
+    console.log("[API] Returning result:", JSON.stringify(result, null, 2));
+    return result;
+  } catch (error: any) {
+    // Si es un error de red, proporcionar un mensaje más claro
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      throw new Error('Error de conexión. Por favor, verifica tu conexión a internet.');
+    }
+    throw error;
+  }
 }
 
 /**
@@ -3473,6 +3596,7 @@ export interface Order {
   status: string; // Estado de entrega: "pendiente de entrega", "en reparto", "en cobranza", "finalizado", etc.
   payment_method: "card" | "cash" | "transfer" | "wallet";
   payment_status: "pending" | "paid" | "failed";
+  payment_processed?: boolean; // Indica si el pago fue procesado (campo payment_processed de la tabla orders)
   pay_on_delivery: boolean;
   total_amount: number;
   shipping_address: Address;

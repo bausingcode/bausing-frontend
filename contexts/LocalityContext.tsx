@@ -72,18 +72,23 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
       
       if (data.success && data.data?.locality) {
         const detectedLocality = data.data.locality;
+        const crmZoneId = data.data.crm_zone_id;
         console.log("[LocalityContext] Localidad detectada:", detectedLocality);
+        console.log("[LocalityContext] Zona de entrega detectada:", crmZoneId);
         
-        // Crear un nuevo objeto para forzar la actualización
-        const updatedLocality = { ...detectedLocality };
-        setLocalityState(updatedLocality);
+        // Crear un nuevo objeto para forzar la actualización, incluyendo la zona
+        const localityWithZone = { ...detectedLocality };
+        if (crmZoneId) {
+          localityWithZone.crm_zone_id = crmZoneId;
+        }
+        setLocalityState(localityWithZone);
         setUpdateKey(prev => prev + 1);
-        localStorage.setItem("bausing_locality", JSON.stringify(detectedLocality));
+        localStorage.setItem("bausing_locality", JSON.stringify(localityWithZone));
         console.log("[LocalityContext] Localidad guardada en localStorage:", detectedLocality.id);
         
         // Disparar evento personalizado
         window.dispatchEvent(new CustomEvent('localityChanged', { 
-          detail: { locality: updatedLocality } 
+          detail: { locality: localityWithZone } 
         }));
       } else {
         const errorMsg = data.error || "No se encontró una localidad para tu ubicación";

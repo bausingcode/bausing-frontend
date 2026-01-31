@@ -14,10 +14,13 @@ import {
   fetchProductsPrices,
   getDocTypes,
   getProvinces,
+  getSaleTypes,
+  createOrder,
   type Address,
   type Product,
   type DocType,
   type Province,
+  type SaleType,
 } from "@/lib/api";
 import {
   MapPin,
@@ -46,6 +49,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [orderCompleted, setOrderCompleted] = useState(false); // Bandera para indicar que se completó una orden exitosamente
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
@@ -54,8 +58,11 @@ export default function CheckoutPage() {
   const [loadingPrices, setLoadingPrices] = useState(false);
   const [docTypes, setDocTypes] = useState<DocType[]>([]);
   const [provinces, setProvinces] = useState<Province[]>([]);
+  const [saleTypes, setSaleTypes] = useState<SaleType[]>([]);
   const [loadingDocTypes, setLoadingDocTypes] = useState(false);
   const [loadingProvinces, setLoadingProvinces] = useState(false);
+  const [loadingSaleTypes, setLoadingSaleTypes] = useState(false);
+  const [crmSaleTypeId, setCrmSaleTypeId] = useState<number>(1); // Default: Consumidor Final
   
   // Registration and verification states
   const [showRegistration, setShowRegistration] = useState(false);
@@ -123,6 +130,21 @@ export default function CheckoutPage() {
 
   // Check cart and initialize
   useEffect(() => {
+    // No redirigir si estamos en proceso de submit (para evitar redirección después de limpiar carrito)
+    if (submitting) {
+      return;
+    }
+    
+    // No redirigir si acabamos de completar una orden exitosamente
+    if (orderCompleted) {
+      return;
+    }
+    
+    // No redirigir si estamos en la página de éxito
+    if (typeof window !== 'undefined' && window.location.pathname.includes('/checkout/success')) {
+      return;
+    }
+    
     if (cart.length === 0) {
       router.replace("/");
       return;
@@ -166,6 +188,29 @@ export default function CheckoutPage() {
     loadDocTypes();
     loadProvinces();
   }, []);
+
+  // Load sale types when pay on delivery is selected
+  useEffect(() => {
+    if (payOnDelivery) {
+      const loadSaleTypes = async () => {
+        setLoadingSaleTypes(true);
+        try {
+          const data = await getSaleTypes();
+          setSaleTypes(data);
+          // Default to Consumidor Final (crm_sale_type_id = 1)
+          const consumidorFinal = data.find(st => st.crm_sale_type_id === 1);
+          if (consumidorFinal) {
+            setCrmSaleTypeId(1);
+          }
+        } catch (error) {
+          console.error("Error loading sale types:", error);
+        } finally {
+          setLoadingSaleTypes(false);
+        }
+      };
+      loadSaleTypes();
+    }
+  }, [payOnDelivery]);
 
   // Load user data and addresses
   useEffect(() => {
@@ -411,6 +456,94 @@ export default function CheckoutPage() {
         return;
       }
 
+      // Prepare address data
+      const addressData = showAddressForm
+        ? {
+            full_name: addressForm.full_name,
+            phone: addressForm.phone,
+            street: addressForm.street,
+            number: addressForm.number,
+            additional_info: addressForm.additional_info || undefined,
+            postal_code: addressForm.postal_code,
+            city: addressForm.city,
+            province_id: addressForm.province_id,
+          }
+        : selectedAddress!; // We know it's not undefined because of the check above
+
+      // Detectar localidad por IP (igual que al entrar a la página)
+      // El backend siempre retornará una localidad (incluso si es el fallback 39acf5ca-28d1-4300-b009-07c675c45073)
+      let crmZoneId: number | undefined = undefined;
+      try {
+        const localityResponse = await fetch("/api/detect-locality", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        
+        if (localityResponse.ok) {
+          const localityData = await localityResponse.json();
+          console.log("[Checkout] Respuesta de detect-locality:", JSON.stringify(localityData, null, 2));
+          
+          if (localityData.success && localityData.data) {
+            // El backend siempre debería retornar crm_zone_id (incluso si es del fallback)
+            if (localityData.data.crm_zone_id) {
+              crmZoneId = localityData.data.crm_zone_id;
+              console.log("[Checkout] Zona de entrega detectada por IP:", crmZoneId);
+            } else {
+              console.warn("[Checkout] La respuesta no incluye crm_zone_id, intentando obtener del localStorage");
+              // Si no hay crm_zone_id en la respuesta, intentar obtener del localStorage
+              try {
+                const savedLocality = localStorage.getItem("bausing_locality");
+                if (savedLocality) {
+                  const parsedLocality = JSON.parse(savedLocality);
+                  if (parsedLocality.crm_zone_id) {
+                    crmZoneId = parsedLocality.crm_zone_id;
+                    console.log("[Checkout] Zona de entrega obtenida del localStorage:", crmZoneId);
+                  }
+                }
+              } catch (localStorageError) {
+                console.error("Error al obtener zona de entrega del localStorage:", localStorageError);
+              }
+            }
+          }
+        } else {
+          console.error("[Checkout] Error en respuesta de detect-locality:", localityResponse.status, localityResponse.statusText);
+          // Fallback: intentar obtener del localStorage
+          try {
+            const savedLocality = localStorage.getItem("bausing_locality");
+            if (savedLocality) {
+              const parsedLocality = JSON.parse(savedLocality);
+              if (parsedLocality.crm_zone_id) {
+                crmZoneId = parsedLocality.crm_zone_id;
+                console.log("[Checkout] Zona de entrega obtenida del localStorage (fallback):", crmZoneId);
+              }
+            }
+          } catch (localStorageError) {
+            console.error("Error al obtener zona de entrega del localStorage:", localStorageError);
+          }
+        }
+      } catch (error) {
+        console.error("[Checkout] Error al detectar localidad por IP:", error);
+        // Fallback: intentar obtener del localStorage
+        try {
+          const savedLocality = localStorage.getItem("bausing_locality");
+          if (savedLocality) {
+            const parsedLocality = JSON.parse(savedLocality);
+            if (parsedLocality.crm_zone_id) {
+              crmZoneId = parsedLocality.crm_zone_id;
+              console.log("[Checkout] Zona de entrega obtenida del localStorage (error fallback):", crmZoneId);
+            }
+          }
+        } catch (localStorageError) {
+          console.error("Error al obtener zona de entrega del localStorage:", localStorageError);
+        }
+      }
+      
+      if (!crmZoneId) {
+        console.warn("[Checkout] ⚠️ No se pudo obtener crm_zone_id. El backend debería usar el fallback automáticamente.");
+      }
+
       // Prepare order data
       const orderData = {
         customer: {
@@ -422,20 +555,16 @@ export default function CheckoutPage() {
           alternate_phone: formData.alternate_phone || undefined,
           email: formData.email,
         },
-        address: showAddressForm
-          ? {
-              full_name: addressForm.full_name,
-              phone: addressForm.phone,
-              street: addressForm.street,
-              number: addressForm.number,
-              additional_info: addressForm.additional_info || undefined,
-              postal_code: addressForm.postal_code,
-              city: addressForm.city,
-              province_id: addressForm.province_id,
-            }
-          : selectedAddress,
-        payment_method: paymentMethod,
+        address: addressData,
+        payment_method: paymentMethod || "card",
         pay_on_delivery: payOnDelivery,
+        ...(payOnDelivery && {
+          crm_sale_type_id: crmSaleTypeId,
+        }),
+        ...(crmZoneId && {
+          crm_zone_id: crmZoneId,
+        }),
+        total: cart.reduce((sum, item) => sum + getItemPrice(item), 0),
         ...(useWalletBalance && {
           use_wallet_balance: true,
           wallet_amount: walletBalance,
@@ -454,16 +583,54 @@ export default function CheckoutPage() {
           quantity: item.quantity,
           price: getItemUnitPrice(item),
         })),
+        observations: "",
       };
 
-      // TODO: Send order to backend
-      console.log("Order data:", orderData);
+      // Send order to backend
+      console.log("[Checkout] Enviando orden con datos:", JSON.stringify(orderData, null, 2));
+      const orderResponse = await createOrder(orderData);
+      console.log("[Checkout] Respuesta completa del backend:", JSON.stringify(orderResponse, null, 2));
 
-      // For now, just show success message
-      alert("¡Pedido realizado con éxito!");
-      router.push("/");
+      // Redirect to success page with order ID FIRST (before clearing cart)
+      // La respuesta del backend es { success: True, data: { id: ... }, message: ... }
+      // Pero createOrder retorna data.data || data, así que orderResponse ya es el objeto data
+      const orderId = orderResponse?.id || (orderResponse as any)?.data?.id || null;
+      
+      console.log("[Checkout] Order response completo:", JSON.stringify(orderResponse, null, 2));
+      console.log("[Checkout] Order ID extraído:", orderId);
+      console.log("[Checkout] orderResponse?.id:", orderResponse?.id);
+      console.log("[Checkout] orderResponse?.data?.id:", (orderResponse as any)?.data?.id);
+      
+      // Marcar que se completó la orden exitosamente (antes de redirigir)
+      setOrderCompleted(true);
+      
+      // Siempre redirigir a la página de éxito, con o sin orderId
+      // IMPORTANTE: Redirigir ANTES de limpiar el carrito para evitar que el useEffect redirija al inicio
+      if (orderId) {
+        console.log("[Checkout] Redirigiendo a página de éxito con order_id:", orderId);
+        router.push(`/checkout/success?order_id=${orderId}`);
+      } else {
+        console.log("[Checkout] No se encontró orderId, redirigiendo a página de éxito sin ID");
+        router.push("/checkout/success");
+      }
+      
+      // Clear cart AFTER redirecting (use setTimeout to ensure redirect happens first)
+      setTimeout(() => {
+        cart.forEach((item) => removeFromCart(item.id));
+      }, 100);
     } catch (error: any) {
-      setErrors({ submit: error?.message || "Error al procesar el pedido" });
+      console.error("[Checkout] Error al procesar el pedido:", error);
+      console.error("[Checkout] Error completo:", JSON.stringify(error, null, 2));
+      
+      // Detectar error específico de tipo de documento incompatible con tipo de venta
+      let errorMessage = error?.message || "Error al procesar el pedido";
+      
+      if (errorMessage.includes("Tipo de documento DNI no es compatible con tipo de venta mayor a 1") ||
+          errorMessage.includes("Tipo de documento DNI no es compatible")) {
+        errorMessage = "Para este tipo de venta debes usar CUIT o CUIL en lugar de DNI. Por favor, cambia el tipo de documento en el formulario.";
+      }
+      
+      setErrors({ submit: errorMessage });
     } finally {
       setSubmitting(false);
     }
@@ -1521,6 +1688,39 @@ export default function CheckoutPage() {
                       <Check className="w-5 h-5 text-[#00C1A7] ml-auto" />
                     )}
                   </label>
+                  
+                  {/* Tipo de venta - solo se muestra cuando es "abonar al recibir" */}
+                  {(paymentMethod === "cash" || paymentMethod === "transfer") && (
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Tipo de Venta *
+                      </label>
+                      {loadingSaleTypes ? (
+                        <div className="text-sm text-gray-500">Cargando tipos de venta...</div>
+                      ) : (
+                        <select
+                          value={crmSaleTypeId}
+                          onChange={(e) => setCrmSaleTypeId(Number(e.target.value))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
+                          required
+                        >
+                          {saleTypes.map((st) => (
+                            <option key={st.id} value={st.crm_sale_type_id}>
+                              {st.description || st.code || `Tipo ${st.crm_sale_type_id}`}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1">
+                        {crmSaleTypeId === 4 
+                          ? "Para Responsable Inscripto, el documento debe tener formato CUIT (XX-XXXXXXXX-X)"
+                          : crmSaleTypeId === 1
+                          ? "Consumidor Final"
+                          : ""}
+                      </p>
+                    </div>
+                  )}
+                  
                   <label
                     className={`flex items-center gap-3 md:gap-4 p-3 md:p-4 border rounded-lg cursor-pointer transition-colors ${
                       paymentMethod === "transfer"
@@ -1978,9 +2178,37 @@ export default function CheckoutPage() {
                     )}
                   </div>
                 </div>
-                {errors.submit && (
-                  <p className="text-red-500 text-xs md:text-sm mt-3 md:mt-4">{errors.submit}</p>
+                
+                {/* Mostrar todos los errores de validación visibles */}
+                {(Object.keys(errors).length > 0 || errors.submit) && (
+                  <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <h3 className="text-sm font-semibold text-red-800 mb-2">Por favor, corrige los siguientes errores:</h3>
+                    <ul className="space-y-1 text-sm text-red-700">
+                      {errors.first_name && <li>• {errors.first_name}</li>}
+                      {errors.last_name && <li>• {errors.last_name}</li>}
+                      {errors.document_type && <li>• {errors.document_type}</li>}
+                      {errors.dni && <li>• {errors.dni}</li>}
+                      {errors.phone && <li>• {errors.phone}</li>}
+                      {errors.email && <li>• {errors.email}</li>}
+                      {errors.address && <li>• {errors.address}</li>}
+                      {errors.address_full_name && <li>• {errors.address_full_name}</li>}
+                      {errors.address_phone && <li>• {errors.address_phone}</li>}
+                      {errors.address_street && <li>• {errors.address_street}</li>}
+                      {errors.address_number && <li>• {errors.address_number}</li>}
+                      {errors.address_postal_code && <li>• {errors.address_postal_code}</li>}
+                      {errors.address_city && <li>• {errors.address_city}</li>}
+                      {errors.address_province && <li>• {errors.address_province}</li>}
+                      {errors.payment_method && <li>• {errors.payment_method}</li>}
+                      {errors.card_number && <li>• {errors.card_number}</li>}
+                      {errors.card_cvv && <li>• {errors.card_cvv}</li>}
+                      {errors.card_expiry && <li>• {errors.card_expiry}</li>}
+                      {errors.card_holder_name && <li>• {errors.card_holder_name}</li>}
+                      {errors.card_holder_dni && <li>• {errors.card_holder_dni}</li>}
+                      {errors.submit && <li>• {errors.submit}</li>}
+                    </ul>
+                  </div>
                 )}
+                
                 {!isAuthenticated && (
                   <p className="text-blue-600 text-xs md:text-sm mt-3 md:mt-4 text-center">
                     Inicia sesión o crea una cuenta para finalizar la compra

@@ -1342,6 +1342,26 @@ export default function UsuarioPage() {
                                   {selectedOrder.payment_method === "wallet" && "Billetera Bausing"}
                                 </span>
                               </div>
+                              {selectedOrder.payment_processed !== undefined && (
+                                <div className="flex justify-between">
+                                  <span className="text-sm text-gray-600">Estado de pago:</span>
+                                  <span className={`text-sm font-medium inline-flex items-center gap-1 ${
+                                    selectedOrder.payment_processed ? "text-green-700" : "text-amber-700"
+                                  }`}>
+                                    {selectedOrder.payment_processed ? (
+                                      <>
+                                        <CheckCircle className="w-4 h-4" />
+                                        Pagado
+                                      </>
+                                    ) : (
+                                      <>
+                                        <XCircle className="w-4 h-4" />
+                                        Pendiente de pago
+                                      </>
+                                    )}
+                                  </span>
+                                </div>
+                              )}
                               {selectedOrder.pay_on_delivery && (
                                 <div className="flex justify-between">
                                   <span className="text-sm text-gray-600">Pago al recibir:</span>
@@ -1517,6 +1537,22 @@ export default function UsuarioPage() {
                                       year: "numeric",
                                     })}
                                   </p>
+                                  {/* Estado de pago */}
+                                  {order.payment_processed !== undefined && (
+                                    <div className="flex items-center gap-2 mt-1">
+                                      {order.payment_processed ? (
+                                        <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700">
+                                          <CheckCircle className="w-3 h-3" />
+                                          Pagado
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700">
+                                          <XCircle className="w-3 h-3" />
+                                          Pendiente de pago
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                                 <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
                                   order.status === "finalizado" ? "bg-green-100 text-green-700" :

@@ -196,25 +196,6 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         });
       }
       
-      // Si "Por combo" NO está seleccionada como subcategoría, agregar combo como atributo
-      const hasPorCombo = selectedSubcatIds.some(id => {
-        const subcat = propCategories.find(c => c.id === id);
-        return subcat?.nombre === "Por combo";
-      });
-      
-      if (!hasPorCombo) {
-        attributes.push({
-          id: "combo-colchones",
-          name: "Combo",
-          type: "select",
-          options: [
-            "Colchón solo",
-            "Colchón + base",
-            "Colchón + base + respaldo"
-          ]
-        });
-      }
-      
       return attributes;
     }
     
@@ -799,7 +780,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           if (prev.length === 0) {
             return [{
               attributes: {},
-              stock: 0,
+              stock: 99999,
               prices: {},
             }];
           }
@@ -894,7 +875,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         
         return {
           attributes: combo,
-          stock: 0,
+          stock: 99999,
           prices: existingVariant?.prices || {}, // Preservar precios existentes
         };
       });
@@ -1074,7 +1055,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
             
             return {
               sku: variantName || undefined,
-              // stock removido - no se guarda stock en las variants
+              stock: variant.stock,
               attributes: variant.attributes,
               prices: Object.entries(variant.prices).map(([catalog_id, price]) => ({
                 catalog_id,
@@ -1112,7 +1093,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
             
             return {
               sku: variantName || undefined,
-              // stock removido - no se guarda stock en las variants
+              stock: variant.stock,
               attributes: variant.attributes,
               prices: Object.entries(variant.prices).map(([catalog_id, price]) => ({
                 catalog_id,
