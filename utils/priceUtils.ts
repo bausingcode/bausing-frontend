@@ -162,9 +162,11 @@ export function calculateProductPrice(
   
   // Formatear precios para mostrar
   const currentPrice = formatPrice(finalPrice);
+  // Solo mostrar precio original (tachado) si hay un descuento real de promoción
+  // No mostrar precio tachado solo por tener múltiples variantes con diferentes precios
   const originalPrice = hasDiscount
     ? formatPrice(originalPriceValue)
-    : (maxPrice > basePrice ? formatPrice(maxPrice) : undefined);
+    : undefined;
   
   // Label de descuento/promo
   const discount = promoCalculation.promoLabel || 

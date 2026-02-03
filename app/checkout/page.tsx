@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -39,6 +39,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { formatPrice, calculateProductPrice } from "@/utils/priceUtils";
+import MercadoPagoCardForm from "@/components/MercadoPagoCardForm";
 
 type PaymentMethod = "card" | "cash" | "transfer" | "wallet" | null;
 
@@ -127,6 +128,20 @@ export default function CheckoutPage() {
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [walletLoading, setWalletLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [mpToken, setMpToken] = useState<string | null>(null);
+  const [mpInstallments, setMpInstallments] = useState<number>(1);
+  const [mpPaymentMethodId, setMpPaymentMethodId] = useState<string>("");
+  const [mpIssuerId, setMpIssuerId] = useState<number | undefined>(undefined);
+  const [mpCardholderData, setMpCardholderData] = useState<{
+    name?: string;
+    email?: string;
+    identificationType?: string;
+    identificationNumber?: string;
+  } | null>(null);
+  const [mpProcessing, setMpProcessing] = useState(false);
+  const [mpReady, setMpReady] = useState(false);
+  const mpProcessPaymentRef = useRef<(() => Promise<void>) | null>(null);
+  const tokenPromiseRef = useRef<{ resolve: (token: string) => void; reject: (error: Error) => void } | null>(null);
 
   // Check cart and initialize
   useEffect(() => {
@@ -145,9 +160,26 @@ export default function CheckoutPage() {
       return;
     }
     
-    if (cart.length === 0) {
-      router.replace("/");
+    // No redirigir si hay errores (el usuario necesita corregirlos)
+    if (Object.keys(errors).length > 0) {
       return;
+    }
+    
+    // No redirigir si estamos procesando el pago de MercadoPago
+    if (mpProcessing) {
+      return;
+    }
+    
+    // Solo redirigir al catálogo si el carrito está vacío Y no hay ninguna operación en curso
+    if (cart.length === 0 && !submitting && !orderCompleted && !mpProcessing) {
+      // Pequeño delay para evitar redirecciones durante transiciones de estado
+      const timer = setTimeout(() => {
+        if (cart.length === 0 && !submitting && !orderCompleted && !mpProcessing) {
+          router.replace("/");
+        }
+      }, 1000);
+      
+      return () => clearTimeout(timer);
     }
     
     // Permitir ver el checkout sin estar autenticado
@@ -189,28 +221,26 @@ export default function CheckoutPage() {
     loadProvinces();
   }, []);
 
-  // Load sale types when pay on delivery is selected
+  // Load sale types - ahora se cargan siempre ya que el campo aparece siempre
   useEffect(() => {
-    if (payOnDelivery) {
-      const loadSaleTypes = async () => {
-        setLoadingSaleTypes(true);
-        try {
-          const data = await getSaleTypes();
-          setSaleTypes(data);
-          // Default to Consumidor Final (crm_sale_type_id = 1)
-          const consumidorFinal = data.find(st => st.crm_sale_type_id === 1);
-          if (consumidorFinal) {
-            setCrmSaleTypeId(1);
-          }
-        } catch (error) {
-          console.error("Error loading sale types:", error);
-        } finally {
-          setLoadingSaleTypes(false);
+    const loadSaleTypes = async () => {
+      setLoadingSaleTypes(true);
+      try {
+        const data = await getSaleTypes();
+        setSaleTypes(data);
+        // Default to Consumidor Final (crm_sale_type_id = 1)
+        const consumidorFinal = data.find(st => st.crm_sale_type_id === 1);
+        if (consumidorFinal) {
+          setCrmSaleTypeId(1);
         }
-      };
-      loadSaleTypes();
-    }
-  }, [payOnDelivery]);
+      } catch (error) {
+        console.error("Error loading sale types:", error);
+      } finally {
+        setLoadingSaleTypes(false);
+      }
+    };
+    loadSaleTypes();
+  }, []); // Cargar una sola vez al montar el componente
 
   // Load user data and addresses
   useEffect(() => {
@@ -299,10 +329,70 @@ export default function CheckoutPage() {
     }
   };
 
+  // Función para validar formato de CUIT/CUIL
+  const validateCuitCuil = (documentNumber: string): boolean => {
+    // Remover espacios y guiones para validar
+    const cleaned = documentNumber.replace(/[\s-]/g, '');
+    
+    // Debe tener exactamente 11 dígitos
+    if (!/^\d{11}$/.test(cleaned)) {
+      return false;
+    }
+    
+    // Si tiene guiones, debe tener el formato correcto: XX-XXXXXXXX-X
+    if (documentNumber.includes('-')) {
+      const parts = documentNumber.split('-');
+      if (parts.length !== 3) {
+        return false;
+      }
+      if (parts[0].length !== 2 || parts[1].length !== 8 || parts[2].length !== 1) {
+        return false;
+      }
+      // Verificar que todas las partes sean numéricas
+      return /^\d+$/.test(parts[0]) && /^\d+$/.test(parts[1]) && /^\d+$/.test(parts[2]);
+    }
+    
+    return true;
+  };
+
+  // Función para verificar si un tipo de documento es CUIT o CUIL
+  const isCuitOrCuil = (documentTypeId: string): boolean => {
+    if (!documentTypeId) return false;
+    const docType = docTypes.find(dt => dt.id === documentTypeId);
+    if (!docType) return false;
+    const name = docType.name.toLowerCase();
+    return name.includes('cuit') || name.includes('cuil');
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }));
+    }
+    
+    // Validación en tiempo real para CUIT/CUIL
+    if (field === "dni" && value.trim() && isCuitOrCuil(formData.document_type)) {
+      if (!validateCuitCuil(value.trim())) {
+        setErrors((prev) => ({ ...prev, dni: "El CUIT/CUIL debe tener formato XX-XXXXXXXX-X o 11 dígitos" }));
+      } else {
+        setErrors((prev) => ({ ...prev, dni: "" }));
+      }
+    }
+    
+    // Si cambia el tipo de documento, validar el DNI actual si es CUIT/CUIL
+    if (field === "document_type" && formData.dni.trim()) {
+      if (isCuitOrCuil(value)) {
+        if (!validateCuitCuil(formData.dni.trim())) {
+          setErrors((prev) => ({ ...prev, dni: "El CUIT/CUIL debe tener formato XX-XXXXXXXX-X o 11 dígitos" }));
+        } else {
+          setErrors((prev) => ({ ...prev, dni: "" }));
+        }
+      } else {
+        // Si cambia a un tipo que no es CUIT/CUIL, limpiar el error de formato
+        if (errors.dni && errors.dni.includes("CUIT/CUIL")) {
+          setErrors((prev) => ({ ...prev, dni: "" }));
+        }
+      }
     }
   };
 
@@ -331,6 +421,13 @@ export default function CheckoutPage() {
     }
     if (!formData.dni.trim()) {
       newErrors.dni = "El número de documento es obligatorio";
+    } else {
+      // Validar formato si es CUIT o CUIL
+      if (isCuitOrCuil(formData.document_type)) {
+        if (!validateCuitCuil(formData.dni.trim())) {
+          newErrors.dni = "El CUIT/CUIL debe tener formato XX-XXXXXXXX-X o 11 dígitos";
+        }
+      }
     }
     if (!formData.phone.trim()) {
       newErrors.phone = "El celular es obligatorio";
@@ -375,30 +472,8 @@ export default function CheckoutPage() {
       newErrors.payment_method = "Debes seleccionar un método de pago";
     }
 
-    // Validate card fields if payment method is card
-    if (paymentMethod === "card" && !payOnDelivery) {
-      if (!cardData.number.trim()) {
-        newErrors.card_number = "El número de tarjeta es obligatorio";
-      } else if (!/^\d{13,19}$/.test(cardData.number.replace(/\s/g, ""))) {
-        newErrors.card_number = "El número de tarjeta no es válido";
-      }
-      if (!cardData.cvv.trim()) {
-        newErrors.card_cvv = "El CVV es obligatorio";
-      } else if (!/^\d{3,4}$/.test(cardData.cvv)) {
-        newErrors.card_cvv = "El CVV no es válido";
-      }
-      if (!cardData.expiry.trim()) {
-        newErrors.card_expiry = "La fecha de vencimiento es obligatoria";
-      } else if (!/^\d{2}\/\d{2}$/.test(cardData.expiry)) {
-        newErrors.card_expiry = "El formato debe ser MM/AA";
-      }
-      if (!cardData.holder_name.trim()) {
-        newErrors.card_holder_name = "El nombre del titular es obligatorio";
-      }
-      if (!cardData.holder_dni.trim()) {
-        newErrors.card_holder_dni = "El DNI del titular es obligatorio";
-      }
-    }
+    // No validar campos de tarjeta si es pago con MercadoPago (card sin payOnDelivery)
+    // Los campos de tarjeta ya no se usan, se redirige a MercadoPago
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -440,6 +515,66 @@ export default function CheckoutPage() {
     
     if (!validateForm()) {
       return;
+    }
+
+    // Si es pago con tarjeta sin "abonar al recibir", procesar el token de MercadoPago primero
+    if (paymentMethod === "card" && !payOnDelivery) {
+      if (!mpToken && mpProcessPaymentRef.current) {
+        try {
+          setMpProcessing(true);
+          // No mostrar error mientras se está procesando el token
+          
+          // Crear una promesa para esperar el token
+          const tokenPromise = new Promise<string>((resolve, reject) => {
+            tokenPromiseRef.current = { resolve, reject };
+            // Timeout de 10 segundos
+            setTimeout(() => {
+              if (tokenPromiseRef.current) {
+                tokenPromiseRef.current.reject(new Error("Tiempo de espera agotado al validar la tarjeta"));
+                tokenPromiseRef.current = null;
+              }
+            }, 10000);
+          });
+          
+          // Disparar el submit del Brick para obtener el token
+          await mpProcessPaymentRef.current();
+          
+          // Esperar a que el token esté disponible
+          const token = await tokenPromise;
+          
+          // El token ya se estableció en el estado en onPaymentSuccess
+          // Solo verificar que esté disponible y continuar
+          setMpProcessing(false);
+          
+          // Continuar automáticamente con el procesamiento de la orden
+          // No retornar aquí, dejar que el código continúe
+        } catch (error: any) {
+          tokenPromiseRef.current = null;
+          setErrors({ submit: error.message || "Error al procesar la tarjeta" });
+          setMpProcessing(false);
+          setSubmitting(false);
+          return;
+        }
+      }
+      
+      // Solo mostrar error si no hay token Y no se está procesando
+      if (!mpToken && !mpProcessing) {
+        setErrors({ submit: "Por favor, completa los datos de la tarjeta" });
+        setSubmitting(false);
+        return;
+      }
+      
+      // Si se está procesando el token, esperar un momento más antes de verificar
+      if (!mpToken && mpProcessing) {
+        // Esperar un poco más para que el token se establezca
+        await new Promise(resolve => setTimeout(resolve, 500));
+        if (!mpToken) {
+          setErrors({ submit: "No se pudo validar la tarjeta. Por favor, intenta nuevamente." });
+          setMpProcessing(false);
+          setSubmitting(false);
+          return;
+        }
+      }
     }
 
     setSubmitting(true);
@@ -544,6 +679,13 @@ export default function CheckoutPage() {
         console.warn("[Checkout] ⚠️ No se pudo obtener crm_zone_id. El backend debería usar el fallback automáticamente.");
       }
 
+      // Log de datos del cardholder antes de enviar
+      if (paymentMethod === "card" && !payOnDelivery && mpCardholderData) {
+        console.log("[Checkout] 📤 Enviando datos del cardholder al backend:", mpCardholderData);
+      } else if (paymentMethod === "card" && !payOnDelivery) {
+        console.log("[Checkout] ⚠️ No hay datos del cardholder disponibles");
+      }
+
       // Prepare order data
       const orderData = {
         customer: {
@@ -558,9 +700,7 @@ export default function CheckoutPage() {
         address: addressData,
         payment_method: paymentMethod || "card",
         pay_on_delivery: payOnDelivery,
-        ...(payOnDelivery && {
-          crm_sale_type_id: crmSaleTypeId,
-        }),
+        crm_sale_type_id: crmSaleTypeId, // Siempre enviar tipo de venta
         ...(crmZoneId && {
           crm_zone_id: crmZoneId,
         }),
@@ -569,14 +709,19 @@ export default function CheckoutPage() {
           use_wallet_balance: true,
           wallet_amount: walletBalance,
         }),
-        ...(paymentMethod === "card" && !payOnDelivery && {
-          card_data: {
-            number: cardData.number.replace(/\s/g, ""),
-            cvv: cardData.cvv,
-            expiry: cardData.expiry,
-            holder_name: cardData.holder_name,
-            holder_dni: cardData.holder_dni,
-          },
+        // Si es pago con tarjeta sin "abonar al recibir", incluir token de MercadoPago y datos del cardholder
+        ...(paymentMethod === "card" && !payOnDelivery && mpToken && {
+          mercadopago_token: mpToken,
+          mercadopago_installments: mpInstallments,
+          mercadopago_payment_method_id: mpPaymentMethodId,
+          ...(mpIssuerId && { mercadopago_issuer_id: mpIssuerId }),
+          // Incluir datos del cardholder del Brick
+          ...(mpCardholderData && {
+            mercadopago_cardholder_name: mpCardholderData.name,
+            mercadopago_cardholder_email: mpCardholderData.email,
+            mercadopago_cardholder_identification_type: mpCardholderData.identificationType,
+            mercadopago_cardholder_identification_number: mpCardholderData.identificationNumber,
+          }),
         }),
         items: cart.map((item) => ({
           product_id: item.id,
@@ -586,33 +731,68 @@ export default function CheckoutPage() {
         observations: "",
       };
 
+      // Si es pago con tarjeta sin "abonar al recibir", verificar que tengamos el token
+      if (paymentMethod === "card" && !payOnDelivery && !mpToken) {
+        setErrors({ submit: "Por favor, completa los datos de la tarjeta" });
+        setSubmitting(false);
+        return;
+      }
+
       // Send order to backend
       console.log("[Checkout] Enviando orden con datos:", JSON.stringify(orderData, null, 2));
-      const orderResponse = await createOrder(orderData);
-      console.log("[Checkout] Respuesta completa del backend:", JSON.stringify(orderResponse, null, 2));
+      let orderResponse;
+      try {
+        orderResponse = await createOrder(orderData);
+        console.log("[Checkout] Respuesta completa del backend:", JSON.stringify(orderResponse, null, 2));
+        
+        // Verificar si el pago está pendiente (in_process o pending_contingency)
+        if ((orderResponse as any)?.pending || (orderResponse as any)?.payment_status === 'in_process' || (orderResponse as any)?.status_detail === 'pending_contingency') {
+          console.log("[Checkout] ✅ Orden creada exitosamente. El pago está siendo procesado por MercadoPago.");
+          console.log("[Checkout] ⚠️ El webhook notificará cuando el pago sea aprobado o rechazado.");
+        }
+      } catch (orderError: any) {
+        // Si hay un error al crear la orden, lanzarlo para que se maneje en el catch principal
+        console.error("[Checkout] Error al crear orden:", orderError);
+        throw orderError;
+      }
 
-      // Redirect to success page with order ID FIRST (before clearing cart)
       // La respuesta del backend es { success: True, data: { id: ... }, message: ... }
       // Pero createOrder retorna data.data || data, así que orderResponse ya es el objeto data
-      const orderId = orderResponse?.id || (orderResponse as any)?.data?.id || null;
+      // IMPORTANTE: Usar solo 'id' que es el UUID de la orden, NO usar 'payment_id' que es el ID de MercadoPago
+      let orderId = orderResponse?.id || (orderResponse as any)?.data?.id || null;
+      
+      // Validar que orderId sea un UUID válido (no un número como payment_id)
+      if (orderId && !orderId.toString().match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        console.error("[Checkout] ⚠️ ADVERTENCIA: orderId no parece ser un UUID válido:", orderId);
+        console.error("[Checkout] ⚠️ Si es un número, podría ser payment_id de MercadoPago en lugar del UUID de la orden");
+        // Intentar obtener el id correcto del objeto completo
+        const fullResponse = (orderResponse as any)?.data || orderResponse;
+        if (fullResponse?.id && fullResponse.id.toString().match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+          console.log("[Checkout] ✅ Corrigiendo orderId usando fullResponse.id:", fullResponse.id);
+          orderId = fullResponse.id;
+        } else {
+          // Si aún no es válido, buscar en la respuesta completa
+          console.error("[Checkout] ⚠️ No se pudo encontrar un UUID válido en la respuesta");
+          console.error("[Checkout] Respuesta completa:", JSON.stringify(orderResponse, null, 2));
+        }
+      }
       
       console.log("[Checkout] Order response completo:", JSON.stringify(orderResponse, null, 2));
       console.log("[Checkout] Order ID extraído:", orderId);
-      console.log("[Checkout] orderResponse?.id:", orderResponse?.id);
-      console.log("[Checkout] orderResponse?.data?.id:", (orderResponse as any)?.data?.id);
+      console.log("[Checkout] Payment ID (solo referencia, NO usar para acceder a orden):", (orderResponse as any)?.payment_id);
+      
+      // Solo redirigir si la orden se creó exitosamente
+      if (!orderId) {
+        throw new Error("No se pudo obtener el ID de la orden. Por favor, intenta nuevamente.");
+      }
       
       // Marcar que se completó la orden exitosamente (antes de redirigir)
       setOrderCompleted(true);
       
-      // Siempre redirigir a la página de éxito, con o sin orderId
+      // Redirigir a la página de éxito
       // IMPORTANTE: Redirigir ANTES de limpiar el carrito para evitar que el useEffect redirija al inicio
-      if (orderId) {
-        console.log("[Checkout] Redirigiendo a página de éxito con order_id:", orderId);
-        router.push(`/checkout/success?order_id=${orderId}`);
-      } else {
-        console.log("[Checkout] No se encontró orderId, redirigiendo a página de éxito sin ID");
-        router.push("/checkout/success");
-      }
+      console.log("[Checkout] Redirigiendo a página de éxito con order_id:", orderId);
+      router.push(`/checkout/success?order_id=${orderId}`);
       
       // Clear cart AFTER redirecting (use setTimeout to ensure redirect happens first)
       setTimeout(() => {
@@ -630,7 +810,21 @@ export default function CheckoutPage() {
         errorMessage = "Para este tipo de venta debes usar CUIT o CUIL en lugar de DNI. Por favor, cambia el tipo de documento en el formulario.";
       }
       
+      // Detectar errores de pago rechazado (pero no tratar in_process como error)
+      if (errorMessage.includes("rejected") || (errorMessage.includes("El pago fue") && !errorMessage.includes("in_process") && !errorMessage.includes("pending_contingency"))) {
+        errorMessage = "El pago fue rechazado. Por favor, verifica los datos de tu tarjeta o intenta con otra tarjeta.";
+      }
+      
+      // Si el pago está en proceso (pending_contingency), no es un error
+      if (errorMessage.includes("in_process") || errorMessage.includes("pending_contingency")) {
+        // El backend debería retornar success: true con pending: true, pero por si acaso
+        console.log("[Checkout] ⚠️ Pago en proceso, no es un error. El webhook notificará cuando se apruebe o rechace.");
+      }
+      
       setErrors({ submit: errorMessage });
+      setMpProcessing(false);
+      // NO redirigir cuando hay un error - mantener al usuario en la página de checkout
+      // NO limpiar el carrito cuando hay un error
     } finally {
       setSubmitting(false);
     }
@@ -1332,6 +1526,36 @@ export default function CheckoutPage() {
                       />
                     </div>
                   </div>
+
+                  {/* Tipo de Venta - ahora aparece siempre */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tipo de Venta <span className="text-red-500">*</span>
+                    </label>
+                    {loadingSaleTypes ? (
+                      <div className="text-sm text-gray-500 py-2.5">Cargando tipos de venta...</div>
+                    ) : (
+                      <select
+                        value={crmSaleTypeId}
+                        onChange={(e) => setCrmSaleTypeId(Number(e.target.value))}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080] bg-white"
+                        required
+                      >
+                        {saleTypes.map((st) => (
+                          <option key={st.id} value={st.crm_sale_type_id}>
+                            {st.description || st.code || `Tipo ${st.crm_sale_type_id}`}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      {crmSaleTypeId === 4 
+                        ? "Para Responsable Inscripto, el documento debe tener formato CUIT (XX-XXXXXXXX-X)"
+                        : crmSaleTypeId === 1
+                        ? "Consumidor Final"
+                        : ""}
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -1689,38 +1913,6 @@ export default function CheckoutPage() {
                     )}
                   </label>
                   
-                  {/* Tipo de venta - solo se muestra cuando es "abonar al recibir" */}
-                  {(paymentMethod === "cash" || paymentMethod === "transfer") && (
-                    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Tipo de Venta *
-                      </label>
-                      {loadingSaleTypes ? (
-                        <div className="text-sm text-gray-500">Cargando tipos de venta...</div>
-                      ) : (
-                        <select
-                          value={crmSaleTypeId}
-                          onChange={(e) => setCrmSaleTypeId(Number(e.target.value))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
-                          required
-                        >
-                          {saleTypes.map((st) => (
-                            <option key={st.id} value={st.crm_sale_type_id}>
-                              {st.description || st.code || `Tipo ${st.crm_sale_type_id}`}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                      <p className="text-xs text-gray-500 mt-1">
-                        {crmSaleTypeId === 4 
-                          ? "Para Responsable Inscripto, el documento debe tener formato CUIT (XX-XXXXXXXX-X)"
-                          : crmSaleTypeId === 1
-                          ? "Consumidor Final"
-                          : ""}
-                      </p>
-                    </div>
-                  )}
-                  
                   <label
                     className={`flex items-center gap-3 md:gap-4 p-3 md:p-4 border rounded-lg cursor-pointer transition-colors ${
                       paymentMethod === "transfer"
@@ -1904,128 +2096,84 @@ export default function CheckoutPage() {
                         className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7]"
                       />
                       <div>
-                        <span className="font-medium text-gray-900">Pagar al recibir</span>
+                        <span className="font-medium text-gray-900">Abonar al recibir</span>
                         <p className="text-sm text-gray-500">
-                          Pagas con tarjeta cuando recibas tu pedido
+                          Pagas con tarjeta cuando recibas tu pedido (no se procesa el pago ahora)
                         </p>
                       </div>
                     </label>
                   </div>
                 )}
 
-                {/* Card payment fields */}
+                {/* MercadoPago Card Form */}
                 {paymentMethod === "card" && !payOnDelivery && (
-                  <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-gray-200 space-y-3 md:space-y-4">
-                    <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">
-                      Información de la tarjeta
-                    </h3>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Número de tarjeta <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={cardData.number}
-                        onChange={(e) => {
-                          let value = e.target.value.replace(/\D/g, "");
-                          if (value.length > 16) value = value.slice(0, 16);
-                          value = value.replace(/(.{4})/g, "$1 ").trim();
-                          handleCardInputChange("number", value);
-                        }}
-                        placeholder="1234 5678 9012 3456"
-                        maxLength={19}
-                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080] placeholder:text-[#DEDEDE] ${
-                          errors.card_number ? "border-red-500" : "border-gray-300"
-                        }`}
-                      />
-                      {errors.card_number && (
-                        <p className="text-red-500 text-xs mt-1">{errors.card_number}</p>
-                      )}
-                    </div>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Vencimiento <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={cardData.expiry}
-                          onChange={(e) => {
-                            let value = e.target.value.replace(/\D/g, "");
-                            if (value.length >= 2) {
-                              value = value.slice(0, 2) + "/" + value.slice(2, 4);
-                            }
-                            handleCardInputChange("expiry", value);
-                          }}
-                          placeholder="MM/AA"
-                          maxLength={5}
-                          className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080] placeholder:text-[#DEDEDE] ${
-                            errors.card_expiry ? "border-red-500" : "border-gray-300"
-                          }`}
-                        />
-                        {errors.card_expiry && (
-                          <p className="text-red-500 text-xs mt-1">{errors.card_expiry}</p>
-                        )}
+                  <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-gray-200">
+                    <MercadoPagoCardForm
+                      publicKey="TEST-851528f1-2389-49c8-8d2c-0d809b869bc0"
+                      amount={finalTotal}
+                      onPaymentSuccess={(token, installments, paymentMethodId, issuerId, cardholderData) => {
+                        console.log("[Checkout] ✅ Token obtenido, estableciendo estado...");
+                        console.log("[Checkout] ✅ Datos del cardholder recibidos:", JSON.stringify(cardholderData, null, 2));
+                        console.log("[Checkout] ✅ Cardholder data existe?", !!cardholderData);
+                        if (cardholderData) {
+                          console.log("[Checkout] ✅ Cardholder name:", cardholderData.name);
+                          console.log("[Checkout] ✅ Cardholder email:", cardholderData.email);
+                          console.log("[Checkout] ✅ Cardholder identificationType:", cardholderData.identificationType);
+                          console.log("[Checkout] ✅ Cardholder identificationNumber:", cardholderData.identificationNumber);
+                        } else {
+                          console.warn("[Checkout] ⚠️ No se recibieron datos del cardholder del Brick");
+                        }
+                        setMpToken(token);
+                        setMpInstallments(installments);
+                        setMpPaymentMethodId(paymentMethodId);
+                        setMpIssuerId(issuerId);
+                        setMpCardholderData(cardholderData || null);
+                        setMpProcessing(false);
+                        // Limpiar errores cuando se obtiene el token
+                        setErrors((prev) => {
+                          const newErrors = { ...prev };
+                          delete newErrors.submit;
+                          return newErrors;
+                        });
+                        
+                        // Resolver la promesa si hay alguien esperando el token
+                        if (tokenPromiseRef.current) {
+                          tokenPromiseRef.current.resolve(token);
+                          tokenPromiseRef.current = null;
+                        }
+                        console.log("[Checkout] ✅ Token establecido, el handleSubmit continuará automáticamente");
+                        
+                        // Si estamos en proceso de submit, el handleSubmit continuará automáticamente
+                        // No necesitamos hacer nada más aquí, el código del handleSubmit seguirá ejecutándose
+                      }}
+                      onPaymentError={(error) => {
+                        setErrors({ submit: error });
+                        setMpProcessing(false);
+                        setMpToken(null);
+                        setMpPaymentMethodId("");
+                        setMpIssuerId(undefined);
+                        
+                        // Rechazar la promesa si hay alguien esperando el token
+                        if (tokenPromiseRef.current) {
+                          tokenPromiseRef.current.reject(new Error(error));
+                          tokenPromiseRef.current = null;
+                        }
+                      }}
+                      onReady={() => {
+                        setMpReady(true);
+                      }}
+                      processPayment={mpProcessPaymentRef as any}
+                      payerEmail={formData.email}
+                      payerName={`${formData.first_name} ${formData.last_name}`}
+                      payerDni={formData.dni}
+                    />
+                    {mpToken && (
+                      <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-sm text-green-700">
+                          ✓ Tarjeta validada correctamente. Puedes proceder con el pago.
+                        </p>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          CVV <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={cardData.cvv}
-                          onChange={(e) => {
-                            const value = e.target.value.replace(/\D/g, "").slice(0, 4);
-                            handleCardInputChange("cvv", value);
-                          }}
-                          placeholder="123"
-                          maxLength={4}
-                          className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080] placeholder:text-[#DEDEDE] ${
-                            errors.card_cvv ? "border-red-500" : "border-gray-300"
-                          }`}
-                        />
-                        {errors.card_cvv && (
-                          <p className="text-red-500 text-xs mt-1">{errors.card_cvv}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Nombre del titular <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={cardData.holder_name}
-                        onChange={(e) => handleCardInputChange("holder_name", e.target.value)}
-                        placeholder="Como aparece en la tarjeta"
-                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080] placeholder:text-[#DEDEDE] ${
-                          errors.card_holder_name ? "border-red-500" : "border-gray-300"
-                        }`}
-                      />
-                      {errors.card_holder_name && (
-                        <p className="text-red-500 text-xs mt-1">{errors.card_holder_name}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        DNI del titular <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={cardData.holder_dni}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/\D/g, "");
-                          handleCardInputChange("holder_dni", value);
-                        }}
-                        placeholder="12345678"
-                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080] placeholder:text-[#DEDEDE] ${
-                          errors.card_holder_dni ? "border-red-500" : "border-gray-300"
-                        }`}
-                      />
-                      {errors.card_holder_dni && (
-                        <p className="text-red-500 text-xs mt-1">{errors.card_holder_dni}</p>
-                      )}
-                    </div>
+                    )}
                   </div>
                 )}
 
@@ -2221,13 +2369,13 @@ export default function CheckoutPage() {
                 )}
                 <button
                   type="submit"
-                  disabled={submitting || needsEmailVerification || !isAuthenticated}
+                  disabled={submitting || needsEmailVerification || !isAuthenticated || mpProcessing || (paymentMethod === "card" && !payOnDelivery && !mpReady)}
                   className="w-full mt-4 md:mt-6 bg-[#00C1A7] text-white py-2.5 md:py-3 px-4 md:px-6 rounded-lg font-semibold text-sm md:text-base hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {submitting ? (
+                  {submitting || mpProcessing ? (
                     <>
                       <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
-                      Procesando...
+                      {mpProcessing ? "Procesando tarjeta..." : "Procesando..."}
                     </>
                   ) : !isAuthenticated ? (
                     "Inicia sesión para continuar"

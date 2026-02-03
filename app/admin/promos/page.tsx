@@ -138,42 +138,6 @@ export default function Promos() {
     return "expirada";
   };
 
-  if (loading) {
-    return (
-      <div className="px-8 pt-6 pb-8 min-h-screen">
-        <PageHeader title="Promos" description="Gestiona las promociones y ofertas" />
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-normal" style={{ color: '#484848' }}>Promociones Activas</h2>
-          <div className="h-10 w-32 bg-gray-200 rounded-lg animate-pulse"></div>
-        </div>
-        <div className="space-y-4">
-          {[...Array(3)].map((_, index) => (
-            <div key={index} className="bg-white rounded-[14px] border border-gray-200 p-6 animate-pulse">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="h-5 bg-gray-200 rounded w-48 mb-2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-20"></div>
-                </div>
-                <div className="flex gap-3">
-                  <div className="w-5 h-5 bg-gray-200 rounded"></div>
-                  <div className="w-5 h-5 bg-gray-200 rounded"></div>
-                </div>
-              </div>
-              <div className="space-y-2 mb-4">
-                <div className="h-4 bg-gray-200 rounded w-32"></div>
-                <div className="h-4 bg-gray-200 rounded w-40"></div>
-                <div className="h-4 bg-gray-200 rounded w-36"></div>
-              </div>
-              <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-200">
-                <div className="w-5 h-5 bg-gray-200 rounded"></div>
-                <div className="h-4 bg-gray-200 rounded w-48"></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   if (error) {
     return (
@@ -205,7 +169,39 @@ export default function Promos() {
       </div>
 
       <div className="space-y-4">
-        {promotions.length === 0 ? (
+        {loading ? (
+          // Skeleton mientras carga
+          <>
+            {[...Array(3)].map((_, index) => (
+              <div key={index} className="bg-white rounded-[14px] border border-gray-200 p-6 animate-pulse">
+                {/* Header con botones */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="w-5 h-5 bg-gray-200 rounded"></div>
+                    <div className="w-5 h-5 bg-gray-200 rounded"></div>
+                  </div>
+                </div>
+                
+                {/* Detalles */}
+                <div className="space-y-2 mb-4">
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                </div>
+                
+                {/* Footer */}
+                <div className="flex items-center gap-2 pt-4 border-t border-gray-200">
+                  <div className="w-5 h-5 bg-gray-200 rounded"></div>
+                  <div className="h-4 bg-gray-200 rounded w-48"></div>
+                </div>
+              </div>
+            ))}
+          </>
+        ) : promotions.length === 0 ? (
           <div className="bg-white rounded-[14px] border border-gray-200 p-6 text-center">
             <p className="text-gray-600">No hay promociones disponibles</p>
           </div>
@@ -312,8 +308,9 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    type: "percentage" as "percentage" | "fixed" | "2x1" | "bundle" | "wallet_multiplier",
+    type: "percentage" as "percentage" | "fixed" | "promotional_message",
     value: 0,
+    custom_message: "",
     extra_config: {} as Record<string, any>,
     start_at: "",
     end_at: "",
@@ -351,6 +348,26 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
       const loadData = async () => {
         setLoadingData(true);
         try {
+          // Si es edición, resetear el formulario primero para evitar mostrar datos antiguos
+          if (promo) {
+            setFormData({
+              title: "",
+              description: "",
+              type: "percentage",
+              value: 0,
+              custom_message: "",
+              extra_config: {},
+              start_at: "",
+              end_at: "",
+              is_active: true,
+              allows_wallet: true,
+              applies_to: "all",
+              selected_category_id: "",
+              selected_product_id: "",
+            });
+            setProductSearchQuery("");
+          }
+          
           const [catsData, prodsData] = await Promise.all([
             fetchCategories(true),
             fetchProducts({ is_active: true, per_page: 1000 })
@@ -358,7 +375,7 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
           setCategories(catsData);
           setProducts(prodsData.products);
 
-          // Si es edición, prellenar formulario
+          // Si es edición, prellenar formulario después de cargar los datos
           if (promo) {
             const startDate = new Date(promo.start_at);
             const endDate = new Date(promo.end_at);
@@ -377,7 +394,8 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
               title: promo.title,
               description: promo.description || "",
               type: promo.type as any,
-              value: promo.value,
+              value: promo.value || 0,
+              custom_message: promo.extra_config?.custom_message || "",
               extra_config: promo.extra_config || {},
               start_at: new Date(startDate.getTime() - startDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16),
               end_at: new Date(endDate.getTime() - endDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16),
@@ -389,12 +407,13 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
             });
             setProductSearchQuery(productName);
           } else {
-            // Reset form
+            // Reset form para creación
             setFormData({
               title: "",
               description: "",
               type: "percentage",
               value: 0,
+              custom_message: "",
               extra_config: {},
               start_at: "",
               end_at: "",
@@ -423,8 +442,20 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
     setError("");
 
     // Validaciones
-    if (!formData.title || !formData.type || formData.value === null || !formData.start_at || !formData.end_at) {
+    if (!formData.title || !formData.type || !formData.start_at || !formData.end_at) {
       setError("Todos los campos requeridos deben estar completos");
+      return;
+    }
+    
+    // Validar valor según el tipo
+    if (formData.type !== "promotional_message" && formData.value === null) {
+      setError("El valor es requerido para este tipo de promoción");
+      return;
+    }
+    
+    // Validar mensaje para promotional_message
+    if (formData.type === "promotional_message" && !formData.custom_message.trim()) {
+      setError("El mensaje promocional es requerido");
       return;
     }
 
@@ -455,7 +486,7 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
         title: formData.title,
         description: formData.description || undefined,
         type: formData.type,
-        value: formData.value,
+        value: formData.type === "promotional_message" ? null : formData.value,
         start_at: formData.start_at,
         end_at: formData.end_at,
         is_active: formData.is_active,
@@ -463,8 +494,29 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
         applicability
       };
 
+      // Construir extra_config
+      const extraConfig: Record<string, any> = {};
+      
+      // Si hay extra_config existente (para bundle u otros), copiarlo
       if (formData.type === "bundle" && Object.keys(formData.extra_config).length > 0) {
-        promoData.extra_config = formData.extra_config;
+        Object.assign(extraConfig, formData.extra_config);
+        // Eliminar custom_message del extra_config de bundle si existe
+        delete extraConfig.custom_message;
+      }
+      
+      // Agregar custom_message solo si existe y no está vacío (para percentage, fixed o promotional_message)
+      if (formData.custom_message && formData.custom_message.trim()) {
+        extraConfig.custom_message = formData.custom_message.trim();
+      }
+      
+      // Si es una edición, siempre enviar extra_config para asegurar que se actualice correctamente
+      // Si está vacío, enviar {} para limpiar el custom_message existente
+      if (promo) {
+        // En edición, siempre enviar extra_config (vacío si no hay nada, para limpiar)
+        promoData.extra_config = extraConfig;
+      } else if (Object.keys(extraConfig).length > 0) {
+        // En creación, solo enviar si hay algo
+        promoData.extra_config = extraConfig;
       }
 
       if (promo) {
@@ -479,6 +531,7 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
         description: "",
         type: "percentage",
         value: 0,
+        custom_message: "",
         extra_config: {},
         start_at: "",
         end_at: "",
@@ -516,11 +569,64 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
           <div className="p-6 space-y-6 overflow-y-auto">
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
-                {error}
+            {loadingData ? (
+              // Skeleton mientras carga los datos
+              <div className="space-y-6 animate-pulse">
+                {/* Título */}
+                <div>
+                  <div className="h-4 bg-gray-200 rounded w-16 mb-2"></div>
+                  <div className="h-10 bg-gray-200 rounded"></div>
+                </div>
+                
+                {/* Descripción */}
+                <div>
+                  <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
+                  <div className="h-24 bg-gray-200 rounded"></div>
+                </div>
+                
+                {/* Tipo y Valor */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="h-4 bg-gray-200 rounded w-12 mb-2"></div>
+                    <div className="h-10 bg-gray-200 rounded"></div>
+                  </div>
+                  <div>
+                    <div className="h-4 bg-gray-200 rounded w-16 mb-2"></div>
+                    <div className="h-10 bg-gray-200 rounded"></div>
+                  </div>
+                </div>
+                
+                {/* Fechas */}
+                <div>
+                  <div className="h-4 bg-gray-200 rounded w-32 mb-3"></div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="h-10 bg-gray-200 rounded"></div>
+                    <div className="h-10 bg-gray-200 rounded"></div>
+                  </div>
+                </div>
+                
+                {/* Estado */}
+                <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+                  <div className="h-4 bg-gray-200 rounded w-20 mb-3"></div>
+                  <div className="flex gap-6">
+                    <div className="h-5 w-5 bg-gray-200 rounded"></div>
+                    <div className="h-5 w-5 bg-gray-200 rounded"></div>
+                  </div>
+                </div>
+                
+                {/* Aplicar a */}
+                <div>
+                  <div className="h-4 bg-gray-200 rounded w-24 mb-3"></div>
+                  <div className="h-10 bg-gray-200 rounded"></div>
+                </div>
               </div>
-            )}
+            ) : (
+              <>
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
+                    {error}
+                  </div>
+                )}
 
             <div>
               <label className={labelClass}>
@@ -554,33 +660,63 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
                 </label>
                 <select
                   value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value as any, value: e.target.value === "promotional_message" ? 0 : formData.value })}
                   className={inputClass}
                   required
                 >
                   <option value="percentage">Porcentaje (%)</option>
                   <option value="fixed">Monto Fijo</option>
-                  <option value="2x1">2x1</option>
-                  <option value="bundle">Combo/Bundle</option>
-                  <option value="wallet_multiplier">Multiplicador Pesos Bausing</option>
+                  <option value="promotional_message">Mensaje Promocional</option>
                 </select>
               </div>
 
+              {formData.type !== "promotional_message" ? (
+                <div>
+                  <label className={labelClass}>
+                    Valor <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.value}
+                    onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
+                    className={inputClass}
+                    required
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className={labelClass}>
+                    Mensaje <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.custom_message}
+                    onChange={(e) => setFormData({ ...formData, custom_message: e.target.value })}
+                    className={inputClass}
+                    placeholder="Ej: OFERTA, MONTO OFF, etc."
+                    required
+                  />
+                </div>
+              )}
+            </div>
+            
+            {/* Campo de mensaje opcional para percentage y fixed */}
+            {(formData.type === "percentage" || formData.type === "fixed") && (
               <div>
                 <label className={labelClass}>
-                  Valor <span className="text-red-500">*</span>
+                  Mensaje personalizado (opcional)
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.value}
-                  onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
+                  type="text"
+                  value={formData.custom_message}
+                  onChange={(e) => setFormData({ ...formData, custom_message: e.target.value })}
                   className={inputClass}
-                  required
+                  placeholder="Ej: OFERTA, DESCUENTO, etc. (aparecerá en lugar del texto por defecto)"
                 />
               </div>
-            </div>
+            )}
 
             <div>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Vigencia</p>
@@ -767,12 +903,9 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
                 )}
               </div>
             )}
-
-            {loadingData && (
-              <div className="text-sm text-gray-500 text-center py-4">
-                Cargando categorías y productos...
-              </div>
+              </>
             )}
+
           </div>
 
           <div className="sticky bottom-0 bg-white border-t border-gray-200 p-6 flex items-center justify-end gap-3 z-10 rounded-b-[14px]">

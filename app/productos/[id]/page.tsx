@@ -386,22 +386,28 @@ export default function ProductDetailPage() {
   };
 
   const handleAddToCart = () => {
-    if (product && product.has_crm_stock !== false) {
+    const currentPrice = getCurrentProductPrice();
+    if (product && product.has_crm_stock !== false && currentPrice.price > 0) {
       addToCart({
         id: product.id,
         name: product.name,
         image: product.images[0]?.url || "",
-        price: product.currentPrice,
+        price: currentPrice.formattedPrice,
       });
+    } else if (currentPrice.price === 0) {
+      alert("Este producto no tiene precio disponible");
     } else {
       alert("Este producto no está disponible en este momento");
     }
   };
 
   const handleBuyNow = () => {
-    if (product && product.has_crm_stock !== false) {
+    const currentPrice = getCurrentProductPrice();
+    if (product && product.has_crm_stock !== false && currentPrice.price > 0) {
       handleAddToCart();
       router.push("/checkout");
+    } else if (currentPrice.price === 0) {
+      alert("Este producto no tiene precio disponible");
     } else {
       alert("Este producto no está disponible en este momento");
     }
@@ -556,6 +562,7 @@ export default function ProductDetailPage() {
 
     // Buscar precio de la variante/opción seleccionada
     let selectedPrice = 0;
+    let hasSelectedVariant = false;
 
     // Si hay variantes seleccionadas
     if (product.variants && product.variants.length > 0) {
@@ -574,6 +581,8 @@ export default function ProductDetailPage() {
         });
         
         if (selectedOptionId) {
+          // Hay una opción seleccionada para esta variante
+          hasSelectedVariant = true;
           // Buscar precio de la opción seleccionada
           console.log('[getCurrentProductPrice] Llamando getVariantPriceByLocality con optionId:', selectedOptionId);
           const price = getVariantPriceByLocality(variant, selectedOptionId, locality.id);
@@ -584,6 +593,7 @@ export default function ProductDetailPage() {
           }
         } else if (selectedVariant === variant.id) {
           // Si no hay opciones pero la variante está seleccionada
+          hasSelectedVariant = true;
           console.log('[getCurrentProductPrice] Llamando getVariantPriceByLocality sin optionId para variant:', variant.id);
           const price = getVariantPriceByLocality(variant, undefined, locality.id);
           console.log('[getCurrentProductPrice] Precio obtenido de getVariantPriceByLocality:', price);
@@ -597,8 +607,14 @@ export default function ProductDetailPage() {
       console.log('[getCurrentProductPrice] No hay variantes o el producto no tiene variantes');
     }
 
-    // Si no se encontró precio específico, usar el precio del producto (ya filtrado por localidad en el backend)
-    if (selectedPrice === 0) {
+    // Si se seleccionó una variante pero no tiene precio, retornar 0 (sin precio)
+    if (hasSelectedVariant && selectedPrice === 0) {
+      console.log('[getCurrentProductPrice] Variante seleccionada no tiene precio, retornando 0');
+      return { price: 0, formattedPrice: 'Sin precio' };
+    }
+
+    // Si no se encontró precio específico y no hay variante seleccionada, usar el precio del producto (ya filtrado por localidad en el backend)
+    if (selectedPrice === 0 && !hasSelectedVariant) {
       const numericPrice = parseFloat(product.currentPrice.replace(/[$.]/g, '').replace(/\./g, '')) || 0;
       console.log('[getCurrentProductPrice] No se encontró precio específico, usando precio del producto:', numericPrice);
       return { price: numericPrice, formattedPrice: product.currentPrice };
@@ -620,8 +636,9 @@ export default function ProductDetailPage() {
   };
 
   const currentPriceInfo = getCurrentProductPrice();
-  const priceIn12Installments = calculatePriceInInstallments(currentPriceInfo.formattedPrice);
-  const priceWithoutTaxes = currentPriceInfo.price * 1.21;
+  const hasPrice = currentPriceInfo.price > 0;
+  const priceIn12Installments = hasPrice ? calculatePriceInInstallments(currentPriceInfo.formattedPrice) : '';
+  const priceWithoutTaxes = hasPrice ? currentPriceInfo.price * 1.21 : 0;
 
   // Función helper para verificar si una variante es del tipo "Atributo" con opción "Default"
   const isDefaultAttributeVariant = (variant: any): boolean => {
@@ -765,28 +782,34 @@ export default function ProductDetailPage() {
 
               {/* Pricing */}
               <div className="mb-4 md:mb-6">
-                {product.originalPrice && (
+                {hasPrice ? (
                   <>
-                    <div className="flex items-center gap-2 md:gap-3 mb-1 md:mb-2">
-                      <span className="text-base md:text-lg text-gray-400 line-through">{product.originalPrice}</span>
-                      {product.discount && (
-                        <span className="bg-[#00C1A7] text-white px-2 py-0.5 md:py-1 rounded-[4px] font-semibold text-xs md:text-sm">
-                          {product.discount}
-                        </span>
-                      )}
+                    {product.originalPrice && (
+                      <>
+                        <div className="flex items-center gap-2 md:gap-3 mb-1 md:mb-2">
+                          <span className="text-base md:text-lg text-gray-400 line-through">{product.originalPrice}</span>
+                          {product.discount && (
+                            <span className="bg-[#00C1A7] text-white px-2 py-0.5 md:py-1 rounded-[4px] font-semibold text-xs md:text-sm">
+                              {product.discount}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xl md:text-2xl font-semibold text-gray-900 mb-1 md:mb-2">{currentPriceInfo.formattedPrice}</div>
+                      </>
+                    )}
+                    {!product.originalPrice && (
+                      <div className="text-xl md:text-2xl font-semibold text-gray-900 mb-1 md:mb-2">{currentPriceInfo.formattedPrice}</div>
+                    )}
+                    <div className="text-xs md:text-sm text-gray-600 mb-1">
+                      En 12 cuotas de {priceIn12Installments}
                     </div>
-                    <div className="text-xl md:text-2xl font-semibold text-gray-900 mb-1 md:mb-2">{currentPriceInfo.formattedPrice}</div>
+                    <div className="text-xs text-gray-500">
+                      Precio sin impuestos nacionales ${priceWithoutTaxes.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                    </div>
                   </>
+                ) : (
+                  <div className="text-xl md:text-2xl font-semibold text-gray-500 mb-1 md:mb-2">Sin precio</div>
                 )}
-                {!product.originalPrice && (
-                  <div className="text-xl md:text-2xl font-semibold text-gray-900 mb-1 md:mb-2">{currentPriceInfo.formattedPrice}</div>
-                )}
-                <div className="text-xs md:text-sm text-gray-600 mb-1">
-                  En 12 cuotas de {priceIn12Installments}
-                </div>
-                <div className="text-xs text-gray-500">
-                  Precio sin impuestos nacionales ${priceWithoutTaxes.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
-                </div>
               </div>
 
               {/* Variant Selection */}
@@ -896,6 +919,10 @@ export default function ProductDetailPage() {
               {product?.has_crm_stock === false ? (
                 <div className="w-full bg-gray-300 text-gray-600 py-2.5 md:py-3 px-4 md:px-6 rounded-[4px] text-center font-medium text-sm md:text-base">
                   Sin Stock
+                </div>
+              ) : !hasPrice ? (
+                <div className="w-full bg-gray-300 text-gray-600 py-2.5 md:py-3 px-4 md:px-6 rounded-[4px] text-center font-medium text-sm md:text-base">
+                  Sin precio
                 </div>
               ) : (
                 <>
@@ -1126,10 +1153,11 @@ export default function ProductDetailPage() {
                   let originalPrice: string | undefined = undefined;
                   
                   if (combo.product) {
-                    const minPrice = combo.product.min_price || 0;
-                    const maxPrice = combo.product.max_price || minPrice;
-                    currentPrice = formatPrice(minPrice);
-                    originalPrice = maxPrice > minPrice ? formatPrice(maxPrice) : undefined;
+                    // Usar la función centralizada para calcular precios (incluye promociones)
+                    const priceInfo = calculateProductPrice(combo.product, 1);
+                    currentPrice = priceInfo.currentPrice;
+                    // Solo mostrar precio tachado si hay un descuento real de promoción
+                    originalPrice = priceInfo.hasDiscount ? priceInfo.originalPrice : undefined;
                   } else if (combo.price_sale) {
                     currentPrice = formatPrice(combo.price_sale);
                   }

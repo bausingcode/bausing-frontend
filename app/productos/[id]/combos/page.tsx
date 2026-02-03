@@ -9,6 +9,7 @@ import ProductCard from "@/components/ProductCard";
 import { fetchProductCombos, ProductCombo, fetchProductById } from "@/lib/api";
 import { Package2, ArrowLeft } from "lucide-react";
 import wsrvLoader from "@/lib/wsrvLoader";
+import { calculateProductPrice, formatPrice } from "@/utils/priceUtils";
 
 export default function ProductCombosPage() {
   const params = useParams();
@@ -129,10 +130,11 @@ export default function ProductCombosPage() {
               let originalPrice: string | undefined = undefined;
               
               if (combo.product) {
-                const minPrice = combo.product.min_price || 0;
-                const maxPrice = combo.product.max_price || minPrice;
-                currentPrice = formatPrice(minPrice);
-                originalPrice = maxPrice > minPrice ? formatPrice(maxPrice) : undefined;
+                // Usar la función centralizada para calcular precios (incluye promociones)
+                const priceInfo = calculateProductPrice(combo.product, 1);
+                currentPrice = priceInfo.currentPrice;
+                // Solo mostrar precio tachado si hay un descuento real de promoción
+                originalPrice = priceInfo.hasDiscount ? priceInfo.originalPrice : undefined;
               } else if (combo.price_sale) {
                 currentPrice = formatPrice(combo.price_sale);
               }
@@ -146,10 +148,11 @@ export default function ProductCombosPage() {
               
               // Si el combo tiene un producto completado, usar ProductCard
               if (combo.product_id && combo.product) {
-                const minPrice = combo.product.min_price || 0;
-                const maxPrice = combo.product.max_price || minPrice;
-                const currentPrice = formatPrice(minPrice);
-                const originalPrice = maxPrice > minPrice ? formatPrice(maxPrice) : undefined;
+                // Usar la función centralizada para calcular precios (incluye promociones)
+                const priceInfo = calculateProductPrice(combo.product, 1);
+                const currentPrice = priceInfo.currentPrice;
+                // Solo mostrar precio tachado si hay un descuento real de promoción
+                const originalPrice = priceInfo.hasDiscount ? priceInfo.originalPrice : undefined;
                 
                 let discount: string | undefined;
                 if (combo.product.promos && combo.product.promos.length > 0) {

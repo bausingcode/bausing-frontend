@@ -2895,7 +2895,12 @@ export async function createOrder(orderData: {
       throw new Error(data.error || data.message || `Error al crear orden: ${response.status}`);
     }
     
+    // Retornar tanto data.data como los campos adicionales como mercadopago
     const result = data.data || data;
+    // Si hay campos adicionales en data (como mercadopago), agregarlos al resultado
+    if (data.mercadopago) {
+      result.mercadopago = data.mercadopago;
+    }
     console.log("[API] Returning result:", JSON.stringify(result, null, 2));
     return result;
   } catch (error: any) {
@@ -3682,9 +3687,9 @@ export interface Promo {
   id: string;
   title: string;
   description?: string;
-  type: string; // 'percentage', 'fixed', '2x1', 'bundle', 'wallet_multiplier'
+  type: string; // 'percentage', 'fixed', '2x1', 'bundle', 'wallet_multiplier', 'promotional_message'
   value: number;
-  extra_config?: Record<string, any>;
+  extra_config?: Record<string, any>; // Puede contener 'custom_message' para mensajes personalizados
   start_at: string;
   end_at: string;
   is_active: boolean;

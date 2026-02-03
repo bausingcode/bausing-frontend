@@ -57,14 +57,23 @@ export function calculatePriceWithPromo(
       discountPercentage = promo.value;
       discountAmount = (originalPrice * promo.value) / 100;
       discountedPrice = originalPrice - discountAmount;
-      promoLabel = `${promo.value}% OFF`;
+      // Usar mensaje personalizado si existe, sino usar el por defecto
+      promoLabel = promo.extra_config?.custom_message || `${promo.value}% OFF`;
       break;
 
     case "fixed":
       // Descuento fijo (ej: $5000 OFF)
       discountAmount = promo.value * quantity;
       discountedPrice = Math.max(0, originalPrice - discountAmount);
-      promoLabel = `$${promo.value.toLocaleString("es-AR")} OFF`;
+      // Usar mensaje personalizado si existe, sino usar el por defecto
+      promoLabel = promo.extra_config?.custom_message || `$${promo.value.toLocaleString("es-AR")} OFF`;
+      break;
+
+    case "promotional_message":
+      // Mensaje promocional sin descuento real
+      discountAmount = 0;
+      discountedPrice = originalPrice;
+      promoLabel = promo.extra_config?.custom_message || "OFERTA";
       break;
 
     case "2x1":
@@ -125,9 +134,11 @@ export function getPromoLabel(promos?: Promo[]): string | undefined {
 
   switch (promo.type) {
     case "percentage":
-      return `${promo.value}% OFF`;
+      return promo.extra_config?.custom_message || `${promo.value}% OFF`;
     case "fixed":
-      return `$${promo.value.toLocaleString("es-AR")} OFF`;
+      return promo.extra_config?.custom_message || `$${promo.value.toLocaleString("es-AR")} OFF`;
+    case "promotional_message":
+      return promo.extra_config?.custom_message || "OFERTA";
     case "2x1":
       return "2x1";
     case "bundle":
