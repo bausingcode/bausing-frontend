@@ -129,7 +129,7 @@ export default function CheckoutPage() {
   const [walletLoading, setWalletLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [mpToken, setMpToken] = useState<string | null>(null);
-  const [mpInstallments, setMpInstallments] = useState<number>(1);
+  const [mpInstallments, setMpInstallments] = useState<number>(0); // Inicializar en 0 para detectar si se seleccionaron cuotas
   const [mpPaymentMethodId, setMpPaymentMethodId] = useState<string>("");
   const [mpIssuerId, setMpIssuerId] = useState<number | undefined>(undefined);
   const [mpCardholderData, setMpCardholderData] = useState<{
@@ -140,8 +140,29 @@ export default function CheckoutPage() {
   } | null>(null);
   const [mpProcessing, setMpProcessing] = useState(false);
   const [mpReady, setMpReady] = useState(false);
+  const [mpHasErrors, setMpHasErrors] = useState(false); // Para detectar si el brick tiene errores
   const mpProcessPaymentRef = useRef<(() => Promise<void>) | null>(null);
   const tokenPromiseRef = useRef<{ resolve: (token: string) => void; reject: (error: Error) => void } | null>(null);
+
+  // Resetear estado de MercadoPago cuando cambia el método de pago o se desactiva "abonar al recibir"
+  useEffect(() => {
+    // Si no es pago con tarjeta o es "abonar al recibir", resetear el estado de MercadoPago
+    if (paymentMethod !== "card" || payOnDelivery) {
+      setMpToken(null);
+      setMpInstallments(0);
+      setMpPaymentMethodId("");
+      setMpIssuerId(undefined);
+      setMpCardholderData(null);
+      setMpProcessing(false);
+      setMpHasErrors(false);
+      // Limpiar errores relacionados con MercadoPago
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.submit;
+        return newErrors;
+      });
+    }
+  }, [paymentMethod, payOnDelivery]);
 
   // Check cart and initialize
   useEffect(() => {
@@ -513,12 +534,31 @@ export default function CheckoutPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Limpiar errores previos
+    setErrors({});
+    
+    // Validar formulario antes de continuar
     if (!validateForm()) {
+      // validateForm ya establece los errores, solo retornar
       return;
     }
 
-    // Si es pago con tarjeta sin "abonar al recibir", procesar el token de MercadoPago primero
+    // Si es pago con tarjeta sin "abonar al recibir", verificar que el brick esté completamente lleno
     if (paymentMethod === "card" && !payOnDelivery) {
+      // Verificar que el brick esté listo antes de continuar
+      if (!mpReady) {
+        setErrors({ submit: "Por favor, espera a que se cargue el formulario de pago" });
+        return;
+      }
+      
+      // Verificar que tengamos la función para procesar el pago
+      if (!mpProcessPaymentRef.current) {
+        setErrors({ submit: "El formulario de pago no está disponible. Por favor, recarga la página." });
+        return;
+      }
+      
+      // Si no tenemos el token, intentar procesar el pago del brick para obtenerlo
+      // El brick validará que todos los datos estén completos antes de generar el token
       if (!mpToken && mpProcessPaymentRef.current) {
         try {
           setMpProcessing(true);
@@ -527,13 +567,13 @@ export default function CheckoutPage() {
           // Crear una promesa para esperar el token
           const tokenPromise = new Promise<string>((resolve, reject) => {
             tokenPromiseRef.current = { resolve, reject };
-            // Timeout de 10 segundos
+            // Timeout reducido a 5 segundos para detectar errores más rápido
             setTimeout(() => {
               if (tokenPromiseRef.current) {
-                tokenPromiseRef.current.reject(new Error("Tiempo de espera agotado al validar la tarjeta"));
+                tokenPromiseRef.current.reject(new Error("Tiempo de espera agotado. Por favor, verifica que todos los datos de la tarjeta estén completos (número, fecha, CVV, titular y cuotas)"));
                 tokenPromiseRef.current = null;
               }
-            }, 10000);
+            }, 5000);
           });
           
           // Disparar el submit del Brick para obtener el token
@@ -550,30 +590,52 @@ export default function CheckoutPage() {
           // No retornar aquí, dejar que el código continúe
         } catch (error: any) {
           tokenPromiseRef.current = null;
-          setErrors({ submit: error.message || "Error al procesar la tarjeta" });
+          const errorMessage = error?.message || "Error al procesar la tarjeta";
+          console.error("[Checkout] ❌ Error al procesar pago:", errorMessage);
+          setErrors({ submit: errorMessage });
+          setMpHasErrors(true);
           setMpProcessing(false);
           setSubmitting(false);
           return;
         }
       }
       
-      // Solo mostrar error si no hay token Y no se está procesando
-      if (!mpToken && !mpProcessing) {
-        setErrors({ submit: "Por favor, completa los datos de la tarjeta" });
+      // Verificación final: asegurarse de que tengamos el token después de procesar
+      // Si el brick rechazó el pago, no habrá token y se mostrará el error
+      if (!mpToken) {
+        if (mpProcessing) {
+          // Si se está procesando, esperar un momento más (máximo 1 segundo adicional)
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          if (!mpToken) {
+            const errorMsg = "No se pudo validar la tarjeta. Por favor, verifica que todos los datos estén completos:\n• Número de tarjeta\n• Fecha de vencimiento\n• CVV\n• Nombre del titular\n• Cuotas seleccionadas";
+            setErrors({ submit: errorMsg });
+            setMpHasErrors(true);
+            setMpProcessing(false);
+            setSubmitting(false);
+            return;
+          }
+        } else {
+          // Si no se está procesando y no hay token, significa que el brick rechazó el pago
+          // El error ya debería estar en el estado, pero por si acaso mostramos uno genérico
+          const errorMsg = "Por favor, completa correctamente todos los datos de la tarjeta:\n• Número de tarjeta\n• Fecha de vencimiento\n• CVV\n• Nombre del titular\n• Cuotas seleccionadas";
+          setErrors({ submit: errorMsg });
+          setMpHasErrors(true);
+          setSubmitting(false);
+          return;
+        }
+      }
+      
+      // Verificar que tengamos todos los datos necesarios (el token solo se genera si todo está completo)
+      if (!mpInstallments || mpInstallments <= 0) {
+        setErrors({ submit: "Por favor, selecciona una opción de cuotas para continuar" });
         setSubmitting(false);
         return;
       }
       
-      // Si se está procesando el token, esperar un momento más antes de verificar
-      if (!mpToken && mpProcessing) {
-        // Esperar un poco más para que el token se establezca
-        await new Promise(resolve => setTimeout(resolve, 500));
-        if (!mpToken) {
-          setErrors({ submit: "No se pudo validar la tarjeta. Por favor, intenta nuevamente." });
-          setMpProcessing(false);
-          setSubmitting(false);
-          return;
-        }
+      if (!mpPaymentMethodId || mpPaymentMethodId.trim() === "") {
+        setErrors({ submit: "Por favor, completa correctamente todos los datos de la tarjeta" });
+        setSubmitting(false);
+        return;
       }
     }
 
@@ -731,11 +793,23 @@ export default function CheckoutPage() {
         observations: "",
       };
 
-      // Si es pago con tarjeta sin "abonar al recibir", verificar que tengamos el token
-      if (paymentMethod === "card" && !payOnDelivery && !mpToken) {
-        setErrors({ submit: "Por favor, completa los datos de la tarjeta" });
-        setSubmitting(false);
-        return;
+      // Verificación final: Si es pago con tarjeta sin "abonar al recibir", verificar que tengamos todos los datos necesarios
+      if (paymentMethod === "card" && !payOnDelivery) {
+        if (!mpToken) {
+          setErrors({ submit: "Por favor, completa correctamente todos los datos de la tarjeta antes de continuar" });
+          setSubmitting(false);
+          return;
+        }
+        if (!mpInstallments || mpInstallments <= 0) {
+          setErrors({ submit: "Por favor, selecciona una opción de cuotas para continuar" });
+          setSubmitting(false);
+          return;
+        }
+        if (!mpPaymentMethodId) {
+          setErrors({ submit: "Por favor, completa correctamente todos los datos de la tarjeta" });
+          setSubmitting(false);
+          return;
+        }
       }
 
       // Send order to backend
@@ -2129,6 +2203,7 @@ export default function CheckoutPage() {
                         setMpIssuerId(issuerId);
                         setMpCardholderData(cardholderData || null);
                         setMpProcessing(false);
+                        setMpHasErrors(false); // Limpiar errores cuando se obtiene el token exitosamente
                         // Limpiar errores cuando se obtiene el token
                         setErrors((prev) => {
                           const newErrors = { ...prev };
@@ -2147,11 +2222,15 @@ export default function CheckoutPage() {
                         // No necesitamos hacer nada más aquí, el código del handleSubmit seguirá ejecutándose
                       }}
                       onPaymentError={(error) => {
+                        console.error("[Checkout] ❌ Error en el pago de MercadoPago:", error);
                         setErrors({ submit: error });
                         setMpProcessing(false);
+                        setMpHasErrors(true); // Marcar que hay errores en el brick
                         setMpToken(null);
+                        setMpInstallments(0);
                         setMpPaymentMethodId("");
                         setMpIssuerId(undefined);
+                        setMpCardholderData(null);
                         
                         // Rechazar la promesa si hay alguien esperando el token
                         if (tokenPromiseRef.current) {
@@ -2161,6 +2240,7 @@ export default function CheckoutPage() {
                       }}
                       onReady={() => {
                         setMpReady(true);
+                        setMpHasErrors(false); // Limpiar errores cuando el brick está listo
                       }}
                       processPayment={mpProcessPaymentRef as any}
                       payerEmail={formData.email}
@@ -2328,34 +2408,61 @@ export default function CheckoutPage() {
                 </div>
                 
                 {/* Mostrar todos los errores de validación visibles */}
-                {(Object.keys(errors).length > 0 || errors.submit) && (
-                  <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <h3 className="text-sm font-semibold text-red-800 mb-2">Por favor, corrige los siguientes errores:</h3>
-                    <ul className="space-y-1 text-sm text-red-700">
-                      {errors.first_name && <li>• {errors.first_name}</li>}
-                      {errors.last_name && <li>• {errors.last_name}</li>}
-                      {errors.document_type && <li>• {errors.document_type}</li>}
-                      {errors.dni && <li>• {errors.dni}</li>}
-                      {errors.phone && <li>• {errors.phone}</li>}
-                      {errors.email && <li>• {errors.email}</li>}
-                      {errors.address && <li>• {errors.address}</li>}
-                      {errors.address_full_name && <li>• {errors.address_full_name}</li>}
-                      {errors.address_phone && <li>• {errors.address_phone}</li>}
-                      {errors.address_street && <li>• {errors.address_street}</li>}
-                      {errors.address_number && <li>• {errors.address_number}</li>}
-                      {errors.address_postal_code && <li>• {errors.address_postal_code}</li>}
-                      {errors.address_city && <li>• {errors.address_city}</li>}
-                      {errors.address_province && <li>• {errors.address_province}</li>}
-                      {errors.payment_method && <li>• {errors.payment_method}</li>}
-                      {errors.card_number && <li>• {errors.card_number}</li>}
-                      {errors.card_cvv && <li>• {errors.card_cvv}</li>}
-                      {errors.card_expiry && <li>• {errors.card_expiry}</li>}
-                      {errors.card_holder_name && <li>• {errors.card_holder_name}</li>}
-                      {errors.card_holder_dni && <li>• {errors.card_holder_dni}</li>}
-                      {errors.submit && <li>• {errors.submit}</li>}
-                    </ul>
-                  </div>
-                )}
+                {(() => {
+                  // Solo mostrar errores que realmente tienen un mensaje
+                  const visibleErrors = [
+                    errors.first_name,
+                    errors.last_name,
+                    errors.document_type,
+                    errors.dni,
+                    errors.phone,
+                    errors.email,
+                    errors.address,
+                    errors.address_full_name,
+                    errors.address_phone,
+                    errors.address_street,
+                    errors.address_number,
+                    errors.address_postal_code,
+                    errors.address_city,
+                    errors.address_province,
+                    errors.payment_method,
+                    errors.card_number,
+                    errors.card_cvv,
+                    errors.card_expiry,
+                    errors.card_holder_name,
+                    errors.card_holder_dni,
+                    errors.submit,
+                  ].filter(Boolean);
+                  
+                  return visibleErrors.length > 0 ? (
+                    <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <h3 className="text-sm font-semibold text-red-800 mb-2">Por favor, corrige los siguientes errores:</h3>
+                      <ul className="space-y-1 text-sm text-red-700">
+                        {errors.first_name && <li>• {errors.first_name}</li>}
+                        {errors.last_name && <li>• {errors.last_name}</li>}
+                        {errors.document_type && <li>• {errors.document_type}</li>}
+                        {errors.dni && <li>• {errors.dni}</li>}
+                        {errors.phone && <li>• {errors.phone}</li>}
+                        {errors.email && <li>• {errors.email}</li>}
+                        {errors.address && <li>• {errors.address}</li>}
+                        {errors.address_full_name && <li>• {errors.address_full_name}</li>}
+                        {errors.address_phone && <li>• {errors.address_phone}</li>}
+                        {errors.address_street && <li>• {errors.address_street}</li>}
+                        {errors.address_number && <li>• {errors.address_number}</li>}
+                        {errors.address_postal_code && <li>• {errors.address_postal_code}</li>}
+                        {errors.address_city && <li>• {errors.address_city}</li>}
+                        {errors.address_province && <li>• {errors.address_province}</li>}
+                        {errors.payment_method && <li>• {errors.payment_method}</li>}
+                        {errors.card_number && <li>• {errors.card_number}</li>}
+                        {errors.card_cvv && <li>• {errors.card_cvv}</li>}
+                        {errors.card_expiry && <li>• {errors.card_expiry}</li>}
+                        {errors.card_holder_name && <li>• {errors.card_holder_name}</li>}
+                        {errors.card_holder_dni && <li>• {errors.card_holder_dni}</li>}
+                        {errors.submit && <li>• {errors.submit}</li>}
+                      </ul>
+                    </div>
+                  ) : null;
+                })()}
                 
                 {!isAuthenticated && (
                   <p className="text-blue-600 text-xs md:text-sm mt-3 md:mt-4 text-center">
@@ -2369,7 +2476,13 @@ export default function CheckoutPage() {
                 )}
                 <button
                   type="submit"
-                  disabled={submitting || needsEmailVerification || !isAuthenticated || mpProcessing || (paymentMethod === "card" && !payOnDelivery && !mpReady)}
+                  disabled={
+                    submitting || 
+                    needsEmailVerification || 
+                    !isAuthenticated || 
+                    mpProcessing || 
+                    (paymentMethod === "card" && !payOnDelivery && (!mpReady || mpHasErrors))
+                  }
                   className="w-full mt-4 md:mt-6 bg-[#00C1A7] text-white py-2.5 md:py-3 px-4 md:px-6 rounded-lg font-semibold text-sm md:text-base hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {submitting || mpProcessing ? (
