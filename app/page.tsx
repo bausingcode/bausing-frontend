@@ -205,7 +205,7 @@ export default async function Home() {
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
             {/* Free Shipping */}
             <div className="flex flex-col items-center text-center p-2 md:p-4">
-              <div className="w-14 h-14 md:w-16 lg:w-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3">
+              <div className="w-14 h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 aspect-square">
                 <Truck className="w-7 h-7 md:w-8 lg:w-9 text-[#00C1A7]" strokeWidth={1.5} />
               </div>
               <p className="text-[#101828] mb-1 text-sm md:text-base font-medium">Envío gratis</p>
@@ -214,7 +214,7 @@ export default async function Home() {
 
             {/* Payment Options */}
             <div className="flex flex-col items-center text-center p-2 md:p-4">
-              <div className="w-14 h-14 md:w-16 lg:w-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3">
+              <div className="w-14 h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 aspect-square">
                 <CreditCard className="w-7 h-7 md:w-8 lg:w-9 text-[#00C1A7]" strokeWidth={1.5} />
               </div>
               <p className="text-[#101828] mb-1 text-sm md:text-base font-medium">La mejor financiación</p>
@@ -223,7 +223,7 @@ export default async function Home() {
 
             {/* Warranty */}
             <div className="flex flex-col items-center text-center p-2 md:p-4">
-              <div className="w-14 h-14 md:w-16 lg:w-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3">
+              <div className="w-14 h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 aspect-square">
                 <Award className="w-7 h-7 md:w-8 lg:w-9 text-[#00C1A7]" strokeWidth={1.5} />
               </div>
               <p className="text-[#101828] mb-1 text-sm md:text-base font-medium">5 años de garantía</p>
@@ -232,7 +232,7 @@ export default async function Home() {
 
             {/* Quality Assurance */}
             <div className="flex flex-col items-center text-center p-2 md:p-4">
-              <div className="w-14 h-14 md:w-16 lg:w-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3">
+              <div className="w-14 h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 aspect-square">
                 <Factory className="w-7 h-7 md:w-8 lg:w-9 text-[#00C1A7]" strokeWidth={1.5} />
               </div>
               <p className="text-[#101828] mb-1 text-sm md:text-base font-medium">Distribuidor oficial</p>
@@ -289,7 +289,7 @@ export default async function Home() {
               href="/blog" 
               className="bg-white border border-gray-200 rounded-lg md:rounded-xl p-4 md:p-6 lg:p-8 flex flex-col items-center text-center cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all duration-300 group"
             >
-              <div className="w-12 h-12 md:w-16 lg:w-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300">
+              <div className="w-12 h-12 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300 aspect-square">
                 <BookOpen className="w-6 h-6 md:w-8 lg:w-9 text-[#00C1A7] group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
               </div>
               <p className="text-[#101828] mb-1 font-semibold text-sm md:text-base">Blog</p>
@@ -301,7 +301,7 @@ export default async function Home() {
               href="/asesoramiento" 
               className="bg-white border border-gray-200 rounded-lg md:rounded-xl p-4 md:p-6 lg:p-8 flex flex-col items-center text-center cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all duration-300 group"
             >
-              <div className="w-12 h-12 md:w-16 lg:w-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300">
+              <div className="w-12 h-12 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300 aspect-square">
                 <MessageCircle className="w-6 h-6 md:w-8 lg:w-9 text-[#00C1A7] group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
               </div>
               <p className="text-[#101828] mb-1 font-semibold text-sm md:text-base">Asesoramiento</p>
@@ -313,7 +313,7 @@ export default async function Home() {
               href="/preguntas-frecuentes" 
               className="bg-white border border-gray-200 rounded-lg md:rounded-xl p-4 md:p-6 lg:p-8 flex flex-col items-center text-center cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all duration-300 group"
             >
-              <div className="w-12 h-12 md:w-16 lg:w-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300">
+              <div className="w-12 h-12 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300 aspect-square">
                 <HelpCircle className="w-6 h-6 md:w-8 lg:w-9 text-[#00C1A7] group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
               </div>
               <p className="text-[#101828] mb-1 font-semibold text-sm md:text-base">Preguntas</p>
@@ -325,7 +325,7 @@ export default async function Home() {
               href="/nuestro-local" 
               className="bg-white border border-gray-200 rounded-lg md:rounded-xl p-4 md:p-6 lg:p-8 flex flex-col items-center text-center cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all duration-300 group"
             >
-              <div className="w-12 h-12 md:w-16 lg:w-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300">
+              <div className="w-12 h-12 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300 aspect-square">
                 <MapPin className="w-6 h-6 md:w-8 lg:w-9 text-[#00C1A7] group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
               </div>
               <p className="text-[#101828] mb-1 font-semibold text-sm md:text-base">Local</p>

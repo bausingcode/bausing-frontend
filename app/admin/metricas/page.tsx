@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import PageHeader from "@/components/PageHeader";
 import MetricCard from "@/components/MetricCard";
-import { TrendingUp, ShoppingCart, DollarSign, Package, Users, BarChart3, Calendar } from "lucide-react";
+import { TrendingUp, ShoppingCart, DollarSign, Package, Users, BarChart3, Calendar, XCircle, CheckCircle } from "lucide-react";
 import { getGeneralMetrics, GeneralMetrics } from "@/lib/api";
 
 export default function Metricas() {
@@ -212,7 +212,7 @@ export default function Metricas() {
           {/* Resumen Totales */}
           <div className="bg-white rounded-[14px] border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-6">Resumen Total</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="flex items-start gap-3">
                 <div className="p-2 bg-blue-100 rounded-lg">
                   <Package className="w-5 h-5 text-blue-600" />
@@ -229,10 +229,11 @@ export default function Metricas() {
                   <ShoppingCart className="w-5 h-5 text-green-600" />
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500 mb-1">Completadas</div>
+                  <div className="text-sm text-gray-500 mb-1">Carritos Abiertos</div>
                   <div className="text-2xl font-semibold text-green-600">
-                    {generalMetrics.totals.completed_orders}
+                    {generalMetrics.totals.open_carts}
                   </div>
+                  <div className="text-xs text-gray-400 mt-1">&lt; 48 horas</div>
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -244,17 +245,7 @@ export default function Metricas() {
                   <div className="text-2xl font-semibold text-orange-600">
                     {generalMetrics.totals.pending_orders}
                   </div>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Users className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500 mb-1">Usuarios con Carritos</div>
-                  <div className="text-2xl font-semibold text-blue-600">
-                    {generalMetrics.users_with_abandoned_carts}
-                  </div>
+                  <div className="text-xs text-gray-400 mt-1">&gt; 48 horas</div>
                 </div>
               </div>
             </div>

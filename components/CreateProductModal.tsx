@@ -1295,7 +1295,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                         <button
                           type="button"
                           onClick={() => {
-                            setImages(images.filter((_, i) => i !== idx));
+                            setImages((prevImages) => prevImages.filter((_, i) => i !== idx));
                           }}
                           className="absolute top-1.5 right-1.5 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-sm"
                         >

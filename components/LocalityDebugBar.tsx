@@ -41,14 +41,14 @@ export default function LocalityDebugBar() {
     };
   }, [locality, setLocality]);
 
-  // Solo mostrar en desarrollo
-  const isDev = process.env.NODE_ENV === "development";
+  // Solo mostrar si DEBUG=TRUE en el .env (usar NEXT_PUBLIC_DEBUG para acceso en cliente)
+  const isDebugEnabled = process.env.NEXT_PUBLIC_DEBUG === "TRUE" || process.env.NEXT_PUBLIC_DEBUG === "true";
 
   useEffect(() => {
-    if (isDev && isOpen) {
+    if (isDebugEnabled && isOpen) {
       loadLocalities();
     }
-  }, [isDev, isOpen]);
+  }, [isDebugEnabled, isOpen]);
 
   const loadLocalities = async () => {
     setLoadingLocalities(true);
@@ -109,7 +109,7 @@ export default function LocalityDebugBar() {
     }
   };
 
-  if (!isDev) {
+  if (!isDebugEnabled) {
     return null;
   }
 

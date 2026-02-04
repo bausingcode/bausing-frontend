@@ -74,7 +74,7 @@ export default function Footer() {
               <li><a href="/catalogo/sommiers" className="hover:text-gray-900 transition-colors relative group inline-block">Sommier y colchón<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
               <li><a href="/catalogo/accesorios" className="hover:text-gray-900 transition-colors capitalize relative group inline-block">Almohadas<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
               <li><a href="/catalogo/electrodomesticos" className="hover:text-gray-900 transition-colors capitalize relative group inline-block">Electrodomésticos<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
-              <li><a href="/catalogo/muebles-cocina" className="hover:text-gray-900 transition-colors relative group inline-block">Otros<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              <li><a href="/catalogo/otros" className="hover:text-gray-900 transition-colors relative group inline-block">Otros<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
             </ul>
           </div>
 
@@ -83,7 +83,7 @@ export default function Footer() {
             <h4 className="font-semibold text-gray-900 mb-3 md:mb-4 capitalize text-sm md:text-base">Nosotros</h4>
             <ul className="space-y-2 md:space-y-3 text-xs md:text-sm text-gray-700">
               <li><a href="/blog" className="hover:text-gray-900 transition-colors capitalize relative group inline-block">Blog<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
-              <li><a href="/locales" className="hover:text-gray-900 transition-colors capitalize relative group inline-block">Locales<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              <li><a href="/local" className="hover:text-gray-900 transition-colors capitalize relative group inline-block">Local<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
               <li><a href="/terminos-y-condiciones" className="hover:text-gray-900 transition-colors relative group inline-block">Términos<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
               <li><a href="/politica-de-privacidad" className="hover:text-gray-900 transition-colors relative group inline-block">Privacidad<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
             </ul>

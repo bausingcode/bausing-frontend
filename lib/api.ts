@@ -1788,6 +1788,7 @@ export interface GeneralMetrics {
   averages: {
     orders_per_user: number;
     completed_orders_per_user: number;
+    open_carts_per_user: number;
     pending_orders_per_user: number;
     spent_per_user: number;
     order_value: number;
@@ -1795,6 +1796,7 @@ export interface GeneralMetrics {
   totals: {
     orders: number;
     completed_orders: number;
+    open_carts: number;
     pending_orders: number;
     total_spent: number;
     abandoned_carts_value: number;

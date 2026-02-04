@@ -71,6 +71,23 @@ export default function ProductCard({
   
   const optimizedUrl = getOptimizedUrl();
 
+  // Función para calcular el precio sin impuestos nacionales
+  const calculatePriceWithoutTaxes = (priceStr: string): string => {
+    if (!priceStr) return '';
+    
+    // Parsear el precio desde formato string argentino (remover $, puntos de miles, comas decimales)
+    const cleaned = priceStr.replace(/[$\s]/g, '').replace(/\./g, '').replace(',', '.');
+    const numericPrice = parseFloat(cleaned);
+    
+    if (isNaN(numericPrice) || numericPrice === 0) return '';
+    
+    // Calcular precio sin impuestos nacionales (restar el 21%)
+    const priceWithoutTaxes = numericPrice * 0.79;
+    
+    // Formatear el resultado en formato argentino
+    return `$${priceWithoutTaxes.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`;
+  };
+
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -188,6 +205,11 @@ export default function ProductCard({
             <span className="text-xl font-semibold text-gray-500">Sin Precio</span>
           )}
         </div>
+        {!isPriceLoading && currentPrice && (
+          <div className="text-xs text-gray-500 mt-1">
+            Precio sin impuestos nacionales {calculatePriceWithoutTaxes(currentPrice)}
+          </div>
+        )}
       </div>
     </Link>
   );

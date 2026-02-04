@@ -432,13 +432,6 @@ export default function ProductDetailPage() {
     }
   };
 
-  const calculatePriceInInstallments = (priceStr: string, installments: number = 12): string => {
-    const numericPrice = parseFloat(priceStr.replace(/[$.]/g, '').replace(/\./g, ''));
-    if (isNaN(numericPrice)) return '';
-    const pricePerInstallment = numericPrice / installments;
-    return `$${pricePerInstallment.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-white">
@@ -637,8 +630,7 @@ export default function ProductDetailPage() {
 
   const currentPriceInfo = getCurrentProductPrice();
   const hasPrice = currentPriceInfo.price > 0;
-  const priceIn12Installments = hasPrice ? calculatePriceInInstallments(currentPriceInfo.formattedPrice) : '';
-  const priceWithoutTaxes = hasPrice ? currentPriceInfo.price * 1.21 : 0;
+  const priceWithoutTaxes = hasPrice ? currentPriceInfo.price * 0.79 : 0;
 
   // Función helper para verificar si una variante es del tipo "Atributo" con opción "Default"
   const isDefaultAttributeVariant = (variant: any): boolean => {
@@ -800,9 +792,6 @@ export default function ProductDetailPage() {
                     {!product.originalPrice && (
                       <div className="text-xl md:text-2xl font-semibold text-gray-900 mb-1 md:mb-2">{currentPriceInfo.formattedPrice}</div>
                     )}
-                    <div className="text-xs md:text-sm text-gray-600 mb-1">
-                      En 12 cuotas de {priceIn12Installments}
-                    </div>
                     <div className="text-xs text-gray-500">
                       Precio sin impuestos nacionales ${priceWithoutTaxes.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
                     </div>

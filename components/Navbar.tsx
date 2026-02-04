@@ -1177,11 +1177,11 @@ export default function Navbar() {
                   <span>Blog</span>
                 </a>
                 <a
-                  href="/locales"
+                  href="/local"
                   className="flex items-center gap-3 px-2 py-3 text-gray-700 hover:bg-gray-50 rounded-lg"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  <span>Locales</span>
+                  <span>Local</span>
                 </a>
               </div>
             </div>
@@ -1347,14 +1347,14 @@ export default function Navbar() {
                 </a>
 
                 <a
-                  href="/locales"
+                  href="/local"
                   className="text-sm text-black hover:text-gray-600 font-normal"
                   onClick={(e) => {
                     e.preventDefault();
-                    router.push("/locales");
+                    router.push("/local");
                   }}
                 >
-                  Locales
+                  Local
                 </a>
               </div>
             </div>
