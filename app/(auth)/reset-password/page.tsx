@@ -19,13 +19,23 @@ export default function ResetPasswordPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Simular validación del token (mock)
+  // Validar el token al cargar la página
   useEffect(() => {
     const token = searchParams.get("token");
-    // Mock: simular que el token es válido
     if (!token) {
       setTokenValid(false);
+      return;
     }
+
+    // Verificar que el token tenga el formato correcto (JWT tiene 3 partes separadas por puntos)
+    const tokenParts = token.split(".");
+    if (tokenParts.length !== 3) {
+      setTokenValid(false);
+      return;
+    }
+
+    // El token parece válido, se validará completamente en el backend al enviar
+    setTokenValid(true);
   }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,13 +53,34 @@ export default function ResetPasswordPage() {
       return;
     }
 
+    const token = searchParams.get("token");
+    if (!token) {
+      setError("Token de restablecimiento no válido");
+      setTokenValid(false);
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Mock: simular petición al backend
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          token,
+          password,
+          confirm_password: confirmPassword,
+        }),
+      });
 
-      // Simular éxito
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Error al restablecer la contraseña");
+      }
+
       setSuccess(true);
       
       // Redirigir al login después de 3 segundos
@@ -58,6 +89,10 @@ export default function ResetPasswordPage() {
       }, 3000);
     } catch (err: any) {
       setError(err.message || "Error al restablecer la contraseña");
+      // Si el error es de token inválido o expirado, marcar como inválido
+      if (err.message && (err.message.includes("expirado") || err.message.includes("inválido"))) {
+        setTokenValid(false);
+      }
     } finally {
       setLoading(false);
     }

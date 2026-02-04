@@ -126,6 +126,7 @@ export default function CheckoutPage() {
     holder_dni: "",
   });
   const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [walletIsBlocked, setWalletIsBlocked] = useState<boolean>(false);
   const [walletLoading, setWalletLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [mpToken, setMpToken] = useState<string | null>(null);
@@ -143,6 +144,19 @@ export default function CheckoutPage() {
   const [mpHasErrors, setMpHasErrors] = useState(false); // Para detectar si el brick tiene errores
   const mpProcessPaymentRef = useRef<(() => Promise<void>) | null>(null);
   const tokenPromiseRef = useRef<{ resolve: (token: string) => void; reject: (error: Error) => void } | null>(null);
+  // Ref para guardar temporalmente los datos del token cuando se obtiene de la promesa
+  const mpTokenDataRef = useRef<{
+    token: string;
+    installments: number;
+    paymentMethodId: string;
+    issuerId?: number;
+    cardholderData?: {
+      name?: string;
+      email?: string;
+      identificationType?: string;
+      identificationNumber?: string;
+    } | null;
+  } | null>(null);
 
   // Resetear estado de MercadoPago cuando cambia el método de pago o se desactiva "abonar al recibir"
   useEffect(() => {
@@ -343,6 +357,14 @@ export default function CheckoutPage() {
     try {
       const balanceData = await getUserWalletBalance();
       setWalletBalance(balanceData.balance);
+      setWalletIsBlocked(balanceData.is_blocked || false);
+      // Si la wallet está bloqueada, desactivar el uso de billetera
+      if (balanceData.is_blocked) {
+        setUseWalletBalance(false);
+        if (paymentMethod === "wallet") {
+          setPaymentMethod(null);
+        }
+      }
     } catch (error) {
       console.error("Error loading wallet balance:", error);
     } finally {
@@ -534,14 +556,25 @@ export default function CheckoutPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Limpiar errores previos
+    // Limpiar errores previos y resetear estados de bloqueo
     setErrors({});
+    setMpHasErrors(false); // Permitir que el usuario vuelva a intentar después de un error
     
     // Validar formulario antes de continuar
     if (!validateForm()) {
       // validateForm ya establece los errores, solo retornar
       return;
     }
+
+    // Variables para almacenar los datos finales del token de MercadoPago
+    // Se usarán los datos del ref si acabamos de obtener el token (disponibles inmediatamente)
+    // o los datos del estado si ya estaban disponibles
+    let finalToken = mpToken;
+    let finalInstallments = mpInstallments;
+    let finalPaymentMethodId = mpPaymentMethodId;
+    let finalIssuerId = mpIssuerId;
+    let finalCardholderData = mpCardholderData;
+    let tokenObtained = false;
 
     // Si es pago con tarjeta sin "abonar al recibir", verificar que el brick esté completamente lleno
     if (paymentMethod === "card" && !payOnDelivery) {
@@ -583,7 +616,8 @@ export default function CheckoutPage() {
           const token = await tokenPromise;
           
           // El token ya se estableció en el estado en onPaymentSuccess
-          // Solo verificar que esté disponible y continuar
+          // Marcar que obtuvimos el token para continuar automáticamente
+          tokenObtained = true;
           setMpProcessing(false);
           
           // Continuar automáticamente con el procesamiento de la orden
@@ -601,8 +635,9 @@ export default function CheckoutPage() {
       }
       
       // Verificación final: asegurarse de que tengamos el token después de procesar
-      // Si el brick rechazó el pago, no habrá token y se mostrará el error
-      if (!mpToken) {
+      // Si acabamos de obtener el token, no verificar el estado (puede no haberse actualizado aún)
+      // Si no acabamos de obtener el token, verificar el estado normalmente
+      if (!tokenObtained && !mpToken) {
         if (mpProcessing) {
           // Si se está procesando, esperar un momento más (máximo 1 segundo adicional)
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -626,13 +661,24 @@ export default function CheckoutPage() {
       }
       
       // Verificar que tengamos todos los datos necesarios (el token solo se genera si todo está completo)
-      if (!mpInstallments || mpInstallments <= 0) {
+      // Si acabamos de obtener el token, usar los datos del ref (que están disponibles inmediatamente)
+      // en lugar del estado (que puede no haberse actualizado aún)
+      if (tokenObtained && mpTokenDataRef.current) {
+        // Usar los datos del ref que están disponibles inmediatamente
+        finalToken = mpTokenDataRef.current.token;
+        finalInstallments = mpTokenDataRef.current.installments;
+        finalPaymentMethodId = mpTokenDataRef.current.paymentMethodId;
+        finalIssuerId = mpTokenDataRef.current.issuerId;
+        finalCardholderData = mpTokenDataRef.current.cardholderData || null;
+      }
+      
+      if (!finalInstallments || finalInstallments <= 0) {
         setErrors({ submit: "Por favor, selecciona una opción de cuotas para continuar" });
         setSubmitting(false);
         return;
       }
       
-      if (!mpPaymentMethodId || mpPaymentMethodId.trim() === "") {
+      if (!finalPaymentMethodId || finalPaymentMethodId.trim() === "") {
         setErrors({ submit: "Por favor, completa correctamente todos los datos de la tarjeta" });
         setSubmitting(false);
         return;
@@ -766,23 +812,30 @@ export default function CheckoutPage() {
         ...(crmZoneId && {
           crm_zone_id: crmZoneId,
         }),
-        total: cart.reduce((sum, item) => sum + getItemPrice(item), 0),
-        ...(useWalletBalance && {
+        total: finalTotal, // Usar finalTotal que ya tiene el descuento de billetera aplicado
+        // Si el método de pago es wallet completo, enviar wallet_amount con el total
+        ...(paymentMethod === "wallet" && {
           use_wallet_balance: true,
-          wallet_amount: walletBalance,
+          wallet_amount: totalAmount, // Enviar el total completo cuando se paga con wallet
+        }),
+        // Si solo se usa como descuento (no método de pago completo), enviar el descuento
+        ...(useWalletBalance && paymentMethod !== "wallet" && {
+          use_wallet_balance: true,
+          wallet_amount: walletDiscount, // Enviar el descuento aplicado, no el saldo completo
         }),
         // Si es pago con tarjeta sin "abonar al recibir", incluir token de MercadoPago y datos del cardholder
-        ...(paymentMethod === "card" && !payOnDelivery && mpToken && {
-          mercadopago_token: mpToken,
-          mercadopago_installments: mpInstallments,
-          mercadopago_payment_method_id: mpPaymentMethodId,
-          ...(mpIssuerId && { mercadopago_issuer_id: mpIssuerId }),
+        // Usar los datos finales (del ref si acabamos de obtener el token, o del estado si ya estaban disponibles)
+        ...(paymentMethod === "card" && !payOnDelivery && finalToken && {
+          mercadopago_token: finalToken,
+          mercadopago_installments: finalInstallments,
+          mercadopago_payment_method_id: finalPaymentMethodId,
+          ...(finalIssuerId && { mercadopago_issuer_id: finalIssuerId }),
           // Incluir datos del cardholder del Brick
-          ...(mpCardholderData && {
-            mercadopago_cardholder_name: mpCardholderData.name,
-            mercadopago_cardholder_email: mpCardholderData.email,
-            mercadopago_cardholder_identification_type: mpCardholderData.identificationType,
-            mercadopago_cardholder_identification_number: mpCardholderData.identificationNumber,
+          ...(finalCardholderData && {
+            mercadopago_cardholder_name: finalCardholderData.name,
+            mercadopago_cardholder_email: finalCardholderData.email,
+            mercadopago_cardholder_identification_type: finalCardholderData.identificationType,
+            mercadopago_cardholder_identification_number: finalCardholderData.identificationNumber,
           }),
         }),
         items: cart.map((item) => ({
@@ -795,21 +848,26 @@ export default function CheckoutPage() {
 
       // Verificación final: Si es pago con tarjeta sin "abonar al recibir", verificar que tengamos todos los datos necesarios
       if (paymentMethod === "card" && !payOnDelivery) {
-        if (!mpToken) {
+        if (!finalToken) {
           setErrors({ submit: "Por favor, completa correctamente todos los datos de la tarjeta antes de continuar" });
           setSubmitting(false);
           return;
         }
-        if (!mpInstallments || mpInstallments <= 0) {
+        if (!finalInstallments || finalInstallments <= 0) {
           setErrors({ submit: "Por favor, selecciona una opción de cuotas para continuar" });
           setSubmitting(false);
           return;
         }
-        if (!mpPaymentMethodId) {
+        if (!finalPaymentMethodId) {
           setErrors({ submit: "Por favor, completa correctamente todos los datos de la tarjeta" });
           setSubmitting(false);
           return;
         }
+      }
+
+      // Limpiar el ref después de usarlo para evitar problemas en futuros intentos
+      if (tokenObtained) {
+        mpTokenDataRef.current = null;
       }
 
       // Send order to backend
@@ -884,6 +942,13 @@ export default function CheckoutPage() {
         errorMessage = "Para este tipo de venta debes usar CUIT o CUIL en lugar de DNI. Por favor, cambia el tipo de documento en el formulario.";
       }
       
+      // Detectar error de precio de compra / stock
+      if (errorMessage.includes("No se pudo obtener el precio de compra") ||
+          errorMessage.includes("compras previas registradas") ||
+          errorMessage.includes("este artículo no tiene stock")) {
+        errorMessage = "Lo sentimos, pero este artículo no tiene stock.";
+      }
+      
       // Detectar errores de pago rechazado (pero no tratar in_process como error)
       if (errorMessage.includes("rejected") || (errorMessage.includes("El pago fue") && !errorMessage.includes("in_process") && !errorMessage.includes("pending_contingency"))) {
         errorMessage = "El pago fue rechazado. Por favor, verifica los datos de tu tarjeta o intenta con otra tarjeta.";
@@ -942,11 +1007,11 @@ export default function CheckoutPage() {
   };
 
   const totalAmount = calculateTotal();
-  const canPayWithWallet = walletBalance >= totalAmount;
+  const canPayWithWallet = walletBalance >= totalAmount && !walletIsBlocked;
   const remainingAfterWallet = Math.max(0, totalAmount - walletBalance);
   const shippingCost = 0; // TODO: Calculate shipping cost
   const subtotal = calculateTotal();
-  const walletDiscount = useWalletBalance && walletBalance > 0 ? Math.min(walletBalance, subtotal) : 0;
+  const walletDiscount = useWalletBalance && walletBalance > 0 && !walletIsBlocked ? Math.min(walletBalance, subtotal) : 0;
   const finalTotal = Math.max(0, subtotal - walletDiscount + shippingCost);
 
   const handleRegistration = async (e: React.FormEvent) => {
@@ -2088,7 +2153,7 @@ export default function CheckoutPage() {
                         <Check className="w-5 h-5 text-[#00C1A7] ml-auto flex-shrink-0" />
                       )}
                     </label>
-                  ) : walletBalance > 0 && (
+                  ) : walletBalance > 0 && !walletIsBlocked && (
                     <div className="p-3 md:p-4 border border-gray-200 rounded-lg bg-gray-50">
                       <label className="flex items-start md:items-center gap-3 cursor-pointer">
                         <input
@@ -2210,6 +2275,15 @@ export default function CheckoutPage() {
                           delete newErrors.submit;
                           return newErrors;
                         });
+                        
+                        // Guardar los datos en el ref para uso inmediato (antes de que el estado se actualice)
+                        mpTokenDataRef.current = {
+                          token,
+                          installments,
+                          paymentMethodId,
+                          issuerId,
+                          cardholderData: cardholderData || null,
+                        };
                         
                         // Resolver la promesa si hay alguien esperando el token
                         if (tokenPromiseRef.current) {
@@ -2481,7 +2555,7 @@ export default function CheckoutPage() {
                     needsEmailVerification || 
                     !isAuthenticated || 
                     mpProcessing || 
-                    (paymentMethod === "card" && !payOnDelivery && (!mpReady || mpHasErrors))
+                    (paymentMethod === "card" && !payOnDelivery && !mpReady)
                   }
                   className="w-full mt-4 md:mt-6 bg-[#00C1A7] text-white py-2.5 md:py-3 px-4 md:px-6 rounded-lg font-semibold text-sm md:text-base hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
