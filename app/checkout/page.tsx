@@ -2350,6 +2350,44 @@ export default function CheckoutPage() {
                     </label>
                   </div>
                 )}
+
+                {/* Botón Finalizar compra: solo en responsive (móvil/tablet), al final del formulario */}
+                <div className="lg:hidden mt-6 pt-6 border-t border-gray-200">
+                  {!isAuthenticated && (
+                    <p className="text-blue-600 text-xs md:text-sm mb-3 text-center">
+                      Inicia sesión o crea una cuenta para finalizar la compra
+                    </p>
+                  )}
+                  {needsEmailVerification && (
+                    <p className="text-amber-600 text-xs md:text-sm mb-3 text-center">
+                      Verifica tu email para poder finalizar la compra
+                    </p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={
+                      submitting ||
+                      needsEmailVerification ||
+                      !isAuthenticated ||
+                      mpProcessing ||
+                      (paymentMethod === "card" && !payOnDelivery && !mpReady)
+                    }
+                    className="w-full bg-[#00C1A7] text-white py-3 px-6 rounded-lg font-semibold text-base hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {submitting || mpProcessing ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        {mpProcessing ? "Procesando tarjeta..." : "Procesando..."}
+                      </>
+                    ) : !isAuthenticated ? (
+                      "Inicia sesión para continuar"
+                    ) : needsEmailVerification ? (
+                      "Verifica tu email para continuar"
+                    ) : (
+                      "Finalizar compra"
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -2548,6 +2586,7 @@ export default function CheckoutPage() {
                     Verifica tu email para poder finalizar la compra
                   </p>
                 )}
+                {/* Botón Finalizar compra: solo en desktop (lg+) */}
                 <button
                   type="submit"
                   disabled={
@@ -2557,7 +2596,7 @@ export default function CheckoutPage() {
                     mpProcessing || 
                     (paymentMethod === "card" && !payOnDelivery && !mpReady)
                   }
-                  className="w-full mt-4 md:mt-6 bg-[#00C1A7] text-white py-2.5 md:py-3 px-4 md:px-6 rounded-lg font-semibold text-sm md:text-base hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="hidden lg:flex w-full mt-4 md:mt-6 bg-[#00C1A7] text-white py-2.5 md:py-3 px-4 md:px-6 rounded-lg font-semibold text-sm md:text-base hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed items-center justify-center gap-2"
                 >
                   {submitting || mpProcessing ? (
                     <>
