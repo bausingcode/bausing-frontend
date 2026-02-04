@@ -189,39 +189,39 @@ export default function TrackingPage() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 max-w-4xl">
         {/* Skeleton para botón de volver */}
-        <div className="flex items-center gap-2 mb-6">
+        <div className="flex items-center gap-2 mb-4 md:mb-6">
           <div className="w-5 h-5 bg-gray-200 rounded animate-pulse" />
           <div className="w-16 h-5 bg-gray-200 rounded animate-pulse" />
         </div>
 
         {/* Skeleton para número de pedido y estado */}
-        <div className="bg-white rounded-[14px] border border-gray-200 p-6 mb-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <div className="w-48 h-8 bg-gray-200 rounded animate-pulse mb-2" />
-              <div className="w-32 h-6 bg-gray-200 rounded animate-pulse" />
+        <div className="bg-white rounded-[12px] md:rounded-[14px] border border-gray-200 p-4 md:p-6 mb-4 md:mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="w-40 md:w-48 h-6 md:h-8 bg-gray-200 rounded animate-pulse mb-2" />
+              <div className="w-28 md:w-32 h-5 md:h-6 bg-gray-200 rounded animate-pulse" />
             </div>
-            <div className="w-32 h-10 bg-gray-200 rounded-lg animate-pulse" />
+            <div className="w-28 md:w-32 h-9 md:h-10 bg-gray-200 rounded-lg animate-pulse shrink-0" />
           </div>
         </div>
 
         {/* Skeleton para timeline */}
-        <div className="bg-white rounded-[14px] border border-gray-200 p-6 mb-6">
-          <div className="w-40 h-6 bg-gray-200 rounded animate-pulse mb-6" />
+        <div className="bg-white rounded-[12px] md:rounded-[14px] border border-gray-200 p-4 md:p-6 mb-4 md:mb-6">
+          <div className="w-36 md:w-40 h-5 md:h-6 bg-gray-200 rounded animate-pulse mb-4 md:mb-6" />
           <div className="relative">
-            <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200" />
-            <div className="space-y-6">
+            <div className="absolute left-5 md:left-6 top-0 bottom-0 w-0.5 bg-gray-200" />
+            <div className="space-y-4 md:space-y-6">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="relative flex items-start gap-4">
-                  <div className="relative z-10 w-12 h-12 bg-gray-200 rounded-full animate-pulse" />
-                  <div className="flex-1 pt-1">
-                    <div className="w-40 h-6 bg-gray-200 rounded animate-pulse mb-2" />
+                <div key={i} className="relative flex items-start gap-3 md:gap-4">
+                  <div className="relative z-10 w-10 h-10 md:w-12 md:h-12 bg-gray-200 rounded-full animate-pulse shrink-0" />
+                  <div className="flex-1 pt-1 min-w-0">
+                    <div className="w-32 md:w-40 h-5 md:h-6 bg-gray-200 rounded animate-pulse mb-2" />
                     <div className="w-full h-4 bg-gray-200 rounded animate-pulse mb-3" />
                     <div className="flex items-center gap-2">
                       <div className="w-4 h-4 bg-gray-200 rounded animate-pulse" />
-                      <div className="w-32 h-4 bg-gray-200 rounded animate-pulse" />
+                      <div className="w-28 md:w-32 h-4 bg-gray-200 rounded animate-pulse" />
                     </div>
                   </div>
                 </div>
@@ -231,14 +231,14 @@ export default function TrackingPage() {
         </div>
 
         {/* Skeleton para dirección de entrega */}
-        <div className="bg-white rounded-[14px] border border-gray-200 p-6">
-          <div className="w-40 h-6 bg-gray-200 rounded animate-pulse mb-4" />
+        <div className="bg-white rounded-[12px] md:rounded-[14px] border border-gray-200 p-4 md:p-6">
+          <div className="w-36 md:w-40 h-5 md:h-6 bg-gray-200 rounded animate-pulse mb-3 md:mb-4" />
           <div className="space-y-2">
-            <div className="w-32 h-5 bg-gray-200 rounded animate-pulse" />
+            <div className="w-28 md:w-32 h-5 bg-gray-200 rounded animate-pulse" />
             <div className="w-full h-4 bg-gray-200 rounded animate-pulse" />
-            <div className="w-48 h-4 bg-gray-200 rounded animate-pulse" />
-            <div className="w-32 h-4 bg-gray-200 rounded animate-pulse" />
-            <div className="w-40 h-4 bg-gray-200 rounded animate-pulse mt-3" />
+            <div className="w-40 md:w-48 h-4 bg-gray-200 rounded animate-pulse" />
+            <div className="w-28 md:w-32 h-4 bg-gray-200 rounded animate-pulse" />
+            <div className="w-36 md:w-40 h-4 bg-gray-200 rounded animate-pulse mt-2 md:mt-3" />
           </div>
         </div>
       </div>
@@ -255,16 +255,16 @@ export default function TrackingPage() {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="container mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 max-w-4xl">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 md:mb-6 transition-colors"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-5 h-5 shrink-0" />
             <span className="text-sm font-medium">Volver</span>
           </button>
-          <div className="text-center py-20">
-            <p className="text-red-600">{error || "Pedido no encontrado"}</p>
+          <div className="text-center py-12 md:py-20">
+            <p className="text-red-600 text-sm md:text-base">{error || "Pedido no encontrado"}</p>
           </div>
         </div>
         <Footer />
@@ -280,30 +280,30 @@ export default function TrackingPage() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 max-w-4xl">
         {/* Header con botón de volver */}
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 md:mb-6 transition-colors"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-5 h-5 shrink-0" />
           <span className="text-sm font-medium">Volver</span>
         </button>
 
         {/* Número de Pedido y Estado */}
-        <div className="bg-white rounded-[14px] border border-gray-200 p-6 mb-6">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+        <div className="bg-white rounded-[12px] md:rounded-[14px] border border-gray-200 p-4 md:p-6 mb-4 md:mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-0">
+            <div className="min-w-0">
+              <h1 className="text-xl md:text-2xl font-semibold text-gray-900 mb-1 md:mb-2">
                 Seguimiento de Envío
               </h1>
-              <p className="text-lg font-medium text-gray-600">
+              <p className="text-base md:text-lg font-medium text-gray-600">
                 Pedido {order.order_number}
               </p>
             </div>
-            <div className={`px-4 py-2 rounded-lg flex items-center gap-2 ${statusStyle.bg} ${statusStyle.text}`}>
-              <Truck className="w-5 h-5" />
-              <span className="font-medium">{statusInfo.display}</span>
+            <div className={`px-3 md:px-4 py-2 rounded-lg flex items-center gap-2 w-fit shrink-0 ${statusStyle.bg} ${statusStyle.text}`}>
+              <Truck className="w-4 h-4 md:w-5 md:h-5 shrink-0" />
+              <span className="font-medium text-sm md:text-base">{statusInfo.display}</span>
             </div>
           </div>
         </div>
@@ -346,13 +346,13 @@ export default function TrackingPage() {
         */}
 
         {/* Timeline de Eventos */}
-        <div className="bg-white rounded-[14px] border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">Historial de Eventos</h2>
+        <div className="bg-white rounded-[12px] md:rounded-[14px] border border-gray-200 p-4 md:p-6 mb-4 md:mb-6">
+          <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4 md:mb-6">Historial de Eventos</h2>
           <div className="relative">
             {/* Línea vertical del timeline */}
-            <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200" />
+            <div className="absolute left-5 md:left-6 top-0 bottom-0 w-0.5 bg-gray-200" />
             
-            <div className="space-y-6">
+            <div className="space-y-4 md:space-y-6">
               {timeline.map((event) => {
                 const Icon = event.icon;
                 const isCompleted = event.status === "completed";
@@ -360,10 +360,10 @@ export default function TrackingPage() {
                 const isPending = event.status === "pending";
 
                 return (
-                  <div key={event.id} className="relative flex items-start gap-4">
+                  <div key={event.id} className="relative flex items-start gap-3 md:gap-4">
                     {/* Icono del evento */}
                     <div
-                      className={`relative z-10 flex items-center justify-center w-12 h-12 rounded-full border-2 ${
+                      className={`relative z-10 flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full border-2 shrink-0 ${
                         isCompleted
                           ? "bg-green-500 border-green-500 text-white"
                           : isCurrent
@@ -371,15 +371,15 @@ export default function TrackingPage() {
                           : "bg-gray-100 border-gray-300 text-gray-400"
                       }`}
                     >
-                      <Icon className="w-6 h-6" />
+                      <Icon className="w-5 h-5 md:w-6 md:h-6" />
                     </div>
 
                     {/* Contenido del evento */}
-                    <div className="flex-1 pt-1">
+                    <div className="flex-1 min-w-0 pt-0.5 md:pt-1">
                       <div className="flex items-start justify-between mb-1">
-                        <div>
+                        <div className="min-w-0">
                           <h3
-                            className={`text-base font-semibold ${
+                            className={`text-sm md:text-base font-semibold ${
                               isCompleted || isCurrent
                                 ? "text-gray-900"
                                 : "text-gray-500"
@@ -388,7 +388,7 @@ export default function TrackingPage() {
                             {event.title}
                           </h3>
                           <p
-                            className={`text-sm mt-1 ${
+                            className={`text-xs md:text-sm mt-1 ${
                               isCompleted || isCurrent
                                 ? "text-gray-600"
                                 : "text-gray-400"
@@ -400,7 +400,7 @@ export default function TrackingPage() {
                       </div>
                       {event.date && (
                         <div className="flex items-center gap-2 mt-2">
-                          <Clock className="w-4 h-4 text-gray-400" />
+                          <Clock className="w-4 h-4 text-gray-400 shrink-0" />
                           <span className="text-xs text-gray-500">
                             {event.date} {event.time && `a las ${event.time}`}
                           </span>
@@ -408,7 +408,7 @@ export default function TrackingPage() {
                       )}
                       {!event.date && event.time && (
                         <div className="flex items-center gap-2 mt-2">
-                          <Clock className="w-4 h-4 text-gray-400" />
+                          <Clock className="w-4 h-4 text-gray-400 shrink-0" />
                           <span className="text-xs text-gray-500">{event.time}</span>
                         </div>
                       )}
@@ -422,26 +422,26 @@ export default function TrackingPage() {
 
         {/* Dirección de Entrega */}
         {order.shipping_address && (
-          <div className="bg-white rounded-[14px] border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-gray-600" />
+          <div className="bg-white rounded-[12px] md:rounded-[14px] border border-gray-200 p-4 md:p-6">
+            <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-gray-600 shrink-0" />
               Dirección de Entrega
             </h2>
-            <div className="space-y-2">
-              <p className="text-base font-medium text-gray-900">
+            <div className="space-y-1 md:space-y-2 text-sm md:text-base">
+              <p className="font-medium text-gray-900">
                 {order.shipping_address.full_name}
               </p>
-              <p className="text-sm text-gray-600">
+              <p className="text-gray-600">
                 {order.shipping_address.street} {order.shipping_address.number}
                 {order.shipping_address.additional_info && ` - ${order.shipping_address.additional_info}`}
               </p>
-              <p className="text-sm text-gray-600">
+              <p className="text-gray-600">
                 {order.shipping_address.city}, {order.shipping_address.province}
               </p>
-              <p className="text-sm text-gray-600">
+              <p className="text-gray-600">
                 CP: {order.shipping_address.postal_code}
               </p>
-              <p className="text-sm text-gray-600 mt-3">
+              <p className="text-gray-600 mt-2 md:mt-3">
                 Teléfono: {order.shipping_address.phone}
               </p>
             </div>

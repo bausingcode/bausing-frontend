@@ -142,77 +142,77 @@ export default function TrackingPage() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 max-w-4xl">
         {/* Header con botón de volver */}
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 md:mb-6 transition-colors"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-5 h-5 shrink-0" />
           <span className="text-sm font-medium">Volver</span>
         </button>
 
         {/* Número de Pedido y Estado */}
-        <div className="bg-white rounded-[14px] border border-gray-200 p-6 mb-6">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+        <div className="bg-white rounded-[12px] md:rounded-[14px] border border-gray-200 p-4 md:p-6 mb-4 md:mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-0">
+            <div className="min-w-0">
+              <h1 className="text-xl md:text-2xl font-semibold text-gray-900 mb-1 md:mb-2">
                 Seguimiento de Envío
               </h1>
-              <p className="text-lg font-medium text-gray-600">
+              <p className="text-base md:text-lg font-medium text-gray-600">
                 Pedido {trackingData.orderNumber}
               </p>
             </div>
-            <div className={`px-4 py-2 rounded-lg flex items-center gap-2 ${statusStyle.bg} ${statusStyle.text}`}>
-              <Truck className="w-5 h-5" />
-              <span className="font-medium">{trackingData.status}</span>
+            <div className={`px-3 md:px-4 py-2 rounded-lg flex items-center gap-2 w-fit shrink-0 ${statusStyle.bg} ${statusStyle.text}`}>
+              <Truck className="w-4 h-4 md:w-5 md:h-5 shrink-0" />
+              <span className="font-medium text-sm md:text-base">{trackingData.status}</span>
             </div>
           </div>
         </div>
 
         {/* Información de Transporte */}
-        <div className="bg-white rounded-[14px] border border-gray-200 p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Truck className="w-5 h-5 text-gray-600" />
+        <div className="bg-white rounded-[12px] md:rounded-[14px] border border-gray-200 p-4 md:p-6 mb-4 md:mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <h2 className="text-base md:text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Truck className="w-5 h-5 text-gray-600 shrink-0" />
               Información de Transporte
             </h2>
             <button
               onClick={handleTransportClick}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm font-medium"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
             >
-              <ExternalLink className="w-4 h-4" />
+              <ExternalLink className="w-4 h-4 shrink-0" />
               Rastrear en {trackingData.transport.name}
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Empresa de Transporte</p>
-              <p className="text-base font-medium text-gray-900">{trackingData.transport.name}</p>
+              <p className="text-xs md:text-sm text-gray-600 mb-0.5 md:mb-1">Empresa de Transporte</p>
+              <p className="text-sm md:text-base font-medium text-gray-900">{trackingData.transport.name}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600 mb-1">Número de Seguimiento</p>
-              <p className="text-base font-medium text-gray-900">{trackingData.transport.trackingNumber}</p>
+              <p className="text-xs md:text-sm text-gray-600 mb-0.5 md:mb-1">Número de Seguimiento</p>
+              <p className="text-sm md:text-base font-medium text-gray-900 break-all">{trackingData.transport.trackingNumber}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600 mb-1">Teléfono</p>
-              <p className="text-base font-medium text-gray-900">{trackingData.transport.phone}</p>
+              <p className="text-xs md:text-sm text-gray-600 mb-0.5 md:mb-1">Teléfono</p>
+              <p className="text-sm md:text-base font-medium text-gray-900">{trackingData.transport.phone}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600 mb-1">Fecha Estimada de Entrega</p>
-              <p className="text-base font-medium text-gray-900">{trackingData.estimatedDelivery}</p>
+              <p className="text-xs md:text-sm text-gray-600 mb-0.5 md:mb-1">Fecha Estimada de Entrega</p>
+              <p className="text-sm md:text-base font-medium text-gray-900">{trackingData.estimatedDelivery}</p>
             </div>
           </div>
         </div>
 
         {/* Timeline de Eventos */}
-        <div className="bg-white rounded-[14px] border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">Historial de Eventos</h2>
+        <div className="bg-white rounded-[12px] md:rounded-[14px] border border-gray-200 p-4 md:p-6 mb-4 md:mb-6">
+          <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4 md:mb-6">Historial de Eventos</h2>
           <div className="relative">
             {/* Línea vertical del timeline */}
-            <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200" />
+            <div className="absolute left-5 md:left-6 top-0 bottom-0 w-0.5 bg-gray-200" />
             
-            <div className="space-y-6">
+            <div className="space-y-4 md:space-y-6">
               {trackingData.timeline.map((event, index) => {
                 const Icon = event.icon;
                 const isCompleted = event.status === "completed";
@@ -220,10 +220,10 @@ export default function TrackingPage() {
                 const isPending = event.status === "pending";
 
                 return (
-                  <div key={event.id} className="relative flex items-start gap-4">
+                  <div key={event.id} className="relative flex items-start gap-3 md:gap-4">
                     {/* Icono del evento */}
                     <div
-                      className={`relative z-10 flex items-center justify-center w-12 h-12 rounded-full border-2 ${
+                      className={`relative z-10 flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full border-2 shrink-0 ${
                         isCompleted
                           ? "bg-green-500 border-green-500 text-white"
                           : isCurrent
@@ -231,15 +231,15 @@ export default function TrackingPage() {
                           : "bg-gray-100 border-gray-300 text-gray-400"
                       }`}
                     >
-                      <Icon className="w-6 h-6" />
+                      <Icon className="w-5 h-5 md:w-6 md:h-6" />
                     </div>
 
                     {/* Contenido del evento */}
-                    <div className="flex-1 pt-1">
+                    <div className="flex-1 min-w-0 pt-0.5 md:pt-1">
                       <div className="flex items-start justify-between mb-1">
-                        <div>
+                        <div className="min-w-0">
                           <h3
-                            className={`text-base font-semibold ${
+                            className={`text-sm md:text-base font-semibold ${
                               isCompleted || isCurrent
                                 ? "text-gray-900"
                                 : "text-gray-500"
@@ -248,7 +248,7 @@ export default function TrackingPage() {
                             {event.title}
                           </h3>
                           <p
-                            className={`text-sm mt-1 ${
+                            className={`text-xs md:text-sm mt-1 ${
                               isCompleted || isCurrent
                                 ? "text-gray-600"
                                 : "text-gray-400"
@@ -259,7 +259,7 @@ export default function TrackingPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 mt-2">
-                        <Clock className="w-4 h-4 text-gray-400" />
+                        <Clock className="w-4 h-4 text-gray-400 shrink-0" />
                         <span className="text-xs text-gray-500">
                           {event.date} a las {event.time}
                         </span>
@@ -273,25 +273,25 @@ export default function TrackingPage() {
         </div>
 
         {/* Dirección de Entrega */}
-        <div className="bg-white rounded-[14px] border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-gray-600" />
+        <div className="bg-white rounded-[12px] md:rounded-[14px] border border-gray-200 p-4 md:p-6">
+          <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-gray-600 shrink-0" />
             Dirección de Entrega
           </h2>
-          <div className="space-y-2">
-            <p className="text-base font-medium text-gray-900">
+          <div className="space-y-1 md:space-y-2 text-sm md:text-base">
+            <p className="font-medium text-gray-900">
               {trackingData.address.recipient}
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-gray-600">
               {trackingData.address.street}
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-gray-600">
               {trackingData.address.city}, {trackingData.address.province}
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-gray-600">
               CP: {trackingData.address.postalCode}
             </p>
-            <p className="text-sm text-gray-600 mt-3">
+            <p className="text-gray-600 mt-2 md:mt-3">
               Teléfono: {trackingData.address.phone}
             </p>
           </div>
