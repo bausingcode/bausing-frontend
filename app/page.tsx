@@ -129,19 +129,19 @@ export default async function Home() {
 
 
       {/* Nuestros Colchones Section */}
-      <section className="bg-white py-8 md:py-12">
-        <div className="container mx-auto px-4">
+      <section className="bg-white py-8 md:py-10 lg:py-12">
+        <div className="container mx-auto px-4 md:px-6 lg:px-8">
           {/* Section Header */}
-          <div className="flex items-center justify-between mb-6 md:mb-8">
-            <h3 className="text-lg md:text-xl font-semibold text-gray-800">Productos Destacados</h3>
+          <div className="flex items-center justify-between mb-5 md:mb-6 lg:mb-8">
+            <h3 className="text-lg md:text-xl lg:text-2xl font-semibold text-gray-800">Productos Destacados</h3>
             <a href="#" className="flex items-center gap-1 md:gap-2 text-gray-700 hover:text-gray-900 transition-colors">
               <span className="font-medium text-sm md:text-base">Ver todos</span>
               <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
             </a>
           </div>
 
-          {/* Product Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+          {/* Product Grid: 2 móvil, 3 tablet, 4 desktop */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
             <HomeProducts section="featured" count={4} />
           </div>
         </div>
@@ -149,10 +149,10 @@ export default async function Home() {
 
       {/* Info Banner (position 2) - Hidden on mobile */}
       {infoBanner && (
-        <section className="hidden md:block bg-white">
-          <div className="container mx-auto">
+        <section className="hidden md:block bg-white py-4 md:py-6 lg:py-0">
+          <div className="container mx-auto px-4 md:px-6 lg:px-8">
             <div className="flex justify-center">
-              <div className="relative rounded-[10px] overflow-hidden w-full max-w-[1650px] aspect-[1650/350]">
+              <div className="relative rounded-[10px] md:rounded-xl overflow-hidden w-full max-w-[1650px] aspect-[1650/350]">
                 <img
                   src={wsrvLoader({ src: infoBanner.image_url, width: 1650 })}
                   alt={infoBanner.title || infoBanner.subtitle || "Banner informativo"}
@@ -166,27 +166,25 @@ export default async function Home() {
       )}
 
       {/* Descuentazos Section */}
-      <section className="bg-[#fafafa] py-8 md:py-12">
-        <div className="container mx-auto px-4">
-          {/* Mobile: Title + Products */}
-          <div className="md:hidden mb-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Descuentazos</h3>
+      <section className="bg-[#fafafa] py-8 md:py-10 lg:py-12">
+        <div className="container mx-auto px-4 md:px-6 lg:px-8">
+          {/* Título: visible en móvil; en tablet/desktop dentro del grid */}
+          <div className="mb-5 md:mb-6">
+            <h3 className="text-lg md:text-xl lg:text-2xl font-semibold text-gray-800">Descuentazos</h3>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 [&>*:nth-child(4)]:hidden md:[&>*:nth-child(4)]:block">
-            {/* Banner Descuentazos - Hidden on mobile */}
-            <div className="hidden md:block">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6 items-start">
+            {/* Banner Descuentazos - Hidden on mobile, 1 col en tablet/desktop */}
+            <div className="hidden md:block md:row-span-1 rounded-[10px] md:rounded-xl overflow-hidden w-full max-w-full md:max-w-[280px] lg:max-w-[300px] h-[320px] md:h-[380px] lg:h-[430px]">
               {descuentazosBanner ? (
-                <div className="rounded-[10px] overflow-hidden" style={{ width: '300px', height: '430px' }}>
-                  <img
-                    src={wsrvLoader({ src: descuentazosBanner.image_url, width: 300 })}
-                    alt={descuentazosBanner.title || descuentazosBanner.subtitle || "Descuentazos"}
-                    className="w-full h-full"
-                    loading="eager"
-                  />
-                </div>
+                <img
+                  src={wsrvLoader({ src: descuentazosBanner.image_url, width: 400 })}
+                  alt={descuentazosBanner.title || descuentazosBanner.subtitle || "Descuentazos"}
+                  className="w-full h-full object-cover"
+                  loading="eager"
+                />
               ) : (
-                <div className="bg-black rounded-[10px] flex items-center justify-center" style={{ width: '300px', height: '400px' }}>
-                  <div className="text-white font-bold text-5xl leading-tight text-center" style={{ fontFamily: 'DM Sans, sans-serif' }}>
+                <div className="bg-black w-full h-full flex items-center justify-center">
+                  <div className="text-white font-bold text-4xl md:text-5xl leading-tight text-center" style={{ fontFamily: 'DM Sans, sans-serif' }}>
                     <div>DES</div>
                     <div>CUEN</div>
                     <div>TAZOS</div>
@@ -202,42 +200,42 @@ export default async function Home() {
       </section>
 
       {/* Promotional Offers Section */}
-      <section className="bg-white py-8 md:py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+      <section className="bg-white py-8 md:py-10 lg:py-12">
+        <div className="container mx-auto px-4 md:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
             {/* Free Shipping */}
-            <div className="flex flex-col items-center text-center">
-              <div className="w-14 h-14 md:w-18 md:h-18 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3">
-                <Truck className="w-7 h-7 md:w-9 md:h-9 text-[#00C1A7]" strokeWidth={1.5} />
+            <div className="flex flex-col items-center text-center p-2 md:p-4">
+              <div className="w-14 h-14 md:w-16 lg:w-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3">
+                <Truck className="w-7 h-7 md:w-8 lg:w-9 text-[#00C1A7]" strokeWidth={1.5} />
               </div>
-              <p className="text-[#101828] mb-1 text-sm md:text-base">Envío gratis</p>
+              <p className="text-[#101828] mb-1 text-sm md:text-base font-medium">Envío gratis</p>
               <p className="text-xs md:text-sm text-[#4A5565]">Consultar localidades</p>
             </div>
 
             {/* Payment Options */}
-            <div className="flex flex-col items-center text-center">
-              <div className="w-14 h-14 md:w-18 md:h-18 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3">
-                <CreditCard className="w-7 h-7 md:w-9 md:h-9 text-[#00C1A7]" strokeWidth={1.5} />
+            <div className="flex flex-col items-center text-center p-2 md:p-4">
+              <div className="w-14 h-14 md:w-16 lg:w-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3">
+                <CreditCard className="w-7 h-7 md:w-8 lg:w-9 text-[#00C1A7]" strokeWidth={1.5} />
               </div>
-              <p className="text-[#101828] mb-1 text-sm md:text-base">La mejor financiación</p>
+              <p className="text-[#101828] mb-1 text-sm md:text-base font-medium">La mejor financiación</p>
               <p className="text-xs md:text-sm text-[#4A5565]">La mejor opción para tu compra</p>
             </div>
 
             {/* Warranty */}
-            <div className="flex flex-col items-center text-center">
-              <div className="w-14 h-14 md:w-18 md:h-18 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3">
-                <Award className="w-7 h-7 md:w-9 md:h-9 text-[#00C1A7]" strokeWidth={1.5} />
+            <div className="flex flex-col items-center text-center p-2 md:p-4">
+              <div className="w-14 h-14 md:w-16 lg:w-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3">
+                <Award className="w-7 h-7 md:w-8 lg:w-9 text-[#00C1A7]" strokeWidth={1.5} />
               </div>
-              <p className="text-[#101828] mb-1 text-sm md:text-base">5 años de garantía</p>
+              <p className="text-[#101828] mb-1 text-sm md:text-base font-medium">5 años de garantía</p>
               <p className="text-xs md:text-sm text-[#4A5565]">En todos nuestros colchones</p>
             </div>
 
             {/* Quality Assurance */}
-            <div className="flex flex-col items-center text-center">
-              <div className="w-14 h-14 md:w-18 md:h-18 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3">
-                <Factory className="w-7 h-7 md:w-9 md:h-9 text-[#00C1A7]" strokeWidth={1.5} />
+            <div className="flex flex-col items-center text-center p-2 md:p-4">
+              <div className="w-14 h-14 md:w-16 lg:w-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3">
+                <Factory className="w-7 h-7 md:w-8 lg:w-9 text-[#00C1A7]" strokeWidth={1.5} />
               </div>
-              <p className="text-[#101828] mb-1 text-sm md:text-base">Distribuidor oficial</p>
+              <p className="text-[#101828] mb-1 text-sm md:text-base font-medium">Distribuidor oficial</p>
               <p className="text-xs md:text-sm text-[#4A5565]">Calidad garantizada</p>
             </div>
           </div>
@@ -245,54 +243,54 @@ export default async function Home() {
       </section>
 
       {/* Nuestras Almohadas Section */}
-      <section className="bg-white py-8 md:py-12">
-        <div className="container mx-auto px-4">
+      <section className="bg-white py-8 md:py-10 lg:py-12">
+        <div className="container mx-auto px-4 md:px-6 lg:px-8">
           {/* Section Header */}
-          <div className="flex items-center justify-between mb-6 md:mb-8">
-            <h3 className="text-lg md:text-xl font-semibold text-gray-800">Nuestros Colchones</h3>
+          <div className="flex items-center justify-between mb-5 md:mb-6 lg:mb-8">
+            <h3 className="text-lg md:text-xl lg:text-2xl font-semibold text-gray-800">Nuestros Colchones</h3>
             <a href="#" className="flex items-center gap-1 md:gap-2 text-gray-700 hover:text-gray-900 transition-colors">
               <span className="font-medium text-sm md:text-base">Ver todos</span>
               <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
             </a>
           </div>
 
-          {/* Product Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+          {/* Product Grid: 2 móvil, 3 tablet, 4 desktop */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
             <HomeProducts section="mattresses" count={4} />
           </div>
         </div>
       </section>
 
       {/* Nuestros Sommiers Section */}
-      <section className="bg-white py-8 md:py-12">
-        <div className="container mx-auto px-4">
+      <section className="bg-white py-8 md:py-10 lg:py-12">
+        <div className="container mx-auto px-4 md:px-6 lg:px-8">
           {/* Section Header */}
-          <div className="flex items-center justify-between mb-6 md:mb-8">
-            <h3 className="text-lg md:text-xl font-semibold text-gray-800">Completa tu compra</h3>
+          <div className="flex items-center justify-between mb-5 md:mb-6 lg:mb-8">
+            <h3 className="text-lg md:text-xl lg:text-2xl font-semibold text-gray-800">Completa tu compra</h3>
             <a href="#" className="flex items-center gap-1 md:gap-2 text-gray-700 hover:text-gray-900 transition-colors">
               <span className="font-medium text-sm md:text-base">Ver todos</span>
               <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
             </a>
           </div>
 
-          {/* Product Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+          {/* Product Grid: 2 móvil, 3 tablet, 4 desktop */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
             <HomeProducts section="complete_purchase" count={4} />
           </div>
         </div>
       </section>
 
       {/* Information Section */}
-      <section className="bg-white py-8 md:py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-8">
+      <section className="bg-white py-8 md:py-10 lg:py-12">
+        <div className="container mx-auto px-4 md:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-8">
             {/* Blog */}
             <a 
               href="/blog" 
-              className="bg-white border border-gray-200 rounded-lg p-4 md:p-8 flex flex-col items-center text-center cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all duration-300 group"
+              className="bg-white border border-gray-200 rounded-lg md:rounded-xl p-4 md:p-6 lg:p-8 flex flex-col items-center text-center cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all duration-300 group"
             >
-              <div className="w-12 h-12 md:w-18 md:h-18 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300">
-                <BookOpen className="w-6 h-6 md:w-9 md:h-9 text-[#00C1A7] group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
+              <div className="w-12 h-12 md:w-16 lg:w-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300">
+                <BookOpen className="w-6 h-6 md:w-8 lg:w-9 text-[#00C1A7] group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
               </div>
               <p className="text-[#101828] mb-1 font-semibold text-sm md:text-base">Blog</p>
               <p className="text-xs md:text-sm text-[#4A5565] hidden md:block">Consejos y guías para un mejor descanso</p>
@@ -301,10 +299,10 @@ export default async function Home() {
             {/* Asesoramiento Personalizado */}
             <a 
               href="/asesoramiento" 
-              className="bg-white border border-gray-200 rounded-lg p-4 md:p-8 flex flex-col items-center text-center cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all duration-300 group"
+              className="bg-white border border-gray-200 rounded-lg md:rounded-xl p-4 md:p-6 lg:p-8 flex flex-col items-center text-center cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all duration-300 group"
             >
-              <div className="w-12 h-12 md:w-18 md:h-18 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300">
-                <MessageCircle className="w-6 h-6 md:w-9 md:h-9 text-[#00C1A7] group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
+              <div className="w-12 h-12 md:w-16 lg:w-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300">
+                <MessageCircle className="w-6 h-6 md:w-8 lg:w-9 text-[#00C1A7] group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
               </div>
               <p className="text-[#101828] mb-1 font-semibold text-sm md:text-base">Asesoramiento</p>
               <p className="text-xs md:text-sm text-[#4A5565] hidden md:block">Te ayudamos a encontrar el producto ideal</p>
@@ -313,10 +311,10 @@ export default async function Home() {
             {/* Preguntas Frecuentes */}
             <a 
               href="/preguntas-frecuentes" 
-              className="bg-white border border-gray-200 rounded-lg p-4 md:p-8 flex flex-col items-center text-center cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all duration-300 group"
+              className="bg-white border border-gray-200 rounded-lg md:rounded-xl p-4 md:p-6 lg:p-8 flex flex-col items-center text-center cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all duration-300 group"
             >
-              <div className="w-12 h-12 md:w-18 md:h-18 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300">
-                <HelpCircle className="w-6 h-6 md:w-9 md:h-9 text-[#00C1A7] group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
+              <div className="w-12 h-12 md:w-16 lg:w-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300">
+                <HelpCircle className="w-6 h-6 md:w-8 lg:w-9 text-[#00C1A7] group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
               </div>
               <p className="text-[#101828] mb-1 font-semibold text-sm md:text-base">Preguntas</p>
               <p className="text-xs md:text-sm text-[#4A5565] hidden md:block">Resolvemos todas tus dudas</p>
@@ -325,10 +323,10 @@ export default async function Home() {
             {/* Nuestro Local */}
             <a 
               href="/nuestro-local" 
-              className="bg-white border border-gray-200 rounded-lg p-4 md:p-8 flex flex-col items-center text-center cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all duration-300 group"
+              className="bg-white border border-gray-200 rounded-lg md:rounded-xl p-4 md:p-6 lg:p-8 flex flex-col items-center text-center cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all duration-300 group"
             >
-              <div className="w-12 h-12 md:w-18 md:h-18 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300">
-                <MapPin className="w-6 h-6 md:w-9 md:h-9 text-[#00C1A7] group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
+              <div className="w-12 h-12 md:w-16 lg:w-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300">
+                <MapPin className="w-6 h-6 md:w-8 lg:w-9 text-[#00C1A7] group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
               </div>
               <p className="text-[#101828] mb-1 font-semibold text-sm md:text-base">Local</p>
               <p className="text-xs md:text-sm text-[#4A5565] hidden md:block">Visítanos y conoce nuestros productos</p>
@@ -340,15 +338,15 @@ export default async function Home() {
       <ReviewsSectionLazy />
 
       {/* Newsletter Section */}
-      <section className="bg-white py-10 md:py-16">
-        <div className="container mx-auto px-4">
+      <section className="bg-white py-10 md:py-12 lg:py-16">
+        <div className="container mx-auto px-4 md:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto">
-            <div className="bg-gray-50 rounded-[15px] md:rounded-[20px] p-6 md:p-12 border border-gray-200">
-              <div className="text-center mb-6 md:mb-8">
-                <h2 className="text-xl md:text-3xl font-bold text-[#101828] mb-2 md:mb-3">
+            <div className="bg-gray-50 rounded-[15px] md:rounded-xl lg:rounded-[20px] p-6 md:p-8 lg:p-12 border border-gray-200">
+              <div className="text-center mb-5 md:mb-6 lg:mb-8">
+                <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-[#101828] mb-2 md:mb-3">
                   ¡No te pierdas nuestras ofertas!
                 </h2>
-                <p className="text-sm md:text-lg text-[#4A5565]">
+                <p className="text-sm md:text-base lg:text-lg text-[#4A5565]">
                   Suscríbete y recibe descuentos especiales
                 </p>
               </div>
@@ -356,7 +354,7 @@ export default async function Home() {
                 <input
                   type="email"
                   placeholder="Ingresa tu email"
-                  className="flex-1 px-4 md:px-6 py-3 md:py-4 rounded-full bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-sm md:text-base"
+                  className="flex-1 px-4 md:px-5 lg:px-6 py-3 md:py-4 rounded-full bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-sm md:text-base"
                   required
                 />
                 <button
