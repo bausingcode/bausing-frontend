@@ -110,7 +110,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   // Mostrar todas las subcategorías disponibles para la categoría seleccionada
   const availableSubcategories = categoryId 
     ? propCategories
-        .filter(cat => (cat.parentId === categoryId) || (cat.parent_id === categoryId))
+        .filter(cat => cat.parentId === categoryId)
         .map(cat => ({
           id: cat.id,
           name: cat.nombre,
