@@ -172,7 +172,7 @@ export async function fetchCatalogs(includeLocalities = false, cookieHeader?: st
 /**
  * Fetch a single catalog by ID
  */
-export async function fetchCatalogById(catalogId: string, cookieHeader?: string | null): Promise<Catalog> {
+export async function fetchCatalogById(catalogId: string, cookieHeader?: string | null): Promise<Catalog | null> {
   const url = typeof window === "undefined"
     ? `${BACKEND_URL}/catalogs/${catalogId}`
     : `/api/catalogs/${catalogId}`;
