@@ -657,8 +657,9 @@ export default function ProductDetailPage() {
     ...product, 
     min_price: currentPriceInfo.price, 
     max_price: currentPriceInfo.price,
-    promos: (product as any).promos || []
-  };
+    promos: (product as any).promos || [],
+    is_active: true // Required by Product type from @/lib/api
+  } as unknown as ApiProduct;
   const priceInfoForTaxes = calculateProductPrice(tempProductForTaxes, 1);
   const priceWithoutTaxes = hasPrice ? priceInfoForTaxes.currentPriceValue * 0.79 : 0;
 
@@ -846,8 +847,9 @@ export default function ProductDetailPage() {
                         ...product, 
                         min_price: basePriceWithoutPromos, 
                         max_price: basePriceWithoutPromos,
-                        promos: productPromos
-                      };
+                        promos: productPromos,
+                        is_active: true // Required by Product type from @/lib/api
+                      } as unknown as ApiProduct;
                       const priceInfo = calculateProductPrice(tempProduct, 1);
                       const hasDiscount = priceInfo.hasDiscount;
                       
