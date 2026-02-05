@@ -1005,8 +1005,9 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         if (subcategoryIds.length > 0) {
           // Si hay subcategorías, usar la categoría padre de la primera subcategoría
           const firstSubcat = propCategories.find(c => c.id === subcategoryIds[0]);
-          if (firstSubcat?.parentId || firstSubcat?.parent_id) {
-            finalCategoryId = firstSubcat.parentId || firstSubcat.parent_id;
+          const parentId = firstSubcat?.parentId || firstSubcat?.parent_id;
+          if (parentId) {
+            finalCategoryId = parentId;
           }
         }
         
