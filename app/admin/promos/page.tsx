@@ -358,6 +358,8 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
               type: "percentage",
               value: 0,
               custom_message: "",
+              home_message: "",
+              product_view_message: "",
               extra_config: {},
               start_at: "",
               end_at: "",
