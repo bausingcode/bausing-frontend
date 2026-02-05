@@ -427,8 +427,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
               loadedSubcatIds.push(fullProduct.category_id);
               
               // Cargar opción si existe
-              if (fullProduct.category_option_id && categoryFromProduct.opciones) {
-                const optionObj = categoryFromProduct.opciones.find(opt => opt.id === fullProduct.category_option_id);
+              if (fullProduct.category_option_id && categoryFromProduct.opcionesConIds) {
+                const optionObj = categoryFromProduct.opcionesConIds.find(opt => opt.id === fullProduct.category_option_id);
                 if (optionObj) {
                   loadedOptions[fullProduct.category_id] = [optionObj.value];
                 }
