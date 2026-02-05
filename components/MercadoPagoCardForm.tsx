@@ -223,7 +223,7 @@ export default function MercadoPagoCardForm({
               // IMPORTANTE: onSubmit debe retornar una Promise
               // Según la documentación, el Brick espera que se procese el pago en el backend
               // y luego se resuelva o rechace la Promise
-              return new Promise((resolve, reject) => {
+              return new Promise<void>((resolve, reject) => {
                 try {
                   // El Brick ya procesa todo y devuelve los datos necesarios
                   const { 
