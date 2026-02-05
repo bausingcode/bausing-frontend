@@ -157,7 +157,8 @@ export default function ProductCombosPage() {
                 let discount: string | undefined;
                 if (combo.product.promos && combo.product.promos.length > 0) {
                   const promo = combo.product.promos[0];
-                  if (promo.discount_percentage) {
+                  // Mostrar "OFERTA" si hay una promoción que aplica descuento (no es solo mensaje promocional)
+                  if (promo.type !== "promotional_message" && priceInfo.hasDiscount) {
                     discount = "OFERTA";
                   }
                 }
