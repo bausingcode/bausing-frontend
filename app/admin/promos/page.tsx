@@ -506,7 +506,7 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
       const extraConfig: Record<string, any> = {};
       
       // Si hay extra_config existente (para bundle u otros), copiarlo
-      if (formData.type === "bundle" && Object.keys(formData.extra_config).length > 0) {
+      if ((formData.type as string) === "bundle" && Object.keys(formData.extra_config).length > 0) {
         Object.assign(extraConfig, formData.extra_config);
         // Eliminar custom_message del extra_config de bundle si existe
         delete extraConfig.custom_message;
