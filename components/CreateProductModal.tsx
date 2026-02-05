@@ -21,7 +21,7 @@ interface CategoryFromPage {
   categoriaPadre?: string;
   parentId?: string;
   parent_id?: string; // Legacy support
-  opciones?: string[];
+  opciones?: Array<string | { id: string; value: string }>;
   opcionesConIds?: Array<{ id: string; value: string; category_id: string }>; // Opciones con IDs
 }
 
@@ -1422,17 +1422,21 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                     Opciones <span className="text-red-500">*</span> <span className="text-xs font-normal text-gray-500">(puedes seleccionar múltiples)</span>
                   </label>
                   <div className="space-y-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    {selectedCategory?.opciones?.map((opcion, index) => (
-                      <label key={index} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={isOptionSelected("direct", opcion)}
-                          onChange={() => toggleOption("direct", opcion)}
-                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-gray-700">{opcion}</span>
-                      </label>
-                    ))}
+                    {selectedCategory?.opciones?.map((opcion, index) => {
+                      // Opciones pueden ser strings o objetos {id, value}
+                      const optionValue = typeof opcion === 'string' ? opcion : opcion.value;
+                      return (
+                        <label key={index} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isOptionSelected("direct", optionValue)}
+                            onChange={() => toggleOption("direct", optionValue)}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-700">{optionValue}</span>
+                        </label>
+                      );
+                    })}
                     {getSelectedOptionsForSubcategory("direct").length > 0 && (
                       <div className="text-xs text-gray-500 mt-2">
                         {getSelectedOptionsForSubcategory("direct").length} opción(es) seleccionada(s)
