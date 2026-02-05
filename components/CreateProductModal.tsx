@@ -1097,7 +1097,6 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
             return {
               sku: variantName || undefined,
               stock: variant.stock,
-              attributes: variant.attributes,
               prices: Object.entries(variant.prices).map(([catalog_id, price]) => ({
                 catalog_id,
                 price,

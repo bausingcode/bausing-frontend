@@ -938,7 +938,8 @@ export async function createCompleteProduct(productData: {
     sku?: string;
     stock: number;
     prices: Array<{
-      locality_id: string;
+      catalog_id?: string;
+      locality_id?: string;
       price: number;
     }>;
   }>;
