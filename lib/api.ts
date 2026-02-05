@@ -1802,6 +1802,11 @@ export interface GeneralMetrics {
     abandoned_carts_value: number;
   };
   conversion_rate: number;
+  payment_methods: {
+    card: number;
+    cash: number;
+    transfer: number;
+  };
 }
 
 /**

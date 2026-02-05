@@ -42,9 +42,19 @@ const statusConfig = {
   },
 };
 
+// Función helper para normalizar el estado de la orden
+// 'pending' se trata igual que 'pendiente de entrega'
+const normalizeOrderStatus = (status: string): string => {
+  if (status === "pending" || status === "pendiente de entrega") {
+    return "pendiente de entrega";
+  }
+  return status;
+};
+
 // Mapeo de estados de orden a información de tracking
 const getStatusInfo = (status: string) => {
-  const statusLower = status.toLowerCase();
+  const normalizedStatus = normalizeOrderStatus(status);
+  const statusLower = normalizedStatus.toLowerCase();
   
   if (statusLower.includes("pendiente de entrega") || statusLower === "pendiente de entrega") {
     return {
@@ -107,9 +117,11 @@ const generateTimeline = (order: Order) => {
   const timeline = [];
   
   // Pendiente de entrega
-  const isPendingDelivery = statusLower === "pendiente de entrega";
-  const isInDelivery = statusLower === "en reparto";
-  const isFinished = statusLower === "finalizado";
+  const normalizedStatus = normalizeOrderStatus(order.status);
+  const normalizedStatusLower = normalizedStatus.toLowerCase();
+  const isPendingDelivery = normalizedStatusLower === "pendiente de entrega";
+  const isInDelivery = normalizedStatusLower === "en reparto";
+  const isFinished = normalizedStatusLower === "finalizado";
   
   timeline.push({
     id: 1,

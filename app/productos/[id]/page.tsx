@@ -3,15 +3,16 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, ShoppingCart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight, Layers, Bed, Scale, Package, Maximize, CheckCircle2, Package2, ChevronDown } from "lucide-react";
+import { Heart, ShoppingCart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight, Layers, Bed, Scale, Package, Maximize, CheckCircle2, Package2, ChevronDown, ChevronUp } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import { useCart } from "@/contexts/CartContext";
 import { useLocality } from "@/contexts/LocalityContext";
-import { fetchProductById, Product as ApiProduct, fetchProducts, fetchProductCombos, ProductCombo } from "@/lib/api";
+import { fetchProductById, Product as ApiProduct, fetchProducts, fetchProductCombos, ProductCombo, fetchHeroImages, HeroImage } from "@/lib/api";
 import wsrvLoader from "@/lib/wsrvLoader";
 import { calculateProductPrice, formatPrice, getVariantPriceByLocality, initializeCatalogCache } from "@/utils/priceUtils";
+import { getPromoLabel } from "@/utils/promoUtils";
 
 interface ProductImage {
   id: string;
@@ -47,6 +48,7 @@ interface Product {
   discount?: string;
   images: ProductImage[];
   variants: ProductVariant[];
+  promos?: Array<any>; // Promociones aplicables
   // Características principales
   firmness?: string; // "Medio", "Blando", "Firme", etc.
   firmnessLevel?: number; // 1-5 para la barra visual
@@ -91,10 +93,12 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [similarProducts, setSimilarProducts] = useState<SimilarProduct[]>([]);
   const [productCombos, setProductCombos] = useState<ProductCombo[]>([]);
+  const [productBanner, setProductBanner] = useState<HeroImage | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<string>("");
   const [selectedVariantOptions, setSelectedVariantOptions] = useState<Record<string, string>>({});
+  const [expandedVariants, setExpandedVariants] = useState<Record<string, boolean>>({});
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     characteristics: false,
     description: false,
@@ -130,14 +134,24 @@ export default function ProductDetailPage() {
       try {
         setLoading(true);
         
-        // Cargar producto y combos en paralelo (productos similares se cargan después para no bloquear)
-        const [apiProduct, combos] = await Promise.all([
+        // Cargar producto, combos y banner en paralelo (productos similares se cargan después para no bloquear)
+        const [apiProduct, combos, banners] = await Promise.all([
           fetchProductById(productId, locality?.id),
-          fetchProductCombos(productId).catch(() => [])
+          fetchProductCombos(productId).catch(() => []),
+          fetchHeroImages(4, true).catch(() => []) // Position 4 para banner de productos
         ]);
+        
+        // Establecer banner si existe
+        if (banners && banners.length > 0) {
+          setProductBanner(banners[0]);
+        }
         
         if (apiProduct) {
           console.log("[ProductDetailPage] Producto cargado - min_price:", apiProduct.min_price, "max_price:", apiProduct.max_price);
+          console.log("[ProductDetailPage] Promos cargadas del API:", apiProduct.promos ? apiProduct.promos.length : 0, apiProduct.promos);
+          if (apiProduct.promos && apiProduct.promos.length > 0) {
+            console.log("[ProductDetailPage] Detalle de promos:", JSON.stringify(apiProduct.promos, null, 2));
+          }
         }
 
         // Establecer combos inmediatamente
@@ -218,6 +232,10 @@ export default function ProductDetailPage() {
 
         const apiProductWithTech = apiProduct as any;
         
+        // Preservar promos del API explícitamente
+        const productPromos = (apiProduct as any).promos || [];
+        console.log("[ProductDetailPage] Preservando promos en transformedProduct:", productPromos.length, productPromos);
+        
         const transformedProduct: Product = {
           id: apiProduct.id,
           name: apiProduct.name,
@@ -227,6 +245,8 @@ export default function ProductDetailPage() {
           discount: priceInfo.discount,
           images: images.length > 0 ? images : [],
           variants: variants.length > 0 ? variants : [],
+          // Preservar promos del API
+          promos: productPromos,
           // Información técnica desde el API
           technicalDescription: apiProductWithTech.technical_description || "",
           warrantyMonths: apiProductWithTech.warranty_months,
@@ -252,6 +272,7 @@ export default function ProductDetailPage() {
           has_crm_stock: apiProductWithTech.has_crm_stock !== undefined ? apiProductWithTech.has_crm_stock : true,
         };
 
+        console.log("[ProductDetailPage] Producto transformado guardado, promos:", transformedProduct.promos?.length || 0, transformedProduct.promos);
         setProduct(transformedProduct);
         
         // Inicializar selecciones de variantes y opciones
@@ -630,7 +651,16 @@ export default function ProductDetailPage() {
 
   const currentPriceInfo = getCurrentProductPrice();
   const hasPrice = currentPriceInfo.price > 0;
-  const priceWithoutTaxes = hasPrice ? currentPriceInfo.price * 0.79 : 0;
+  
+  // Calcular precio sin impuestos basado en el precio final (con descuento si aplica)
+  const tempProductForTaxes = { 
+    ...product, 
+    min_price: currentPriceInfo.price, 
+    max_price: currentPriceInfo.price,
+    promos: (product as any).promos || []
+  };
+  const priceInfoForTaxes = calculateProductPrice(tempProductForTaxes, 1);
+  const priceWithoutTaxes = hasPrice ? priceInfoForTaxes.currentPriceValue * 0.79 : 0;
 
   // Función helper para verificar si una variante es del tipo "Atributo" con opción "Default"
   const isDefaultAttributeVariant = (variant: any): boolean => {
@@ -776,25 +806,126 @@ export default function ProductDetailPage() {
               <div className="mb-4 md:mb-6">
                 {hasPrice ? (
                   <>
-                    {product.originalPrice && (
-                      <>
-                        <div className="flex items-center gap-2 md:gap-3 mb-1 md:mb-2">
-                          <span className="text-base md:text-lg text-gray-400 line-through">{product.originalPrice}</span>
-                          {product.discount && (
-                            <span className="bg-[#00C1A7] text-white px-2 py-0.5 md:py-1 rounded-[4px] font-semibold text-xs md:text-sm">
-                              {product.discount}
-                            </span>
+                    {(() => {
+                      // Obtener el precio base SIN promociones aplicadas
+                      // Necesitamos el precio original antes de aplicar promociones
+                      let basePriceWithoutPromos = 0;
+                      
+                      // Buscar precio de la variante/opción seleccionada sin promociones
+                      if (product.variants && product.variants.length > 0 && locality?.id) {
+                        for (const variant of product.variants) {
+                          const variantKey = variant.id || variant.name || variant.sku || 'default';
+                          const selectedOptionId = selectedVariantOptions[variantKey];
+                          
+                          if (selectedOptionId) {
+                            const price = getVariantPriceByLocality(variant, selectedOptionId, locality.id);
+                            if (price > 0) {
+                              basePriceWithoutPromos = price;
+                              break;
+                            }
+                          } else if (selectedVariant === variant.id) {
+                            const price = getVariantPriceByLocality(variant, undefined, locality.id);
+                            if (price > 0) {
+                              basePriceWithoutPromos = price;
+                              break;
+                            }
+                          }
+                        }
+                      }
+                      
+                      // Si no se encontró precio de variante, usar el precio del producto
+                      if (basePriceWithoutPromos === 0) {
+                        const numericPrice = parseFloat(product.currentPrice.replace(/[$.]/g, '').replace(/\./g, '')) || 0;
+                        basePriceWithoutPromos = numericPrice;
+                      }
+                      
+                      const productPromos = (product as any).promos || [];
+                      console.log('[ProductView] Precio base sin promos:', basePriceWithoutPromos, 'Promos:', productPromos.length, productPromos);
+                      
+                      const tempProduct = { 
+                        ...product, 
+                        min_price: basePriceWithoutPromos, 
+                        max_price: basePriceWithoutPromos,
+                        promos: productPromos
+                      };
+                      const priceInfo = calculateProductPrice(tempProduct, 1);
+                      const hasDiscount = priceInfo.hasDiscount;
+                      
+                      // Obtener el label de descuento directamente de priceInfo, o usar getPromoLabel como fallback
+                      // Para promotional_message, siempre obtener el label aunque no haya descuento real
+                      let discountLabel = priceInfo.discount;
+                      if (!discountLabel && tempProduct.promos && tempProduct.promos.length > 0) {
+                        discountLabel = getPromoLabel(tempProduct.promos as any, 'product_view');
+                        console.log('[ProductView] Label obtenido de getPromoLabel:', discountLabel, 'para promos:', tempProduct.promos);
+                      }
+                      
+                      // Usar el precio con descuento de priceInfo, no de currentPriceInfo
+                      const finalPrice = priceInfo.currentPrice;
+                      const originalPrice = priceInfo.originalPrice;
+                      
+                      // Verificar si hay promos de tipo promotional_message que deben mostrarse aunque no haya descuento
+                      const hasPromotionalMessage = tempProduct.promos && tempProduct.promos.length > 0 && 
+                        tempProduct.promos.some((p: any) => p.type === 'promotional_message');
+                      
+                      // Para promos de tipo "fixed", siempre mostrar el badge si hay descuento
+                      // Para promotional_message, mostrar el badge aunque no haya descuento real
+                      // Incluso si no hay precio original tachado (porque el descuento es un monto fijo o es solo mensaje)
+                      const shouldShowDiscount = (hasDiscount && discountLabel) || (hasPromotionalMessage && discountLabel);
+                      const shouldShowOriginalPrice = hasDiscount && originalPrice && 
+                        priceInfo.originalPriceValue > priceInfo.currentPriceValue;
+                      
+                      // Calcular precio sin impuestos usando el precio final con descuento
+                      const priceWithoutTaxes = priceInfo.currentPriceValue * 0.79;
+                      
+                      console.log('[ProductView] Precio calculado:', {
+                        basePriceWithoutPromos,
+                        hasDiscount,
+                        discountLabel,
+                        finalPrice,
+                        originalPrice,
+                        originalPriceValue: priceInfo.originalPriceValue,
+                        currentPriceValue: priceInfo.currentPriceValue,
+                        priceWithoutTaxes,
+                        shouldShowDiscount,
+                        shouldShowOriginalPrice,
+                        promos: tempProduct.promos,
+                        promosLength: tempProduct.promos?.length || 0
+                      });
+                      
+                      return (
+                        <>
+                          {shouldShowOriginalPrice && (
+                            <>
+                              <div className="flex items-center gap-2 md:gap-3 mb-1 md:mb-2">
+                                <span className="text-base md:text-lg text-gray-400 line-through">{originalPrice}</span>
+                                {shouldShowDiscount && (
+                                  <span className="bg-[#00C1A7] text-white px-2 py-0.5 md:py-1 rounded-[4px] font-semibold text-xs md:text-sm">
+                                    {discountLabel}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xl md:text-2xl font-semibold text-gray-900 mb-1 md:mb-2">{finalPrice}</div>
+                            </>
                           )}
-                        </div>
-                        <div className="text-xl md:text-2xl font-semibold text-gray-900 mb-1 md:mb-2">{currentPriceInfo.formattedPrice}</div>
-                      </>
-                    )}
-                    {!product.originalPrice && (
-                      <div className="text-xl md:text-2xl font-semibold text-gray-900 mb-1 md:mb-2">{currentPriceInfo.formattedPrice}</div>
-                    )}
-                    <div className="text-xs text-gray-500">
-                      Precio sin impuestos nacionales ${priceWithoutTaxes.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
-                    </div>
+                          {!shouldShowOriginalPrice && shouldShowDiscount && (
+                            <>
+                              <div className="flex items-center gap-2 md:gap-3 mb-1 md:mb-2">
+                                <span className="text-xl md:text-2xl font-semibold text-gray-900">{finalPrice}</span>
+                                <span className="bg-[#00C1A7] text-white px-2 py-0.5 md:py-1 rounded-[4px] font-semibold text-xs md:text-sm">
+                                  {discountLabel}
+                                </span>
+                              </div>
+                            </>
+                          )}
+                          {!shouldShowDiscount && (
+                            <div className="text-xl md:text-2xl font-semibold text-gray-900 mb-1 md:mb-2">{finalPrice}</div>
+                          )}
+                          <div className="text-xs text-gray-500">
+                            Precio sin impuestos nacionales ${priceWithoutTaxes.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </>
                 ) : (
                   <div className="text-xl md:text-2xl font-semibold text-gray-500 mb-1 md:mb-2">Sin precio</div>
@@ -805,11 +936,7 @@ export default function ProductDetailPage() {
               {product.variants && product.variants.filter((variant: any) => variant.sku !== null && variant.sku !== undefined).length > 0 && !shouldHideVariantsSection() && (
                 <div className="mb-6 md:mb-8">
                   <h3 className="text-sm font-medium text-gray-700 mb-2 md:mb-3">Opciones disponibles:</h3>
-                  <div className="relative">
-                    <div 
-                      className="space-y-3 md:space-y-4 max-h-60 md:max-h-96 overflow-y-auto pr-2 custom-scrollbar"
-                      id="variants-container"
-                    >
+                  <div className="space-y-2 md:space-y-3">
                     {product.variants
                       .filter((variant: any) => variant.sku !== null && variant.sku !== undefined)
                       .filter((variant: any) => !isDefaultAttributeVariant(variant))
@@ -817,87 +944,109 @@ export default function ProductDetailPage() {
                       // Siempre mostrar variant como título, y si tiene options, mostrar las options como opciones
                       const variantKey = variant.id || variant.name || variant.sku || 'default';
                       const hasOptions = variant.options && Array.isArray(variant.options) && variant.options.length > 0;
+                      const isExpanded = expandedVariants[variantKey] || false;
                       
                       return (
-                        <div key={variantKey}>
-                          <h4 className="text-xs md:text-sm font-bold text-gray-700 mb-2 md:mb-3">
-                            {variant.name || variant.sku || variant.id || "Opción"}
-                          </h4>
-                          <div className="flex flex-wrap gap-1.5 md:gap-2">
-                            {hasOptions ? (
-                              // Si tiene options, mostrar las options como opciones seleccionables
-                              variant.options.map((option: any) => {
-                                const isSelected = selectedVariantOptions[variantKey] === option.id;
-                                const isOutOfStock = option.stock !== undefined && option.stock <= 0;
-                                return (
-                                  <button
-                                    key={option.id}
-                                    onClick={() => {
-                                      if (!isOutOfStock) {
-                                        setSelectedVariantOptions(prev => ({
-                                          ...prev,
-                                          [variantKey]: option.id
-                                        }));
-                                      }
-                                    }}
-                                    disabled={isOutOfStock}
-                                    className={`px-3 py-1.5 md:px-4 md:py-2 rounded-[4px] border transition-all text-xs md:text-sm ${
-                                      isOutOfStock
-                                        ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
-                                        : isSelected
-                                        ? "border-[#00C1A7] bg-[#00C1A7] text-white cursor-pointer"
-                                        : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 cursor-pointer"
-                                    }`}
-                                  >
-                                    {option.name}
-                                    {isOutOfStock && (
-                                      <span className="ml-1 md:ml-2 text-xs">(Sin stock)</span>
-                                    )}
-                                  </button>
-                                );
-                              })
-                            ) : (
-                              // Si no tiene options, mostrar el variant mismo como opción
-                              (() => {
-                                const isVariantOutOfStock = variant.stock !== undefined && variant.stock <= 0;
-                                return (
-                                  <button
-                                    onClick={() => {
-                                      if (!isVariantOutOfStock) {
-                                        setSelectedVariant(variant.id);
-                                      }
-                                    }}
-                                    disabled={isVariantOutOfStock}
-                                    className={`px-3 py-1.5 md:px-4 md:py-2 rounded-[4px] border transition-all text-xs md:text-sm ${
-                                      isVariantOutOfStock
-                                        ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
-                                        : selectedVariant === variant.id
-                                        ? "border-[#00C1A7] bg-[#00C1A7] text-white cursor-pointer"
-                                        : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 cursor-pointer"
-                                    }`}
-                                  >
-                                    {variant.name || variant.sku || variant.id}
-                                    {isVariantOutOfStock && (
-                                      <span className="ml-1 md:ml-2 text-xs">(Sin stock)</span>
-                                    )}
-                                  </button>
-                                );
-                              })()
-                            )}
-                          </div>
+                        <div key={variantKey} className="border border-gray-200 rounded-[8px] overflow-hidden">
+                          {/* Header desplegable */}
+                          <button
+                            onClick={() => {
+                              setExpandedVariants(prev => ({
+                                ...prev,
+                                [variantKey]: !prev[variantKey]
+                              }));
+                            }}
+                            className="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-gray-50 transition-colors text-left"
+                          >
+                            <h4 className="text-xs md:text-sm font-semibold text-gray-900">
+                              {variant.name || variant.sku || variant.id || "Opción"}
+                            </h4>
+                            <div className="flex items-center gap-2">
+                              {hasOptions && (
+                                <span className="text-xs text-gray-500">
+                                  {variant.options.length} opción{variant.options.length !== 1 ? 'es' : ''}
+                                </span>
+                              )}
+                              {isExpanded ? (
+                                <ChevronUp className="w-4 h-4 md:w-5 md:h-5 text-gray-600 shrink-0" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4 md:w-5 md:h-5 text-gray-600 shrink-0" />
+                              )}
+                            </div>
+                          </button>
+                          
+                          {/* Contenido desplegable */}
+                          {isExpanded && (
+                            <div className="px-4 pb-3 pt-2 bg-gray-50 border-t border-gray-200">
+                              <div className="flex flex-wrap gap-1.5 md:gap-2">
+                                {hasOptions ? (
+                                  // Si tiene options, mostrar las options como opciones seleccionables
+                                  variant.options.map((option: any) => {
+                                    const isSelected = selectedVariantOptions[variantKey] === option.id;
+                                    const isOutOfStock = option.stock !== undefined && option.stock <= 0;
+                                    return (
+                                      <button
+                                        key={option.id}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (!isOutOfStock) {
+                                            setSelectedVariantOptions(prev => ({
+                                              ...prev,
+                                              [variantKey]: option.id
+                                            }));
+                                          }
+                                        }}
+                                        disabled={isOutOfStock}
+                                        className={`px-3 py-1.5 md:px-4 md:py-2 rounded-[4px] border transition-all text-xs md:text-sm ${
+                                          isOutOfStock
+                                            ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
+                                            : isSelected
+                                            ? "border-[#00C1A7] bg-[#00C1A7] text-white cursor-pointer"
+                                            : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 cursor-pointer"
+                                        }`}
+                                      >
+                                        {option.name}
+                                        {isOutOfStock && (
+                                          <span className="ml-1 md:ml-2 text-xs">(Sin stock)</span>
+                                        )}
+                                      </button>
+                                    );
+                                  })
+                                ) : (
+                                  // Si no tiene options, mostrar el variant mismo como opción
+                                  (() => {
+                                    const isVariantOutOfStock = variant.stock !== undefined && variant.stock <= 0;
+                                    return (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (!isVariantOutOfStock) {
+                                            setSelectedVariant(variant.id);
+                                          }
+                                        }}
+                                        disabled={isVariantOutOfStock}
+                                        className={`px-3 py-1.5 md:px-4 md:py-2 rounded-[4px] border transition-all text-xs md:text-sm ${
+                                          isVariantOutOfStock
+                                            ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
+                                            : selectedVariant === variant.id
+                                            ? "border-[#00C1A7] bg-[#00C1A7] text-white cursor-pointer"
+                                            : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 cursor-pointer"
+                                        }`}
+                                      >
+                                        {variant.name || variant.sku || variant.id}
+                                        {isVariantOutOfStock && (
+                                          <span className="ml-1 md:ml-2 text-xs">(Sin stock)</span>
+                                        )}
+                                      </button>
+                                    );
+                                  })()
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
-                    </div>
-                    {/* Indicador de scroll para variantes */}
-                    <div 
-                      className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white via-white/98 to-white/70 pointer-events-none flex items-end justify-center pb-3 opacity-0 transition-opacity duration-300"
-                      id="variants-scroll-indicator"
-                    >
-                      <div className="flex flex-col items-center gap-1.5">
-                        <ChevronDown className="w-6 h-6 text-gray-500 arrow-down-animation" />
-                      </div>
-                    </div>
                   </div>
                 </div>
               )}
@@ -1081,7 +1230,6 @@ export default function ProductDetailPage() {
                 )}
               </div>
 
-
               {/* Garantía */}
               {(product.warrantyDescription || product.warrantyMonths) && (
                 <div className="border-b border-gray-200">
@@ -1110,6 +1258,29 @@ export default function ProductDetailPage() {
                         <div>{product.warranty}</div>
                       )}
                     </div>
+                  )}
+                </div>
+              )}
+
+              {/* Banner de productos - Último elemento del contenedor de información técnica */}
+              {productBanner && (
+                <div className="mt-6 mb-6">
+                  {productBanner.cta_link ? (
+                    <Link href={productBanner.cta_link} className="block">
+                      <img
+                        src={wsrvLoader({ src: productBanner.image_url, width: 1200 })}
+                        alt={productBanner.title || productBanner.subtitle || "Banner promocional"}
+                        className="w-full h-auto rounded-[10px] object-cover"
+                        style={{ maxHeight: '200px', objectFit: 'cover', width: '100%' }}
+                      />
+                    </Link>
+                  ) : (
+                    <img
+                      src={wsrvLoader({ src: productBanner.image_url, width: 1200 })}
+                      alt={productBanner.title || productBanner.subtitle || "Banner promocional"}
+                      className="w-full h-auto rounded-[10px] object-cover"
+                      style={{ maxHeight: '200px', objectFit: 'cover', width: '100%' }}
+                    />
                   )}
                 </div>
               )}

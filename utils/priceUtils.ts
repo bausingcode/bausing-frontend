@@ -147,10 +147,15 @@ export function calculateProductPrice(
   // etc.
   
   // 1. Aplicar promociones
+  // Determinar contexto: si es product view, usar 'product_view', sino 'home' o 'catalog'
+  const context = typeof window !== 'undefined' && window.location.pathname.includes('/productos/') 
+    ? 'product_view' 
+    : 'home';
   const promoCalculation = calculatePriceWithPromo(
     basePrice,
     quantity,
-    product.promos as any
+    product.promos as any,
+    context
   );
   
   // Precio final después de aplicar todas las condiciones
@@ -169,8 +174,9 @@ export function calculateProductPrice(
     : undefined;
   
   // Label de descuento/promo
+  // Usar el contexto detectado para obtener el label correcto
   const discount = promoCalculation.promoLabel || 
-                   (product.promos && product.promos.length > 0 ? getPromoLabel(product.promos as any) : undefined);
+                   (product.promos && product.promos.length > 0 ? getPromoLabel(product.promos as any, context) : undefined);
   
   return {
     currentPrice,

@@ -759,12 +759,86 @@ export default function Navbar() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const isExitingRef = useRef(false);
-  const closingTimestampRef = useRef<number>(0);
+  // Ref para rastrear la posición actual del mouse en tiempo real
+  const mousePositionRef = useRef({ x: 0, y: 0 });
+  // Ref para evitar llamadas dobles a closeMenu
+  const isClosingRef = useRef(false);
   const { user, isAuthenticated, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const isFavoritesPage = pathname === "/favoritos";
+
+  // Rastrear posición del mouse en tiempo real
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      mousePositionRef.current = { x: e.clientX, y: e.clientY };
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    return () => document.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  // Ref separado para el timeout de la animación de cierre
+  const animCloseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Función helper para cerrar el menú con animación
+  const closeMenu = (categoryToClose: string) => {
+    // Si ya estamos cerrando, no hacer nada
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
+    
+    // Iniciar animación de cierre (CSS con forwards mantiene opacity:0 al final)
+    setIsClosing(true);
+    setClosingCategory(categoryToClose);
+    
+    // Fallback: si onAnimationEnd no se dispara, limpiar después de 300ms
+    if (animCloseTimeoutRef.current) clearTimeout(animCloseTimeoutRef.current);
+    animCloseTimeoutRef.current = setTimeout(() => {
+      finishClose();
+    }, 300);
+  };
+
+  // Función para limpiar todo el estado del menú después de cerrar
+  const finishClose = () => {
+    if (animCloseTimeoutRef.current) {
+      clearTimeout(animCloseTimeoutRef.current);
+      animCloseTimeoutRef.current = null;
+    }
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    setHoveredCategory(null);
+    setHoveredSubcategory(null);
+    setPreviousCategory(null);
+    setIsClosing(false);
+    setClosingCategory(null);
+    isClosingRef.current = false;
+  };
+
+  // Función helper para verificar si el mouse está dentro del menú (nav + dropdown)
+  const isMouseInMenuArea = () => {
+    const { x, y } = mousePositionRef.current;
+    
+    // Verificar si está en el nav
+    const navElement = document.querySelector('nav.hidden.md\\:block');
+    if (navElement) {
+      const navRect = navElement.getBoundingClientRect();
+      if (x >= navRect.left && x <= navRect.right && y >= navRect.top && y <= navRect.bottom) {
+        return true;
+      }
+    }
+    
+    // Verificar si está en el dropdown
+    const dropdownElement = document.querySelector('[data-dropdown-menu]');
+    if (dropdownElement) {
+      const dropdownRect = dropdownElement.getBoundingClientRect();
+      if (x >= dropdownRect.left && x <= dropdownRect.right && y >= dropdownRect.top && y <= dropdownRect.bottom) {
+        return true;
+      }
+    }
+    
+    return false;
+  };
 
   // Cargar categorías desde la API
   useEffect(() => {
@@ -1191,67 +1265,22 @@ export default function Navbar() {
         {/* Navigation Bar - Hidden on mobile */}
         <nav 
           className="hidden md:block bg-white border-b border-gray-200 relative"
-          onMouseLeave={(e) => {
-            // Verificar si el cursor va hacia un dropdown
-            const relatedTarget = e.relatedTarget;
-            const isGoingToDropdown = relatedTarget && 
-              relatedTarget instanceof HTMLElement && 
-              (relatedTarget.closest('.absolute.top-full') !== null || 
-               relatedTarget.closest('[class*="animate-slideInFromTop"]') !== null);
+          onMouseLeave={() => {
+            if (!hoveredCategory) return;
             
-            // Solo cerrar si el cursor sale completamente (no hacia un dropdown)
-            if (!isGoingToDropdown) {
-              // Marcar que el mouse está saliendo y registrar el timestamp
-              isExitingRef.current = true;
-              closingTimestampRef.current = Date.now();
-              
-              // Agregar un pequeño delay antes de cerrar
-              if (closeTimeoutRef.current) {
-                clearTimeout(closeTimeoutRef.current);
-              }
-              closeTimeoutRef.current = setTimeout(() => {
-                // Verificar nuevamente si el mouse está sobre el dropdown antes de cerrar
-                const dropdownElement = document.querySelector('.absolute.top-full');
-                if (dropdownElement) {
-                  const rect = dropdownElement.getBoundingClientRect();
-                  // Padding más pequeño para área de detección
-                  const padding = 10;
-                  const expandedRect = {
-                    left: rect.left - padding,
-                    right: rect.right + padding,
-                    top: rect.top - padding,
-                    bottom: rect.bottom + padding
-                  };
-                  
-                  // Obtener posición actual del mouse desde el evento
-                  const mouseX = (e as any).clientX || 0;
-                  const mouseY = (e as any).clientY || 0;
-                  
-                  if (mouseX >= expandedRect.left && mouseX <= expandedRect.right && 
-                      mouseY >= expandedRect.top && mouseY <= expandedRect.bottom) {
-                    // Si el mouse está cerca del dropdown, no está saliendo realmente
-                    isExitingRef.current = false;
-                    closingTimestampRef.current = 0;
-                    return; // No cerrar si el mouse está cerca del dropdown
-                  }
-                }
-                
-                setHoveredCategory(null);
-                setHoveredSubcategory(null);
-                setPreviousCategory(null);
-                setIsClosing(false);
-                setClosingCategory(null);
-                // Mantener la bandera por un tiempo corto para prevenir reapertura
-                setTimeout(() => {
-                  isExitingRef.current = false;
-                  closingTimestampRef.current = 0;
-                }, 200);
-              }, 100); // Delay más corto para cerrar más rápido
-            } else {
-              // Si va hacia el dropdown, no está saliendo
-              isExitingRef.current = false;
-              closingTimestampRef.current = 0;
+            // Cancelar timeouts previos
+            if (closeTimeoutRef.current) {
+              clearTimeout(closeTimeoutRef.current);
+              closeTimeoutRef.current = null;
             }
+            
+            // Verificar posición real del mouse con un pequeño delay
+            closeTimeoutRef.current = setTimeout(() => {
+              if (isMouseInMenuArea()) return;
+              if (hoveredCategory) {
+                closeMenu(hoveredCategory);
+              }
+            }, 50);
           }}
         >
           <div className="container mx-auto px-4">
@@ -1290,37 +1319,32 @@ export default function Navbar() {
                       }}
                       onMouseEnter={() => {
                         // Si no tiene subcategorías, no abrir el dropdown
-                        if (!hasSubcategories) {
-                          return;
-                        }
-                        // Solo bloquear si se cerró muy recientemente (menos de 150ms) Y se está saliendo
-                        const timeSinceClosing = Date.now() - closingTimestampRef.current;
-                        if (isExitingRef.current && timeSinceClosing < 150) {
-                          // Solo bloquear si realmente se está saliendo y fue muy reciente
-                          return;
-                        }
+                        if (!hasSubcategories) return;
                         
-                        // Cancelar cualquier cierre pendiente cuando cambias de categoría
+                        // Cancelar cualquier cierre pendiente
                         if (closeTimeoutRef.current) {
                           clearTimeout(closeTimeoutRef.current);
                           closeTimeoutRef.current = null;
                         }
+                        if (animCloseTimeoutRef.current) {
+                          clearTimeout(animCloseTimeoutRef.current);
+                          animCloseTimeoutRef.current = null;
+                        }
                         
-                        // Resetear las banderas si el mouse entra a una categoría
-                        isExitingRef.current = false;
-                        closingTimestampRef.current = 0;
-                        
-                        const wasOpen = hoveredCategory !== null;
                         const isDifferentCategory = hoveredCategory !== categoryName;
                         
-                        // Si cambias a una categoría diferente, resetear el estado de cierre
-                        if (isDifferentCategory) {
+                        // Si estaba cerrando, cancelar
+                        if (isClosing || isClosingRef.current) {
+                          isClosingRef.current = false;
                           setIsClosing(false);
                           setClosingCategory(null);
+                        }
+                        
+                        if (isDifferentCategory) {
+                          setPreviousCategory(hoveredCategory);
                           setHoveredSubcategory(null);
                         }
                         
-                        setPreviousCategory(hoveredCategory);
                         setHoveredCategory(categoryName);
                       }}
                     >
@@ -1386,61 +1410,41 @@ export default function Navbar() {
               ?.filter(item => item.subcategories && item.subcategories.length > 0)
               .map(item => item.name) || [];
 
+            const shouldShowEnterAnimation = hoveredCategory === categoryName && !isClosing && previousCategory === null;
+            const shouldShowExitAnimation = isClosing && closingCategory === categoryName;
+            
             return (
               <div 
                 key={categoryName}
-                className={`absolute top-full left-0 w-full bg-white border-t border-gray-200 z-50 ${previousCategory === null && !isClosing ? 'animate-slideInFromTop' : ''} ${isClosing && closingCategory === categoryName ? 'animate-slideOutToTop' : ''}`}
+                data-dropdown-menu
+                className={`absolute top-full left-0 w-full bg-white border-t border-gray-200 z-50 ${shouldShowEnterAnimation ? 'animate-slideInFromTop' : ''} ${shouldShowExitAnimation ? 'animate-slideOutToTop' : ''}`}
                 style={{ marginTop: '-1px' }}
                 onMouseEnter={() => {
-                  // Si el mouse entra al dropdown, no está saliendo
-                  isExitingRef.current = false;
-                  closingTimestampRef.current = 0;
-                  
                   // Cancelar cualquier cierre pendiente
                   if (closeTimeoutRef.current) {
                     clearTimeout(closeTimeoutRef.current);
                     closeTimeoutRef.current = null;
                   }
-                  if (isClosing) {
+                  if (animCloseTimeoutRef.current) {
+                    clearTimeout(animCloseTimeoutRef.current);
+                    animCloseTimeoutRef.current = null;
+                  }
+                  
+                  // Si estaba cerrando, cancelar
+                  if (isClosing || isClosingRef.current) {
+                    isClosingRef.current = false;
                     setIsClosing(false);
                     setClosingCategory(null);
+                    if (hoveredCategory !== categoryName) {
+                      setHoveredCategory(categoryName);
+                    }
                   }
                 }}
-                onMouseLeave={(e) => {
-                  // Verificar si el cursor va hacia el nav
-                  const relatedTarget = e.relatedTarget;
-                  const isGoingToNav = relatedTarget && 
-                    relatedTarget instanceof HTMLElement && 
-                    relatedTarget.closest('nav') !== null;
-                  
-                  // Si va hacia el nav, no cerrar (el nav manejará el cierre)
-                  if (isGoingToNav) {
-                    isExitingRef.current = false;
-                    closingTimestampRef.current = 0;
-                    return;
+                onAnimationEnd={(e) => {
+                  // Cuando la animación de salida termina, limpiar el estado inmediatamente
+                  if (e.animationName === 'slideOutToTop') {
+                    finishClose();
                   }
-                  
-                  // Si sale completamente, marcar que está saliendo e iniciar el cierre
-                  isExitingRef.current = true;
-                  closingTimestampRef.current = Date.now();
-                  
-                  if (closeTimeoutRef.current) {
-                    clearTimeout(closeTimeoutRef.current);
-                  }
-                  setIsClosing(true);
-                  setClosingCategory(categoryName);
-                  closeTimeoutRef.current = setTimeout(() => {
-                    setHoveredCategory(null);
-                    setHoveredSubcategory(null);
-                    setPreviousCategory(null);
-                    setIsClosing(false);
-                    setClosingCategory(null);
-                    // Mantener la bandera por un tiempo corto para prevenir reapertura
-                    setTimeout(() => {
-                      isExitingRef.current = false;
-                      closingTimestampRef.current = 0;
-                    }, 200);
-                  }, 100); // Delay más corto para cerrar más rápido
                 }}
               >
                 <div className="container mx-auto px-4 py-6">
@@ -1597,8 +1601,6 @@ export default function Navbar() {
                                     closeTimeoutRef.current = null;
                                   }
                                   // Resetear las banderas de salida cuando el mouse entra a un item
-                                  isExitingRef.current = false;
-                                  closingTimestampRef.current = 0;
                                   setHoveredSubcategory(item.name);
                                 } else {
                                   setHoveredSubcategory(null);
@@ -1682,9 +1684,6 @@ export default function Navbar() {
                                   clearTimeout(closeTimeoutRef.current);
                                   closeTimeoutRef.current = null;
                                 }
-                                // Resetear las banderas de salida
-                                isExitingRef.current = false;
-                                closingTimestampRef.current = 0;
                                 if (isClosing) {
                                   setIsClosing(false);
                                   setClosingCategory(null);
@@ -1943,10 +1942,6 @@ export default function Navbar() {
                                     clearTimeout(closeTimeoutRef.current);
                                     closeTimeoutRef.current = null;
                                   }
-                                  // Resetear las banderas de salida cuando el mouse entra a un item
-                                  isExitingRef.current = false;
-                                  closingTimestampRef.current = 0;
-                                  
                                   if (hasSubcategories) {
                                     setHoveredSubcategory(item.name);
                                   } else {
@@ -2047,9 +2042,6 @@ export default function Navbar() {
                                 clearTimeout(closeTimeoutRef.current);
                                 closeTimeoutRef.current = null;
                               }
-                              // Resetear las banderas de salida
-                              isExitingRef.current = false;
-                              closingTimestampRef.current = 0;
                               if (isClosing) {
                                 setIsClosing(false);
                                 setClosingCategory(null);
@@ -2259,9 +2251,6 @@ export default function Navbar() {
                                 clearTimeout(closeTimeoutRef.current);
                                 closeTimeoutRef.current = null;
                               }
-                              // Resetear las banderas de salida
-                              isExitingRef.current = false;
-                              closingTimestampRef.current = 0;
                               if (isClosing) {
                                 setIsClosing(false);
                                 setClosingCategory(null);

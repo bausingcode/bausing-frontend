@@ -20,7 +20,8 @@ export interface PromoCalculationResult {
 export function calculatePriceWithPromo(
   basePrice: number,
   quantity: number = 1,
-  promos?: Promo[]
+  promos?: Promo[],
+  context: 'home' | 'catalog' | 'product_view' = 'home'
 ): PromoCalculationResult {
   if (!promos || promos.length === 0) {
     return {
@@ -73,7 +74,15 @@ export function calculatePriceWithPromo(
       // Mensaje promocional sin descuento real
       discountAmount = 0;
       discountedPrice = originalPrice;
-      promoLabel = promo.extra_config?.custom_message || "OFERTA";
+      // Para promotional_message, usar mensajes específicos según el contexto
+      if (context === 'product_view' && promo.extra_config?.product_view_message) {
+        promoLabel = promo.extra_config.product_view_message;
+      } else if ((context === 'home' || context === 'catalog') && promo.extra_config?.home_message) {
+        promoLabel = promo.extra_config.home_message;
+      } else {
+        // Fallback a custom_message o "OFERTA"
+        promoLabel = promo.extra_config?.custom_message || "OFERTA";
+      }
       break;
 
     case "2x1":
@@ -120,8 +129,10 @@ export function calculatePriceWithPromo(
 
 /**
  * Obtiene el texto de descuento para mostrar en UI
+ * @param promos - Array de promociones
+ * @param context - Contexto donde se muestra: 'home' | 'catalog' | 'product_view'
  */
-export function getPromoLabel(promos?: Promo[]): string | undefined {
+export function getPromoLabel(promos?: Promo[], context: 'home' | 'catalog' | 'product_view' = 'home'): string | undefined {
   if (!promos || promos.length === 0) return undefined;
 
   const promo = promos[0];
@@ -138,6 +149,14 @@ export function getPromoLabel(promos?: Promo[]): string | undefined {
     case "fixed":
       return promo.extra_config?.custom_message || `$${promo.value.toLocaleString("es-AR")} OFF`;
     case "promotional_message":
+      // Para promotional_message, usar mensajes específicos según el contexto
+      if (context === 'product_view' && promo.extra_config?.product_view_message) {
+        return promo.extra_config.product_view_message;
+      }
+      if ((context === 'home' || context === 'catalog') && promo.extra_config?.home_message) {
+        return promo.extra_config.home_message;
+      }
+      // Fallback a custom_message o "OFERTA"
       return promo.extra_config?.custom_message || "OFERTA";
     case "2x1":
       return "2x1";

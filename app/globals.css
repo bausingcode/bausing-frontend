@@ -132,7 +132,7 @@ body {
 }
 
 .animate-slideOutToTop {
-  animation: slideOutToTop 0.2s ease-out;
+  animation: slideOutToTop 0.2s ease-out forwards;
 }
 
 @keyframes wiggle {

@@ -311,6 +311,8 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
     type: "percentage" as "percentage" | "fixed" | "promotional_message",
     value: 0,
     custom_message: "",
+    home_message: "",
+    product_view_message: "",
     extra_config: {} as Record<string, any>,
     start_at: "",
     end_at: "",
@@ -396,6 +398,8 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
               type: promo.type as any,
               value: promo.value || 0,
               custom_message: promo.extra_config?.custom_message || "",
+              home_message: promo.extra_config?.home_message || "",
+              product_view_message: promo.extra_config?.product_view_message || "",
               extra_config: promo.extra_config || {},
               start_at: new Date(startDate.getTime() - startDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16),
               end_at: new Date(endDate.getTime() - endDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16),
@@ -414,6 +418,8 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
               type: "percentage",
               value: 0,
               custom_message: "",
+              home_message: "",
+              product_view_message: "",
               extra_config: {},
               start_at: "",
               end_at: "",
@@ -509,6 +515,16 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
         extraConfig.custom_message = formData.custom_message.trim();
       }
       
+      // Para promotional_message, agregar mensajes separados si existen
+      if (formData.type === "promotional_message") {
+        if (formData.home_message && formData.home_message.trim()) {
+          extraConfig.home_message = formData.home_message.trim();
+        }
+        if (formData.product_view_message && formData.product_view_message.trim()) {
+          extraConfig.product_view_message = formData.product_view_message.trim();
+        }
+      }
+      
       // Si es una edición, siempre enviar extra_config para asegurar que se actualice correctamente
       // Si está vacío, enviar {} para limpiar el custom_message existente
       if (promo) {
@@ -532,6 +548,8 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
         type: "percentage",
         value: 0,
         custom_message: "",
+        home_message: "",
+        product_view_message: "",
         extra_config: {},
         start_at: "",
         end_at: "",
@@ -686,19 +704,55 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
                   />
                 </div>
               ) : (
-                <div>
-                  <label className={labelClass}>
-                    Mensaje <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.custom_message}
-                    onChange={(e) => setFormData({ ...formData, custom_message: e.target.value })}
-                    className={inputClass}
-                    placeholder="Ej: OFERTA, MONTO OFF, etc."
-                    required
-                  />
-                </div>
+                <>
+                  <div>
+                    <label className={labelClass}>
+                      Mensaje general (opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.custom_message}
+                      onChange={(e) => setFormData({ ...formData, custom_message: e.target.value })}
+                      className={inputClass}
+                      placeholder="Ej: OFERTA (se usará si no hay mensajes específicos)"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Este mensaje se usará como fallback si no hay mensajes específicos para home/catálogo o vista de producto
+                    </p>
+                  </div>
+                  <div>
+                    <label className={labelClass}>
+                      Mensaje para Home/Catálogo <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.home_message}
+                      onChange={(e) => setFormData({ ...formData, home_message: e.target.value })}
+                      className={inputClass}
+                      placeholder="Ej: OFERTA ESPECIAL"
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Mensaje que se mostrará en la página de inicio y catálogo de productos
+                    </p>
+                  </div>
+                  <div>
+                    <label className={labelClass}>
+                      Mensaje para Vista de Producto <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.product_view_message}
+                      onChange={(e) => setFormData({ ...formData, product_view_message: e.target.value })}
+                      className={inputClass}
+                      placeholder="Ej: OFERTA EXCLUSIVA"
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Mensaje que se mostrará en la página de detalle del producto
+                    </p>
+                  </div>
+                </>
               )}
             </div>
             
