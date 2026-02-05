@@ -277,7 +277,7 @@ export async function deleteCatalog(catalogId: string, cookieHeader?: string | n
 /**
  * Update catalog localities (replace entire list)
  */
-export async function updateCatalogLocalities(catalogId: string, localityIds: string[], cookieHeader?: string | null): Promise<Catalog> {
+export async function updateCatalogLocalities(catalogId: string, localityIds: string[], cookieHeader?: string | null): Promise<Catalog | null> {
   const url = typeof window === "undefined"
     ? `${BACKEND_URL}/catalogs/${catalogId}/localities`
     : `/api/catalogs/${catalogId}/localities`;
