@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Lock, ArrowRight, Loader2, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -327,5 +327,37 @@ export default function ResetPasswordPage() {
       </div>
       <Footer />
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col">
+          <Navbar />
+          <div className="flex-1 flex items-center justify-center py-8 px-4">
+            <div className="w-full max-w-sm">
+              <div className="bg-white rounded-2xl shadow-lg shadow-gray-200/50 p-8">
+                <div className="flex justify-center mb-8">
+                  <img
+                    src="/images/logo/logobausing1.svg"
+                    alt="Bausing Logo"
+                    className="h-10 w-auto"
+                  />
+                </div>
+                <div className="text-center">
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#00C1A7]" />
+                  <p className="text-sm text-gray-600 mt-4">Cargando...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <Footer />
+        </div>
+      }
+    >
+      <ResetPasswordForm />
+    </Suspense>
   );
 }
