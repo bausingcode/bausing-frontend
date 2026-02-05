@@ -194,7 +194,7 @@ export async function fetchCatalogById(catalogId: string, cookieHeader?: string 
 /**
  * Create a new catalog
  */
-export async function createCatalog(catalog: { name: string; description?: string }, cookieHeader?: string | null): Promise<Catalog> {
+export async function createCatalog(catalog: { name: string; description?: string }, cookieHeader?: string | null): Promise<Catalog | null> {
   const url = typeof window === "undefined"
     ? `${BACKEND_URL}/catalogs`
     : `/api/catalogs`;
