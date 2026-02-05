@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Mail, CheckCircle, XCircle, Loader2, ArrowRight, RefreshCw } from "lucide-react";
@@ -10,7 +10,7 @@ import Footer from "@/components/Footer";
 
 type Status = "pending" | "verifying" | "success" | "error";
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { isAuthenticated, updateUser } = useAuth();
@@ -259,3 +259,34 @@ export default function VerifyEmailPage() {
   );
 }
 
+export default function VerifyEmailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex flex-col">
+          <Navbar />
+          <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-md w-full space-y-8">
+              <div className="bg-white rounded-[10px] border border-gray-200 p-8">
+                <div className="text-center mb-8">
+                  <div className="flex justify-center mb-4">
+                    <Loader2 className="h-12 w-12 text-[#00C1A7] animate-spin" />
+                  </div>
+                  <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                    Cargando...
+                  </h2>
+                  <p className="text-gray-600">
+                    Por favor espera...
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <Footer />
+        </div>
+      }
+    >
+      <VerifyEmailContent />
+    </Suspense>
+  );
+}
