@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import ProductCard from "@/components/ProductCard";
 import Navbar from "@/components/Navbar";
@@ -12,7 +12,7 @@ import { useLocality } from "@/contexts/LocalityContext";
 
 // Esta página maneja /catalogo sin slug (solo con query params como search)
 // Es básicamente la misma lógica que [...slug]/page.tsx pero sin manejo de categorías
-export default function CatalogoPage() {
+function CatalogoContent() {
   const searchParams = useSearchParams();
   const { locality } = useLocality();
   
@@ -311,3 +311,20 @@ export default function CatalogoPage() {
   );
 }
 
+export default function CatalogoPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white">
+        <Navbar />
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center py-20">
+            <p className="text-gray-600">Cargando...</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    }>
+      <CatalogoContent />
+    </Suspense>
+  );
+}
