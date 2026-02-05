@@ -168,7 +168,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   };
 
   // Función para generar atributos según la categoría seleccionada
-  const generateAttributesForCategory = (catId: string, selectedSubcatIds: string[], selectedOptions: Record<string, string>): Attribute[] => {
+  const generateAttributesForCategory = (catId: string, selectedSubcatIds: string[]): Attribute[] => {
     const category = propCategories.find(c => c.id === catId);
     
     // Colchones - generar atributos según las subcategorías seleccionadas
@@ -693,7 +693,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   // Generar atributos cuando cambia la categoría, subcategorías u opción (solo si no hay atributos ya)
   useEffect(() => {
     if (categoryId && currentStep >= 2 && attributes.length === 0) {
-      const generatedAttributes = generateAttributesForCategory(categoryId, subcategoryIds, selectedOptions);
+      const generatedAttributes = generateAttributesForCategory(categoryId, subcategoryIds);
       setAttributes(generatedAttributes);
     } else if (!categoryId) {
       setAttributes([]);
