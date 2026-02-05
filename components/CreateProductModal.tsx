@@ -20,6 +20,7 @@ interface CategoryFromPage {
   subcategorias?: number;
   categoriaPadre?: string;
   parentId?: string;
+  parent_id?: string; // Legacy support
   opciones?: string[];
   opcionesConIds?: Array<{ id: string; value: string; category_id: string }>; // Opciones con IDs
 }
