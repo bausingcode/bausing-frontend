@@ -17,7 +17,7 @@ import BannerCarousel from "@/components/BannerCarousel";
 import Navbar from "@/components/Navbar";
 import dynamic from "next/dynamic";
 import wsrvLoader from "@/lib/wsrvLoader";
-import { fetchHeroImages, HeroImage } from "@/lib/api";
+import { fetchHeroImages, HeroImage, fetchActiveEvent } from "@/lib/api";
 import HomeProducts from "@/components/HomeProducts";
 import ReviewsSectionLazy from "@/components/ReviewsSectionLazy";
 import InfoCarousel from "@/components/InfoCarousel";
@@ -32,6 +32,7 @@ export default async function Home() {
   let heroImages: HeroImage[] = [];
   let infoBanner: HeroImage | null = null;
   let descuentazosBanner: HeroImage | null = null;
+  let activeEvent = null;
   // Los productos ahora se cargan en el cliente con HomeProducts component
 
   try {
@@ -45,6 +46,9 @@ export default async function Home() {
     // Fetch active descuentazos banner (position 3)
     const descuentazosBanners = await fetchHeroImages(3, true);
     descuentazosBanner = descuentazosBanners.length > 0 ? descuentazosBanners[0] : null;
+    
+    // Fetch active event from server
+    activeEvent = await fetchActiveEvent();
     
     // Los productos ahora se cargan en el cliente con HomeProducts component
     // para que puedan usar la localidad del contexto
@@ -64,7 +68,7 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-white">
-      <Navbar />
+      <Navbar event={activeEvent} />
 
       {/* Hero Section - Banner Carousel */}
       {bannerImages.length > 0 && (

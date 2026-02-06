@@ -3892,6 +3892,235 @@ export async function deletePromo(promoId: string): Promise<void> {
   }
 }
 
+// Events API
+export interface Event {
+  id: string;
+  text: string;
+  background_color: string;
+  text_color: string;
+  is_active: boolean;
+  display_type: 'fixed' | 'countdown';
+  countdown_end_date: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/**
+ * Fetch active event (public)
+ */
+export async function fetchActiveEvent(): Promise<Event | null> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/public/active`
+      : `/api/public/active`;
+    
+    const response = await fetch(url, { cache: "no-store" });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch active event: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || "Failed to fetch active event");
+    }
+    
+    return data.data || null;
+  } catch (error) {
+    console.error("Error fetching active event:", error);
+    return null;
+  }
+}
+
+/**
+ * Fetch all events (admin)
+ */
+export async function fetchEvents(): Promise<Event[]> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/events`
+      : `/api/admin/events`;
+    
+    const headers = typeof window === "undefined"
+      ? getAuthHeadersServer()
+      : getAuthHeaders();
+    
+    const response = await fetch(url, { headers, cache: "no-store" });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch events: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || "Failed to fetch events");
+    }
+    
+    return data.data || [];
+  } catch (error) {
+    console.error("Error fetching events:", error);
+    return [];
+  }
+}
+
+/**
+ * Create a new event (admin)
+ */
+export async function createEvent(eventData: {
+  text: string;
+  background_color?: string;
+  text_color?: string;
+  is_active?: boolean;
+  display_type: 'fixed' | 'countdown';
+  countdown_end_date?: string | null;
+}): Promise<Event> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/events`
+      : `/api/admin/events`;
+    
+    const headers = typeof window === "undefined"
+      ? getAuthHeadersServer()
+      : getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(eventData),
+      cache: "no-store",
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Failed to create event: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || "Failed to create event");
+    }
+    
+    return data.data;
+  } catch (error) {
+    console.error("Error creating event:", error);
+    throw error;
+  }
+}
+
+/**
+ * Update an existing event (admin)
+ */
+export async function updateEvent(eventId: string, eventData: {
+  text?: string;
+  background_color?: string;
+  text_color?: string;
+  is_active?: boolean;
+  display_type?: 'fixed' | 'countdown';
+  countdown_end_date?: string | null;
+}): Promise<Event> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/events/${eventId}`
+      : `/api/admin/events/${eventId}`;
+    
+    const headers = typeof window === "undefined"
+      ? getAuthHeadersServer()
+      : getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(eventData),
+      cache: "no-store",
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Failed to update event: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || "Failed to update event");
+    }
+    
+    return data.data;
+  } catch (error) {
+    console.error("Error updating event:", error);
+    throw error;
+  }
+}
+
+/**
+ * Delete an event (admin)
+ */
+export async function deleteEvent(eventId: string): Promise<void> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/events/${eventId}`
+      : `/api/admin/events/${eventId}`;
+    
+    const headers = typeof window === "undefined"
+      ? getAuthHeadersServer()
+      : getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers,
+      cache: "no-store",
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Failed to delete event: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || "Failed to delete event");
+    }
+  } catch (error) {
+    console.error("Error deleting event:", error);
+    throw error;
+  }
+}
+
+/**
+ * Toggle event active status (admin)
+ */
+export async function toggleEvent(eventId: string): Promise<Event> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/events/${eventId}/toggle`
+      : `/api/admin/events/${eventId}/toggle`;
+    
+    const headers = typeof window === "undefined"
+      ? getAuthHeadersServer()
+      : getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers,
+      cache: "no-store",
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Failed to toggle event: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || "Failed to toggle event");
+    }
+    
+    return data.data;
+  } catch (error) {
+    console.error("Error toggling event:", error);
+    throw error;
+  }
+}
+
 /**
  * Homepage Product Distribution Types
  */

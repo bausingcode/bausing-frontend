@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import NavLink from "./NavLink";
-import { LogOut, Home, ShoppingCart, Users, CreditCard, Package, Truck, BarChart3, UserCog, Settings, Tag, User, ChevronDown, Image, FileText } from "lucide-react";
+import { LogOut, Home, ShoppingCart, Users, CreditCard, Package, Truck, BarChart3, UserCog, Settings, Tag, User, ChevronDown, Image, FileText, Calendar } from "lucide-react";
 import { getCurrentAdminUser, AdminUser } from "@/lib/api";
 
 export default function Sidebar() {
@@ -222,6 +222,14 @@ export default function Sidebar() {
                   icon={<Tag className="w-5 h-5" />}
                 >
                   Promos
+                </NavLink>
+              </li>
+              <li key="eventos">
+                <NavLink
+                  href="/admin/eventos"
+                  icon={<Calendar className="w-5 h-5" />}
+                >
+                  Eventos
                 </NavLink>
               </li>
               <li key="logistica">

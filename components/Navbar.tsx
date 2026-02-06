@@ -45,7 +45,7 @@ import TopbarUpper from "./TopbarUpper";
 import TopbarServices from "./TopbarServices";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchCategories, Category } from "@/lib/api";
+import { fetchCategories, Category, type Event } from "@/lib/api";
 
 // Iconos personalizados
 const PillowIcon = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
@@ -747,7 +747,11 @@ const categoriesData: Record<string, CategoryData> = {
 // Lista de categorías principales para el menú
 const mainCategories = Object.keys(categoriesData);
 
-export default function Navbar() {
+interface NavbarProps {
+  event?: Event | null;
+}
+
+export default function Navbar({ event }: NavbarProps = {}) {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
   const [hoveredSubcategory, setHoveredSubcategory] = useState<string | null>(null);
@@ -946,7 +950,7 @@ export default function Navbar() {
   return (
     <>
       <div className="sticky top-0 z-50 bg-white">
-        <TopbarUpper />
+        <TopbarUpper initialEvent={event} />
         <TopbarServices />
 
         {/* Main Header - White Bar */}
