@@ -179,7 +179,7 @@ export default function ReviewsSection() {
       >
         <div 
           ref={scrollContentRef}
-          className="flex gap-6"
+          className="flex gap-4 md:gap-6"
           style={{ width: 'max-content' }}
         >
             {/* Render reviews twice for seamless loop */}
@@ -189,32 +189,32 @@ export default function ReviewsSection() {
                 href={review.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-white rounded-lg border border-[#DEDEDE] p-6 min-w-[400px] max-w-[400px] flex flex-col flex-shrink-0 cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all"
+                className="bg-white rounded-lg border border-[#DEDEDE] p-4 md:p-6 min-w-[280px] md:min-w-[400px] max-w-[280px] md:max-w-[400px] flex flex-col flex-shrink-0 cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all"
               >
                 {/* Stars */}
-                <div className="flex gap-1 mb-4">
+                <div className="flex gap-1 mb-3 md:mb-4">
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
-                      className="w-5 h-5 fill-yellow-400 text-yellow-400"
+                      className="w-4 h-4 md:w-5 md:h-5 fill-yellow-400 text-yellow-400"
                       strokeWidth={0}
                     />
                   ))}
                 </div>
 
                 {/* Review Text */}
-                <p className="text-gray-900 mb-6 flex-1 text-sm leading-relaxed">
+                <p className="text-gray-900 mb-4 md:mb-6 flex-1 text-xs md:text-sm leading-relaxed">
                   {review.text}
                 </p>
 
                 {/* Customer Info */}
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-[#00C1A7] flex items-center justify-center flex-shrink-0">
-                    <span className="text-white font-semibold text-sm">
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[#00C1A7] flex items-center justify-center flex-shrink-0">
+                    <span className="text-white font-semibold text-xs md:text-sm">
                       {getInitials(review.name)}
                     </span>
                   </div>
-                  <p className="text-gray-900 font-medium text-sm">
+                  <p className="text-gray-900 font-medium text-xs md:text-sm">
                     {review.name}
                   </p>
                 </div>

@@ -15,6 +15,7 @@ interface ProductCardProps {
   originalPrice?: string;
   discount?: string;
   isPriceLoading?: boolean;
+  useNormalHeight?: boolean;
 }
 
 export default function ProductCard({
@@ -26,6 +27,7 @@ export default function ProductCard({
   originalPrice,
   discount,
   isPriceLoading = false,
+  useNormalHeight = false,
 }: ProductCardProps) {
   // Generar ID único si no se proporciona
   const productId = id || `product-${name.toLowerCase().replace(/\s+/g, "-")}`;
@@ -124,7 +126,7 @@ export default function ProductCard({
 
   return (
     <Link href={`/productos/${productId}`} className="relative group block cursor-pointer" style={{ fontFamily: 'DM Sans, sans-serif' }}>
-      <div className="relative w-full h-80 rounded-[10px] overflow-hidden">
+      <div className={`relative w-full rounded-[10px] overflow-hidden ${useNormalHeight ? 'h-80' : 'h-48 md:h-80'}`}>
         <img
           src={optimizedUrl}
           alt={alt}
@@ -183,30 +185,30 @@ export default function ProductCard({
           </button>
         </div>
       </div>
-      <div className="pt-3">
+      <div className={useNormalHeight ? "pt-3" : "pt-2 md:pt-3"}>
         <div className="mb-1">
-          <h4 className="text-sm font-normal text-gray-900 leading-tight">
+          <h4 className={useNormalHeight ? "text-sm font-normal text-gray-900 leading-tight" : "text-xs md:text-sm font-normal text-gray-900 leading-tight"}>
             {name}
           </h4>
         </div>
         <div className="flex items-baseline gap-2">
           {isPriceLoading ? (
             <div className="animate-pulse">
-              <div className="h-6 bg-gray-200 rounded w-24"></div>
+              <div className={useNormalHeight ? "h-6 bg-gray-200 rounded w-24" : "h-5 md:h-6 bg-gray-200 rounded w-20 md:w-24"}></div>
             </div>
           ) : currentPrice ? (
             <>
-              <span className="text-xl font-semibold text-gray-900">{currentPrice}</span>
+              <span className={useNormalHeight ? "text-xl font-semibold text-gray-900" : "text-lg md:text-xl font-semibold text-gray-900"}>{currentPrice}</span>
               {originalPrice && (
-                <span className="text-sm text-gray-400 line-through">{originalPrice}</span>
+                <span className={useNormalHeight ? "text-sm text-gray-400 line-through" : "text-xs md:text-sm text-gray-400 line-through"}>{originalPrice}</span>
               )}
             </>
           ) : (
-            <span className="text-xl font-semibold text-gray-500">Sin Precio</span>
+            <span className={useNormalHeight ? "text-xl font-semibold text-gray-500" : "text-lg md:text-xl font-semibold text-gray-500"}>Sin Precio</span>
           )}
         </div>
         {!isPriceLoading && currentPrice && (
-          <div className="text-xs text-gray-500 mt-1">
+          <div className={useNormalHeight ? "text-xs text-gray-500 mt-1" : "text-[10px] md:text-xs text-gray-500 mt-0.5 md:mt-1"}>
             Precio sin impuestos nacionales {calculatePriceWithoutTaxes(currentPrice)}
           </div>
         )}

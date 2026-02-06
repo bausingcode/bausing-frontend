@@ -20,6 +20,7 @@ import wsrvLoader from "@/lib/wsrvLoader";
 import { fetchHeroImages, HeroImage } from "@/lib/api";
 import HomeProducts from "@/components/HomeProducts";
 import ReviewsSectionLazy from "@/components/ReviewsSectionLazy";
+import InfoCarousel from "@/components/InfoCarousel";
 
 const Footer = dynamic(() => import("@/components/Footer"), {
   loading: () => null,
@@ -202,7 +203,11 @@ export default async function Home() {
       {/* Promotional Offers Section */}
       <section className="bg-white py-8 md:py-10 lg:py-12">
         <div className="container mx-auto px-4 md:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
+          {/* Mobile Carousel */}
+          <InfoCarousel />
+          
+          {/* Desktop Grid */}
+          <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
             {/* Free Shipping */}
             <div className="flex flex-col items-center text-center p-2 md:p-4">
               <div className="w-14 h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 aspect-square">

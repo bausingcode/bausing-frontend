@@ -154,11 +154,17 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
 
   if (loading) {
     // Skeleton mientras carga
+    // Para discounts, mostrar solo 2 en mobile
+    const skeletonCount = section === "discounts" ? count : count;
+    
     return (
       <>
-        {[...Array(count)].map((_, index) => (
-          <div key={index} className="relative group block animate-pulse">
-            <div className="relative w-full h-80 rounded-[10px] overflow-hidden bg-gray-200"></div>
+        {[...Array(skeletonCount)].map((_, index) => (
+          <div 
+            key={index} 
+            className={`relative group block animate-pulse ${section === "discounts" && index >= 2 ? 'hidden md:block' : ''}`}
+          >
+            <div className={`relative w-full rounded-[10px] overflow-hidden bg-gray-200 ${section === "discounts" ? 'h-48 md:h-80' : 'h-48 md:h-80'}`}></div>
             <div className="pt-3">
               <div className="mb-1">
                 <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
@@ -184,10 +190,14 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
 
   // Para la sección de descuentos, necesitamos un wrapper especial
   if (section === "discounts") {
+    // En mobile solo mostrar 2 productos, en desktop mostrar todos
     return (
       <>
         {products.map((product, index) => (
-          <div key={`${product.id}-${index}-${locality?.id || 'no-locality'}`} className="bg-white p-4 rounded-[20px] h-full cursor-pointer">
+          <div 
+            key={`${product.id}-${index}-${locality?.id || 'no-locality'}`} 
+            className={`bg-white p-4 rounded-[20px] h-full cursor-pointer ${index >= 2 ? 'hidden md:block' : ''}`}
+          >
             <div className="h-full flex flex-col">
               <ProductCard
                 id={product.id}
@@ -198,6 +208,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
                 originalPrice={product.originalPrice}
                 discount={product.discount}
                 isPriceLoading={product.isPriceLoading}
+                useNormalHeight={false}
               />
             </div>
           </div>
