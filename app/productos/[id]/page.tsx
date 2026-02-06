@@ -978,7 +978,11 @@ export default function ProductDetailPage() {
                           </button>
                           
                           {/* Contenido desplegable */}
-                          {isExpanded && (
+                          <div 
+                            className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                              isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
+                            }`}
+                          >
                             <div className="px-4 pb-3 pt-2 bg-gray-50 border-t border-gray-200">
                               <div className="flex flex-wrap gap-1.5 md:gap-2">
                                 {hasOptions ? (
@@ -1045,7 +1049,7 @@ export default function ProductDetailPage() {
                                 )}
                               </div>
                             </div>
-                          )}
+                          </div>
                         </div>
                       );
                     })}
@@ -1103,11 +1107,15 @@ export default function ProductDetailPage() {
                     <Plus className="w-5 h-5 text-gray-500" />
                   )}
                 </button>
-                {expandedSections.description && (
+                <div 
+                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    expandedSections.description ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
+                  }`}
+                >
                   <div className="pb-4 text-sm text-gray-600">
                     {product.description}
                   </div>
-                )}
+                </div>
               </div>
 
               {/* Características principales */}
@@ -1123,7 +1131,11 @@ export default function ProductDetailPage() {
                     <Plus className="w-5 h-5 text-gray-500" />
                   )}
                 </button>
-                {expandedSections.characteristics && (
+                <div 
+                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    expandedSections.characteristics ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+                  }`}
+                >
                   <div className="pb-4">
                     <div className="space-y-4">
                       {/* Firmeza del colchón con barra visual */}
@@ -1229,7 +1241,7 @@ export default function ProductDetailPage() {
                       )}
                     </div>
                   </div>
-                )}
+                </div>
               </div>
 
               {/* Garantía */}
@@ -1246,7 +1258,11 @@ export default function ProductDetailPage() {
                       <Plus className="w-5 h-5 text-gray-500" />
                     )}
                   </button>
-                  {expandedSections.warranty && (
+                  <div 
+                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                      expandedSections.warranty ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
+                    }`}
+                  >
                     <div className="pb-4 text-sm text-gray-600 space-y-2">
                       {product.warrantyMonths && (
                         <div>
@@ -1260,7 +1276,7 @@ export default function ProductDetailPage() {
                         <div>{product.warranty}</div>
                       )}
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
 
