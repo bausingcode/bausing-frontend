@@ -158,8 +158,8 @@ export default function Metricas() {
               icon={<ShoppingCart className="w-5 h-5" />}
             />
             <MetricCard
-              title="Tasa de Conversión"
-              value={`${generalMetrics.conversion_rate.toFixed(1)}%`}
+              title="Abandono de Carritos"
+              value={`${generalMetrics.cart_abandonment_rate.toFixed(1)}%`}
               icon={<TrendingUp className="w-5 h-5" />}
             />
             <MetricCard

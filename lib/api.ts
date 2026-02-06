@@ -1671,7 +1671,7 @@ export interface UserMetrics {
   purchases: UserPurchaseMetrics;
   abandoned_carts: UserAbandonedCartMetrics;
   wallet: UserWalletMetrics;
-  conversion_rate: number;
+  cart_abandonment_rate: number;
   user_created_at?: string | null;
 }
 
@@ -1802,7 +1802,7 @@ export interface GeneralMetrics {
     total_spent: number;
     abandoned_carts_value: number;
   };
-  conversion_rate: number;
+  cart_abandonment_rate: number;
   payment_methods: {
     card: number;
     cash: number;

@@ -137,7 +137,7 @@ export default function MetricasUsuarios() {
                       Última Compra
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Conversión
+                      Tasa de Abandono
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Acciones
@@ -215,7 +215,7 @@ export default function MetricasUsuarios() {
                         <div className="flex items-center gap-2">
                           <TrendingUp className="w-4 h-4 text-blue-500" />
                           <span className="text-sm font-medium text-gray-900">
-                            {user.conversion_rate.toFixed(1)}%
+                            {user.cart_abandonment_rate.toFixed(1)}%
                           </span>
                         </div>
                       </td>
