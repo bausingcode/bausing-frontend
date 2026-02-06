@@ -41,6 +41,8 @@ import {
   X
 } from "lucide-react";
 import Cart from "./Cart";
+import TopbarUpper from "./TopbarUpper";
+import TopbarServices from "./TopbarServices";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchCategories, Category } from "@/lib/api";
@@ -944,25 +946,8 @@ export default function Navbar() {
   return (
     <>
       <div className="sticky top-0 z-50 bg-white">
-        {/* Top Header - Light Green Bar (hidden on mobile) */}
-        <div className="hidden md:block bg-[#00C1A7]/80 py-1.5">
-          <div className="container mx-auto px-4">
-            <div className="flex items-center justify-center gap-6 text-sm text-white">
-              <div className="flex items-center gap-2">
-                <Truck className="w-4 h-4 text-white" />
-                <span className="font-semibold">Envíos propios y gratis</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <FactoryIcon className="w-4 h-4 text-white" />
-                <span className="font-semibold">Directo de fábrica</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-white" />
-                <span className="font-semibold">Abonas al recibir</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <TopbarUpper />
+        <TopbarServices />
 
         {/* Main Header - White Bar */}
         <header className="bg-white border-b border-gray-200">

@@ -1394,18 +1394,19 @@ export default function ProductDetailPage() {
                 <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
               </a>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
-              {similarProducts.map((similarProduct) => (
-                <ProductCard
-                  key={similarProduct.id}
-                  id={similarProduct.id}
-                  image={similarProduct.image}
-                  alt={similarProduct.name}
-                  name={similarProduct.name}
-                  currentPrice={similarProduct.currentPrice}
-                  originalPrice={similarProduct.originalPrice || ""}
-                  discount={similarProduct.discount}
-                />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+              {similarProducts.map((similarProduct, index) => (
+                <div key={similarProduct.id} className={index >= 2 ? "hidden md:block" : ""}>
+                  <ProductCard
+                    id={similarProduct.id}
+                    image={similarProduct.image}
+                    alt={similarProduct.name}
+                    name={similarProduct.name}
+                    currentPrice={similarProduct.currentPrice}
+                    originalPrice={similarProduct.originalPrice || ""}
+                    discount={similarProduct.discount}
+                  />
+                </div>
               ))}
             </div>
           </div>
