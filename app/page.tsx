@@ -28,49 +28,37 @@ const Footer = dynamic(() => import("@/components/Footer"), {
 });
 
 export default async function Home() {
-  // Fetch hero images (position 1), info banner (position 2), and descuentazos banner (position 3) from server
   let heroImages: HeroImage[] = [];
   let infoBanner: HeroImage | null = null;
   let descuentazosBanner: HeroImage | null = null;
   let activeEvent = null;
-  // Los productos ahora se cargan en el cliente con HomeProducts component
 
   try {
-    // Fetch active hero images (position 1)
     heroImages = await fetchHeroImages(1, true);
     
-    // Fetch active info banner (position 2)
     const infoBanners = await fetchHeroImages(2, true);
     infoBanner = infoBanners.length > 0 ? infoBanners[0] : null;
     
-    // Fetch active descuentazos banner (position 3)
     const descuentazosBanners = await fetchHeroImages(3, true);
     descuentazosBanner = descuentazosBanners.length > 0 ? descuentazosBanners[0] : null;
     
-    // Fetch active event from server
     activeEvent = await fetchActiveEvent();
     
-    // Los productos ahora se cargan en el cliente con HomeProducts component
-    // para que puedan usar la localidad del contexto
   } catch (error) {
     console.error("Error fetching data:", error);
-    // Continue with empty arrays if fetch fails
   }
 
-  // Transform hero images for BannerCarousel
   const bannerImages = heroImages.map((img) => ({
     id: parseInt(img.id.slice(0, 8), 16) || img.id.charCodeAt(0),
     url: img.image_url,
     alt: img.title || img.subtitle || "Banner"
   }));
 
-  // Los productos se cargan dinámicamente en el cliente con HomeProducts
 
   return (
     <div className="min-h-screen bg-white">
       <Navbar event={activeEvent} />
 
-      {/* Hero Section - Banner Carousel */}
       {bannerImages.length > 0 && (
         <BannerCarousel images={bannerImages} autoPlayInterval={5000} />
       )}
@@ -145,7 +133,6 @@ export default async function Home() {
             </a>
           </div>
 
-          {/* Product Grid: 2 móvil, 3 tablet, 4 desktop */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
             <HomeProducts section="featured" count={4} />
           </div>
@@ -170,15 +157,12 @@ export default async function Home() {
         </section>
       )}
 
-      {/* Descuentazos Section */}
       <section className="bg-[#fafafa] py-8 md:py-10 lg:py-12">
         <div className="container mx-auto px-4 md:px-6 lg:px-8">
-          {/* Título: visible en móvil; en tablet/desktop dentro del grid */}
           <div className="mb-5 md:mb-6">
             <h3 className="text-lg md:text-xl lg:text-2xl font-semibold text-gray-800">Promociones Destacadas</h3>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6 items-start">
-            {/* Banner Descuentazos - Hidden on mobile, 1 col en tablet/desktop */}
             <div className="hidden md:block md:row-span-1 rounded-[10px] md:rounded-xl overflow-hidden w-full max-w-full md:max-w-[280px] lg:max-w-[300px] h-[320px] md:h-[380px] lg:h-[430px]">
               {descuentazosBanner ? (
                 <img
@@ -198,7 +182,6 @@ export default async function Home() {
               )}
             </div>
 
-            {/* Productos */}
             <HomeProducts section="discounts" count={3} />
           </div>
         </div>
@@ -212,7 +195,6 @@ export default async function Home() {
           
           {/* Desktop Grid */}
           <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
-            {/* Free Shipping */}
             <div className="flex flex-col items-center text-center p-2 md:p-4">
               <div className="w-14 h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 aspect-square">
                 <Truck className="w-7 h-7 md:w-8 lg:w-9 text-[#00C1A7]" strokeWidth={1.5} />
@@ -221,7 +203,6 @@ export default async function Home() {
               <p className="text-xs md:text-sm text-[#4A5565]">Consultar localidades</p>
             </div>
 
-            {/* Payment Options */}
             <div className="flex flex-col items-center text-center p-2 md:p-4">
               <div className="w-14 h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 aspect-square">
                 <CreditCard className="w-7 h-7 md:w-8 lg:w-9 text-[#00C1A7]" strokeWidth={1.5} />
@@ -230,7 +211,6 @@ export default async function Home() {
               <p className="text-xs md:text-sm text-[#4A5565]">La mejor opción para tu compra</p>
             </div>
 
-            {/* Warranty */}
             <div className="flex flex-col items-center text-center p-2 md:p-4">
               <div className="w-14 h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 aspect-square">
                 <Award className="w-7 h-7 md:w-8 lg:w-9 text-[#00C1A7]" strokeWidth={1.5} />
@@ -239,7 +219,6 @@ export default async function Home() {
               <p className="text-xs md:text-sm text-[#4A5565]">En todos nuestros colchones</p>
             </div>
 
-            {/* Quality Assurance */}
             <div className="flex flex-col items-center text-center p-2 md:p-4">
               <div className="w-14 h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 aspect-square">
                 <Factory className="w-7 h-7 md:w-8 lg:w-9 text-[#00C1A7]" strokeWidth={1.5} />
@@ -263,7 +242,6 @@ export default async function Home() {
             </a>
           </div>
 
-          {/* Product Grid: 2 móvil, 3 tablet, 4 desktop */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
             <HomeProducts section="mattresses" count={4} />
           </div>
