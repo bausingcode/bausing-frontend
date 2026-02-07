@@ -175,7 +175,7 @@ export default async function Home() {
         <div className="container mx-auto px-4 md:px-6 lg:px-8">
           {/* Título: visible en móvil; en tablet/desktop dentro del grid */}
           <div className="mb-5 md:mb-6">
-            <h3 className="text-lg md:text-xl lg:text-2xl font-semibold text-gray-800">Descuentazos</h3>
+            <h3 className="text-lg md:text-xl lg:text-2xl font-semibold text-gray-800">Promociones Destacadas</h3>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6 items-start">
             {/* Banner Descuentazos - Hidden on mobile, 1 col en tablet/desktop */}

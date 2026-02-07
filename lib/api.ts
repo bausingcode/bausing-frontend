@@ -4363,3 +4363,89 @@ export async function fetchPublicHomepageDistribution(localityId?: string): Prom
     };
   }
 }
+
+// Messages API
+export interface SendPromotionalEmailsResponse {
+  success: boolean;
+  sent_count: number;
+  failed_count: number;
+  total_users: number;
+  message?: string;
+  error?: string;
+}
+
+export interface SendWalletRemindersResponse {
+  success: boolean;
+  sent_count: number;
+  failed_count: number;
+  total_users: number;
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Send promotional emails to all users
+ */
+export async function sendPromotionalEmails(data: {
+  subject: string;
+  message: string;
+  user_filter?: string;
+}): Promise<SendPromotionalEmailsResponse> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/messages/promotional`
+      : `/api/admin/messages/promotional`;
+    
+    const headers = typeof window === "undefined" 
+      ? getAuthHeadersServer()
+      : getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Failed to send promotional emails: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Error sending promotional emails:", error);
+    throw error;
+  }
+}
+
+/**
+ * Send wallet reminders to users with expiring balance
+ */
+export async function sendWalletReminders(): Promise<SendWalletRemindersResponse> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/messages/wallet-reminders`
+      : `/api/admin/messages/wallet-reminders`;
+    
+    const headers = typeof window === "undefined" 
+      ? getAuthHeadersServer()
+      : getAuthHeaders();
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Failed to send wallet reminders: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Error sending wallet reminders:", error);
+    throw error;
+  }
+}
