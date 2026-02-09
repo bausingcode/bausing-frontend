@@ -3690,6 +3690,109 @@ export async function getUserOrder(orderId: string): Promise<Order | null> {
   }
 }
 
+// Reviews API
+export interface ProductReview {
+  id: string;
+  user_id: string;
+  order_id: string;
+  order_item_id: string;
+  product_id: string;
+  product_variant_id?: string;
+  rating: number; // 1-5
+  title?: string;
+  comment?: string;
+  status: string; // published | hidden | pending | deleted
+  is_verified_purchase: boolean;
+  created_at: string;
+  updated_at: string;
+  user_name?: string;
+}
+
+export interface CreateReviewRequest {
+  order_id: string;
+  order_item_id: string;
+  product_id: string;
+  product_variant_id?: string;
+  rating: number;
+  title?: string;
+  comment?: string;
+}
+
+/**
+ * Create a product review
+ */
+export async function createReview(review: CreateReviewRequest): Promise<ProductReview> {
+  const url = `/api/api/reviews`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: getUserAuthHeaders(),
+    body: JSON.stringify(review),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to create review: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to create review: Invalid response");
+  }
+  return data.data;
+}
+
+/**
+ * Get reviews for a specific order
+ */
+export async function getOrderReviews(orderId: string): Promise<{
+  reviews: ProductReview[];
+  order_id: string;
+  order_status: string;
+}> {
+  const url = `/api/api/reviews/order/${orderId}`;
+  const response = await fetch(url, {
+    headers: getUserAuthHeaders(),
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to get order reviews: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to get order reviews: Invalid response");
+  }
+  return data.data;
+}
+
+/**
+ * Get reviews for a specific product
+ */
+export async function getProductReviews(productId: string): Promise<{
+  reviews: ProductReview[];
+  product_id: string;
+  total_reviews: number;
+  average_rating: number | null;
+}> {
+  const url = `/api/api/reviews/product/${productId}`;
+  const response = await fetch(url, {
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to get product reviews: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to get product reviews: Invalid response");
+  }
+  return data.data;
+}
+
 // Promos API
 export interface Promo {
   id: string;
