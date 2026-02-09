@@ -84,6 +84,11 @@ interface SimilarProduct {
   image: string;
 }
 
+// Special category IDs for custom combo section logic
+const CATEGORY_COLCHONES_ID = "12788182-9221-4d8a-9bf5-1a00503dcd34";
+const CATEGORY_SOMMIERS_ID = "57e5e2e5-e054-4b18-84dc-be94a22e2994";
+const CATEGORY_OPTION_SOMMIER_FILTER = "04dbb0ef-d918-496e-ba9c-db61664f5d0";
+
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -93,6 +98,8 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [similarProducts, setSimilarProducts] = useState<SimilarProduct[]>([]);
   const [productCombos, setProductCombos] = useState<ProductCombo[]>([]);
+  const [categoryProducts, setCategoryProducts] = useState<ApiProduct[]>([]);
+  const [productCategoryId, setProductCategoryId] = useState<string>("");
   const [productBanner, setProductBanner] = useState<HeroImage | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -156,6 +163,43 @@ export default function ProductDetailPage() {
 
         // Establecer combos inmediatamente
         setProductCombos(combos);
+
+        // Special category logic - fetch category products for combo section
+        const currentCategoryId = apiProduct?.category_id || "";
+        setProductCategoryId(currentCategoryId);
+
+        if (apiProduct && (currentCategoryId === CATEGORY_COLCHONES_ID || currentCategoryId === CATEGORY_SOMMIERS_ID)) {
+          const catParams: any = {
+            is_active: true,
+            category_id: CATEGORY_SOMMIERS_ID,
+            page: 1,
+            per_page: 10,
+            include_images: true,
+            include_promos: true,
+          };
+          if (locality?.id) {
+            catParams.locality_id = locality.id;
+          }
+          
+          fetchProducts(catParams).then((result) => {
+            let filtered = result.products.filter(p => p.id !== productId);
+            
+            // For sommiers category, additionally filter by category_option
+            if (currentCategoryId === CATEGORY_SOMMIERS_ID) {
+              filtered = filtered.filter(p => {
+                if (p.category_option_id === CATEGORY_OPTION_SOMMIER_FILTER) return true;
+                if (p.subcategories?.some(s => s.category_option_id === CATEGORY_OPTION_SOMMIER_FILTER)) return true;
+                return false;
+              });
+            }
+            
+            // Shuffle and pick 2
+            const shuffled = filtered.sort(() => 0.5 - Math.random());
+            setCategoryProducts(shuffled.slice(0, 2));
+          }).catch(() => setCategoryProducts([]));
+        } else {
+          setCategoryProducts([]);
+        }
         
         // Cargar productos similares de forma asíncrona sin bloquear la renderización
         const similarParams: any = {
@@ -692,6 +736,30 @@ export default function ProductDetailPage() {
     // Si todas las variantes son del tipo "Atributo" con opción "Default", ocultar la sección
     return variantsWithSku.every((variant: any) => isDefaultAttributeVariant(variant));
   };
+
+  // Computed variables for combo section
+  const isSpecialCategory = productCategoryId === CATEGORY_COLCHONES_ID || productCategoryId === CATEGORY_SOMMIERS_ID;
+  const completedCombos = productCombos.filter(combo => combo.is_completed);
+  const showComboSection = isSpecialCategory 
+    ? (categoryProducts.length > 0 || completedCombos.length > 0)
+    : completedCombos.length > 0;
+
+  // For special categories: aim for 3 total (ideally 2 products + 1 combo), fill gaps as needed
+  let numCatProducts = 0;
+  let numCombosToShow = 0;
+  if (isSpecialCategory) {
+    const TARGET = 3;
+    numCatProducts = Math.min(2, categoryProducts.length);
+    numCombosToShow = Math.min(TARGET - numCatProducts, completedCombos.length);
+    // If still room left, fill with more category products
+    if (numCatProducts + numCombosToShow < TARGET) {
+      numCatProducts = Math.min(TARGET - numCombosToShow, categoryProducts.length);
+    }
+  } else {
+    numCombosToShow = 3;
+  }
+  const catProductsToShow = isSpecialCategory ? categoryProducts.slice(0, numCatProducts) : [];
+  const combosToShow = completedCombos.slice(0, numCombosToShow);
 
   return (
     <>
@@ -1306,11 +1374,11 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Right: Combo Section */}
-          {productCombos.filter(combo => combo.is_completed).length > 0 && (
+          {showComboSection && (
             <div className="lg:col-span-3 order-1 lg:order-2">
               <div className="flex items-center justify-between mb-4 md:mb-6">
                 <h2 className="text-lg md:text-xl text-gray-900">Elegí tu combo</h2>
-                {productCombos.filter(combo => combo.is_completed).length > 3 && (
+                {!isSpecialCategory && completedCombos.length > 3 && (
                   <Link
                     href={`/productos/${productId}/combos`}
                     className="flex items-center gap-1 md:gap-2 text-gray-700 hover:text-gray-900 transition-colors text-xs md:text-sm font-medium"
@@ -1321,7 +1389,46 @@ export default function ProductDetailPage() {
                 )}
               </div>
               <div className="space-y-4 md:space-y-6">
-                {productCombos.filter(combo => combo.is_completed).slice(0, 3).map((combo) => {
+                {/* Category products for special categories, shown as combo-style cards */}
+                {isSpecialCategory && catProductsToShow.map((catProduct) => {
+                  const priceInfo = calculateProductPrice(catProduct, 1);
+                  const catProductImage = catProduct.main_image || (catProduct.images && catProduct.images.length > 0 ? catProduct.images[0].image_url : "") || "";
+                  return (
+                    <div
+                      key={catProduct.id}
+                      className="bg-white border border-gray-200 rounded-[10px] p-3 md:p-4 flex items-center gap-3 md:gap-4"
+                    >
+                      {catProductImage && (
+                        <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-100 rounded-[4px] flex-shrink-0 overflow-hidden">
+                          <img
+                            src={wsrvLoader({ src: catProductImage, width: 200 })}
+                            alt={catProduct.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-900 mb-0.5 md:mb-1 text-sm md:text-base line-clamp-2">{catProduct.name}</h3>
+                        {priceInfo.currentPrice && (
+                          <div className="flex items-center gap-1.5 md:gap-2">
+                            <span className="text-base md:text-lg font-semibold text-gray-900">{priceInfo.currentPrice}</span>
+                            {priceInfo.hasDiscount && priceInfo.originalPrice && (
+                              <span className="text-xs md:text-sm text-gray-400 line-through">{priceInfo.originalPrice}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <Link 
+                        href={`/productos/${catProduct.id}`}
+                        className="w-7 h-7 md:w-8 md:h-8 rounded-full border border-[#484848] text-[#484848] flex items-center justify-center hover:bg-[#484848] hover:text-white transition-colors cursor-pointer flex-shrink-0"
+                      >
+                        <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                      </Link>
+                    </div>
+                  );
+                })}
+                {/* Combos: 1 for special categories, up to 3 for normal */}
+                {combosToShow.map((combo) => {
                   const formatPrice = (price: number): string => {
                     return `$${Math.round(price).toLocaleString('es-AR')}`;
                   };
