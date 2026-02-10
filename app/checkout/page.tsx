@@ -41,7 +41,7 @@ import {
 import { formatPrice, calculateProductPrice } from "@/utils/priceUtils";
 import MercadoPagoCardForm from "@/components/MercadoPagoCardForm";
 
-type PaymentMethod = "card" | "cash" | "transfer" | "wallet" | null;
+type PaymentMethodType = "card" | "cash" | "transfer" | "wallet";
 
 export default function CheckoutPage() {
   const { user, isAuthenticated, register, login, updateUser } = useAuth();
@@ -115,9 +115,11 @@ export default function CheckoutPage() {
     province_id: "",
   });
 
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
+  // Multi-payment support: allow combining multiple payment methods
+  const [enableMultiPayment, setEnableMultiPayment] = useState(false);
+  const [selectedMethods, setSelectedMethods] = useState<PaymentMethodType[]>([]);
+  const [methodAmounts, setMethodAmounts] = useState<Record<string, number>>({});
   const [payOnDelivery, setPayOnDelivery] = useState(false);
-  const [useWalletBalance, setUseWalletBalance] = useState(false);
   const [cardData, setCardData] = useState({
     number: "",
     cvv: "",
@@ -160,8 +162,8 @@ export default function CheckoutPage() {
 
   // Resetear estado de MercadoPago cuando cambia el método de pago o se desactiva "abonar al recibir"
   useEffect(() => {
-    // Si no es pago con tarjeta o es "abonar al recibir", resetear el estado de MercadoPago
-    if (paymentMethod !== "card" || payOnDelivery) {
+    // Si no hay tarjeta seleccionada o es "abonar al recibir", resetear el estado de MercadoPago
+    if (!selectedMethods.includes("card") || payOnDelivery) {
       setMpToken(null);
       setMpInstallments(0);
       setMpPaymentMethodId("");
@@ -176,7 +178,7 @@ export default function CheckoutPage() {
         return newErrors;
       });
     }
-  }, [paymentMethod, payOnDelivery]);
+  }, [selectedMethods, payOnDelivery]);
 
   // Check cart and initialize
   useEffect(() => {
@@ -360,10 +362,12 @@ export default function CheckoutPage() {
       setWalletIsBlocked(balanceData.is_blocked || false);
       // Si la wallet está bloqueada, desactivar el uso de billetera
       if (balanceData.is_blocked) {
-        setUseWalletBalance(false);
-        if (paymentMethod === "wallet") {
-          setPaymentMethod(null);
-        }
+        // Remover wallet de los métodos seleccionados
+        setSelectedMethods(prev => prev.filter(m => m !== "wallet"));
+        setMethodAmounts(prev => {
+          const { wallet: _, ...rest } = prev;
+          return rest;
+        });
       }
     } catch (error) {
       console.error("Error loading wallet balance:", error);
@@ -506,13 +510,32 @@ export default function CheckoutPage() {
         newErrors.address_province = "La provincia es obligatoria";
       }
     }
-    // Si se aplica saldo parcial, se requiere otro método de pago
-    if (useWalletBalance && !paymentMethod) {
-      newErrors.payment_method = "Debes seleccionar un método de pago para el monto restante";
+    // Debe haber al menos un método de pago seleccionado
+    if (selectedMethods.length === 0) {
+      newErrors.payment_method = "Debes seleccionar al menos un método de pago";
     }
-    // Si no se aplica saldo, se requiere un método de pago
-    if (!useWalletBalance && !paymentMethod) {
-      newErrors.payment_method = "Debes seleccionar un método de pago";
+    // Si multi-payment está desactivado, solo permitir un método
+    if (!enableMultiPayment && selectedMethods.length > 1) {
+      newErrors.payment_method = "Solo puedes seleccionar un método de pago. Activa 'Combinar métodos' para usar múltiples métodos.";
+    }
+    // Validar que los montos sumen el total cuando hay múltiples métodos
+    if (enableMultiPayment && selectedMethods.length > 1) {
+      const totalPago = selectedMethods.reduce((sum, m) => sum + (methodAmounts[m] || 0), 0);
+      const diff = Math.abs(totalPago - subtotal);
+      if (diff > 0.01) {
+        newErrors.payment_method = `La suma de los montos ($${totalPago.toFixed(2)}) no coincide con el total ($${subtotal.toFixed(2)})`;
+      }
+      // Validar que cada método tenga un monto >= $1
+      for (const m of selectedMethods) {
+        if (!methodAmounts[m] || methodAmounts[m] < 1) {
+          newErrors.payment_method = `Cada método de pago debe tener al menos $1 asignado`;
+          break;
+        }
+      }
+    }
+    // Validar wallet no exceda saldo
+    if (selectedMethods.includes("wallet") && (methodAmounts["wallet"] || 0) > walletBalance) {
+      newErrors.payment_method = "El monto de billetera excede tu saldo disponible";
     }
 
     // No validar campos de tarjeta si es pago con MercadoPago (card sin payOnDelivery)
@@ -577,7 +600,7 @@ export default function CheckoutPage() {
     let tokenObtained = false;
 
     // Si es pago con tarjeta sin "abonar al recibir", verificar que el brick esté completamente lleno
-    if (paymentMethod === "card" && !payOnDelivery) {
+    if (hasCardPayment && !payOnDelivery) {
       // Verificar que el brick esté listo antes de continuar
       if (!mpReady) {
         setErrors({ submit: "Por favor, espera a que se cargue el formulario de pago" });
@@ -788,11 +811,38 @@ export default function CheckoutPage() {
       }
 
       // Log de datos del cardholder antes de enviar
-      if (paymentMethod === "card" && !payOnDelivery && mpCardholderData) {
+      if (hasCardPayment && !payOnDelivery && mpCardholderData) {
         console.log("[Checkout] 📤 Enviando datos del cardholder al backend:", mpCardholderData);
-      } else if (paymentMethod === "card" && !payOnDelivery) {
+      } else if (hasCardPayment && !payOnDelivery) {
         console.log("[Checkout] ⚠️ No hay datos del cardholder disponibles");
       }
+
+      // Build payment_methods array for multi-payment support
+      const paymentMethodsArray = selectedMethods.map(method => {
+        const amount = isMultiPayment ? (methodAmounts[method] || 0) : subtotal;
+        let processed = false;
+        if (method === "wallet") processed = true;
+        else if (method === "card" && !payOnDelivery) processed = true;
+        // cash/transfer are not processed (pay on delivery)
+        
+        // Map to CRM medios_pago_id
+        let mediosPagoId = 1;
+        if (method === "card") mediosPagoId = 2;
+        else if (method === "wallet") mediosPagoId = 3;
+        else if (method === "transfer") mediosPagoId = 4;
+        // cash = 1
+
+        return {
+          method,
+          amount,
+          processed,
+          medios_pago_id: mediosPagoId,
+        };
+      });
+
+      // Determine primary payment method (for backward compat)
+      const primaryMethod = selectedMethods[0] || "card";
+      const walletAmount = paymentMethodsArray.find(p => p.method === "wallet")?.amount || 0;
 
       // Prepare order data
       const orderData = {
@@ -806,31 +856,26 @@ export default function CheckoutPage() {
           email: formData.email,
         },
         address: addressData,
-        payment_method: paymentMethod || "card",
+        payment_method: primaryMethod,
         pay_on_delivery: payOnDelivery,
-        crm_sale_type_id: crmSaleTypeId, // Siempre enviar tipo de venta
+        crm_sale_type_id: crmSaleTypeId,
         ...(crmZoneId && {
           crm_zone_id: crmZoneId,
         }),
-        total: finalTotal, // Usar finalTotal que ya tiene el descuento de billetera aplicado
-        // Si el método de pago es wallet completo, enviar wallet_amount con el total
-        ...(paymentMethod === "wallet" && {
+        total: subtotal, // Total completo (antes de descuentos)
+        // Multi-payment: enviar array de métodos de pago con montos
+        payment_methods: paymentMethodsArray,
+        // Wallet amount for backward compat
+        ...(walletAmount > 0 && {
           use_wallet_balance: true,
-          wallet_amount: totalAmount, // Enviar el total completo cuando se paga con wallet
+          wallet_amount: walletAmount,
         }),
-        // Si solo se usa como descuento (no método de pago completo), enviar el descuento
-        ...(useWalletBalance && paymentMethod !== "wallet" && {
-          use_wallet_balance: true,
-          wallet_amount: walletDiscount, // Enviar el descuento aplicado, no el saldo completo
-        }),
-        // Si es pago con tarjeta sin "abonar al recibir", incluir token de MercadoPago y datos del cardholder
-        // Usar los datos finales (del ref si acabamos de obtener el token, o del estado si ya estaban disponibles)
-        ...(paymentMethod === "card" && !payOnDelivery && finalToken && {
+        // Si es pago con tarjeta sin "abonar al recibir", incluir token de MercadoPago
+        ...(hasCardPayment && !payOnDelivery && finalToken && {
           mercadopago_token: finalToken,
           mercadopago_installments: finalInstallments,
           mercadopago_payment_method_id: finalPaymentMethodId,
           ...(finalIssuerId && { mercadopago_issuer_id: finalIssuerId }),
-          // Incluir datos del cardholder del Brick
           ...(finalCardholderData && {
             mercadopago_cardholder_name: finalCardholderData.name,
             mercadopago_cardholder_email: finalCardholderData.email,
@@ -847,7 +892,7 @@ export default function CheckoutPage() {
       };
 
       // Verificación final: Si es pago con tarjeta sin "abonar al recibir", verificar que tengamos todos los datos necesarios
-      if (paymentMethod === "card" && !payOnDelivery) {
+      if (hasCardPayment && !payOnDelivery) {
         if (!finalToken) {
           setErrors({ submit: "Por favor, completa correctamente todos los datos de la tarjeta antes de continuar" });
           setSubmitting(false);
@@ -1008,11 +1053,275 @@ export default function CheckoutPage() {
 
   const totalAmount = calculateTotal();
   const canPayWithWallet = walletBalance >= totalAmount && !walletIsBlocked;
-  const remainingAfterWallet = Math.max(0, totalAmount - walletBalance);
   const shippingCost = 0; // TODO: Calculate shipping cost
   const subtotal = calculateTotal();
-  const walletDiscount = useWalletBalance && walletBalance > 0 && !walletIsBlocked ? Math.min(walletBalance, subtotal) : 0;
+
+  // Multi-payment derived values
+  const isMultiPayment = enableMultiPayment && selectedMethods.length > 1;
+  const hasCardPayment = selectedMethods.includes("card");
+  const hasWalletPayment = selectedMethods.includes("wallet");
+  const getMethodAmount = (method: PaymentMethodType): number => methodAmounts[method] || 0;
+  const cardPaymentAmount = getMethodAmount("card");
+  const walletPaymentAmount = hasWalletPayment ? Math.min(getMethodAmount("wallet"), walletBalance) : 0;
+  const totalAssigned = selectedMethods.reduce((sum, m) => sum + getMethodAmount(m), 0);
+  const remainingToAssign = Math.max(0, subtotal - totalAssigned);
+  // Backward compat aliases
+  const walletDiscount = walletPaymentAmount;
+  const remainingAfterWallet = Math.max(0, subtotal - walletPaymentAmount);
   const finalTotal = Math.max(0, subtotal - walletDiscount + shippingCost);
+
+  // Auto-fill amount when single method or when multi-payment is disabled
+  useEffect(() => {
+    if (!enableMultiPayment && selectedMethods.length === 1) {
+      const method = selectedMethods[0];
+      const maxAmount = method === "wallet" ? Math.min(walletBalance, subtotal) : subtotal;
+      setMethodAmounts({ [method]: maxAmount });
+    } else if (enableMultiPayment && selectedMethods.length > 1) {
+      // Auto-distribute when enabling multi-payment
+      const currentTotal = selectedMethods.reduce((sum, m) => sum + (methodAmounts[m] || 0), 0);
+      if (currentTotal === 0 || Math.abs(currentTotal - subtotal) > 0.01) {
+        // Distribuir proporcionalmente, asegurando mínimo $1 por método
+        const minPerMethod = 1;
+        const totalMin = selectedMethods.length * minPerMethod;
+        
+        // Si el subtotal es menor que el mínimo total, ajustar
+        if (subtotal < totalMin) {
+          // Si no alcanza para $1 por método, distribuir equitativamente
+          selectedMethods.forEach(m => {
+            setMethodAmounts(prev => ({ ...prev, [m]: subtotal / selectedMethods.length }));
+          });
+        } else {
+          // Distribuir con mínimo $1 por método
+          const distribution: Record<string, number> = {};
+          const availableForDistribution = subtotal - totalMin;
+          
+          selectedMethods.forEach(m => {
+            // Asignar mínimo $1
+            distribution[m] = minPerMethod;
+          });
+          
+          // Distribuir el resto proporcionalmente
+          if (availableForDistribution > 0) {
+            selectedMethods.forEach(m => {
+              const maxForMethod = m === "wallet" ? walletBalance : subtotal;
+              const additional = availableForDistribution / selectedMethods.length;
+              distribution[m] = Math.min(distribution[m] + additional, maxForMethod);
+            });
+            
+            // Ajustar para que sume exactamente el subtotal
+            const total = Object.values(distribution).reduce((sum, v) => sum + v, 0);
+            if (total > 0 && Math.abs(total - subtotal) > 0.01) {
+              const factor = subtotal / total;
+              Object.keys(distribution).forEach(m => {
+                distribution[m] = Math.max(minPerMethod, distribution[m] * factor);
+                if (m === "wallet") {
+                  distribution[m] = Math.min(distribution[m], walletBalance);
+                }
+              });
+            }
+          }
+          
+          setMethodAmounts(distribution);
+        }
+      }
+    }
+  }, [enableMultiPayment, selectedMethods.length, subtotal, walletBalance]);
+
+  // Helper: toggle a payment method
+  const togglePaymentMethod = (method: PaymentMethodType) => {
+    setSelectedMethods(prev => {
+      if (prev.includes(method)) {
+        // Remove method
+        const next = prev.filter(m => m !== method);
+        setMethodAmounts(a => {
+          const { [method]: _, ...rest } = a;
+          // Si queda solo un método, asignarle el total completo
+          if (next.length === 1 && !enableMultiPayment) {
+            const remainingMethod = next[0];
+            const maxAmount = remainingMethod === "wallet" ? Math.min(walletBalance, subtotal) : subtotal;
+            return { [remainingMethod]: maxAmount };
+          }
+          return rest;
+        });
+        if (method === "card") setPayOnDelivery(false);
+        // Clear MP state when removing card
+        if (method === "card") {
+          setMpToken(null);
+          setMpInstallments(0);
+          setMpPaymentMethodId("");
+          setMpIssuerId(undefined);
+          setMpCardholderData(null);
+        }
+        return next;
+      } else {
+        // Add method
+        if (!enableMultiPayment && prev.length > 0) {
+          // Si multi-payment está desactivado, reemplazar el método anterior
+          const oldMethod = prev[0];
+          setMethodAmounts({});
+          if (oldMethod === "card") {
+            setPayOnDelivery(false);
+            setMpToken(null);
+            setMpInstallments(0);
+            setMpPaymentMethodId("");
+            setMpIssuerId(undefined);
+            setMpCardholderData(null);
+          }
+          const maxAmount = method === "wallet" ? Math.min(walletBalance, subtotal) : subtotal;
+          setMethodAmounts({ [method]: maxAmount });
+          return [method];
+        }
+        const next = [...prev, method];
+        const minPerMethod = enableMultiPayment && next.length > 1 ? 1 : 0;
+        // Pre-fill wallet with min(walletBalance, remaining)
+        if (method === "wallet") {
+          const otherTotal = next.filter(m => m !== "wallet").reduce((s, m) => s + (methodAmounts[m] || 0), 0);
+          const walletDefault = Math.max(minPerMethod, Math.min(walletBalance, Math.max(0, subtotal - otherTotal)));
+          setMethodAmounts(a => ({ ...a, wallet: walletDefault }));
+        } else if (enableMultiPayment) {
+          // Auto-distribute when adding a new method in multi-payment mode
+          const currentTotal = next.reduce((sum, m) => sum + (methodAmounts[m] || 0), 0);
+          const remaining = subtotal - currentTotal;
+          
+          // Asegurar que el nuevo método tenga al menos $1
+          const newMethodAmount = Math.max(minPerMethod, remaining);
+          setMethodAmounts(prev => {
+            const updated = { ...prev, [method]: newMethodAmount };
+            // Ajustar otros métodos si es necesario para mantener mínimo $1
+            if (remaining < minPerMethod) {
+              const excess = minPerMethod - remaining;
+              const otherMethods = next.filter(m => m !== method);
+              const otherTotal = otherMethods.reduce((sum, m) => sum + Math.max(0, (updated[m] || 0) - minPerMethod), 0);
+              if (otherTotal > 0) {
+                otherMethods.forEach(m => {
+                  const current = updated[m] || 0;
+                  const reducible = current - minPerMethod;
+                  if (reducible > 0) {
+                    const proportion = reducible / otherTotal;
+                    updated[m] = Math.max(minPerMethod, current - excess * proportion);
+                  }
+                });
+              }
+            }
+            // Asegurar que todos tengan al menos $1
+            next.forEach(m => {
+              if ((updated[m] || 0) < minPerMethod) {
+                updated[m] = minPerMethod;
+              }
+            });
+            return updated;
+          });
+        }
+        return next;
+      }
+    });
+    // Clear payment method errors
+    setErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors.payment_method;
+      return newErrors;
+    });
+  };
+
+  // Helper: update amount for a method with auto-completion
+  const updateMethodAmount = (method: PaymentMethodType, value: string) => {
+    const numValue = parseFloat(value) || 0;
+    const minPerMethod = enableMultiPayment && selectedMethods.length > 1 ? 1 : 0;
+    const maxValue = method === "wallet" ? Math.min(numValue, walletBalance) : numValue;
+    
+    setMethodAmounts(prev => {
+      const updated = { ...prev, [method]: maxValue };
+      
+      // Auto-complete: distribuir el resto entre los otros métodos
+      if (enableMultiPayment && selectedMethods.length > 1) {
+        const otherMethods = selectedMethods.filter(m => m !== method);
+        const currentTotal = otherMethods.reduce((sum, m) => sum + (updated[m] || 0), 0) + maxValue;
+        const remaining = subtotal - currentTotal;
+        
+        // Asegurar que el método actual tenga al menos $1 si hay otros métodos
+        if (maxValue < minPerMethod && otherMethods.length > 0) {
+          updated[method] = minPerMethod;
+          const newRemaining = subtotal - (otherMethods.reduce((sum, m) => sum + (updated[m] || 0), 0) + minPerMethod);
+          // Redistribuir el resto
+          if (newRemaining > 0.01 && otherMethods.length > 0) {
+            const otherTotal = otherMethods.reduce((sum, m) => {
+              const maxForMethod = m === "wallet" ? walletBalance : subtotal;
+              return sum + Math.max(0, maxForMethod - Math.max(minPerMethod, updated[m] || 0));
+            }, 0);
+            
+            if (otherTotal > 0) {
+              otherMethods.forEach(m => {
+                const maxForMethod = m === "wallet" ? walletBalance : subtotal;
+                const available = Math.max(0, maxForMethod - Math.max(minPerMethod, updated[m] || 0));
+                if (available > 0) {
+                  const proportion = available / otherTotal;
+                  updated[m] = Math.max(minPerMethod, (updated[m] || 0) + newRemaining * proportion);
+                  if (m === "wallet") {
+                    updated[m] = Math.min(updated[m], walletBalance);
+                  } else {
+                    updated[m] = Math.min(updated[m], subtotal);
+                  }
+                } else {
+                  updated[m] = Math.max(minPerMethod, updated[m] || 0);
+                }
+              });
+            }
+          }
+        } else if (remaining > 0.01 && otherMethods.length > 0) {
+          // Distribuir el resto proporcionalmente entre los otros métodos
+          const otherTotal = otherMethods.reduce((sum, m) => {
+            const maxForMethod = m === "wallet" ? walletBalance : subtotal;
+            return sum + Math.max(0, maxForMethod - Math.max(minPerMethod, updated[m] || 0));
+          }, 0);
+          
+          if (otherTotal > 0) {
+            otherMethods.forEach(m => {
+              const maxForMethod = m === "wallet" ? walletBalance : subtotal;
+              const available = Math.max(0, maxForMethod - Math.max(minPerMethod, updated[m] || 0));
+              if (available > 0) {
+                const proportion = available / otherTotal;
+                updated[m] = Math.max(minPerMethod, (updated[m] || 0) + remaining * proportion);
+                // Asegurar que no exceda el máximo
+                if (m === "wallet") {
+                  updated[m] = Math.min(updated[m], walletBalance);
+                } else {
+                  updated[m] = Math.min(updated[m], subtotal);
+                }
+              } else {
+                updated[m] = Math.max(minPerMethod, updated[m] || 0);
+              }
+            });
+          }
+        } else if (remaining < -0.01) {
+          // Si excede, reducir proporcionalmente los otros métodos, pero mantener mínimo $1
+          const excess = Math.abs(remaining);
+          const otherTotal = otherMethods.reduce((sum, m) => sum + Math.max(0, (updated[m] || 0) - minPerMethod), 0);
+          
+          if (otherTotal > 0) {
+            otherMethods.forEach(m => {
+              const current = updated[m] || 0;
+              const reducible = current - minPerMethod;
+              if (reducible > 0) {
+                const proportion = reducible / otherTotal;
+                updated[m] = Math.max(minPerMethod, current - excess * proportion);
+              } else {
+                updated[m] = Math.max(minPerMethod, current);
+              }
+            });
+          }
+        }
+        
+        // Asegurar que todos los métodos tengan al menos $1
+        selectedMethods.forEach(m => {
+          if ((updated[m] || 0) < minPerMethod) {
+            updated[m] = minPerMethod;
+          }
+        });
+      }
+      
+      return updated;
+    });
+  };
 
   const handleRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1278,7 +1587,7 @@ export default function CheckoutPage() {
                     required
                     value={loginData.email}
                     onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080]"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900"
                   />
                 </div>
                 <div>
@@ -1291,7 +1600,7 @@ export default function CheckoutPage() {
                       required
                       value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080] pr-10"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 pr-10"
                     />
                     <button
                       type="button"
@@ -1362,7 +1671,7 @@ export default function CheckoutPage() {
                       required
                       value={registrationData.first_name}
                       onChange={(e) => setRegistrationData({ ...registrationData, first_name: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080]"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900"
                     />
                   </div>
                   <div>
@@ -1374,7 +1683,7 @@ export default function CheckoutPage() {
                       required
                       value={registrationData.last_name}
                       onChange={(e) => setRegistrationData({ ...registrationData, last_name: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080]"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900"
                     />
                   </div>
                 </div>
@@ -1387,7 +1696,7 @@ export default function CheckoutPage() {
                     required
                     value={registrationData.email}
                     onChange={(e) => setRegistrationData({ ...registrationData, email: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080]"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900"
                   />
                 </div>
                 <div>
@@ -1398,7 +1707,7 @@ export default function CheckoutPage() {
                     type="tel"
                     value={registrationData.phone}
                     onChange={(e) => setRegistrationData({ ...registrationData, phone: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080]"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900"
                   />
                 </div>
                 <div>
@@ -1411,7 +1720,7 @@ export default function CheckoutPage() {
                       required
                       value={registrationData.password}
                       onChange={(e) => setRegistrationData({ ...registrationData, password: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080] pr-10"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 pr-10"
                     />
                     <button
                       type="button"
@@ -1432,7 +1741,7 @@ export default function CheckoutPage() {
                       required
                       value={registrationData.confirmPassword}
                       onChange={(e) => setRegistrationData({ ...registrationData, confirmPassword: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080] pr-10"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 pr-10"
                     />
                     <button
                       type="button"
@@ -1554,7 +1863,7 @@ export default function CheckoutPage() {
                         type="text"
                         value={formData.first_name}
                         onChange={(e) => handleInputChange("first_name", e.target.value)}
-                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080] ${
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 ${
                           errors.first_name ? "border-red-500" : "border-gray-300"
                         }`}
                       />
@@ -1570,7 +1879,7 @@ export default function CheckoutPage() {
                         type="text"
                         value={formData.last_name}
                         onChange={(e) => handleInputChange("last_name", e.target.value)}
-                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080] ${
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 ${
                           errors.last_name ? "border-red-500" : "border-gray-300"
                         }`}
                       />
@@ -1591,7 +1900,7 @@ export default function CheckoutPage() {
                       <select
                         value={formData.document_type}
                         onChange={(e) => handleInputChange("document_type", e.target.value)}
-                        className="px-4 py-2.5 border-r border-gray-300 bg-white focus:outline-none text-[#808080] text-sm min-w-[140px]"
+                        className="px-4 py-2.5 border-r border-gray-300 bg-white focus:outline-none text-gray-900 text-sm min-w-[140px]"
                         disabled={loadingDocTypes}
                       >
                         <option value="">Tipo</option>
@@ -1606,7 +1915,7 @@ export default function CheckoutPage() {
                         value={formData.dni}
                         onChange={(e) => handleInputChange("dni", e.target.value)}
                         placeholder="Número de documento"
-                        className="flex-1 px-4 py-2.5 border-0 focus:outline-none text-[#808080] placeholder:text-[#DEDEDE]"
+                        className="flex-1 px-4 py-2.5 border-0 focus:outline-none text-gray-900 placeholder:text-gray-400"
                       />
                     </div>
                     {errors.document_type && (
@@ -1626,7 +1935,7 @@ export default function CheckoutPage() {
                       type="email"
                       value={formData.email}
                       onChange={(e) => handleInputChange("email", e.target.value)}
-                      className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080] ${
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 ${
                         errors.email ? "border-red-500" : "border-gray-300"
                       }`}
                     />
@@ -1645,7 +1954,7 @@ export default function CheckoutPage() {
                         type="tel"
                         value={formData.phone}
                         onChange={(e) => handleInputChange("phone", e.target.value)}
-                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080] ${
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 ${
                           errors.phone ? "border-red-500" : "border-gray-300"
                         }`}
                       />
@@ -1661,7 +1970,7 @@ export default function CheckoutPage() {
                         type="tel"
                         value={formData.alternate_phone}
                         onChange={(e) => handleInputChange("alternate_phone", e.target.value)}
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080]"
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900"
                       />
                     </div>
                   </div>
@@ -1677,7 +1986,7 @@ export default function CheckoutPage() {
                       <select
                         value={crmSaleTypeId}
                         onChange={(e) => setCrmSaleTypeId(Number(e.target.value))}
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-[#808080] bg-white"
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 bg-white"
                         required
                       >
                         {saleTypes.map((st) => (
@@ -1964,247 +2273,251 @@ export default function CheckoutPage() {
                 )}
               </div>
 
-              {/* Payment Method */}
+              {/* Payment Method - Multi-payment support */}
               <div className="bg-white border border-gray-200 rounded-[14px] p-4 md:p-6">
-                <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4 md:mb-6">
-                  Método de pago
-                </h2>
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-lg md:text-xl font-semibold text-gray-900">
+                    Medios de pago
+                  </h2>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <span className="text-xs text-gray-600">Combinar métodos</span>
+                    <input
+                      type="checkbox"
+                      checked={enableMultiPayment}
+                      onChange={(e) => {
+                        setEnableMultiPayment(e.target.checked);
+                        if (!e.target.checked && selectedMethods.length > 1) {
+                          // Si se desactiva, dejar solo el primer método
+                          const firstMethod = selectedMethods[0];
+                          setSelectedMethods([firstMethod]);
+                          const maxAmount = firstMethod === "wallet" ? Math.min(walletBalance, subtotal) : subtotal;
+                          setMethodAmounts({ [firstMethod]: maxAmount });
+                        }
+                      }}
+                      className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7]"
+                    />
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 mb-4 md:mb-6">
+                  {enableMultiPayment 
+                    ? "Podés combinar varios medios de pago para cubrir el total"
+                    : "Seleccioná un método de pago"}
+                </p>
                 {errors.payment_method && (
                   <p className="text-red-500 text-sm mb-4">{errors.payment_method}</p>
                 )}
                 <div className="space-y-2 md:space-y-3">
-                  <label
-                    className={`flex items-center gap-3 md:gap-4 p-3 md:p-4 border rounded-lg cursor-pointer transition-colors ${
-                      paymentMethod === "card"
+                  {/* Tarjeta */}
+                  <div
+                    className={`border rounded-lg transition-colors ${
+                      selectedMethods.includes("card")
                         ? "border-[#00C1A7] bg-[#00C1A7]/5"
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
-                    <input
-                      type="radio"
-                      name="payment"
-                      value="card"
-                      checked={paymentMethod === "card"}
-                      onChange={() => {
-                        setPaymentMethod("card");
-                        // Don't automatically set payOnDelivery to false
-                        // Clear card errors when switching to card
-                        setErrors((prev) => {
-                          const newErrors = { ...prev };
-                          Object.keys(newErrors).forEach((key) => {
-                            if (key.startsWith("card_")) {
-                              delete newErrors[key];
-                            }
-                          });
-                          return newErrors;
-                        });
-                      }}
-                      className="w-4 h-4"
-                    />
-                    <CreditCard className="w-5 h-5 text-gray-600" />
-                    <span className="font-medium text-gray-900 text-sm md:text-base">Tarjeta</span>
-                    {paymentMethod === "card" && (
-                      <Check className="w-5 h-5 text-[#00C1A7] ml-auto" />
+                    <label className="flex items-center gap-3 md:gap-4 p-3 md:p-4 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedMethods.includes("card")}
+                        onChange={() => togglePaymentMethod("card")}
+                        className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7]"
+                      />
+                      <CreditCard className="w-5 h-5 text-gray-600" />
+                      <span className="font-medium text-gray-900 text-sm md:text-base flex-1">Tarjeta</span>
+                      {selectedMethods.includes("card") && (
+                        <Check className="w-5 h-5 text-[#00C1A7] flex-shrink-0" />
+                      )}
+                    </label>
+                    {selectedMethods.includes("card") && isMultiPayment && (
+                      <div className="px-3 md:px-4 pb-3 md:pb-4">
+                        <label className="text-xs text-gray-500 mb-1 block">Monto con tarjeta</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                          <input
+                            type="number"
+                            min={isMultiPayment ? 1 : 0}
+                            step="0.01"
+                            max={subtotal}
+                            value={methodAmounts["card"] || ""}
+                            onChange={(e) => updateMethodAmount("card", e.target.value)}
+                            className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-[#00C1A7] focus:border-[#00C1A7] placeholder:text-gray-400"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
                     )}
-                  </label>
-                  <label
-                    className={`flex items-center gap-3 md:gap-4 p-3 md:p-4 border rounded-lg cursor-pointer transition-colors ${
-                      paymentMethod === "cash"
+                  </div>
+
+                  {/* Efectivo */}
+                  <div
+                    className={`border rounded-lg transition-colors ${
+                      selectedMethods.includes("cash")
                         ? "border-[#00C1A7] bg-[#00C1A7]/5"
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
-                    <input
-                      type="radio"
-                      name="payment"
-                      value="cash"
-                      checked={paymentMethod === "cash"}
-                      onChange={() => {
-                        setPaymentMethod("cash");
-                        setPayOnDelivery(true);
-                        // Clear card data and errors when switching to cash
-                        setCardData({
-                          number: "",
-                          cvv: "",
-                          expiry: "",
-                          holder_name: "",
-                          holder_dni: "",
-                        });
-                        setErrors((prev) => {
-                          const newErrors = { ...prev };
-                          Object.keys(newErrors).forEach((key) => {
-                            if (key.startsWith("card_")) {
-                              delete newErrors[key];
-                            }
-                          });
-                          return newErrors;
-                        });
-                      }}
-                      className="w-4 h-4"
-                    />
-                    <Wallet className="w-5 h-5 text-gray-600" />
-                    <div className="flex-1">
-                      <span className="font-medium text-gray-900 text-sm md:text-base">Efectivo</span>
-                      <p className="text-xs text-gray-500 mt-0.5">Abonás al recibir</p>
-                    </div>
-                    {paymentMethod === "cash" && (
-                      <Check className="w-5 h-5 text-[#00C1A7] ml-auto" />
+                    <label className="flex items-center gap-3 md:gap-4 p-3 md:p-4 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedMethods.includes("cash")}
+                        onChange={() => togglePaymentMethod("cash")}
+                        className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7]"
+                      />
+                      <Wallet className="w-5 h-5 text-gray-600" />
+                      <div className="flex-1">
+                        <span className="font-medium text-gray-900 text-sm md:text-base">Efectivo</span>
+                        <p className="text-xs text-gray-500 mt-0.5">Abonás al recibir</p>
+                      </div>
+                      {selectedMethods.includes("cash") && (
+                        <Check className="w-5 h-5 text-[#00C1A7] flex-shrink-0" />
+                      )}
+                    </label>
+                    {selectedMethods.includes("cash") && isMultiPayment && (
+                      <div className="px-3 md:px-4 pb-3 md:pb-4">
+                        <label className="text-xs text-gray-500 mb-1 block">Monto en efectivo</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                          <input
+                            type="number"
+                            min={isMultiPayment ? 1 : 0}
+                            step="0.01"
+                            max={subtotal}
+                            value={methodAmounts["cash"] || ""}
+                            onChange={(e) => updateMethodAmount("cash", e.target.value)}
+                            className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-[#00C1A7] focus:border-[#00C1A7] placeholder:text-gray-400"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
                     )}
-                  </label>
-                  
-                  <label
-                    className={`flex items-center gap-3 md:gap-4 p-3 md:p-4 border rounded-lg cursor-pointer transition-colors ${
-                      paymentMethod === "transfer"
+                  </div>
+
+                  {/* Transferencia */}
+                  <div
+                    className={`border rounded-lg transition-colors ${
+                      selectedMethods.includes("transfer")
                         ? "border-[#00C1A7] bg-[#00C1A7]/5"
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
-                    <input
-                      type="radio"
-                      name="payment"
-                      value="transfer"
-                      checked={paymentMethod === "transfer"}
-                      onChange={() => {
-                        setPaymentMethod("transfer");
-                        setPayOnDelivery(true);
-                        // Clear card data and errors when switching to transfer
-                        setCardData({
-                          number: "",
-                          cvv: "",
-                          expiry: "",
-                          holder_name: "",
-                          holder_dni: "",
-                        });
-                        setErrors((prev) => {
-                          const newErrors = { ...prev };
-                          Object.keys(newErrors).forEach((key) => {
-                            if (key.startsWith("card_")) {
-                              delete newErrors[key];
-                            }
-                          });
-                          return newErrors;
-                        });
-                      }}
-                      className="w-4 h-4"
-                    />
-                    <ArrowRightLeft className="w-5 h-5 text-gray-600" />
-                    <div className="flex-1">
-                      <span className="font-medium text-gray-900 text-sm md:text-base">Transferencia</span>
-                      <p className="text-xs text-gray-500 mt-0.5">Abonás al recibir</p>
-                    </div>
-                    {paymentMethod === "transfer" && (
-                      <Check className="w-5 h-5 text-[#00C1A7] ml-auto" />
+                    <label className="flex items-center gap-3 md:gap-4 p-3 md:p-4 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedMethods.includes("transfer")}
+                        onChange={() => togglePaymentMethod("transfer")}
+                        className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7]"
+                      />
+                      <ArrowRightLeft className="w-5 h-5 text-gray-600" />
+                      <div className="flex-1">
+                        <span className="font-medium text-gray-900 text-sm md:text-base">Transferencia</span>
+                        <p className="text-xs text-gray-500 mt-0.5">Abonás al recibir</p>
+                      </div>
+                      {selectedMethods.includes("transfer") && (
+                        <Check className="w-5 h-5 text-[#00C1A7] flex-shrink-0" />
+                      )}
+                    </label>
+                    {selectedMethods.includes("transfer") && isMultiPayment && (
+                      <div className="px-3 md:px-4 pb-3 md:pb-4">
+                        <label className="text-xs text-gray-500 mb-1 block">Monto con transferencia</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                          <input
+                            type="number"
+                            min={isMultiPayment ? 1 : 0}
+                            step="0.01"
+                            max={subtotal}
+                            value={methodAmounts["transfer"] || ""}
+                            onChange={(e) => updateMethodAmount("transfer", e.target.value)}
+                            className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-[#00C1A7] focus:border-[#00C1A7] placeholder:text-gray-400"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
                     )}
-                  </label>
-                  {/* Billetera Bausing - Solo como método de pago si el saldo cubre el total */}
-                  {canPayWithWallet ? (
-                    <label
-                      className={`flex items-center gap-3 md:gap-4 p-3 md:p-4 border rounded-lg cursor-pointer transition-colors ${
-                        paymentMethod === "wallet"
+                  </div>
+
+                  {/* Billetera Bausing */}
+                  {walletBalance > 0 && !walletIsBlocked && (
+                    <div
+                      className={`border rounded-lg transition-colors ${
+                        selectedMethods.includes("wallet")
                           ? "border-[#00C1A7] bg-[#00C1A7]/5"
                           : "border-gray-200 hover:border-gray-300"
                       }`}
                     >
-                      <input
-                        type="radio"
-                        name="payment"
-                        value="wallet"
-                        checked={paymentMethod === "wallet"}
-                        onChange={() => {
-                          setPaymentMethod("wallet");
-                          setPayOnDelivery(false);
-                          setUseWalletBalance(false);
-                          // Clear card data and errors when switching to wallet
-                          setCardData({
-                            number: "",
-                            cvv: "",
-                            expiry: "",
-                            holder_name: "",
-                            holder_dni: "",
-                          });
-                          setErrors((prev) => {
-                            const newErrors = { ...prev };
-                            Object.keys(newErrors).forEach((key) => {
-                              if (key.startsWith("card_")) {
-                                delete newErrors[key];
-                              }
-                            });
-                            delete newErrors.payment_method;
-                            return newErrors;
-                          });
-                        }}
-                        className="w-4 h-4"
-                      />
-                      <CreditCard className="w-5 h-5 text-gray-600" />
-                      <div className="flex-1 min-w-0">
-                        <span className="font-medium text-gray-900 text-sm md:text-base">Billetera Bausing</span>
-                        {walletLoading ? (
-                          <p className="text-xs text-gray-500 mt-0.5">Cargando saldo...</p>
-                        ) : (
-                          <p className="text-xs text-gray-500 mt-0.5 truncate">
-                            Saldo: ${walletBalance.toLocaleString("es-AR", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}
-                          </p>
-                        )}
-                      </div>
-                      {paymentMethod === "wallet" && (
-                        <Check className="w-5 h-5 text-[#00C1A7] ml-auto flex-shrink-0" />
-                      )}
-                    </label>
-                  ) : walletBalance > 0 && !walletIsBlocked && (
-                    <div className="p-3 md:p-4 border border-gray-200 rounded-lg bg-gray-50">
-                      <label className="flex items-start md:items-center gap-3 cursor-pointer">
+                      <label className="flex items-center gap-3 md:gap-4 p-3 md:p-4 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={useWalletBalance}
-                          onChange={(e) => {
-                            setUseWalletBalance(e.target.checked);
-                            if (e.target.checked) {
-                              // Si estaba seleccionado wallet como método completo, limpiarlo
-                              if (paymentMethod === "wallet") {
-                                setPaymentMethod(null);
-                              }
-                              setPayOnDelivery(false);
-                              // Limpiar errores de pago
-                              setErrors((prev) => {
-                                const newErrors = { ...prev };
-                                delete newErrors.payment_method;
-                                return newErrors;
-                              });
-                            }
-                          }}
-                          className="w-4 h-4 mt-0.5 md:mt-0 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7]"
+                          checked={selectedMethods.includes("wallet")}
+                          onChange={() => togglePaymentMethod("wallet")}
+                          className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7]"
                         />
+                        <Wallet className="w-5 h-5 text-gray-600" />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <CreditCard className="w-5 h-5 text-gray-600 flex-shrink-0" />
-                            <span className="font-medium text-gray-900 text-sm md:text-base">
-                              Aplicar saldo de Billetera
-                            </span>
-                          </div>
+                          <span className="font-medium text-gray-900 text-sm md:text-base">Billetera Bausing</span>
                           {walletLoading ? (
-                            <p className="text-xs text-gray-500 mt-1">Cargando saldo...</p>
+                            <p className="text-xs text-gray-500 mt-0.5">Cargando saldo...</p>
                           ) : (
-                            <p className="text-xs text-gray-500 mt-1">
-                              Aplicar ${walletBalance.toLocaleString("es-AR", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}. Restante: ${remainingAfterWallet.toLocaleString("es-AR", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
+                            <p className="text-xs text-gray-500 mt-0.5 truncate">
+                              Saldo disponible: {formatPrice(walletBalance)}
                             </p>
                           )}
                         </div>
+                        {selectedMethods.includes("wallet") && (
+                          <Check className="w-5 h-5 text-[#00C1A7] flex-shrink-0" />
+                        )}
                       </label>
+                      {selectedMethods.includes("wallet") && isMultiPayment && (
+                        <div className="px-3 md:px-4 pb-3 md:pb-4">
+                          <label className="text-xs text-gray-500 mb-1 block">Monto desde billetera (máx: {formatPrice(walletBalance)})</label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                            <input
+                              type="number"
+                            min={isMultiPayment ? 1 : 0}
+                            step="0.01"
+                            max={walletBalance}
+                              value={methodAmounts["wallet"] || ""}
+                              onChange={(e) => updateMethodAmount("wallet", e.target.value)}
+                              className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#00C1A7] focus:border-[#00C1A7] placeholder:text-gray-400"
+                              placeholder="0.00"
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
 
+                {/* Multi-payment summary */}
+                {isMultiPayment && (
+                  <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600">Total asignado:</span>
+                      <span className={`font-semibold ${Math.abs(totalAssigned - subtotal) < 0.01 ? 'text-green-600' : 'text-amber-600'}`}>
+                        {formatPrice(totalAssigned)} / {formatPrice(subtotal)}
+                      </span>
+                    </div>
+                    {remainingToAssign > 0.01 && (
+                      <p className="text-xs text-amber-600 mt-1">
+                        Falta asignar {formatPrice(remainingToAssign)} para cubrir el total
+                      </p>
+                    )}
+                    {totalAssigned > subtotal + 0.01 && (
+                      <p className="text-xs text-red-600 mt-1">
+                        El monto asignado excede el total en {formatPrice(totalAssigned - subtotal)}
+                      </p>
+                    )}
+                    {Math.abs(totalAssigned - subtotal) <= 0.01 && (
+                      <p className="text-xs text-green-600 mt-1">
+                        ✓ El total está cubierto correctamente
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* Pay on delivery option for card */}
-                {paymentMethod === "card" && (
+                {hasCardPayment && (
                   <div className="mt-6 pt-6 border-t border-gray-200">
                     <label className="flex items-center gap-3 cursor-pointer">
                       <input
@@ -2212,7 +2525,6 @@ export default function CheckoutPage() {
                         checked={payOnDelivery}
                         onChange={(e) => {
                           setPayOnDelivery(e.target.checked);
-                          // Clear card data and errors when enabling pay on delivery
                           if (e.target.checked) {
                             setCardData({
                               number: "",
@@ -2245,38 +2557,25 @@ export default function CheckoutPage() {
                 )}
 
                 {/* MercadoPago Card Form */}
-                {paymentMethod === "card" && !payOnDelivery && (
+                {hasCardPayment && !payOnDelivery && (
                   <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-gray-200">
                     <MercadoPagoCardForm
                       publicKey="TEST-851528f1-2389-49c8-8d2c-0d809b869bc0"
-                      amount={finalTotal}
+                      amount={isMultiPayment ? cardPaymentAmount : subtotal}
                       onPaymentSuccess={(token, installments, paymentMethodId, issuerId, cardholderData) => {
                         console.log("[Checkout] ✅ Token obtenido, estableciendo estado...");
-                        console.log("[Checkout] ✅ Datos del cardholder recibidos:", JSON.stringify(cardholderData, null, 2));
-                        console.log("[Checkout] ✅ Cardholder data existe?", !!cardholderData);
-                        if (cardholderData) {
-                          console.log("[Checkout] ✅ Cardholder name:", cardholderData.name);
-                          console.log("[Checkout] ✅ Cardholder email:", cardholderData.email);
-                          console.log("[Checkout] ✅ Cardholder identificationType:", cardholderData.identificationType);
-                          console.log("[Checkout] ✅ Cardholder identificationNumber:", cardholderData.identificationNumber);
-                        } else {
-                          console.warn("[Checkout] ⚠️ No se recibieron datos del cardholder del Brick");
-                        }
                         setMpToken(token);
                         setMpInstallments(installments);
                         setMpPaymentMethodId(paymentMethodId);
                         setMpIssuerId(issuerId);
                         setMpCardholderData(cardholderData || null);
                         setMpProcessing(false);
-                        setMpHasErrors(false); // Limpiar errores cuando se obtiene el token exitosamente
-                        // Limpiar errores cuando se obtiene el token
+                        setMpHasErrors(false);
                         setErrors((prev) => {
                           const newErrors = { ...prev };
                           delete newErrors.submit;
                           return newErrors;
                         });
-                        
-                        // Guardar los datos en el ref para uso inmediato (antes de que el estado se actualice)
                         mpTokenDataRef.current = {
                           token,
                           installments,
@@ -2284,29 +2583,21 @@ export default function CheckoutPage() {
                           issuerId,
                           cardholderData: cardholderData || null,
                         };
-                        
-                        // Resolver la promesa si hay alguien esperando el token
                         if (tokenPromiseRef.current) {
                           tokenPromiseRef.current.resolve(token);
                           tokenPromiseRef.current = null;
                         }
-                        console.log("[Checkout] ✅ Token establecido, el handleSubmit continuará automáticamente");
-                        
-                        // Si estamos en proceso de submit, el handleSubmit continuará automáticamente
-                        // No necesitamos hacer nada más aquí, el código del handleSubmit seguirá ejecutándose
                       }}
                       onPaymentError={(error) => {
                         console.error("[Checkout] ❌ Error en el pago de MercadoPago:", error);
                         setErrors({ submit: error });
                         setMpProcessing(false);
-                        setMpHasErrors(true); // Marcar que hay errores en el brick
+                        setMpHasErrors(true);
                         setMpToken(null);
                         setMpInstallments(0);
                         setMpPaymentMethodId("");
                         setMpIssuerId(undefined);
                         setMpCardholderData(null);
-                        
-                        // Rechazar la promesa si hay alguien esperando el token
                         if (tokenPromiseRef.current) {
                           tokenPromiseRef.current.reject(new Error(error));
                           tokenPromiseRef.current = null;
@@ -2314,7 +2605,7 @@ export default function CheckoutPage() {
                       }}
                       onReady={() => {
                         setMpReady(true);
-                        setMpHasErrors(false); // Limpiar errores cuando el brick está listo
+                        setMpHasErrors(false);
                       }}
                       processPayment={mpProcessPaymentRef as any}
                       payerEmail={formData.email}
@@ -2331,23 +2622,18 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                {/* Pay on delivery option for cash and transfer */}
-                {(paymentMethod === "cash" || paymentMethod === "transfer") && (
+                {/* Pay on delivery info for cash and transfer */}
+                {(selectedMethods.includes("cash") || selectedMethods.includes("transfer")) && !hasCardPayment && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
-                    <label className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={payOnDelivery}
-                        disabled
-                        className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7] cursor-not-allowed opacity-60"
-                      />
+                    <div className="flex items-center gap-3">
+                      <Check className="w-4 h-4 text-[#00C1A7]" />
                       <div>
                         <span className="font-medium text-gray-900">Pagar al recibir</span>
                         <p className="text-sm text-gray-500">
                           Pagas cuando recibas tu pedido
                         </p>
                       </div>
-                    </label>
+                    </div>
                   </div>
                 )}
 
@@ -2370,7 +2656,7 @@ export default function CheckoutPage() {
                       needsEmailVerification ||
                       !isAuthenticated ||
                       mpProcessing ||
-                      (paymentMethod === "card" && !payOnDelivery && !mpReady)
+                      (hasCardPayment && !payOnDelivery && !mpReady)
                     }
                     className="w-full bg-[#00C1A7] text-white py-3 px-6 rounded-lg font-semibold text-base hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
@@ -2477,12 +2763,28 @@ export default function CheckoutPage() {
                   </div>
 
                   {/* Wallet Discount */}
-                  {useWalletBalance && walletDiscount > 0 && (
+                  {hasWalletPayment && walletDiscount > 0 && (
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-green-700">Descuento Billetera</span>
+                      <span className="text-sm font-medium text-green-700">Billetera Bausing</span>
                       <span className="text-sm font-semibold text-green-600">
                         -{formatPrice(walletDiscount)}
                       </span>
+                    </div>
+                  )}
+
+                  {/* Multi-payment breakdown */}
+                  {isMultiPayment && selectedMethods.filter(m => m !== "wallet").length > 0 && (
+                    <div className="space-y-1 pt-1">
+                      {selectedMethods.filter(m => m !== "wallet").map(method => (
+                        <div key={method} className="flex justify-between items-center">
+                          <span className="text-xs font-medium text-gray-500">
+                            {method === "card" ? "Tarjeta" : method === "cash" ? "Efectivo" : "Transferencia"}
+                          </span>
+                          <span className="text-xs font-semibold text-gray-600">
+                            {formatPrice(methodAmounts[method] || 0)}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   )}
 
@@ -2506,12 +2808,12 @@ export default function CheckoutPage() {
                         {formatPrice(finalTotal)}
                       </span>
                     </div>
-                    {useWalletBalance && walletDiscount > 0 && remainingAfterWallet > 0 && (
+                    {hasWalletPayment && walletDiscount > 0 && remainingAfterWallet > 0 && (
                       <p className="text-xs text-gray-500 mt-2">
                         Se aplicará {formatPrice(walletDiscount)} de tu billetera. Restante a pagar: {formatPrice(remainingAfterWallet)}
                       </p>
                     )}
-                    {useWalletBalance && walletDiscount > 0 && remainingAfterWallet === 0 && (
+                    {hasWalletPayment && walletDiscount > 0 && remainingAfterWallet === 0 && (
                       <p className="text-xs text-green-600 mt-2 font-medium">
                         ✓ El total será cubierto con tu billetera
                       </p>
@@ -2594,7 +2896,7 @@ export default function CheckoutPage() {
                     needsEmailVerification || 
                     !isAuthenticated || 
                     mpProcessing || 
-                    (paymentMethod === "card" && !payOnDelivery && !mpReady)
+                    (hasCardPayment && !payOnDelivery && !mpReady)
                   }
                   className="hidden lg:flex w-full mt-4 md:mt-6 bg-[#00C1A7] text-white py-2.5 md:py-3 px-4 md:px-6 rounded-lg font-semibold text-sm md:text-base hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed items-center justify-center gap-2"
                 >

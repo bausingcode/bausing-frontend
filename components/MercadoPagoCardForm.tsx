@@ -136,8 +136,11 @@ export default function MercadoPagoCardForm({
     };
   }, [publicKey, onPaymentError]);
 
-  // Inicializar Card Payment Brick
-  useEffect(() => {
+  // Trackear amount anterior para detectar cambios
+  const previousAmountRef = useRef<number>(amount);
+  
+  // Función para inicializar el Brick
+  const initializeBrick = async () => {
     if (!mpInitialized || !mpInstanceRef.current || !brickContainerRef.current) return;
     
     // Prevenir reinicialización si ya está montado
@@ -148,183 +151,246 @@ export default function MercadoPagoCardForm({
 
     let mounted = true;
 
-    const initializeBrick = async () => {
-      try {
-        // Verificar que el contenedor esté en el DOM
-        if (!brickContainerRef.current || !brickContainerRef.current.isConnected) {
-          console.log("⏳ Esperando a que el contenedor esté en el DOM...");
-          return;
-        }
-
-        // Verificar que el contenedor tenga dimensiones (está renderizado)
-        const rect = brickContainerRef.current.getBoundingClientRect();
-        if (rect.width === 0 || rect.height === 0) {
-          console.log("⏳ Esperando a que el contenedor tenga dimensiones...");
-          return;
-        }
-
-        // Verificar que no se haya inicializado ya
-        if (cardPaymentBrickControllerRef.current) {
-          console.log("✅ Brick ya está inicializado");
-          if (loading) {
-            setLoading(false);
-            if (onReady) onReady();
-          }
-          return;
-        }
-
-        console.log("🔧 Inicializando Card Payment Brick...");
-        console.log("🔍 Estado del contenedor:", {
-          exists: !!brickContainerRef.current,
-          isConnected: brickContainerRef.current?.isConnected,
-          width: rect.width,
-          height: rect.height,
-          id: brickContainerRef.current?.id
-        });
-
-        // Inicializar el Brick según documentación oficial
-        const bricksBuilder = mpInstanceRef.current.bricks();
-
-        const settings = {
-          initialization: {
-            amount: Number(amount), // Asegurar que sea número
-            payer: {
-              email: payerEmail,
-            },
-          },
-          customization: {
-            visual: {
-              hidePaymentButton: false, // Mostrar botón pero lo ocultaremos con CSS
-              style: {
-                theme: 'default' as const, // 'default' | 'dark' | 'bootstrap' | 'flat'
-              },
-            },
-            paymentMethods: {
-              maxInstallments: 12, // Máximo de cuotas
-            },
-          },
-          callbacks: {
-            onReady: () => {
-              console.log("✅ Card Payment Brick listo");
-              if (mounted) {
-                setLoading(false);
-                if (onReadyRef.current) onReadyRef.current();
-              }
-            },
-            onSubmit: (cardFormData: any) => {
-              console.log("📝 [Brick] Datos del formulario recibidos (completo):", JSON.stringify(cardFormData, null, 2));
-              console.log("📝 [Brick] Tipo de cardFormData:", typeof cardFormData);
-              console.log("📝 [Brick] Keys en cardFormData:", Object.keys(cardFormData || {}));
-              
-              if (mounted) {
-                setProcessing(true);
-              }
-
-              // IMPORTANTE: onSubmit debe retornar una Promise
-              // Según la documentación, el Brick espera que se procese el pago en el backend
-              // y luego se resuelva o rechace la Promise
-              return new Promise<void>((resolve, reject) => {
-                try {
-                  // El Brick ya procesa todo y devuelve los datos necesarios
-                  const { 
-                    token, 
-                    installments, 
-                    payment_method_id, 
-                    issuer_id,
-                    cardholderName,
-                    cardholderEmail,
-                    identificationType,
-                    identificationNumber
-                  } = cardFormData;
-
-                  if (!token) {
-                    throw new Error("No se pudo generar el token de la tarjeta");
-                  }
-
-                  console.log("✅ [Brick] Token generado:", token);
-                  console.log("✅ [Brick] Cuotas:", installments);
-                  console.log("✅ [Brick] Payment Method ID:", payment_method_id);
-                  console.log("✅ [Brick] Issuer ID:", issuer_id);
-                  console.log("✅ [Brick] Cardholder Name:", cardholderName, "(tipo:", typeof cardholderName, ")");
-                  console.log("✅ [Brick] Cardholder Email:", cardholderEmail, "(tipo:", typeof cardholderEmail, ")");
-                  console.log("✅ [Brick] Identification Type:", identificationType, "(tipo:", typeof identificationType, ")");
-                  console.log("✅ [Brick] Identification Number:", identificationNumber, "(tipo:", typeof identificationNumber, ")");
-                  
-                  // Verificar si los datos del cardholder están presentes
-                  if (!cardholderName && !cardholderEmail && !identificationType && !identificationNumber) {
-                    console.warn("⚠️ [Brick] ADVERTENCIA: No se recibieron datos del cardholder del Brick");
-                    console.warn("⚠️ [Brick] Esto puede ser normal si el email se pasó en la inicialización");
-                  }
-
-                  // Preparar datos del cardholder para enviar al backend
-                  const cardholderData = {
-                    name: cardholderName,
-                    email: cardholderEmail,
-                    identificationType: identificationType,
-                    identificationNumber: identificationNumber
-                  };
-
-                  // Llamar al callback con los datos usando el ref
-                  // Esto notifica al componente padre que el token está listo
-                  // El padre puede entonces procesar el pago en el backend
-                  onPaymentSuccessRef.current(
-                    token,
-                    installments || 1,
-                    payment_method_id || '',
-                    issuer_id,
-                    cardholderData
-                  );
-
-                  // Resolver la Promise inmediatamente para indicar al Brick que el proceso fue exitoso
-                  // No usar setTimeout aquí porque puede causar que el Brick se ejecute dos veces
-                  resolve();
-                  
-                  if (mounted) {
-                    setProcessing(false);
-                  }
-                } catch (error: any) {
-                  console.error("❌ Error al procesar el pago:", error);
-                  const errorMessage = error?.message || "Error al procesar el pago. Por favor, intenta nuevamente.";
-                  onPaymentErrorRef.current(errorMessage);
-                  
-                  // Rechazar la Promise para indicar al Brick que hubo un error
-                  reject(error);
-                  
-                  if (mounted) {
-                    setProcessing(false);
-                  }
-                }
-              });
-            },
-            onError: (error: any) => {
-              console.error("❌ Error en el Brick:", error);
-              const errorMessage = error?.message || "Error en el formulario de pago. Por favor, verifica los datos.";
-              onPaymentErrorRef.current(errorMessage);
-              if (mounted) {
-                setProcessing(false);
-              }
-            },
-          },
-        };
-
-        cardPaymentBrickControllerRef.current = await bricksBuilder.create(
-          'cardPayment',
-          'cardPaymentBrick_container',
-          settings
-        );
-
-        console.log("✅ Card Payment Brick inicializado");
-      } catch (error: any) {
-        console.error("❌ Error al inicializar el Brick:", error);
-        if (mounted) {
-          setLoading(false);
-          onPaymentError("Error al inicializar el formulario de pago. Por favor, recarga la página.");
-        }
+    try {
+      // Verificar que el contenedor esté en el DOM
+      if (!brickContainerRef.current || !brickContainerRef.current.isConnected) {
+        console.log("⏳ Esperando a que el contenedor esté en el DOM...");
+        return;
       }
-    };
 
-    // Esperar a que el DOM esté completamente listo antes de inicializar
-    // El error "fields_setup_failed_after_3_tries" suele ocurrir si el contenedor no está listo
+      // Verificar que el contenedor tenga dimensiones (está renderizado)
+      const rect = brickContainerRef.current.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) {
+        console.log("⏳ Esperando a que el contenedor tenga dimensiones...");
+        return;
+      }
+
+      // Verificar que no se haya inicializado ya
+      if (cardPaymentBrickControllerRef.current) {
+        console.log("✅ Brick ya está inicializado");
+        if (loading) {
+          setLoading(false);
+          if (onReady) onReady();
+        }
+        return;
+      }
+
+      console.log("🔧 Inicializando Card Payment Brick con amount:", amount);
+      console.log("🔍 Estado del contenedor:", {
+        exists: !!brickContainerRef.current,
+        isConnected: brickContainerRef.current?.isConnected,
+        width: rect.width,
+        height: rect.height,
+        id: brickContainerRef.current?.id
+      });
+
+      // Inicializar el Brick según documentación oficial
+      const bricksBuilder = mpInstanceRef.current.bricks();
+
+      const settings = {
+        initialization: {
+          amount: Number(amount), // Asegurar que sea número
+          payer: {
+            email: payerEmail,
+          },
+        },
+        customization: {
+          visual: {
+            hidePaymentButton: false, // Mostrar botón pero lo ocultaremos con CSS
+            style: {
+              theme: 'default' as const, // 'default' | 'dark' | 'bootstrap' | 'flat'
+            },
+          },
+          paymentMethods: {
+            maxInstallments: 12, // Máximo de cuotas
+          },
+        },
+        callbacks: {
+          onReady: () => {
+            console.log("✅ Card Payment Brick listo");
+            if (mounted) {
+              setLoading(false);
+              if (onReadyRef.current) onReadyRef.current();
+            }
+          },
+          onSubmit: (cardFormData: any) => {
+            console.log("📝 [Brick] Datos del formulario recibidos (completo):", JSON.stringify(cardFormData, null, 2));
+            console.log("📝 [Brick] Tipo de cardFormData:", typeof cardFormData);
+            console.log("📝 [Brick] Keys en cardFormData:", Object.keys(cardFormData || {}));
+            
+            if (mounted) {
+              setProcessing(true);
+            }
+
+            // IMPORTANTE: onSubmit debe retornar una Promise
+            // Según la documentación, el Brick espera que se procese el pago en el backend
+            // y luego se resuelva o rechace la Promise
+            return new Promise<void>((resolve, reject) => {
+              try {
+                // El Brick ya procesa todo y devuelve los datos necesarios
+                const { 
+                  token, 
+                  installments, 
+                  payment_method_id, 
+                  issuer_id,
+                  cardholderName,
+                  cardholderEmail,
+                  identificationType,
+                  identificationNumber
+                } = cardFormData;
+
+                if (!token) {
+                  throw new Error("No se pudo generar el token de la tarjeta");
+                }
+
+                console.log("✅ [Brick] Token generado:", token);
+                console.log("✅ [Brick] Cuotas:", installments);
+                console.log("✅ [Brick] Payment Method ID:", payment_method_id);
+                console.log("✅ [Brick] Issuer ID:", issuer_id);
+                console.log("✅ [Brick] Cardholder Name:", cardholderName, "(tipo:", typeof cardholderName, ")");
+                console.log("✅ [Brick] Cardholder Email:", cardholderEmail, "(tipo:", typeof cardholderEmail, ")");
+                console.log("✅ [Brick] Identification Type:", identificationType, "(tipo:", typeof identificationType, ")");
+                console.log("✅ [Brick] Identification Number:", identificationNumber, "(tipo:", typeof identificationNumber, ")");
+                
+                // Verificar si los datos del cardholder están presentes
+                if (!cardholderName && !cardholderEmail && !identificationType && !identificationNumber) {
+                  console.warn("⚠️ [Brick] ADVERTENCIA: No se recibieron datos del cardholder del Brick");
+                  console.warn("⚠️ [Brick] Esto puede ser normal si el email se pasó en la inicialización");
+                }
+
+                // Preparar datos del cardholder para enviar al backend
+                const cardholderData = {
+                  name: cardholderName,
+                  email: cardholderEmail,
+                  identificationType: identificationType,
+                  identificationNumber: identificationNumber
+                };
+
+                // Llamar al callback con los datos usando el ref
+                // Esto notifica al componente padre que el token está listo
+                // El padre puede entonces procesar el pago en el backend
+                onPaymentSuccessRef.current(
+                  token,
+                  installments || 1,
+                  payment_method_id || '',
+                  issuer_id,
+                  cardholderData
+                );
+
+                // Resolver la Promise inmediatamente para indicar al Brick que el proceso fue exitoso
+                // No usar setTimeout aquí porque puede causar que el Brick se ejecute dos veces
+                resolve();
+                
+                if (mounted) {
+                  setProcessing(false);
+                }
+              } catch (error: any) {
+                console.error("❌ Error al procesar el pago:", error);
+                const errorMessage = error?.message || "Error al procesar el pago. Por favor, intenta nuevamente.";
+                onPaymentErrorRef.current(errorMessage);
+                
+                // Rechazar la Promise para indicar al Brick que hubo un error
+                reject(error);
+                
+                if (mounted) {
+                  setProcessing(false);
+                }
+              }
+            });
+          },
+          onError: (error: any) => {
+            console.error("❌ Error en el Brick:", error);
+            const errorMessage = error?.message || "Error en el formulario de pago. Por favor, verifica los datos.";
+            onPaymentErrorRef.current(errorMessage);
+            if (mounted) {
+              setProcessing(false);
+            }
+          },
+        },
+      };
+
+      cardPaymentBrickControllerRef.current = await bricksBuilder.create(
+        'cardPayment',
+        'cardPaymentBrick_container',
+        settings
+      );
+      console.log("✅ Card Payment Brick inicializado");
+      previousAmountRef.current = amount;
+    } catch (error: any) {
+      console.error("❌ Error al inicializar el Brick:", error);
+      if (mounted) {
+        setLoading(false);
+        onPaymentError("Error al inicializar el formulario de pago. Por favor, recarga la página.");
+      }
+    }
+  };
+
+  // Manejar cambios de amount: desmontar y reinicializar con debounce
+  useEffect(() => {
+    if (!mpInitialized) return;
+    
+    // Solo reinicializar si el amount cambió significativamente y el brick ya está inicializado
+    // Y el nuevo amount es válido (> 0)
+    if (cardPaymentBrickControllerRef.current && 
+        Math.abs(previousAmountRef.current - amount) > 0.01 &&
+        amount > 0) {
+      
+      // Usar debounce para evitar reinicializaciones múltiples rápidas
+      const timeoutId = setTimeout(() => {
+        // Verificar nuevamente que el amount siga siendo diferente y válido
+        if (Math.abs(previousAmountRef.current - amount) > 0.01 && amount > 0) {
+          console.log(`🔄 Amount cambió de ${previousAmountRef.current} a ${amount}, reinicializando brick...`);
+          
+          // Desmontar el brick existente
+          try {
+            if (cardPaymentBrickControllerRef.current) {
+              cardPaymentBrickControllerRef.current.unmount();
+              cardPaymentBrickControllerRef.current = null;
+            }
+          } catch (e) {
+            console.log("⚠️ Error al desmontar brick anterior:", e);
+          }
+          
+          // Limpiar el contenedor
+          if (brickContainerRef.current) {
+            brickContainerRef.current.innerHTML = '';
+          }
+          
+          // Actualizar el amount anterior ANTES de reinicializar
+          previousAmountRef.current = amount;
+          
+          // Mostrar loading mientras se reinicializa
+          setLoading(true);
+          
+          // Reinicializar después de un breve delay para asegurar que el DOM esté limpio
+          setTimeout(() => {
+            if (brickContainerRef.current && mpInstanceRef.current && amount > 0) {
+              initializeBrick();
+            }
+          }, 150);
+        }
+      }, 300); // Debounce de 300ms para evitar reinicializaciones durante cambios rápidos
+      
+      return () => {
+        clearTimeout(timeoutId);
+      };
+    } else if (!cardPaymentBrickControllerRef.current && amount > 0) {
+      // Si el brick no está inicializado y el amount es válido, actualizar el ref
+      previousAmountRef.current = amount;
+    }
+  }, [amount, mpInitialized]);
+
+  // Inicializar Card Payment Brick cuando mpInitialized cambia
+  useEffect(() => {
+    if (!mpInitialized || !mpInstanceRef.current || !brickContainerRef.current) return;
+    
+    // Prevenir reinicialización si ya está montado
+    if (cardPaymentBrickControllerRef.current) {
+      console.log("✅ Brick ya está inicializado, saltando reinicialización");
+      return;
+    }
+
+    let mounted = true;
     const timeoutRefs: NodeJS.Timeout[] = [];
     
     const initializeWithRetry = async (attempt = 1, maxAttempts = 5) => {
@@ -370,31 +436,17 @@ export default function MercadoPagoCardForm({
         if (mounted) {
           initializeWithRetry();
         }
-      }, 300); // Delay inicial más largo para asegurar que todo esté listo
+      }, 300);
       timeoutRefs.push(timeoutId);
     });
 
     return () => {
       mounted = false;
-      
-      // Limpiar todos los timeouts
       timeoutRefs.forEach(timeoutId => clearTimeout(timeoutId));
       timeoutRefs.length = 0;
-      
-      // Cancelar requestAnimationFrame si aún no se ejecutó
       cancelAnimationFrame(rafId);
-      
-      // Limpiar el Brick si existe
-      if (cardPaymentBrickControllerRef.current) {
-        try {
-          cardPaymentBrickControllerRef.current.unmount();
-          cardPaymentBrickControllerRef.current = null;
-        } catch (e) {
-          console.log("⚠️ Error al desmontar el Brick:", e);
-        }
-      }
     };
-  }, [mpInitialized, amount, payerEmail]); // Solo reinicializar si cambian estos valores críticos
+  }, [mpInitialized, payerEmail]);
 
   // Exponer función de procesamiento para que el botón "Finalizar compra" pueda disparar el submit del Brick
   useEffect(() => {
