@@ -116,10 +116,17 @@ export default function VentasPedidos() {
     }).format(monto);
   };
 
-  // Obtener medio de pago principal de una venta
+  // Obtener medios de pago de una venta (puede ser múltiples)
   const getMedioPagoPrincipal = (venta: Venta): string => {
     if (venta.pagos_procesados && venta.pagos_procesados.length > 0) {
-      return venta.pagos_procesados[0].forma_pago_descripcion || "N/A";
+      // Si hay múltiples pagos, mostrar todos separados por " + "
+      const metodos = venta.pagos_procesados
+        .map((pago: any) => pago.forma_pago_descripcion)
+        .filter((desc: string) => desc && desc !== "N/A");
+      
+      if (metodos.length > 0) {
+        return metodos.join(" + ");
+      }
     }
     return "N/A";
   };

@@ -78,6 +78,27 @@ const normalizeOrderStatus = (status: string): string => {
   return status;
 };
 
+// Función helper para formatear el método de pago (soporta múltiples métodos separados por coma)
+const formatPaymentMethod = (paymentMethod: string | undefined | null): string => {
+  if (!paymentMethod) return "N/A";
+  
+  const methodLabels: Record<string, string> = {
+    card: "Tarjeta",
+    cash: "Efectivo",
+    transfer: "Transferencia",
+    wallet: "Billetera Bausing",
+  };
+  
+  // Si contiene coma, es múltiple
+  if (paymentMethod.includes(",")) {
+    const methods = paymentMethod.split(",").map(m => m.trim());
+    return methods.map(m => methodLabels[m] || m).join(" + ");
+  }
+  
+  // Método único
+  return methodLabels[paymentMethod] || paymentMethod;
+};
+
 export default function UsuarioPage() {
   const { user, loading, isAuthenticated, logout, updateUser } = useAuth();
   const router = useRouter();
@@ -1355,11 +1376,8 @@ export default function UsuarioPage() {
                               </div>
                               <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2">
                                 <span className="text-xs md:text-sm text-gray-600">Método de pago:</span>
-                                <span className="text-xs md:text-sm text-gray-900 capitalize">
-                                  {selectedOrder.payment_method === "card" && "Tarjeta"}
-                                  {selectedOrder.payment_method === "cash" && "Efectivo"}
-                                  {selectedOrder.payment_method === "transfer" && "Transferencia"}
-                                  {selectedOrder.payment_method === "wallet" && "Billetera Bausing"}
+                                <span className="text-xs md:text-sm text-gray-900">
+                                  {formatPaymentMethod(selectedOrder.payment_method)}
                                 </span>
                               </div>
                               {selectedOrder.payment_processed !== undefined && (

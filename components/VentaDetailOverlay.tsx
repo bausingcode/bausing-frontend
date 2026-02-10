@@ -190,12 +190,12 @@ export default function VentaDetailOverlay({
                 </div>
               )}
 
-              {/* Pagos Procesados */}
-              {venta.pagos_procesados && venta.pagos_procesados.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-4">
-                    Pagos Procesados
-                  </h3>
+              {/* Métodos de Pago */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-4">
+                  Métodos de Pago
+                </h3>
+                {venta.pagos_procesados && venta.pagos_procesados.length > 0 ? (
                   <div className="space-y-3">
                     {venta.pagos_procesados.map((pago: any, index: number) => (
                       <div key={index} className="border border-gray-200 rounded-lg p-4">
@@ -224,8 +224,10 @@ export default function VentaDetailOverlay({
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <p className="text-sm text-gray-500">No hay pagos procesados</p>
+                )}
+              </div>
             </div>
           </div>
 

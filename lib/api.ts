@@ -3607,7 +3607,7 @@ export interface Order {
   user_id: string;
   order_number: string;
   status: string; // Estado de entrega: "pendiente de entrega", "en reparto", "en cobranza", "finalizado", etc.
-  payment_method: "card" | "cash" | "transfer" | "wallet";
+  payment_method: "card" | "cash" | "transfer" | "wallet" | string; // Puede ser múltiples métodos separados por coma (ej: "card,wallet")
   payment_status: "pending" | "paid" | "failed";
   payment_processed?: boolean; // Indica si el pago fue procesado (campo payment_processed de la tabla orders)
   pay_on_delivery: boolean;
