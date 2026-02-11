@@ -2275,32 +2275,54 @@ export default function CheckoutPage() {
 
               {/* Payment Method - Multi-payment support */}
               <div className="bg-white border border-gray-200 rounded-[14px] p-4 md:p-6">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg md:text-xl font-semibold text-gray-900">
                     Medios de pago
                   </h2>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <span className="text-xs text-gray-600">Combinar métodos</span>
-                    <input
-                      type="checkbox"
-                      checked={enableMultiPayment}
-                      onChange={(e) => {
-                        setEnableMultiPayment(e.target.checked);
-                        if (!e.target.checked && selectedMethods.length > 1) {
-                          // Si se desactiva, dejar solo el primer método
-                          const firstMethod = selectedMethods[0];
-                          setSelectedMethods([firstMethod]);
-                          const maxAmount = firstMethod === "wallet" ? Math.min(walletBalance, subtotal) : subtotal;
-                          setMethodAmounts({ [firstMethod]: maxAmount });
-                        }
-                      }}
-                      className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7]"
-                    />
-                  </label>
                 </div>
+                
+                {/* Switch para combinar métodos */}
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 md:p-4 mb-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-medium text-gray-900">Combinar métodos de pago</span>
+                        {enableMultiPayment && (
+                          <span className="text-xs bg-[#00C1A7]/10 text-[#00C1A7] px-2 py-0.5 rounded-full font-medium">
+                            Activo
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600">
+                        {enableMultiPayment 
+                          ? "Podés seleccionar múltiples métodos y distribuir el monto entre ellos"
+                          : "Activa esta opción para usar más de un método de pago en tu compra"}
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={enableMultiPayment}
+                        onChange={(e) => {
+                          setEnableMultiPayment(e.target.checked);
+                          if (!e.target.checked && selectedMethods.length > 1) {
+                            // Si se desactiva, dejar solo el primer método
+                            const firstMethod = selectedMethods[0];
+                            setSelectedMethods([firstMethod]);
+                            const maxAmount = firstMethod === "wallet" ? Math.min(walletBalance, subtotal) : subtotal;
+                            setMethodAmounts({ [firstMethod]: maxAmount });
+                          }
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#00C1A7] peer-focus:ring-offset-2 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#00C1A7]"></div>
+                    </label>
+                  </div>
+                </div>
+                
                 <p className="text-xs text-gray-500 mb-4 md:mb-6">
                   {enableMultiPayment 
-                    ? "Podés combinar varios medios de pago para cubrir el total"
+                    ? "Seleccioná los métodos que querés usar y especificá el monto para cada uno"
                     : "Seleccioná un método de pago"}
                 </p>
                 {errors.payment_method && (
