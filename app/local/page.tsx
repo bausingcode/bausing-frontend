@@ -115,7 +115,7 @@ export default function LocalPage() {
             {/* Left Column: Address and Social Media */}
             <div className="space-y-6">
               {/* Address Section */}
-              <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg hover:border-gray-300 transition-all">
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
                 <div className="flex items-start gap-4">
                   <MapPin className="w-6 h-6 text-[#00C1A7] flex-shrink-0 mt-1" strokeWidth={1.5} />
                   <div className="flex-1">
@@ -139,7 +139,7 @@ export default function LocalPage() {
               </div>
 
               {/* Social Media Section */}
-              <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg hover:border-gray-300 transition-all">
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
                 <h4 className="font-semibold text-gray-900 mb-3 text-sm md:text-base">Seguinos</h4>
                 <div className="flex gap-2 md:gap-3">
                   {footerData.instagram_url && (

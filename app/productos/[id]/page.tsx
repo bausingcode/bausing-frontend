@@ -1003,127 +1003,127 @@ export default function ProductDetailPage() {
               </div>
 
               {/* Variant Selection */}
-              {product.variants && product.variants.filter((variant: any) => variant.sku !== null && variant.sku !== undefined).length > 0 && !shouldHideVariantsSection() && (
-                <div className="mb-6 md:mb-8">
-                  <h3 className="text-sm font-medium text-gray-700 mb-2 md:mb-3">Opciones disponibles:</h3>
-                  <div className="space-y-2 md:space-y-3">
-                    {product.variants
-                      .filter((variant: any) => variant.sku !== null && variant.sku !== undefined)
-                      .filter((variant: any) => !isDefaultAttributeVariant(variant))
-                      .map((variant: any) => {
-                      // Siempre mostrar variant como título, y si tiene options, mostrar las options como opciones
-                      const variantKey = variant.id || variant.name || variant.sku || 'default';
-                      const hasOptions = variant.options && Array.isArray(variant.options) && variant.options.length > 0;
-                      const isExpanded = expandedVariants[variantKey] || false;
-                      
-                      return (
-                        <div key={variantKey} className="border border-gray-200 rounded-[8px] overflow-hidden">
-                          {/* Header desplegable */}
-                          <button
-                            onClick={() => {
-                              setExpandedVariants(prev => ({
-                                ...prev,
-                                [variantKey]: !prev[variantKey]
-                              }));
-                            }}
-                            className="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-gray-50 transition-colors text-left"
-                          >
-                            <h4 className="text-xs md:text-sm font-semibold text-gray-900">
-                              {variant.name || variant.sku || variant.id || "Opción"}
-                            </h4>
-                            <div className="flex items-center gap-2">
-                              {hasOptions && (
-                                <span className="text-xs text-gray-500">
-                                  {variant.options.length} opción{variant.options.length !== 1 ? 'es' : ''}
-                                </span>
-                              )}
-                              {isExpanded ? (
-                                <ChevronUp className="w-4 h-4 md:w-5 md:h-5 text-gray-600 shrink-0" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4 md:w-5 md:h-5 text-gray-600 shrink-0" />
-                              )}
+              {(() => {
+                const visibleVariants = product.variants
+                  ? product.variants
+                      .filter((v: any) => v.sku !== null && v.sku !== undefined)
+                      .filter((v: any) => !isDefaultAttributeVariant(v))
+                  : [];
+                const hasOnlyOneCategory = visibleVariants.length === 1;
+                if (visibleVariants.length === 0 || shouldHideVariantsSection()) return null;
+                return (
+                  <div className="mb-6 md:mb-8">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2 md:mb-3">Opciones disponibles:</h3>
+                    <div className="space-y-2 md:space-y-3">
+                      {visibleVariants.map((variant: any) => {
+                        const variantKey = variant.id || variant.name || variant.sku || 'default';
+                        const hasOptions = variant.options && Array.isArray(variant.options) && variant.options.length > 0;
+                        const isExpanded = hasOnlyOneCategory || (expandedVariants[variantKey] ?? false);
+                        const renderOptions = () => (
+                          <div className="flex flex-wrap gap-1.5 md:gap-2">
+                            {hasOptions ? (
+                              variant.options.map((option: any) => {
+                                const isSelected = selectedVariantOptions[variantKey] === option.id;
+                                const isOutOfStock = option.stock !== undefined && option.stock <= 0;
+                                return (
+                                  <button
+                                    key={option.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (!isOutOfStock) {
+                                        setSelectedVariantOptions(prev => ({ ...prev, [variantKey]: option.id }));
+                                      }
+                                    }}
+                                    disabled={isOutOfStock}
+                                    className={`px-3 py-1.5 md:px-4 md:py-2 rounded-[4px] border transition-all text-xs md:text-sm ${
+                                      isOutOfStock
+                                        ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
+                                        : isSelected
+                                        ? "border-[#00C1A7] bg-[#00C1A7] text-white cursor-pointer"
+                                        : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 cursor-pointer"
+                                    }`}
+                                  >
+                                    {option.name}
+                                    {isOutOfStock && <span className="ml-1 md:ml-2 text-xs">(Sin stock)</span>}
+                                  </button>
+                                );
+                              })
+                            ) : (
+                              (() => {
+                                const isVariantOutOfStock = variant.stock !== undefined && variant.stock <= 0;
+                                return (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (!isVariantOutOfStock) setSelectedVariant(variant.id);
+                                    }}
+                                    disabled={isVariantOutOfStock}
+                                    className={`px-3 py-1.5 md:px-4 md:py-2 rounded-[4px] border transition-all text-xs md:text-sm ${
+                                      isVariantOutOfStock
+                                        ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
+                                        : selectedVariant === variant.id
+                                        ? "border-[#00C1A7] bg-[#00C1A7] text-white cursor-pointer"
+                                        : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 cursor-pointer"
+                                    }`}
+                                  >
+                                    {variant.name || variant.sku || variant.id}
+                                    {isVariantOutOfStock && <span className="ml-1 md:ml-2 text-xs">(Sin stock)</span>}
+                                  </button>
+                                );
+                              })()
+                            )}
+                          </div>
+                        );
+                        if (hasOnlyOneCategory) {
+                          return (
+                            <div key={variantKey}>
+                              <h4 className="text-xs md:text-sm font-semibold text-gray-700 mb-2 md:mb-3">
+                                {variant.name || variant.sku || variant.id || "Opción"}
+                              </h4>
+                              {renderOptions()}
                             </div>
-                          </button>
-                          
-                          {/* Contenido desplegable */}
-                          <div 
-                            className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                              isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
-                            }`}
-                          >
-                            <div className="px-4 pb-3 pt-2 bg-gray-50 border-t border-gray-200">
-                              <div className="flex flex-wrap gap-1.5 md:gap-2">
-                                {hasOptions ? (
-                                  // Si tiene options, mostrar las options como opciones seleccionables
-                                  variant.options.map((option: any) => {
-                                    const isSelected = selectedVariantOptions[variantKey] === option.id;
-                                    const isOutOfStock = option.stock !== undefined && option.stock <= 0;
-                                    return (
-                                      <button
-                                        key={option.id}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          if (!isOutOfStock) {
-                                            setSelectedVariantOptions(prev => ({
-                                              ...prev,
-                                              [variantKey]: option.id
-                                            }));
-                                          }
-                                        }}
-                                        disabled={isOutOfStock}
-                                        className={`px-3 py-1.5 md:px-4 md:py-2 rounded-[4px] border transition-all text-xs md:text-sm ${
-                                          isOutOfStock
-                                            ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
-                                            : isSelected
-                                            ? "border-[#00C1A7] bg-[#00C1A7] text-white cursor-pointer"
-                                            : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 cursor-pointer"
-                                        }`}
-                                      >
-                                        {option.name}
-                                        {isOutOfStock && (
-                                          <span className="ml-1 md:ml-2 text-xs">(Sin stock)</span>
-                                        )}
-                                      </button>
-                                    );
-                                  })
-                                ) : (
-                                  // Si no tiene options, mostrar el variant mismo como opción
-                                  (() => {
-                                    const isVariantOutOfStock = variant.stock !== undefined && variant.stock <= 0;
-                                    return (
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          if (!isVariantOutOfStock) {
-                                            setSelectedVariant(variant.id);
-                                          }
-                                        }}
-                                        disabled={isVariantOutOfStock}
-                                        className={`px-3 py-1.5 md:px-4 md:py-2 rounded-[4px] border transition-all text-xs md:text-sm ${
-                                          isVariantOutOfStock
-                                            ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
-                                            : selectedVariant === variant.id
-                                            ? "border-[#00C1A7] bg-[#00C1A7] text-white cursor-pointer"
-                                            : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 cursor-pointer"
-                                        }`}
-                                      >
-                                        {variant.name || variant.sku || variant.id}
-                                        {isVariantOutOfStock && (
-                                          <span className="ml-1 md:ml-2 text-xs">(Sin stock)</span>
-                                        )}
-                                      </button>
-                                    );
-                                  })()
+                          );
+                        }
+                        return (
+                          <div key={variantKey} className="border border-gray-200 rounded-[8px] overflow-hidden">
+                            <button
+                              onClick={() => {
+                                setExpandedVariants(prev => ({ ...prev, [variantKey]: !prev[variantKey] }));
+                              }}
+                              className="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-gray-50 transition-colors text-left"
+                            >
+                              <h4 className="text-xs md:text-sm font-semibold text-gray-900">
+                                {variant.name || variant.sku || variant.id || "Opción"}
+                              </h4>
+                              <div className="flex items-center gap-2">
+                                {hasOptions && (
+                                  <span className="text-xs text-gray-500">
+                                    {variant.options.length} opción{variant.options.length !== 1 ? 'es' : ''}
+                                  </span>
                                 )}
+                                {isExpanded ? (
+                                  <ChevronUp className="w-4 h-4 md:w-5 md:h-5 text-gray-600 shrink-0" />
+                                ) : (
+                                  <ChevronDown className="w-4 h-4 md:w-5 md:h-5 text-gray-600 shrink-0" />
+                                )}
+                              </div>
+                            </button>
+                            <div
+                              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                                isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
+                              }`}
+                            >
+                              <div className="px-4 pb-3 pt-2 bg-gray-50 border-t border-gray-200">
+                                {renderOptions()}
                               </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             {/* Action Buttons - Alineados con el fondo de la imagen */}
