@@ -157,7 +157,7 @@ export default async function Home() {
         </section>
       )}
 
-      <section className="bg-[#fafafa] py-8 md:py-10 lg:py-12">
+      <section className="bg-[#fafafa] mt-10 md:mt-14 lg:mt-20 py-8 md:py-10 lg:py-12">
         <div className="container mx-auto px-4 md:px-6 lg:px-8">
           <div className="mb-5 md:mb-6">
             <h3 className="text-lg md:text-xl lg:text-2xl font-semibold text-gray-800">Promociones Destacadas</h3>
@@ -274,7 +274,7 @@ export default async function Home() {
             {/* Blog */}
             <a 
               href="/blog" 
-              className="bg-white border border-gray-200 rounded-lg md:rounded-xl p-4 md:p-6 lg:p-8 flex flex-col items-center text-center cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all duration-300 group"
+              className="bg-white border border-gray-200 rounded-lg md:rounded-xl p-4 md:p-6 lg:p-8 flex flex-col items-center text-center cursor-pointer hover:border-[#00C1A7] transition-all duration-300 group"
             >
               <div className="w-12 h-12 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300 aspect-square">
                 <BookOpen className="w-6 h-6 md:w-8 lg:w-9 text-[#00C1A7] group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
@@ -286,7 +286,7 @@ export default async function Home() {
             {/* Asesoramiento Personalizado */}
             <a 
               href="/asesoramiento" 
-              className="bg-white border border-gray-200 rounded-lg md:rounded-xl p-4 md:p-6 lg:p-8 flex flex-col items-center text-center cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all duration-300 group"
+              className="bg-white border border-gray-200 rounded-lg md:rounded-xl p-4 md:p-6 lg:p-8 flex flex-col items-center text-center cursor-pointer hover:border-[#00C1A7] transition-all duration-300 group"
             >
               <div className="w-12 h-12 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300 aspect-square">
                 <MessageCircle className="w-6 h-6 md:w-8 lg:w-9 text-[#00C1A7] group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
@@ -298,7 +298,7 @@ export default async function Home() {
             {/* Preguntas Frecuentes */}
             <a 
               href="/preguntas-frecuentes" 
-              className="bg-white border border-gray-200 rounded-lg md:rounded-xl p-4 md:p-6 lg:p-8 flex flex-col items-center text-center cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all duration-300 group"
+              className="bg-white border border-gray-200 rounded-lg md:rounded-xl p-4 md:p-6 lg:p-8 flex flex-col items-center text-center cursor-pointer hover:border-[#00C1A7] transition-all duration-300 group"
             >
               <div className="w-12 h-12 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300 aspect-square">
                 <HelpCircle className="w-6 h-6 md:w-8 lg:w-9 text-[#00C1A7] group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
@@ -310,7 +310,7 @@ export default async function Home() {
             {/* Nuestro Local */}
             <a 
               href="/nuestro-local" 
-              className="bg-white border border-gray-200 rounded-lg md:rounded-xl p-4 md:p-6 lg:p-8 flex flex-col items-center text-center cursor-pointer hover:shadow-lg hover:border-[#00C1A7] transition-all duration-300 group"
+              className="bg-white border border-gray-200 rounded-lg md:rounded-xl p-4 md:p-6 lg:p-8 flex flex-col items-center text-center cursor-pointer hover:border-[#00C1A7] transition-all duration-300 group"
             >
               <div className="w-12 h-12 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300 aspect-square">
                 <MapPin className="w-6 h-6 md:w-8 lg:w-9 text-[#00C1A7] group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
