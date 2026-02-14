@@ -5,6 +5,24 @@ import PageHeader from "@/components/PageHeader";
 import { Edit, Trash2, X, Plus, Power, PowerOff } from "lucide-react";
 import { fetchEvents, createEvent, updateEvent, deleteEvent, toggleEvent, type Event } from "@/lib/api";
 
+// Helper function to get animation style
+function getAnimationStyle(animationType: string): string {
+  switch (animationType) {
+    case "slide-vertical":
+      return "slide-vertical 3s ease-in-out infinite";
+    case "bounce":
+      return "bounce 2s ease-in-out infinite";
+    case "pulse":
+      return "pulse 2s ease-in-out infinite";
+    case "shake":
+      return "shake 0.5s ease-in-out infinite";
+    case "marquee":
+      return "marquee 12s linear infinite";
+    default:
+      return "";
+  }
+}
+
 export default function Eventos() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +93,29 @@ export default function Eventos() {
 
   return (
     <div className="px-8 pt-6 pb-8 min-h-screen">
+      <style jsx>{`
+        @keyframes slide-vertical {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-5px); }
+        }
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+        }
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-5px); }
+          75% { transform: translateX(5px); }
+        }
+        @keyframes marquee {
+          0% { transform: translateX(100%); }
+          100% { transform: translateX(-100%); }
+        }
+      `}</style>
       <PageHeader 
         title="Eventos" 
         description="Gestiona los eventos de la barra superior" 
@@ -135,13 +176,19 @@ export default function Eventos() {
               {/* Preview */}
               <div className="mb-4 pr-20">
                 <div 
-                  className="rounded-lg p-3 mb-3"
+                  className="rounded-lg p-3 mb-3 overflow-hidden"
                   style={{ 
                     backgroundColor: event.background_color,
                     color: event.text_color
                   }}
                 >
-                  <div className="text-sm font-medium text-center">
+                  <div 
+                    className="text-sm font-medium text-center"
+                    style={{
+                      fontFamily: event.font_family || undefined,
+                      animation: event.animation_type ? getAnimationStyle(event.animation_type) : undefined,
+                    }}
+                  >
                     {event.display_type === 'countdown' && event.countdown_end_date ? (
                       <span>Vista previa: {event.text} - Countdown hasta {new Date(event.countdown_end_date).toLocaleString('es-AR')}</span>
                     ) : (
@@ -192,6 +239,22 @@ export default function Eventos() {
                     <span className="ml-2">{event.text_color}</span>
                   </div>
                 </div>
+                {(event.font_family || event.animation_type) && (
+                  <div className="flex items-center gap-4 text-sm text-gray-600 mt-2">
+                    {event.font_family && (
+                      <div>
+                        <span className="font-medium">Tipografía:</span>
+                        <span className="ml-2" style={{ fontFamily: event.font_family }}>{event.font_family}</span>
+                      </div>
+                    )}
+                    {event.animation_type && (
+                      <div>
+                        <span className="font-medium">Animación:</span>
+                        <span className="ml-2 capitalize">{event.animation_type.replace('-', ' ')}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Toggle Button - Bottom Right */}
@@ -257,6 +320,8 @@ function CreateEventModal({ isOpen, onClose, onSuccess, event }: {
     is_active: false,
     display_type: "fixed" as "fixed" | "countdown",
     countdown_end_date: "",
+    font_family: "",
+    animation_type: "",
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -273,6 +338,8 @@ function CreateEventModal({ isOpen, onClose, onSuccess, event }: {
           countdown_end_date: event.countdown_end_date 
             ? new Date(event.countdown_end_date).toISOString().slice(0, 16)
             : "",
+          font_family: event.font_family || "",
+          animation_type: event.animation_type || "",
         });
       } else {
         setFormData({
@@ -282,6 +349,8 @@ function CreateEventModal({ isOpen, onClose, onSuccess, event }: {
           is_active: false,
           display_type: "fixed",
           countdown_end_date: "",
+          font_family: "",
+          animation_type: "",
         });
       }
     }
@@ -312,6 +381,8 @@ function CreateEventModal({ isOpen, onClose, onSuccess, event }: {
         text_color: formData.text_color,
         is_active: formData.is_active,
         display_type: formData.display_type,
+        font_family: formData.font_family || null,
+        animation_type: formData.animation_type || null,
       };
 
       if (formData.display_type === "countdown" && formData.countdown_end_date) {
@@ -364,13 +435,19 @@ function CreateEventModal({ isOpen, onClose, onSuccess, event }: {
             <div>
               <label className={labelClass}>Vista Previa</label>
               <div 
-                className="rounded-lg p-4 border border-gray-200"
+                className="rounded-lg p-4 border border-gray-200 overflow-hidden"
                 style={{ 
                   backgroundColor: formData.background_color,
                   color: formData.text_color
                 }}
               >
-                <div className="text-sm font-medium text-center">
+                <div 
+                  className="text-sm font-medium text-center"
+                  style={{
+                    fontFamily: formData.font_family || undefined,
+                    animation: formData.animation_type ? getAnimationStyle(formData.animation_type) : undefined,
+                  }}
+                >
                   {formData.display_type === 'countdown' && formData.countdown_end_date ? (
                     <span>{formData.text || "Texto del evento"} - Countdown</span>
                   ) : (
@@ -470,6 +547,52 @@ function CreateEventModal({ isOpen, onClose, onSuccess, event }: {
                 />
               </div>
             )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>
+                  Tipografía
+                </label>
+                <select
+                  value={formData.font_family}
+                  onChange={(e) => setFormData({ ...formData, font_family: e.target.value })}
+                  className={inputClass}
+                >
+                  <option value="">Default (Sistema)</option>
+                  <option value="Arial, sans-serif">Arial</option>
+                  <option value="'Helvetica Neue', Helvetica, sans-serif">Helvetica</option>
+                  <option value="Georgia, serif">Georgia</option>
+                  <option value="'Times New Roman', Times, serif">Times New Roman</option>
+                  <option value="'Courier New', Courier, monospace">Courier New</option>
+                  <option value="Verdana, sans-serif">Verdana</option>
+                  <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+                  <option value="Impact, sans-serif">Impact</option>
+                  <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
+                  <option value="'Lucida Console', monospace">Lucida Console</option>
+                  <option value="'Palatino Linotype', 'Book Antiqua', Palatino, serif">Palatino</option>
+                  <option value="Tahoma, sans-serif">Tahoma</option>
+                  <option value="'Arial Black', sans-serif">Arial Black</option>
+                </select>
+              </div>
+
+              <div>
+                <label className={labelClass}>
+                  Animación
+                </label>
+                <select
+                  value={formData.animation_type}
+                  onChange={(e) => setFormData({ ...formData, animation_type: e.target.value })}
+                  className={inputClass}
+                >
+                  <option value="">Sin animación</option>
+                  <option value="slide-vertical">Deslizamiento vertical</option>
+                  <option value="bounce">Rebote</option>
+                  <option value="pulse">Pulso</option>
+                  <option value="shake">Sacudida</option>
+                  <option value="marquee">Desplazamiento continuo</option>
+                </select>
+              </div>
+            </div>
 
             <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Estado</p>

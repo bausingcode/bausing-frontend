@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import PageHeader from "@/components/PageHeader";
-import { Mail, Send, Wallet, Loader2 } from "lucide-react";
-import { sendPromotionalEmails, sendWalletReminders } from "@/lib/api";
+import { Mail, Send, Wallet, Loader2, Image as ImageIcon, X } from "lucide-react";
+import { sendPromotionalEmails, sendWalletReminders, uploadEmailImageFile } from "@/lib/api";
 
 export default function Mensajes() {
   const [loadingPromo, setLoadingPromo] = useState(false);
@@ -16,6 +16,9 @@ export default function Mensajes() {
   const [walletError, setWalletError] = useState<string | null>(null);
   const [walletSuccess, setWalletSuccess] = useState<string | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const predefinedTemplates = [
     {
@@ -44,6 +47,33 @@ export default function Mensajes() {
     setSubject(template.subject);
   };
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setPromoError("Por favor, selecciona un archivo de imagen válido");
+        return;
+      }
+      
+      setSelectedImage(file);
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSendPromotional = async () => {
     if (!message.trim()) {
       setPromoError("Por favor, ingresa un mensaje");
@@ -60,10 +90,23 @@ export default function Mensajes() {
     setPromoSuccess(null);
 
     try {
+      // Upload image if one is selected
+      let finalImageUrl: string | undefined = undefined;
+      if (selectedImage) {
+        try {
+          finalImageUrl = await uploadEmailImageFile(selectedImage);
+        } catch (err: any) {
+          setPromoError(err.message || "Error al subir la imagen");
+          setLoadingPromo(false);
+          return;
+        }
+      }
+
       const result = await sendPromotionalEmails({
         subject: subject.trim(),
         message: message.trim(),
-        user_filter: userFilter
+        user_filter: userFilter,
+        image_url: finalImageUrl
       });
 
       if (result.success) {
@@ -71,6 +114,11 @@ export default function Mensajes() {
         setMessage("");
         setSubject("");
         setSelectedTemplate("");
+        setSelectedImage(null);
+        setImagePreview(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
       } else {
         setPromoError(result.error || "Error al enviar los mensajes");
       }
@@ -194,6 +242,70 @@ export default function Mensajes() {
                 <p>• Usa <code className="bg-gray-100 px-1 rounded">{'{{nombre}}'}</code> para personalizar con el nombre del usuario</p>
                 <p>• Puedes incluir tu propio saludo personalizado en el mensaje</p>
                 <p>• El mensaje se enviará según el filtro seleccionado</p>
+              </div>
+            </div>
+
+            {/* Imagen del email */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Imagen del email (opcional)
+              </label>
+              <div className="space-y-3">
+                {!selectedImage && (
+                  <div className="flex items-center justify-center w-full">
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <ImageIcon className="w-8 h-8 mb-2 text-gray-400" />
+                        <p className="mb-2 text-sm text-gray-500">
+                          <span className="font-semibold">Haz clic para subir</span> o arrastra y suelta
+                        </p>
+                        <p className="text-xs text-gray-500">PNG, JPG, WEBP hasta 10MB</p>
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleImageSelect}
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {selectedImage && (
+                  <div className="relative">
+                    <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                      {imagePreview && (
+                        <div className="mb-3">
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="max-w-full h-auto max-h-64 rounded-lg mx-auto"
+                          />
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {selectedImage.name}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">La imagen se subirá al enviar el email</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveImage}
+                          className="ml-3 p-2 text-gray-400 hover:text-red-600 transition-colors"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="mt-2 text-xs text-gray-500">
+                <p>• La imagen se comprimirá y subirá automáticamente al enviar el email</p>
+                <p>• La imagen aparecerá en el email antes del mensaje</p>
               </div>
             </div>
 

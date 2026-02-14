@@ -4619,7 +4619,6 @@ export async function sendPromotionalEmails(data: {
   subject: string;
   message: string;
   user_filter?: string;
-  image_url?: string;
 }): Promise<SendPromotionalEmailsResponse> {
   try {
     const url = typeof window === "undefined"

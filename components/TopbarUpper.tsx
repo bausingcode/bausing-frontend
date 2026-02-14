@@ -3,6 +3,26 @@
 import { useState, useEffect } from "react";
 import { fetchActiveEvent, type Event } from "@/lib/api";
 
+// Helper function to get animation style
+function getAnimationStyle(animationType: string | null | undefined): string {
+  if (!animationType) return "";
+  
+  switch (animationType) {
+    case "slide-vertical":
+      return "slide-vertical 3s ease-in-out infinite";
+    case "bounce":
+      return "bounce 2s ease-in-out infinite";
+    case "pulse":
+      return "pulse 2s ease-in-out infinite";
+    case "shake":
+      return "shake 0.5s ease-in-out infinite";
+    case "marquee":
+      return "marquee 5s linear infinite";
+    default:
+      return "";
+  }
+}
+
 /**
  * Primera barra superior del sitio (la más arriba).
  * Muestra el evento activo si existe.
@@ -87,19 +107,80 @@ export default function TopbarUpper({ initialEvent }: TopbarUpperProps = {}) {
     ? `${event.text} - ${countdown}`
     : event.text;
 
+  const animationStyle = getAnimationStyle(event.animation_type);
+  const fontFamily = event.font_family || undefined;
+
   return (
-    <div 
-      className="hidden md:block py-1"
-      style={{ backgroundColor: event.background_color }}
-    >
-      <div className="container mx-auto px-4">
-        <div 
-          className="flex items-center justify-center gap-4 text-xs md:text-sm font-normal"
-          style={{ color: event.text_color }}
-        >
-          <span>{displayText}</span>
+    <>
+      <style jsx>{`
+        @keyframes slide-vertical {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-5px); }
+        }
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+        }
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-5px); }
+          75% { transform: translateX(5px); }
+        }
+        @keyframes marquee {
+          0% { 
+            transform: translateX(100vw);
+          }
+          100% { 
+            transform: translateX(-100%);
+          }
+        }
+        .marquee-container {
+          overflow: hidden;
+          white-space: nowrap;
+          position: relative;
+          width: 100%;
+        }
+        .marquee-content {
+          display: inline-block;
+          white-space: nowrap;
+          animation: marquee 12s linear infinite;
+        }
+      `}</style>
+      <div 
+        className="hidden md:block py-1"
+        style={{ backgroundColor: event.background_color }}
+      >
+        <div className="container mx-auto px-4">
+          {event.animation_type === "marquee" ? (
+            <div className="marquee-container">
+              <div 
+                className="text-xs md:text-sm font-normal marquee-content"
+                style={{ 
+                  color: event.text_color,
+                  fontFamily: fontFamily
+                }}
+              >
+                {displayText}
+              </div>
+            </div>
+          ) : (
+            <div 
+              className="flex items-center justify-center gap-4 text-xs md:text-sm font-normal"
+              style={{ 
+                color: event.text_color,
+                fontFamily: fontFamily,
+                animation: animationStyle
+              }}
+            >
+              <span>{displayText}</span>
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </>
   );
 }
