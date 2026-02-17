@@ -2647,6 +2647,7 @@ export interface Address {
   province_id?: string;
   province?: string;
   is_default: boolean;
+  lat_lon?: string;
   created_at?: string;
 }
 
@@ -4677,5 +4678,286 @@ export async function sendWalletReminders(): Promise<SendWalletRemindersResponse
   } catch (error) {
     console.error("Error sending wallet reminders:", error);
     throw error;
+  }
+}
+
+// ==================== CARD TYPES & BANKS ====================
+
+export interface CardType {
+  id: string;
+  code: string;
+  name: string;
+  is_active: boolean;
+  display_order: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Bank {
+  id: string;
+  name: string;
+  is_active: boolean;
+  display_order: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CardBankInstallment {
+  id: string;
+  card_type_id: string;
+  bank_id: string;
+  installments: number;
+  surcharge_percentage: number;
+  is_active: boolean;
+  display_order: number;
+  card_type?: CardType;
+  bank?: Bank;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CardBankData {
+  [cardTypeCode: string]: {
+    [bankName: string]: {
+      cuotas: number;
+      recargoPorcentaje: number;
+    }[];
+  };
+}
+
+// Card Types
+export async function fetchCardTypes(onlyActive = true): Promise<CardType[]> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/card-types?only_active=${onlyActive}`
+    : `/api/card-types?only_active=${onlyActive}`;
+  
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch card types: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.success ? data.data : [];
+}
+
+export async function createCardType(cardType: { code: string; name: string; is_active?: boolean; display_order?: number }): Promise<CardType> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/card-types`
+    : `/api/admin/card-types`;
+  
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(cardType),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to create card type: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.data;
+}
+
+export async function updateCardType(cardTypeId: string, cardType: Partial<CardType>): Promise<CardType> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/card-types/${cardTypeId}`
+    : `/api/admin/card-types/${cardTypeId}`;
+  
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(cardType),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to update card type: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.data;
+}
+
+export async function deleteCardType(cardTypeId: string): Promise<void> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/card-types/${cardTypeId}`
+    : `/api/admin/card-types/${cardTypeId}`;
+  
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to delete card type: ${response.statusText}`);
+  }
+}
+
+// Banks
+export async function fetchBanks(onlyActive = true): Promise<Bank[]> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/banks?only_active=${onlyActive}`
+    : `/api/banks?only_active=${onlyActive}`;
+  
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch banks: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.success ? data.data : [];
+}
+
+export async function createBank(bank: { name: string; is_active?: boolean; display_order?: number }): Promise<Bank> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/banks`
+    : `/api/admin/banks`;
+  
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(bank),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to create bank: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.data;
+}
+
+export async function updateBank(bankId: string, bank: Partial<Bank>): Promise<Bank> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/banks/${bankId}`
+    : `/api/admin/banks/${bankId}`;
+  
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(bank),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to update bank: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.data;
+}
+
+export async function deleteBank(bankId: string): Promise<void> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/banks/${bankId}`
+    : `/api/admin/banks/${bankId}`;
+  
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to delete bank: ${response.statusText}`);
+  }
+}
+
+// Installments
+export async function fetchCardBankData(onlyActive = true): Promise<CardBankData> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/card-bank-installments?only_active=${onlyActive}`
+    : `/api/card-bank-installments?only_active=${onlyActive}`;
+  
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch card bank data: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.success ? data.data : {};
+}
+
+export async function fetchInstallments(cardTypeId?: string, bankId?: string): Promise<CardBankInstallment[]> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/card-bank-installments${cardTypeId || bankId ? `?${cardTypeId ? `card_type_id=${cardTypeId}` : ''}${bankId ? `${cardTypeId ? '&' : ''}bank_id=${bankId}` : ''}` : ''}`
+    : `/api/admin/card-bank-installments${cardTypeId || bankId ? `?${cardTypeId ? `card_type_id=${cardTypeId}` : ''}${bankId ? `${cardTypeId ? '&' : ''}bank_id=${bankId}` : ''}` : ''}`;
+  
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch installments: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.success ? data.data : [];
+}
+
+export async function createInstallment(installment: {
+  card_type_id: string;
+  bank_id: string;
+  installments: number;
+  surcharge_percentage: number;
+  is_active?: boolean;
+  display_order?: number;
+}): Promise<CardBankInstallment> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/card-bank-installments`
+    : `/api/admin/card-bank-installments`;
+  
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(installment),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to create installment: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.data;
+}
+
+export async function updateInstallment(installmentId: string, installment: Partial<CardBankInstallment>): Promise<CardBankInstallment> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/card-bank-installments/${installmentId}`
+    : `/api/admin/card-bank-installments/${installmentId}`;
+  
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(installment),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to update installment: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.data;
+}
+
+export async function deleteInstallment(installmentId: string): Promise<void> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/card-bank-installments/${installmentId}`
+    : `/api/admin/card-bank-installments/${installmentId}`;
+  
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to delete installment: ${response.statusText}`);
   }
 }

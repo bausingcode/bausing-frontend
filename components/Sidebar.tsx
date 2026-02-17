@@ -272,6 +272,14 @@ export default function Sidebar() {
                   Usuarios 
                 </NavLink>
               </li>
+              <li key="bancos-tarjetas">
+                <NavLink
+                  href="/admin/bancos-tarjetas"
+                  icon={<CreditCard className="w-5 h-5" />}
+                >
+                  Bancos y Tarjetas
+                </NavLink>
+              </li>
               <li key="configuracion">
                 <NavLink
                   href="/admin/configuracion"

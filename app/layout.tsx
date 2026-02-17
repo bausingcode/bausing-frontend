@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { LocalityProvider } from "@/contexts/LocalityContext";
 import { HomepageDistributionProvider } from "@/contexts/HomepageDistributionContext";
 import LocalityDebugBar from "@/components/LocalityDebugBar";
+import LocalityAddressSelector from "@/components/LocalityAddressSelector";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -35,6 +36,7 @@ export default function RootLayout({
                 {children}
                 <WhatsAppButton />
                 <LocalityDebugBar />
+                <LocalityAddressSelector />
               </CartProvider>
             </HomepageDistributionProvider>
           </LocalityProvider>
