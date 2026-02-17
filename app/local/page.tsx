@@ -58,7 +58,7 @@ export default function LocalPage() {
         <div className="container mx-auto px-4 max-w-6xl">
           {/* Header Section */}
           <div className="text-center mb-10 md:mb-12">
-            <span className="inline-flex items-center gap-2 w-fit px-4 py-2 rounded-full text-xs font-semibold bg-[#00C1A7]/15 text-[#00C1A7] mb-3">
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold bg-[#00C1A7]/15 text-[#00C1A7] mb-3">
               Visitanos
             </span>
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 leading-tight">
@@ -71,6 +71,15 @@ export default function LocalPage() {
 
           {/* Mobile Layout */}
           <div className="lg:hidden space-y-6">
+            {/* Local Image Section */}
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <img
+                src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=600&fit=crop"
+                alt="Nuestro local"
+                className="w-full h-auto object-cover"
+              />
+            </div>
+
             {/* Address Section */}
             <div className="bg-white border border-gray-200 rounded-lg p-6">
               <div className="flex items-start gap-4">
@@ -108,12 +117,61 @@ export default function LocalPage() {
                 className="w-full"
               />
             </div>
+
+            {/* Social Media Section */}
+            <div className="bg-white border border-gray-200 rounded-lg p-6">
+              <h4 className="font-semibold text-gray-900 mb-3 text-center text-sm md:text-base">Seguinos</h4>
+              <div className="flex justify-center gap-2 md:gap-3">
+                {footerData.instagram_url && (
+                  <a 
+                    href={footerData.instagram_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors"
+                    aria-label="Instagram"
+                  >
+                    <Instagram className="w-4 h-4 md:w-5 md:h-5" />
+                  </a>
+                )}
+                {footerData.facebook_url && (
+                  <a 
+                    href={footerData.facebook_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors"
+                    aria-label="Facebook"
+                  >
+                    <Facebook className="w-4 h-4 md:w-5 md:h-5" />
+                  </a>
+                )}
+                {footerData.tiktok_url && (
+                  <a 
+                    href={footerData.tiktok_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors"
+                    aria-label="TikTok"
+                  >
+                    <TikTok className="w-4 h-4 md:w-5 md:h-5" />
+                  </a>
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* Desktop Layout: Grid con mapa grande y info al lado */}
-          <div className="hidden lg:grid grid-cols-3 gap-10">
-            {/* Left Column: Address and Social Media */}
+          {/* Desktop Layout: 3 columnas izquierda, mapa derecha */}
+          <div className="hidden lg:grid grid-cols-3 gap-8">
+            {/* Left Column: Image, Address and Social Media */}
             <div className="space-y-6">
+              {/* Local Image Section */}
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <img
+                  src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=600&fit=crop"
+                  alt="Nuestro local"
+                  className="w-full h-auto object-cover"
+                />
+              </div>
+
               {/* Address Section */}
               <div className="bg-white border border-gray-200 rounded-lg p-6">
                 <div className="flex items-start gap-4">
@@ -181,11 +239,11 @@ export default function LocalPage() {
 
             {/* Right Column: Map */}
             <div className="col-span-2">
-              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg hover:border-gray-300 transition-all">
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                 <iframe
                   src={mapsEmbedUrl}
                   width="100%"
-                  height="500"
+                  height="600"
                   style={{ border: 0, display: 'block' }}
                   allowFullScreen
                   loading="lazy"
@@ -193,46 +251,6 @@ export default function LocalPage() {
                   className="w-full"
                 />
               </div>
-            </div>
-          </div>
-
-          {/* Mobile Social Media Section - Solo en mobile, al final */}
-          <div className="lg:hidden mt-6 bg-white border border-gray-200 rounded-lg p-6">
-            <h4 className="font-semibold text-gray-900 mb-3 text-center text-sm md:text-base">Seguinos</h4>
-            <div className="flex justify-center gap-2 md:gap-3">
-              {footerData.instagram_url && (
-                <a 
-                  href={footerData.instagram_url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors"
-                  aria-label="Instagram"
-                >
-                  <Instagram className="w-4 h-4 md:w-5 md:h-5" />
-                </a>
-              )}
-              {footerData.facebook_url && (
-                <a 
-                  href={footerData.facebook_url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors"
-                  aria-label="Facebook"
-                >
-                  <Facebook className="w-4 h-4 md:w-5 md:h-5" />
-                </a>
-              )}
-              {footerData.tiktok_url && (
-                <a 
-                  href={footerData.tiktok_url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors"
-                  aria-label="TikTok"
-                >
-                  <TikTok className="w-4 h-4 md:w-5 md:h-5" />
-                </a>
-              )}
             </div>
           </div>
         </div>

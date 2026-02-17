@@ -46,6 +46,60 @@ import { formatPrice, calculateProductPrice } from "@/utils/priceUtils";
 
 type PaymentMethodType = "card" | "cash" | "transfer" | "wallet";
 
+// Coordenadas de origen: Cnel. Juan P. Pringles 839, X5004 Córdoba, Argentina
+const ORIGIN_COORDINATES = {
+  lat: -31.4201, // Aproximado, se puede ajustar con geocodificación exacta
+  lon: -64.1888
+};
+
+// Precio por kilómetro de envío
+const PRICE_PER_KM = 105;
+
+/**
+ * Calcula la distancia en kilómetros entre dos puntos usando la fórmula de Haversine
+ */
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Radio de la Tierra en kilómetros
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+/**
+ * Parsea las coordenadas desde el formato "lat,lon" string
+ */
+function parseCoordinates(latLonString: string | undefined | null): { lat: number; lon: number } | null {
+  if (!latLonString) return null;
+  const parts = latLonString.split(',');
+  if (parts.length !== 2) return null;
+  const lat = parseFloat(parts[0].trim());
+  const lon = parseFloat(parts[1].trim());
+  if (isNaN(lat) || isNaN(lon)) return null;
+  return { lat, lon };
+}
+
+/**
+ * Calcula el costo de envío basado en la distancia
+ */
+function calculateShippingCost(destinationLatLon: string | undefined | null): number {
+  const destCoords = parseCoordinates(destinationLatLon);
+  if (!destCoords) return 0;
+  
+  const distance = calculateDistance(
+    ORIGIN_COORDINATES.lat,
+    ORIGIN_COORDINATES.lon,
+    destCoords.lat,
+    destCoords.lon
+  );
+  
+  return Math.round(distance * PRICE_PER_KM);
+}
+
 export default function CheckoutPage() {
   const { user, isAuthenticated, register, login, updateUser } = useAuth();
   const { cart, removeFromCart, updateCartQuantity } = useCart();
@@ -832,10 +886,20 @@ export default function CheckoutPage() {
       }
       
       // Verificar si el catálogo activo es "pais" (8335e521-f25a-4f92-8f59-c4439671ef26)
-      // Solo redirigir a WhatsApp si NO hay métodos de pago seleccionados (abonar al recibir)
-      // Si hay métodos de pago seleccionados, procesar la orden normalmente
-      if (catalogId === PAIS_CATALOG_ID && selectedMethods.length === 0) {
-        console.log("[Checkout] Catálogo activo es 'pais' y no hay métodos de pago, redirigiendo a WhatsApp");
+      // Si es catálogo Pais, SIEMPRE redirigir a WhatsApp sin crear orden en CRM
+      // Usar el estado isPaisCatalog que se actualiza correctamente en el useEffect
+      // Este estado es más confiable que catalogId que puede no estar disponible en el momento del submit
+      
+      console.log("[Checkout] Verificando catálogo:", {
+        isPaisCatalog,
+        catalogId,
+        PAIS_CATALOG_ID,
+        localityId: locality?.id
+      });
+      
+      // Solo redirigir a WhatsApp si isPaisCatalog es true (estado actualizado correctamente)
+      if (isPaisCatalog) {
+        console.log("[Checkout] Catálogo activo es 'pais', redirigiendo a WhatsApp. NO se creará orden en CRM.");
         // Obtener número de WhatsApp desde la configuración
         try {
           const whatsappResponse = await fetch("/api/settings/public/phone", {
@@ -850,15 +914,71 @@ export default function CheckoutPage() {
             if (whatsappData.success && whatsappData.phone) {
               // Limpiar el número de teléfono para WhatsApp (solo números)
               const cleanPhone = whatsappData.phone.replace(/\D/g, "");
-              // Crear el enlace de WhatsApp con mensaje
-              const cartItems = cart.map(item => `• ${item.name} x${item.quantity}`).join('\n');
-              const message = encodeURIComponent(`Hola! Quiero realizar el siguiente pedido:\n\n${cartItems}\n\nTotal: $${subtotal.toLocaleString('es-AR')}`);
-              const whatsappUrl = `https://wa.me/${cleanPhone}?text=${message}`;
               
-              // Redirigir a WhatsApp
+              // Construir mensaje completo con toda la información de la compra
+              const cartItems = cart.map(item => {
+                const itemPrice = getItemPrice(item);
+                const unitPrice = getItemUnitPrice(item);
+                return `• ${item.name} x${item.quantity} - $${itemPrice.toLocaleString('es-AR')} ($${unitPrice.toLocaleString('es-AR')} c/u)`;
+              }).join('\n');
+              
+              const totalWithShipping = subtotal + shippingCost;
+              
+              // Información de métodos de pago
+              let paymentInfo = "";
+              if (selectedMethods.length > 0) {
+                const paymentMethodsText = selectedMethods.map(method => {
+                  const methodName = method === "card" ? "Tarjeta" : 
+                                   method === "wallet" ? "Billetera Bausing" : 
+                                   method === "transfer" ? "Transferencia" : "Efectivo";
+                  const amount = isMultiPayment ? (methodAmounts[method] || 0) : (method === "wallet" ? Math.min(methodAmounts[method] || 0, walletBalance) : subtotal);
+                  return `  - ${methodName}: $${amount.toLocaleString('es-AR')}`;
+                }).join('\n');
+                paymentInfo = `\n\n*Métodos de pago seleccionados:*\n${paymentMethodsText}`;
+              } else {
+                paymentInfo = "\n\n*Método de pago:* Abonar al recibir";
+              }
+              
+              // Información de dirección
+              const addressText = addressData.additional_info 
+                ? `${addressData.street} ${addressData.number}, ${addressData.city}, ${addressData.postal_code}${addressData.additional_info ? ` (${addressData.additional_info})` : ''}`
+                : `${addressData.street} ${addressData.number}, ${addressData.city}, ${addressData.postal_code}`;
+              
+              // Obtener nombre de provincia si está disponible
+              const provinceName = 'province' in addressData && addressData.province 
+                ? addressData.province 
+                : addressData.province_id 
+                  ? provinces.find(p => p.id === addressData.province_id)?.name || ''
+                  : '';
+              
+              // Construir mensaje completo
+              const message = `Hola! Quiero realizar el siguiente pedido:
+
+*PRODUCTOS:*
+${cartItems}
+
+*RESUMEN:*
+Subtotal: $${subtotal.toLocaleString('es-AR')}
+${shippingCost > 0 ? `Envío: $${shippingCost.toLocaleString('es-AR')}` : 'Envío: Gratis'}
+*Total: $${totalWithShipping.toLocaleString('es-AR')}*${paymentInfo}
+
+*DATOS DEL CLIENTE:*
+Nombre: ${formData.first_name} ${formData.last_name}
+Teléfono: ${formData.phone}
+${formData.alternate_phone ? `Teléfono alternativo: ${formData.alternate_phone}\n` : ''}Email: ${formData.email}
+${formData.document_type ? `Tipo de documento: ${docTypes.find(dt => dt.id === formData.document_type)?.name || formData.document_type}\n` : ''}DNI: ${formData.dni}
+
+*DIRECCIÓN DE ENTREGA:*
+${addressData.full_name}
+${addressData.phone}
+${addressText}${provinceName ? `, ${provinceName}` : ''}`;
+              
+              const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+              
+              // Redirigir a WhatsApp - NO crear orden en CRM
               window.location.href = whatsappUrl;
               setSubmitting(false);
-              return;
+              return; // Este return evita que se ejecute el código de creación de orden
             }
           }
         } catch (whatsappError) {
@@ -918,7 +1038,7 @@ export default function CheckoutPage() {
         ...(crmZoneId && {
           crm_zone_id: crmZoneId,
         }),
-        total: subtotal, // Total completo (antes de descuentos)
+        total: subtotal + shippingCost, // Total completo incluyendo envío
         // Multi-payment: enviar array de métodos de pago con montos
         payment_methods: paymentMethodsArray,
         // Wallet amount for backward compat
@@ -1054,8 +1174,13 @@ export default function CheckoutPage() {
 
   const totalAmount = calculateTotal();
   const canPayWithWallet = walletBalance >= totalAmount && !walletIsBlocked;
-  const shippingCost = 0; // TODO: Calculate shipping cost
   const subtotal = calculateTotal();
+  
+  // Calcular costo de envío: solo cuando el catálogo es Pais
+  const selectedAddressForShipping = addresses.find((addr) => addr.id === selectedAddressId);
+  const shippingCost = isPaisCatalog && selectedAddressForShipping?.lat_lon
+    ? calculateShippingCost(selectedAddressForShipping.lat_lon)
+    : 0;
 
   // Multi-payment derived values
   const isMultiPayment = enableMultiPayment && selectedMethods.length > 1;
@@ -2893,10 +3018,14 @@ export default function CheckoutPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-gray-700">Envío</span>
                     <span className="text-sm font-semibold text-gray-900">
-                      {shippingCost > 0 ? (
-                        formatPrice(shippingCost)
+                      {isPaisCatalog ? (
+                        shippingCost > 0 ? (
+                          formatPrice(shippingCost)
+                        ) : (
+                          <span className="text-gray-400 text-xs">Calculando...</span>
+                        )
                       ) : (
-                        <span className="text-gray-400 text-xs">Calculado al finalizar</span>
+                        <span className="text-green-600 text-xs">Envío gratuito</span>
                       )}
                     </span>
                   </div>
