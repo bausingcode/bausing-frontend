@@ -21,6 +21,7 @@ import { fetchHeroImages, HeroImage, fetchActiveEvent } from "@/lib/api";
 import HomeProducts from "@/components/HomeProducts";
 import ReviewsSectionLazy from "@/components/ReviewsSectionLazy";
 import InfoCarousel from "@/components/InfoCarousel";
+import FirstVisitModal from "@/components/FirstVisitModal";
 
 const Footer = dynamic(() => import("@/components/Footer"), {
   loading: () => null,
@@ -57,6 +58,8 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Modal de primera visita: solo en home, se muestra si no lo vieron antes (localStorage) */}
+      <FirstVisitModal />
       <Navbar event={activeEvent} />
 
       {bannerImages.length > 0 && (

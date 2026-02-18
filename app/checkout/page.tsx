@@ -2257,6 +2257,73 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
           <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
             {/* Left Column - Form */}
             <div className="lg:col-span-2 space-y-4 md:space-y-6 order-2 lg:order-1">
+              {/* Products */}
+              <div className="bg-white border border-gray-200 rounded-[14px] p-4 md:p-6">
+                <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4 md:mb-6">
+                  Productos
+                </h2>
+                <div className="space-y-3 md:space-y-4">
+                  {cart.map((item) => {
+                    const unitPrice = getItemUnitPrice(item);
+                    return (
+                      <div key={item.id} className="flex gap-3 md:gap-4 pb-3 md:pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+                        <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
+                          {item.image && (
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="w-full h-full object-cover"
+                            />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0 flex flex-col gap-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm md:text-base font-medium text-gray-900 truncate pt-0.5">
+                              {item.name}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => removeFromCart(item.id)}
+                              className="flex-shrink-0 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors -mt-1"
+                              title="Eliminar producto"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-4 flex-wrap">
+                            <span className="text-xs md:text-sm text-gray-500">
+                              Precio unitario: <span className="font-medium text-gray-700">{formatPrice(unitPrice)}</span>
+                            </span>
+                            <div className="flex items-center gap-2 ml-auto">
+                              <span className="text-xs md:text-sm text-gray-500">Cantidad:</span>
+                              <button
+                                type="button"
+                                onClick={() => updateCartQuantity(item.id, item.quantity - 1)}
+                                className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+                                title="Disminuir cantidad"
+                              >
+                                <Minus className="w-3.5 h-3.5" />
+                              </button>
+                              <span className="text-sm font-medium text-gray-900 min-w-[1.5rem] text-center">
+                                {item.quantity}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
+                                className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+                                title="Aumentar cantidad"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Personal Information */}
               <div className="bg-white border border-gray-200 rounded-[14px] p-4 md:p-6">
                 <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4 md:mb-6">
@@ -3222,17 +3289,16 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
 
             {/* Right Column - Order Summary */}
             <div className="lg:col-span-1 order-1 lg:order-2">
-              <div className="bg-white border border-gray-200 rounded-[14px] p-4 md:p-6 lg:sticky lg:top-8">
+              <div className="bg-white border border-gray-200 rounded-[14px] p-4 md:p-6 lg:sticky lg:top-42 lg:max-h-[calc(100vh-1rem)] lg:overflow-y-auto">
                 <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4 md:mb-6">
                   Resumen del pedido
                 </h2>
                 <div className="space-y-3 md:space-y-4 mb-4 md:mb-6">
                   {cart.map((item) => {
                     const unitPrice = getItemUnitPrice(item);
-                    const totalPrice = getItemPrice(item);
                     return (
                       <div key={item.id} className="flex gap-2 md:gap-3 pb-3 md:pb-4 border-b border-gray-100 last:border-0 last:pb-0">
-                        <div className="w-14 h-14 md:w-16 md:h-16 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
+                        <div className="w-12 h-12 md:w-14 md:h-14 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
                           {item.image && (
                             <img
                               src={item.image}
@@ -3242,56 +3308,20 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs md:text-sm font-medium text-gray-900 truncate mb-1">
+                          <p className="text-xs md:text-sm font-medium text-gray-900 truncate mb-1.5">
                             {item.name}
                           </p>
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs text-gray-500">Precio unitario:</span>
-                              <span className="text-xs font-medium text-gray-700">
-                                {formatPrice(unitPrice)}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs text-gray-500">Cantidad:</span>
-                              <div className="flex items-center gap-1.5 md:gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => updateCartQuantity(item.id, item.quantity - 1)}
-                                  className="w-6 h-6 md:w-7 md:h-7 flex items-center justify-center border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors"
-                                  title="Disminuir cantidad"
-                                >
-                                  <Minus className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                                </button>
-                                <span className="text-xs md:text-sm font-medium text-gray-900 min-w-[1.5rem] md:min-w-[2rem] text-center">
-                                  {item.quantity}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
-                                  className="w-6 h-6 md:w-7 md:h-7 flex items-center justify-center border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors"
-                                  title="Aumentar cantidad"
-                                >
-                                  <Plus className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                                </button>
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100">
-                              <span className="text-xs md:text-sm font-semibold text-gray-700">Subtotal:</span>
-                              <span className="text-xs md:text-sm font-bold text-gray-900">
-                                {formatPrice(totalPrice)}
-                              </span>
-                            </div>
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className="text-xs text-gray-500">Cantidad:</span>
+                            <span className="text-xs font-medium text-gray-700">{item.quantity}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs text-gray-500">Precio unitario:</span>
+                            <span className="text-xs font-medium text-gray-700">
+                              {formatPrice(unitPrice)}
+                            </span>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => removeFromCart(item.id)}
-                          className="flex-shrink-0 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors self-start"
-                          title="Eliminar producto"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                        </button>
                       </div>
                     );
                   })}
