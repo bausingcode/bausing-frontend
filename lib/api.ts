@@ -1216,6 +1216,7 @@ export interface GeneralSettings {
   instagramUrl?: string;
   facebookUrl?: string;
   tiktokUrl?: string;
+  precioPorKm?: number;
 }
 
 export interface AppSettings {
@@ -1280,6 +1281,7 @@ export async function getAppSettings(): Promise<AppSettings> {
       instagramUrl: settings.general?.instagram_url || "",
       facebookUrl: settings.general?.facebook_url || "",
       tiktokUrl: settings.general?.tiktok_url || "",
+      precioPorKm: settings.general?.price_per_km || 105,
     },
   };
 }
@@ -1350,6 +1352,29 @@ export async function updateGeneralSettings(general: GeneralSettings): Promise<v
     const error = await response.json();
     throw new Error(error.error || `Failed to update general settings: ${response.statusText}`);
   }
+}
+
+/**
+ * Get price per km for shipping (public endpoint)
+ */
+export async function getPricePerKm(): Promise<number> {
+  const url = `/api/settings/public/price-per-km`;
+  const response = await fetch(url, {
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    // Si falla, retornar valor por defecto
+    return 105;
+  }
+  
+  const data = await response.json();
+  if (data.success && data.price_per_km !== undefined) {
+    return data.price_per_km;
+  }
+  
+  // Valor por defecto si no está disponible
+  return 105;
 }
 
 /**
@@ -1922,6 +1947,38 @@ export async function fetchHeroImages(
 
   const data = await response.json();
   return data.success ? data.data : [];
+}
+
+/**
+ * Get local page image (public - no auth required)
+ */
+export async function getLocalPageImage(): Promise<string | null> {
+  try {
+    const params = new URLSearchParams();
+    params.append('position', '5');
+    params.append('active', 'true');
+
+    const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5050';
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/hero-images?${params.toString()}`
+      : `/api/hero-images?${params.toString()}`;
+
+    const response = await fetch(url, { cache: "no-store" });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    if (data.success && data.data && data.data.length > 0) {
+      return data.data[0].image_url;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Error loading local page image:", error);
+    return null;
+  }
 }
 
 /**
@@ -4960,4 +5017,110 @@ export async function deleteInstallment(installmentId: string): Promise<void> {
     const error = await response.json();
     throw new Error(error.error || `Failed to delete installment: ${response.statusText}`);
   }
+}
+
+// Delivery Zones API
+export interface ZoneLocality {
+  id: string;
+  crm_zone_id: number;
+  locality_id: string;
+  locality_name?: string;
+  is_third_party_transport: boolean;
+  shipping_price: number | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DeliveryZone {
+  id: string;
+  crm_zone_id: number;
+  name: string;
+  notice_days?: number;
+  localities?: ZoneLocality[];
+}
+
+export async function fetchDeliveryZones(): Promise<DeliveryZone[]> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/delivery-zones`
+    : `/api/admin/delivery-zones`;
+  
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch delivery zones: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.success ? data.data : [];
+}
+
+export async function fetchZoneLocalities(): Promise<ZoneLocality[]> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/delivery-zones/zone-localities`
+    : `/api/admin/delivery-zones/zone-localities`;
+  
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch zone localities: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.success ? data.data : [];
+}
+
+export async function updateZoneLocality(
+  zoneLocalityId: string,
+  updates: {
+    is_third_party_transport?: boolean;
+    shipping_price?: number | null;
+  }
+): Promise<ZoneLocality> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/delivery-zones/zone-localities/${zoneLocalityId}`
+    : `/api/admin/delivery-zones/zone-localities/${zoneLocalityId}`;
+  
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(updates),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to update zone locality: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.success ? data.data : null;
+}
+
+export async function bulkUpdateZoneLocalities(
+  updates: Array<{
+    id: string;
+    is_third_party_transport?: boolean;
+    shipping_price?: number | null;
+  }>
+): Promise<{ data: ZoneLocality[]; errors?: string[] }> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/delivery-zones/zone-localities/bulk-update`
+    : `/api/admin/delivery-zones/zone-localities/bulk-update`;
+  
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(updates),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to bulk update zone localities: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.success ? { data: data.data, errors: data.errors } : { data: [] };
 }

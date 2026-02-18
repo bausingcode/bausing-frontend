@@ -48,6 +48,7 @@ export default function ImagenesPage() {
   const [infoImage, setInfoImage] = useState<HeroImage | null>(null);
   const [discountImage, setDiscountImage] = useState<HeroImage | null>(null);
   const [productBanner, setProductBanner] = useState<HeroImage | null>(null);
+  const [localImage, setLocalImage] = useState<HeroImage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -57,6 +58,7 @@ export default function ImagenesPage() {
   const [pendingInfoFile, setPendingInfoFile] = useState<File | null>(null);
   const [pendingDiscountFile, setPendingDiscountFile] = useState<File | null>(null);
   const [pendingProductFile, setPendingProductFile] = useState<File | null>(null);
+  const [pendingLocalFile, setPendingLocalFile] = useState<File | null>(null);
   
   // Estados para imágenes marcadas para eliminar
   const [imagesToDelete, setImagesToDelete] = useState<Set<string>>(new Set());
@@ -74,17 +76,19 @@ export default function ImagenesPage() {
       setLoading(true);
       setError("");
       
-      const [hero, info, discount, product] = await Promise.all([
+      const [hero, info, discount, product, local] = await Promise.all([
         fetchHeroImages(1),
         fetchHeroImages(2, true),
         fetchHeroImages(3, true),
         fetchHeroImages(4, true),
+        fetchHeroImages(5, true),
       ]);
 
       setHeroImages(hero);
       setInfoImage(info.length > 0 ? info[0] : null);
       setDiscountImage(discount.length > 0 ? discount[0] : null);
       setProductBanner(product.length > 0 ? product[0] : null);
+      setLocalImage(local.length > 0 ? local[0] : null);
     } catch (err: any) {
       setError(err.message || "Error al cargar las imágenes");
     } finally {
@@ -92,7 +96,7 @@ export default function ImagenesPage() {
     }
   };
 
-  const handleFileSelect = (file: File, type: 'hero' | 'info' | 'discount' | 'product') => {
+  const handleFileSelect = (file: File, type: 'hero' | 'info' | 'discount' | 'product' | 'local') => {
     if (!file.type.startsWith('image/')) {
       setError("Por favor selecciona un archivo de imagen válido");
       return;
@@ -121,8 +125,10 @@ export default function ImagenesPage() {
       setPendingInfoFile(file);
     } else if (type === 'discount') {
       setPendingDiscountFile(file);
-    } else {
+    } else if (type === 'product') {
       setPendingProductFile(file);
+    } else {
+      setPendingLocalFile(file);
     }
   };
 
@@ -180,6 +186,19 @@ export default function ImagenesPage() {
         setPendingProductFile(null);
       }
 
+      if (pendingLocalFile) {
+        // Desactivar la imagen anterior si existe
+        if (localImage && !imagesToDelete.has(localImage.id)) {
+          try {
+            await updateHeroImage(localImage.id, { is_active: false });
+          } catch (err: any) {
+            console.error(`Error al desactivar imagen anterior:`, err);
+          }
+        }
+        await uploadHeroImageFile(pendingLocalFile, 5);
+        setPendingLocalFile(null);
+      }
+
       setImagesToDelete(new Set());
       setSuccess("Cambios guardados correctamente");
       await loadImages();
@@ -191,7 +210,7 @@ export default function ImagenesPage() {
   };
 
   const hasChanges = () => {
-    return imagesToDelete.size > 0 || pendingHeroFiles.length > 0 || pendingInfoFile || pendingDiscountFile || pendingProductFile;
+    return imagesToDelete.size > 0 || pendingHeroFiles.length > 0 || pendingInfoFile || pendingDiscountFile || pendingProductFile || pendingLocalFile;
   };
 
 
@@ -751,6 +770,127 @@ export default function ImagenesPage() {
             </div>
           ) : null}
         </section>
+
+        {/* Sección: Imagen de Página Local */}
+        <section className="bg-white border border-gray-200 rounded-[14px] p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-1">
+                Imagen de Página Local
+              </h2>
+              <p className="text-sm text-gray-600">
+                Una sola imagen. Se reemplazará la actual si existe. Se muestra en la página /local. Recomendado: 1200x600px, formato JPG/PNG
+              </p>
+            </div>
+            <div>
+              <input
+                type="file"
+                id="local-file-input"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileSelect(file, 'local');
+                  e.target.value = '';
+                }}
+              />
+              <label
+                htmlFor="local-file-input"
+                className="px-3 py-2 text-sm rounded-lg flex items-center gap-2 transition-colors cursor-pointer bg-blue-600 text-white hover:bg-blue-700"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Agregar</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Preview de imagen pendiente */}
+          {pendingLocalFile && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3">
+              <div className="flex items-center justify-between flex-1">
+                <span className="text-sm font-medium text-blue-900">Nueva imagen pendiente de subir</span>
+                <button
+                  onClick={() => setPendingLocalFile(null)}
+                  className="text-blue-600 hover:text-blue-800 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div 
+                className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => setPreviewImage(URL.createObjectURL(pendingLocalFile))}
+              >
+                <img
+                  src={URL.createObjectURL(pendingLocalFile)}
+                  alt="Preview"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+          )}
+
+          {localImage && !imagesToDelete.has(localImage.id) ? (
+            <div className={`border rounded-lg overflow-hidden ${
+              imagesToDelete.has(localImage.id) ? "border-red-300 opacity-50" : "border-gray-200"
+            }`}>
+              <div className="bg-gray-100 relative flex items-center justify-center" style={{ width: '100%', maxWidth: '1200px', height: '600px' }}>
+                <img
+                  src={localImage.image_url}
+                  alt={localImage.title || "Imagen de página local"}
+                  className="w-full h-full object-cover"
+                  style={{ maxWidth: '1200px', maxHeight: '600px' }}
+                  onError={(e) => {
+                    // Fallback a wsrvLoader si la imagen directa falla
+                    const target = e.target as HTMLImageElement;
+                    if (target.src !== wsrvLoader({ src: localImage.image_url, width: 1200 })) {
+                      target.src = wsrvLoader({ src: localImage.image_url, width: 1200 });
+                    }
+                  }}
+                />
+                {imagesToDelete.has(localImage.id) && (
+                  <div className="absolute inset-0 bg-red-500 bg-opacity-20 flex items-center justify-center">
+                    <span className="text-red-700 font-semibold bg-white px-3 py-1 rounded">Se eliminará</span>
+                  </div>
+                )}
+              </div>
+              <div className="p-4 bg-white">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-medium text-gray-900">
+                    {localImage.title || formatDate(localImage.created_at)}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setPreviewImage(localImage.image_url)}
+                      className="p-1.5 rounded transition-colors cursor-pointer text-blue-600 hover:bg-blue-50"
+                      title="Visualizar imagen"
+                    >
+                      <Maximize2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => toggleImageDelete(localImage.id)}
+                      className={`p-1.5 rounded transition-colors cursor-pointer ${
+                        imagesToDelete.has(localImage.id)
+                          ? "bg-red-100 text-red-700"
+                          : "text-red-600 hover:bg-red-50"
+                      }`}
+                      title={imagesToDelete.has(localImage.id) ? "Cancelar eliminación" : "Marcar para eliminar"}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                {localImage.subtitle && (
+                  <p className="text-sm text-gray-500">{localImage.subtitle}</p>
+                )}
+              </div>
+            </div>
+          ) : !pendingLocalFile ? (
+            <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
+              <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-500">No hay imagen de página local</p>
+            </div>
+          ) : null}
+        </section>
       </div>
 
       {/* Botón Guardar */}
@@ -761,7 +901,7 @@ export default function ImagenesPage() {
               {imagesToDelete.size > 0 && (
                 <span className="mr-4">{imagesToDelete.size} imagen(es) marcada(s) para eliminar</span>
               )}
-              {(pendingHeroFiles.length > 0 || pendingInfoFile || pendingDiscountFile || pendingProductFile) && (
+              {(pendingHeroFiles.length > 0 || pendingInfoFile || pendingDiscountFile || pendingProductFile || pendingLocalFile) && (
                 <span>Imagen(es) pendiente(s) de subir</span>
               )}
             </div>
@@ -773,6 +913,7 @@ export default function ImagenesPage() {
                   setPendingInfoFile(null);
                   setPendingDiscountFile(null);
                   setPendingProductFile(null);
+                  setPendingLocalFile(null);
                   setError("");
                 }}
                 className="px-4 py-2 cursor-pointer border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"

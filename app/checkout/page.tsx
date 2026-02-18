@@ -18,6 +18,7 @@ import {
   createOrder,
   fetchCardTypes,
   fetchCardBankData,
+  getPricePerKm,
   type Address,
   type Product,
   type DocType,
@@ -52,9 +53,6 @@ const ORIGIN_COORDINATES = {
   lon: -64.1888
 };
 
-// Precio por kilómetro de envío
-const PRICE_PER_KM = 105;
-
 /**
  * Calcula la distancia en kilómetros entre dos puntos usando la fórmula de Haversine
  */
@@ -83,23 +81,6 @@ function parseCoordinates(latLonString: string | undefined | null): { lat: numbe
   return { lat, lon };
 }
 
-/**
- * Calcula el costo de envío basado en la distancia
- */
-function calculateShippingCost(destinationLatLon: string | undefined | null): number {
-  const destCoords = parseCoordinates(destinationLatLon);
-  if (!destCoords) return 0;
-  
-  const distance = calculateDistance(
-    ORIGIN_COORDINATES.lat,
-    ORIGIN_COORDINATES.lon,
-    destCoords.lat,
-    destCoords.lon
-  );
-  
-  return Math.round(distance * PRICE_PER_KM);
-}
-
 export default function CheckoutPage() {
   const { user, isAuthenticated, register, login, updateUser } = useAuth();
   const { cart, removeFromCart, updateCartQuantity } = useCart();
@@ -121,6 +102,7 @@ export default function CheckoutPage() {
   const [loadingProvinces, setLoadingProvinces] = useState(false);
   const [loadingSaleTypes, setLoadingSaleTypes] = useState(false);
   const [crmSaleTypeId, setCrmSaleTypeId] = useState<number>(1); // Default: Consumidor Final
+  const [pricePerKm, setPricePerKm] = useState<number>(105); // Precio por km desde configuración
   
   // Registration and verification states
   const [showRegistration, setShowRegistration] = useState(false);
@@ -197,6 +179,9 @@ export default function CheckoutPage() {
   const [cardTypes, setCardTypes] = useState<CardType[]>([]);
   const [cardBankData, setCardBankData] = useState<CardBankData>({});
   const [loadingCardData, setLoadingCardData] = useState(false);
+  const [isThirdPartyTransport, setIsThirdPartyTransport] = useState<boolean>(false);
+  const [configuredShippingPrice, setConfiguredShippingPrice] = useState<number | null>(null);
+  const lastLocalityIdRef = useRef<string | null>(null);
 
   // Resetear selecciones de tarjeta cuando se deselecciona
   useEffect(() => {
@@ -317,51 +302,173 @@ export default function CheckoutPage() {
     }
   }, [isAuthenticated, user]);
 
-  // Check if active catalog is "pais"
+  // Check if active catalog is "pais" and check for third party transport
   useEffect(() => {
     const checkPaisCatalog = async () => {
+      console.log("[DEBUG] checkPaisCatalog ejecutado, locality?.id:", locality?.id);
+      
       if (!locality?.id) {
+        console.log("[DEBUG] No hay locality.id, reseteando valores");
         setIsPaisCatalog(false);
+        setIsThirdPartyTransport(false);
+        setConfiguredShippingPrice(null);
+        lastLocalityIdRef.current = null;
         return;
       }
 
+      // Evitar ejecutar si ya procesamos esta localidad
+      if (lastLocalityIdRef.current === locality.id) {
+        console.log("[DEBUG] Ya procesamos esta localidad, saltando:", locality.id);
+        return;
+      }
+
+      console.log("[DEBUG] Procesando nueva localidad:", locality.id);
+      lastLocalityIdRef.current = locality.id;
+
       try {
-        // Intentar obtener catalog_id desde localStorage primero
+        // Primero verificar desde localStorage (más rápido, información ya disponible)
         const savedLocality = localStorage.getItem("bausing_locality");
+        let localIsThirdParty = false;
+        let localShippingPrice: number | null = null;
+        
         if (savedLocality) {
           const parsedLocality = JSON.parse(savedLocality);
-          if (parsedLocality.catalog_id === PAIS_CATALOG_ID) {
-            setIsPaisCatalog(true);
-            return;
+          console.log("[DEBUG] LocalStorage locality:", {
+            id: parsedLocality.id,
+            is_third_party_transport: parsedLocality.is_third_party_transport,
+            shipping_price: parsedLocality.shipping_price
+          });
+          
+          // Verificar que la localidad del localStorage coincide con la actual
+          if (parsedLocality.id === locality.id) {
+            if (parsedLocality.catalog_id === PAIS_CATALOG_ID) {
+              setIsPaisCatalog(true);
+            }
+            
+            // Guardar valores de localStorage para comparar después
+            if (parsedLocality.is_third_party_transport !== undefined) {
+              localIsThirdParty = parsedLocality.is_third_party_transport;
+              localShippingPrice = parsedLocality.shipping_price !== undefined && parsedLocality.shipping_price !== null 
+                ? parsedLocality.shipping_price 
+                : null;
+              
+              console.log("[DEBUG] Actualizando desde localStorage:", {
+                isThirdParty: localIsThirdParty,
+                shippingPrice: localShippingPrice
+              });
+              
+              // Actualizar transporte tercerizado desde localStorage inmediatamente
+              setIsThirdPartyTransport(localIsThirdParty);
+              setConfiguredShippingPrice(localShippingPrice);
+            } else {
+              console.log("[DEBUG] No hay is_third_party_transport en localStorage, reseteando");
+              setIsThirdPartyTransport(false);
+              setConfiguredShippingPrice(null);
+            }
+          } else {
+            console.log("[DEBUG] LocalStorage locality.id no coincide con locality.id actual");
           }
+        } else {
+          console.log("[DEBUG] No hay savedLocality en localStorage");
         }
 
-        // Si no está en localStorage, obtenerlo desde el endpoint
-        const catalogResponse = await fetch(`/api/localities/${locality.id}/catalog`, {
+        // Siempre verificar desde el endpoint para asegurar información actualizada
+        console.log("[DEBUG] Haciendo fetch a /api/detect-locality");
+        const detectResponse = await fetch("/api/detect-locality", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
           },
         });
         
-        if (catalogResponse.ok) {
-          const catalogData = await catalogResponse.json();
-          if (catalogData.success && catalogData.data?.catalog_id) {
-            setIsPaisCatalog(catalogData.data.catalog_id === PAIS_CATALOG_ID);
-          } else {
-            setIsPaisCatalog(false);
+        if (detectResponse.ok) {
+          const detectData = await detectResponse.json();
+          console.log("[DEBUG] Respuesta de detect-locality:", {
+            success: detectData.success,
+            is_third_party_transport: detectData.data?.is_third_party_transport,
+            shipping_price: detectData.data?.shipping_price
+          });
+          
+          if (detectData.success && detectData.data) {
+            // Verificar catalog
+            if (detectData.data.catalog?.id === PAIS_CATALOG_ID || 
+                (detectData.data.locality?.id && detectData.data.locality.id === locality.id)) {
+              const catalogResponse = await fetch(`/api/localities/${locality.id}/catalog`, {
+                method: "GET",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              });
+              
+              if (catalogResponse.ok) {
+                const catalogData = await catalogResponse.json();
+                if (catalogData.success && catalogData.data?.catalog_id) {
+                  setIsPaisCatalog(catalogData.data.catalog_id === PAIS_CATALOG_ID);
+                }
+              }
+            }
+            
+            // Actualizar transporte tercerizado desde la respuesta del servidor
+            // El servidor ahora siempre retorna is_third_party_transport, pero por seguridad verificamos
+            const serverIsThirdParty = detectData.data.is_third_party_transport !== undefined 
+              ? detectData.data.is_third_party_transport 
+              : localIsThirdParty; // Si no está en la respuesta, mantener el valor de localStorage
+            const serverShippingPrice = detectData.data.shipping_price !== undefined && detectData.data.shipping_price !== null 
+              ? detectData.data.shipping_price 
+              : null;
+            
+            console.log("[DEBUG] Comparando valores:", {
+              localIsThirdParty,
+              serverIsThirdParty,
+              localShippingPrice,
+              serverShippingPrice,
+              serverHasValue: detectData.data.is_third_party_transport !== undefined,
+              areEqual: serverIsThirdParty === localIsThirdParty && localShippingPrice === serverShippingPrice
+            });
+            
+            // Comparar valores numéricos correctamente (pueden ser diferentes tipos)
+            const shippingPriceChanged = localShippingPrice !== serverShippingPrice && 
+              (localShippingPrice === null || serverShippingPrice === null || 
+               Math.abs(Number(localShippingPrice) - Number(serverShippingPrice)) > 0.01);
+            
+            // Solo actualizar si el servidor retornó valores Y son diferentes
+            if (detectData.data.is_third_party_transport !== undefined && 
+                (serverIsThirdParty !== localIsThirdParty || shippingPriceChanged)) {
+              console.log("[DEBUG] Valores diferentes, actualizando desde servidor:", {
+                serverIsThirdParty,
+                serverShippingPrice
+              });
+              setIsThirdPartyTransport(serverIsThirdParty);
+              setConfiguredShippingPrice(serverShippingPrice);
+            } else if (detectData.data.is_third_party_transport === undefined) {
+              console.log("[DEBUG] Servidor no retornó is_third_party_transport, manteniendo valores de localStorage");
+            } else {
+              console.log("[DEBUG] Valores iguales, no actualizando desde servidor");
+            }
           }
         } else {
-          setIsPaisCatalog(false);
+          console.log("[DEBUG] Error en detect-locality response:", detectResponse.status);
         }
       } catch (error) {
-        console.error("Error checking pais catalog:", error);
+        console.error("[DEBUG] Error checking pais catalog and third party transport:", error);
         setIsPaisCatalog(false);
+        setIsThirdPartyTransport(false);
+        setConfiguredShippingPrice(null);
       }
     };
 
     checkPaisCatalog();
   }, [locality?.id]);
+
+  // Debug: Monitorear cambios en isThirdPartyTransport y configuredShippingPrice
+  useEffect(() => {
+    console.log("[DEBUG] Estado actualizado:", {
+      isThirdPartyTransport,
+      configuredShippingPrice,
+      localityId: locality?.id,
+      timestamp: new Date().toISOString()
+    });
+  }, [isThirdPartyTransport, configuredShippingPrice, locality?.id]);
 
   // Load product prices based on locality
   useEffect(() => {
@@ -469,6 +576,21 @@ export default function CheckoutPage() {
     };
 
     loadCardData();
+  }, []);
+
+  // Load price per km from settings
+  useEffect(() => {
+    const loadPricePerKm = async () => {
+      try {
+        const price = await getPricePerKm();
+        setPricePerKm(price);
+      } catch (error) {
+        console.error("Error loading price per km:", error);
+        // Si falla, mantener el valor por defecto (105)
+      }
+    };
+
+    loadPricePerKm();
   }, []);
 
   const loadAddresses = async () => {
@@ -770,6 +892,16 @@ export default function CheckoutPage() {
           console.log("[Checkout] Respuesta de detect-locality:", JSON.stringify(localityData, null, 2));
           
           if (localityData.success && localityData.data) {
+            // No actualizar aquí, el useEffect principal se encargará de esto
+            // if (localityData.data.is_third_party_transport !== undefined) {
+            //   setIsThirdPartyTransport(localityData.data.is_third_party_transport);
+            //   console.log("[Checkout] Transporte tercerizado actualizado:", localityData.data.is_third_party_transport);
+            // }
+            // if (localityData.data.shipping_price !== undefined && localityData.data.shipping_price !== null) {
+            //   setConfiguredShippingPrice(localityData.data.shipping_price);
+            //   console.log("[Checkout] Precio de envío actualizado:", localityData.data.shipping_price);
+            // }
+            
             // Obtener catalog_id si está disponible en la respuesta
             if (localityData.data.catalog?.id) {
               catalogId = localityData.data.catalog.id;
@@ -815,6 +947,13 @@ export default function CheckoutPage() {
                     catalogId = parsedLocality.catalog_id;
                     console.log("[Checkout] Catalog ID obtenido del localStorage:", catalogId);
                   }
+                  // No actualizar aquí, el useEffect principal se encargará de esto
+                  // if (localityData.data.is_third_party_transport === undefined && parsedLocality.is_third_party_transport) {
+                  //   setIsThirdPartyTransport(parsedLocality.is_third_party_transport);
+                  // }
+                  // if (localityData.data.shipping_price === undefined && parsedLocality.shipping_price !== undefined) {
+                  //   setConfiguredShippingPrice(parsedLocality.shipping_price);
+                  // }
                 }
               } catch (localStorageError) {
                 console.error("Error al obtener zona de entrega del localStorage:", localStorageError);
@@ -837,6 +976,15 @@ export default function CheckoutPage() {
                 catalogId = parsedLocality.catalog_id;
                 console.log("[Checkout] Catalog ID obtenido del localStorage (fallback):", catalogId);
               }
+              // No actualizar aquí, el useEffect principal se encargará de esto
+              // if (parsedLocality.is_third_party_transport) {
+              //   setIsThirdPartyTransport(true);
+              //   console.log("[Checkout] Transporte tercerizado obtenido del localStorage (fallback)");
+              // }
+              // if (parsedLocality.shipping_price !== undefined && parsedLocality.shipping_price !== null) {
+              //   setConfiguredShippingPrice(parsedLocality.shipping_price);
+              //   console.log("[Checkout] Precio de envío obtenido del localStorage (fallback):", parsedLocality.shipping_price);
+              // }
             }
           } catch (localStorageError) {
             console.error("Error al obtener zona de entrega del localStorage:", localStorageError);
@@ -886,16 +1034,100 @@ export default function CheckoutPage() {
       }
       
       // Verificar si el catálogo activo es "pais" (8335e521-f25a-4f92-8f59-c4439671ef26)
+      // O si es transporte tercerizado y se seleccionó tarjeta
       // Si es catálogo Pais, SIEMPRE redirigir a WhatsApp sin crear orden en CRM
+      // Si es transporte tercerizado y se seleccionó tarjeta, también redirigir a WhatsApp sin crear orden
       // Usar el estado isPaisCatalog que se actualiza correctamente en el useEffect
       // Este estado es más confiable que catalogId que puede no estar disponible en el momento del submit
       
-      console.log("[Checkout] Verificando catálogo:", {
+      console.log("[Checkout] Verificando catálogo y transporte tercerizado:", {
         isPaisCatalog,
+        isThirdPartyTransport,
+        selectedMethods,
         catalogId,
         PAIS_CATALOG_ID,
         localityId: locality?.id
       });
+      
+      // Si es transporte tercerizado y se seleccionó tarjeta, redirigir a WhatsApp sin crear orden
+      if (isThirdPartyTransport && selectedMethods.includes("card")) {
+        console.log("[Checkout] Transporte tercerizado con tarjeta seleccionada, redirigiendo a WhatsApp. NO se creará orden.");
+        // Obtener número de WhatsApp desde la configuración
+        try {
+          const whatsappResponse = await fetch("/api/settings/public/phone", {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+          
+          if (whatsappResponse.ok) {
+            const whatsappData = await whatsappResponse.json();
+            if (whatsappData.success && whatsappData.phone) {
+              // Limpiar el número de teléfono para WhatsApp (solo números)
+              const cleanPhone = whatsappData.phone.replace(/\D/g, "");
+              
+              // Construir mensaje completo con toda la información de la compra
+              const cartItems = cart.map(item => {
+                const itemPrice = getItemPrice(item);
+                const unitPrice = getItemUnitPrice(item);
+                return `• ${item.name} x${item.quantity} - $${itemPrice.toLocaleString('es-AR')} ($${unitPrice.toLocaleString('es-AR')} c/u)`;
+              }).join('\n');
+              
+              const totalWithShipping = subtotal + shippingCost;
+              
+              // Información de métodos de pago (solo tarjeta en este caso)
+              const paymentInfo = `\n\n*Método de pago:* Tarjeta (completarás la venta por WhatsApp)`;
+              
+              // Información de dirección
+              const addressText = addressData.additional_info 
+                ? `${addressData.street} ${addressData.number}, ${addressData.city}, ${addressData.postal_code}${addressData.additional_info ? ` (${addressData.additional_info})` : ''}`
+                : `${addressData.street} ${addressData.number}, ${addressData.city}, ${addressData.postal_code}`;
+              
+              // Obtener nombre de provincia si está disponible
+              const provinceName = 'province' in addressData && addressData.province 
+                ? addressData.province 
+                : addressData.province_id 
+                  ? provinces.find(p => p.id === addressData.province_id)?.name || ''
+                  : '';
+              
+              // Construir mensaje completo
+              const message = `Hola! Quiero realizar el siguiente pedido:
+
+*PRODUCTOS:*
+${cartItems}
+
+*RESUMEN:*
+Subtotal: $${subtotal.toLocaleString('es-AR')}
+${shippingCost > 0 ? `Envío: $${shippingCost.toLocaleString('es-AR')}` : 'Envío: Gratis'}
+*Total: $${totalWithShipping.toLocaleString('es-AR')}*${paymentInfo}
+
+*DATOS DEL CLIENTE:*
+Nombre: ${formData.first_name} ${formData.last_name}
+Teléfono: ${formData.phone}
+${formData.alternate_phone ? `Teléfono alternativo: ${formData.alternate_phone}\n` : ''}Email: ${formData.email}
+${formData.document_type ? `Tipo de documento: ${docTypes.find(dt => dt.id === formData.document_type)?.name || formData.document_type}\n` : ''}DNI: ${formData.dni}
+
+*DIRECCIÓN DE ENTREGA:*
+${addressData.full_name}
+${addressData.phone}
+${addressText}${provinceName ? `, ${provinceName}` : ''}`;
+              
+              const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+              
+              // Redirigir a WhatsApp - NO crear orden en CRM
+              window.location.href = whatsappUrl;
+              setSubmitting(false);
+              return; // Este return evita que se ejecute el código de creación de orden
+            }
+          }
+        } catch (whatsappError) {
+          console.error("[Checkout] Error al obtener número de WhatsApp:", whatsappError);
+          setErrors({ submit: "No se pudo obtener el número de WhatsApp. Por favor, intenta nuevamente." });
+          setSubmitting(false);
+          return;
+        }
+      }
       
       // Solo redirigir a WhatsApp si isPaisCatalog es true (estado actualizado correctamente)
       if (isPaisCatalog) {
@@ -1176,11 +1408,80 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
   const canPayWithWallet = walletBalance >= totalAmount && !walletIsBlocked;
   const subtotal = calculateTotal();
   
-  // Calcular costo de envío: solo cuando el catálogo es Pais
+  /**
+   * Calcula el costo de envío basado en la distancia
+   */
+  const calculateShippingCost = (destinationLatLon: string | undefined | null): number => {
+    const destCoords = parseCoordinates(destinationLatLon);
+    if (!destCoords) return 0;
+    
+    const distance = calculateDistance(
+      ORIGIN_COORDINATES.lat,
+      ORIGIN_COORDINATES.lon,
+      destCoords.lat,
+      destCoords.lon
+    );
+    
+    return Math.round(distance * pricePerKm);
+  };
+  
+  // Calcular costo de envío: 
+  // - Si es transporte tercerizado, usar el precio configurado
+  // - Si el catálogo es Pais y no es transporte tercerizado, calcular por distancia
   const selectedAddressForShipping = addresses.find((addr) => addr.id === selectedAddressId);
-  const shippingCost = isPaisCatalog && selectedAddressForShipping?.lat_lon
-    ? calculateShippingCost(selectedAddressForShipping.lat_lon)
-    : 0;
+  let shippingCost = 0;
+  if (isThirdPartyTransport && configuredShippingPrice !== null) {
+    shippingCost = configuredShippingPrice;
+    console.log("[DEBUG] Calculando shippingCost desde transporte tercerizado:", {
+      isThirdPartyTransport,
+      configuredShippingPrice,
+      shippingCost
+    });
+  } else if (isPaisCatalog && selectedAddressForShipping?.lat_lon) {
+    shippingCost = calculateShippingCost(selectedAddressForShipping.lat_lon);
+    console.log("[DEBUG] Calculando shippingCost desde Pais catalog:", {
+      isPaisCatalog,
+      shippingCost
+    });
+  } else {
+    console.log("[DEBUG] ShippingCost = 0:", {
+      isThirdPartyTransport,
+      configuredShippingPrice,
+      isPaisCatalog,
+      hasLatLon: !!selectedAddressForShipping?.lat_lon
+    });
+  }
+
+  // Limpiar métodos de pago no permitidos cuando cambia el transporte tercerizado
+  useEffect(() => {
+    if (isThirdPartyTransport) {
+      // Si es transporte tercerizado, solo permitir efectivo y tarjeta
+      const allowedMethods: PaymentMethodType[] = ["cash", "card"];
+      const currentMethods = selectedMethods.filter(m => allowedMethods.includes(m)) as PaymentMethodType[];
+      
+      if (currentMethods.length !== selectedMethods.length || selectedMethods.length === 0) {
+        console.log("[Checkout] Limpiando métodos de pago no permitidos para transporte tercerizado");
+        // Si no hay métodos permitidos seleccionados, seleccionar efectivo por defecto
+        const methodsToSet: PaymentMethodType[] = currentMethods.length > 0 ? currentMethods : ["cash"];
+        setSelectedMethods(methodsToSet);
+        
+        // Limpiar montos de métodos no permitidos y asignar el total al método seleccionado
+        const newMethodAmounts: Record<string, number> = {};
+        if (methodsToSet.length === 1 && !enableMultiPayment) {
+          // Si solo hay un método y no es multi-pago, asignar el total completo
+          const method = methodsToSet[0];
+          newMethodAmounts[method] = subtotal;
+        } else {
+          methodsToSet.forEach(method => {
+            if (methodAmounts[method]) {
+              newMethodAmounts[method] = methodAmounts[method];
+            }
+          });
+        }
+        setMethodAmounts(newMethodAmounts);
+      }
+    }
+  }, [isThirdPartyTransport, enableMultiPayment, selectedMethods, methodAmounts, subtotal]);
 
   // Multi-payment derived values
   const isMultiPayment = enableMultiPayment && selectedMethods.length > 1;
@@ -2457,7 +2758,11 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                       <div className="flex-1">
                         <span className="font-medium text-gray-900 text-sm md:text-base">Tarjeta</span>
                         <p className="text-xs text-gray-500 mt-0.5">
-                          {isPaisCatalog ? "Completarás la venta por WhatsApp" : "Abonás al recibir"}
+                          {isThirdPartyTransport 
+                            ? "Completarás la venta por WhatsApp" 
+                            : isPaisCatalog 
+                            ? "Completarás la venta por WhatsApp" 
+                            : "Abonás al recibir"}
                         </p>
                       </div>
                       {selectedMethods.includes("card") && (
@@ -2489,7 +2794,9 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                           <div className="flex items-start gap-2">
                             <Check className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
                             <p className="text-xs md:text-sm text-blue-800">
-                              {isPaisCatalog ? (
+                              {isThirdPartyTransport ? (
+                                <span className="font-semibold">Completarás la venta por WhatsApp</span>
+                              ) : isPaisCatalog ? (
                                 <span className="font-semibold">Completarás la venta por WhatsApp</span>
                               ) : (
                                 <>
@@ -2503,7 +2810,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                     )}
                   </div>
 
-                  {/* Efectivo */}
+                  {/* Efectivo - Siempre visible, pero con mensaje diferente si es transporte tercerizado */}
                   <div
                     className={`border rounded-lg transition-colors ${
                       selectedMethods.includes("cash")
@@ -2522,7 +2829,11 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                       <div className="flex-1">
                         <span className="font-medium text-gray-900 text-sm md:text-base">Efectivo</span>
                         <p className="text-xs text-gray-500 mt-0.5">
-                          {isPaisCatalog ? "Completarás la venta por WhatsApp" : "Abonás al recibir"}
+                          {isThirdPartyTransport 
+                            ? "Abonás al recibir" 
+                            : isPaisCatalog 
+                            ? "Completarás la venta por WhatsApp" 
+                            : "Abonás al recibir"}
                         </p>
                       </div>
                       {selectedMethods.includes("cash") && (
@@ -2554,11 +2865,15 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                           <div className="flex items-start gap-2">
                             <Check className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
                             <p className="text-xs md:text-sm text-blue-800">
-                              {isPaisCatalog ? (
+                              {isThirdPartyTransport ? (
+                                <>
+                                  <span className="font-semibold">Abonarás al recibir</span> - La orden se generará normalmente
+                                </>
+                              ) : isPaisCatalog ? (
                                 <span className="font-semibold">Completarás la venta por WhatsApp</span>
                               ) : (
                                 <>
-                                  <span className="font-semibold">Abonarás al recibir</span> - Pagarás con tarjeta cuando recibas tu pedido
+                                  <span className="font-semibold">Abonarás al recibir</span> - Pagarás con efectivo cuando recibas tu pedido
                                 </>
                               )}
                             </p>
@@ -2568,7 +2883,8 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                     )}
                   </div>
 
-                  {/* Transferencia */}
+                  {/* Transferencia - Oculto si es transporte tercerizado */}
+                  {!isThirdPartyTransport && (
                   <div
                     className={`border rounded-lg transition-colors ${
                       selectedMethods.includes("transfer")
@@ -2632,9 +2948,10 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                       </div>
                     )}
                   </div>
+                  )}
 
-                  {/* Billetera Bausing */}
-                  {walletBalance > 0 && !walletIsBlocked && (
+                  {/* Billetera Bausing - Oculto si es transporte tercerizado */}
+                  {!isThirdPartyTransport && walletBalance > 0 && !walletIsBlocked && (
                     <div
                       className={`border rounded-lg transition-colors ${
                         selectedMethods.includes("wallet")
@@ -3018,7 +3335,13 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-gray-700">Envío</span>
                     <span className="text-sm font-semibold text-gray-900">
-                      {isPaisCatalog ? (
+                      {isThirdPartyTransport ? (
+                        configuredShippingPrice !== null ? (
+                          formatPrice(configuredShippingPrice)
+                        ) : (
+                          <span className="text-gray-400 text-xs">Calculando...</span>
+                        )
+                      ) : isPaisCatalog ? (
                         shippingCost > 0 ? (
                           formatPrice(shippingCost)
                         ) : (

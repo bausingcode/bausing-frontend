@@ -229,17 +229,27 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
       if (data.success && data.data?.locality) {
         const detectedLocality = data.data.locality;
         const crmZoneId = data.data.crm_zone_id;
+        const isThirdPartyTransport = data.data.is_third_party_transport || false;
+        const shippingPrice = data.data.shipping_price || null;
         console.log("[LocalityContext] Localidad detectada:", detectedLocality);
         console.log("[LocalityContext] Zona de entrega detectada:", crmZoneId);
+        console.log("[LocalityContext] Transporte tercerizado:", isThirdPartyTransport);
+        console.log("[LocalityContext] Precio de envío:", shippingPrice);
         
         // Limpiar estado de selección de dirección
         setRequiresAddressSelection(false);
         setAvailableAddresses([]);
         
-        // Crear un nuevo objeto para forzar la actualización, incluyendo la zona
+        // Crear un nuevo objeto para forzar la actualización, incluyendo la zona y transporte tercerizado
         const localityWithZone = { ...detectedLocality };
         if (crmZoneId) {
           localityWithZone.crm_zone_id = crmZoneId;
+        }
+        if (isThirdPartyTransport) {
+          localityWithZone.is_third_party_transport = true;
+        }
+        if (shippingPrice !== null && shippingPrice !== undefined) {
+          localityWithZone.shipping_price = shippingPrice;
         }
         setLocalityState(localityWithZone);
         setUpdateKey(prev => prev + 1);

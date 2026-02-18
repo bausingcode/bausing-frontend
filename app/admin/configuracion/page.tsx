@@ -53,6 +53,7 @@ export default function Configuracion() {
     instagramUrl: "",
     facebookUrl: "",
     tiktokUrl: "",
+    precioPorKm: "",
   });
 
   // Estados originales para comparar cambios
@@ -104,6 +105,7 @@ export default function Configuracion() {
         instagramUrl: settings.general?.instagramUrl || "",
         facebookUrl: settings.general?.facebookUrl || "",
         tiktokUrl: settings.general?.tiktokUrl || "",
+        precioPorKm: settings.general?.precioPorKm !== undefined ? String(settings.general.precioPorKm) : "105",
       };
 
       // Establecer valores actuales y originales (son iguales al cargar)
@@ -194,6 +196,9 @@ export default function Configuracion() {
       generalData.tiktokUrl = general.tiktokUrl;
       if (general.diasEstimadosEnvio && !isNaN(parseFloat(general.diasEstimadosEnvio))) {
         generalData.diasEstimadosEnvio = parseFloat(general.diasEstimadosEnvio);
+      }
+      if (general.precioPorKm && !isNaN(parseFloat(general.precioPorKm))) {
+        generalData.precioPorKm = parseFloat(general.precioPorKm);
       }
 
       // Guardar cada sección
@@ -404,6 +409,30 @@ export default function Configuracion() {
               </div>
               <p className="text-sm text-gray-500 mt-1">
                 Cantidad de días estimados para la entrega de pedidos (usado en el panel de logística)
+              </p>
+            </div>
+
+            {/* Precio por kilómetro */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Precio por kilómetro de envío
+              </label>
+              <div className="flex items-center gap-2">
+                <span className="text-gray-600">$</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={general.precioPorKm}
+                  onChange={(e) => {
+                    const validated = handleNumberChange(e.target.value, 0);
+                    setGeneral({ ...general, precioPorKm: validated });
+                  }}
+                  className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                />
+              </div>
+              <p className="text-sm text-gray-500 mt-1">
+                Precio en pesos argentinos por cada kilómetro de distancia para calcular el costo de envío
               </p>
             </div>
 

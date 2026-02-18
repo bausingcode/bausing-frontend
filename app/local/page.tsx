@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Instagram, Facebook, MapPin } from "lucide-react";
-import { getFooterData } from "@/lib/api";
+import { getFooterData, getLocalPageImage } from "@/lib/api";
+import wsrvLoader from "@/lib/wsrvLoader";
 
 // Icono de TikTok
 const TikTok = ({ className }: { className?: string }) => (
@@ -28,6 +29,7 @@ export default function LocalPage() {
     facebook_url: "#",
     tiktok_url: "#",
   });
+  const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const loadFooterData = async () => {
@@ -43,6 +45,25 @@ export default function LocalPage() {
       }
     };
     loadFooterData();
+  }, []);
+
+  useEffect(() => {
+    const loadLocalImage = async () => {
+      try {
+        const imageUrl = await getLocalPageImage();
+        if (imageUrl) {
+          setLocalImageUrl(imageUrl);
+        } else {
+          // Fallback a imagen por defecto si no hay imagen configurada
+          setLocalImageUrl("https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=600&fit=crop");
+        }
+      } catch (error) {
+        console.error("Error loading local image:", error);
+        // Fallback a imagen por defecto si falla
+        setLocalImageUrl("https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=600&fit=crop");
+      }
+    };
+    loadLocalImage();
   }, []);
 
   const address = "Cnel. Juan P. Pringles 839, X5004 Córdoba";
@@ -73,11 +94,29 @@ export default function LocalPage() {
           <div className="lg:hidden space-y-6">
             {/* Local Image Section */}
             <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-              <img
-                src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=600&fit=crop"
-                alt="Nuestro local"
-                className="w-full h-auto object-cover"
-              />
+              {localImageUrl ? (
+                <img
+                  src={localImageUrl}
+                  alt="Nuestro local"
+                  className="w-full h-auto object-cover"
+                  onError={(e) => {
+                    // Fallback a wsrvLoader si la imagen directa falla
+                    const target = e.target as HTMLImageElement;
+                    if (target.src !== wsrvLoader({ src: localImageUrl, width: 1200 })) {
+                      target.src = wsrvLoader({ src: localImageUrl, width: 1200 });
+                    } else {
+                      // Si wsrvLoader también falla, usar imagen por defecto
+                      target.src = "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=600&fit=crop";
+                    }
+                  }}
+                />
+              ) : (
+                <img
+                  src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=600&fit=crop"
+                  alt="Nuestro local"
+                  className="w-full h-auto object-cover"
+                />
+              )}
             </div>
 
             {/* Address Section */}
@@ -165,11 +204,29 @@ export default function LocalPage() {
             <div className="space-y-6">
               {/* Local Image Section */}
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                <img
-                  src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=600&fit=crop"
-                  alt="Nuestro local"
-                  className="w-full h-auto object-cover"
-                />
+                {localImageUrl ? (
+                  <img
+                    src={localImageUrl}
+                    alt="Nuestro local"
+                    className="w-full h-auto object-cover"
+                    onError={(e) => {
+                      // Fallback a wsrvLoader si la imagen directa falla
+                      const target = e.target as HTMLImageElement;
+                      if (target.src !== wsrvLoader({ src: localImageUrl, width: 1200 })) {
+                        target.src = wsrvLoader({ src: localImageUrl, width: 1200 });
+                      } else {
+                        // Si wsrvLoader también falla, usar imagen por defecto
+                        target.src = "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=600&fit=crop";
+                      }
+                    }}
+                  />
+                ) : (
+                  <img
+                    src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=600&fit=crop"
+                    alt="Nuestro local"
+                    className="w-full h-auto object-cover"
+                  />
+                )}
               </div>
 
               {/* Address Section */}
