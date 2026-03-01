@@ -64,11 +64,6 @@ function productToCardProps(product: Product, isPriceLoading: boolean = false) {
     
     priceInfo = calculateProductPrice(productWithPromos, 1);
     
-    // Debug: verificar si hay promociones
-    if (product.promos && product.promos.length > 0) {
-      console.log(`[HomeProducts] Producto ${product.id} tiene ${product.promos.length} promociones:`, product.promos);
-      console.log(`[HomeProducts] Precio calculado con descuento:`, priceInfo);
-    }
   }
   
   return {
@@ -116,27 +111,8 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
   useEffect(() => {
     // Si hay productos en la distribución, usarlos inmediatamente
     if (sectionProducts.length > 0) {
-      // Debug: verificar promociones en productos
-      sectionProducts.forEach(p => {
-        if (p.promos && p.promos.length > 0) {
-          console.log(`[HomeProducts] Producto ${p.id} en sección ${section} tiene promociones:`, p.promos);
-        }
-      });
-      
-      // Recalcular props de cards cada vez que cambian los productos o el estado de carga
-      // Esto asegura que cuando los precios se cargan, se recalculen con promociones
       const cardProps = repeatProducts(
-        sectionProducts.map(p => {
-          // Pasar isLoadingPrices para saber si mostrar skeleton
-          const card = productToCardProps(p, isLoadingPrices);
-          
-          // Debug: verificar descuentos calculados
-          if (card.discount) {
-            console.log(`[HomeProducts] Card ${card.id} tiene descuento:`, card.discount);
-          }
-          
-          return card;
-        }),
+        sectionProducts.map(p => productToCardProps(p, isLoadingPrices)),
         count
       ).slice(0, count);
       

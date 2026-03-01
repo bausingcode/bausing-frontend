@@ -35,16 +35,17 @@ export default async function Home() {
   let activeEvent = null;
 
   try {
-    heroImages = await fetchHeroImages(1, true);
-    
-    const infoBanners = await fetchHeroImages(2, true);
+    const [fetchedHeroImages, infoBanners, descuentazosBanners, fetchedEvent] = await Promise.all([
+      fetchHeroImages(1, true).catch(() => [] as HeroImage[]),
+      fetchHeroImages(2, true).catch(() => [] as HeroImage[]),
+      fetchHeroImages(3, true).catch(() => [] as HeroImage[]),
+      fetchActiveEvent().catch(() => null),
+    ]);
+
+    heroImages = fetchedHeroImages;
     infoBanner = infoBanners.length > 0 ? infoBanners[0] : null;
-    
-    const descuentazosBanners = await fetchHeroImages(3, true);
     descuentazosBanner = descuentazosBanners.length > 0 ? descuentazosBanners[0] : null;
-    
-    activeEvent = await fetchActiveEvent();
-    
+    activeEvent = fetchedEvent;
   } catch (error) {
     console.error("Error fetching data:", error);
   }

@@ -124,20 +124,12 @@ export default function ProductDetailPage() {
   // Inicializar cache de catálogos cuando se carga la localidad
   useEffect(() => {
     if (locality?.id) {
-      console.log('[ProductDetailPage] Inicializando cache de catálogos para localidad:', locality.id);
-      initializeCatalogCache()
-        .then(() => {
-          console.log('[ProductDetailPage] Cache de catálogos inicializado correctamente');
-        })
-        .catch((error) => {
-          console.error('[ProductDetailPage] Error inicializando cache de catálogos:', error);
-        });
+      initializeCatalogCache().catch(() => {});
     }
   }, [locality?.id]);
 
   useEffect(() => {
     const loadProduct = async () => {
-      console.log("[ProductDetailPage] Cargando producto con localidad:", locality?.id, locality?.name);
       try {
         setLoading(true);
         
@@ -151,14 +143,6 @@ export default function ProductDetailPage() {
         // Establecer banner si existe
         if (banners && banners.length > 0) {
           setProductBanner(banners[0]);
-        }
-        
-        if (apiProduct) {
-          console.log("[ProductDetailPage] Producto cargado - min_price:", apiProduct.min_price, "max_price:", apiProduct.max_price);
-          console.log("[ProductDetailPage] Promos cargadas del API:", apiProduct.promos ? apiProduct.promos.length : 0, apiProduct.promos);
-          if (apiProduct.promos && apiProduct.promos.length > 0) {
-            console.log("[ProductDetailPage] Detalle de promos:", JSON.stringify(apiProduct.promos, null, 2));
-          }
         }
 
         // Establecer combos inmediatamente
@@ -278,7 +262,6 @@ export default function ProductDetailPage() {
         
         // Preservar promos del API explícitamente
         const productPromos = (apiProduct as any).promos || [];
-        console.log("[ProductDetailPage] Preservando promos en transformedProduct:", productPromos.length, productPromos);
         
         const transformedProduct: Product = {
           id: apiProduct.id,
@@ -316,7 +299,6 @@ export default function ProductDetailPage() {
           has_crm_stock: apiProductWithTech.has_crm_stock !== undefined ? apiProductWithTech.has_crm_stock : true,
         };
 
-        console.log("[ProductDetailPage] Producto transformado guardado, promos:", transformedProduct.promos?.length || 0, transformedProduct.promos);
         setProduct(transformedProduct);
         
         // Inicializar selecciones de variantes y opciones
@@ -362,7 +344,6 @@ export default function ProductDetailPage() {
   // Escuchar cambios de localidad desde el evento personalizado
   useEffect(() => {
     const handleLocalityChange = () => {
-      console.log("[ProductDetailPage] Evento localityChanged recibido, forzando recarga");
       // El useEffect anterior se ejecutará automáticamente porque locality?.id cambió
     };
     
@@ -596,100 +577,57 @@ export default function ProductDetailPage() {
 
   // Calcular precio basado en variante/opción seleccionada y localidad
   const getCurrentProductPrice = (): { price: number; formattedPrice: string } => {
-    console.log('[getCurrentProductPrice] Iniciando cálculo de precio:', {
-      hasProduct: !!product,
-      localityId: locality?.id,
-      localityName: locality?.name,
-      hasVariants: product?.variants && product.variants.length > 0,
-      variantsCount: product?.variants?.length || 0,
-      selectedVariantOptions,
-      selectedVariant
-    });
-
     if (!product) {
-      console.log('[getCurrentProductPrice] No hay producto, retornando 0');
       return { price: 0, formattedPrice: formatPrice(0) };
     }
 
     if (!locality?.id) {
-      // Si no hay localidad, usar el precio del producto (ya calculado con min_price/max_price)
       const numericPrice = parseFloat(product.currentPrice.replace(/[$.]/g, '').replace(/\./g, '')) || 0;
-      console.log('[getCurrentProductPrice] No hay localidad, usando precio del producto:', numericPrice);
       return { price: numericPrice, formattedPrice: product.currentPrice };
     }
 
-    // Buscar precio de la variante/opción seleccionada
     let selectedPrice = 0;
     let hasSelectedVariant = false;
 
-    // Si hay variantes seleccionadas
     if (product.variants && product.variants.length > 0) {
-      console.log('[getCurrentProductPrice] Hay variantes, buscando precio...');
       for (const variant of product.variants) {
         const variantKey = variant.id || variant.name || variant.sku || 'default';
         const selectedOptionId = selectedVariantOptions[variantKey];
         
-        console.log('[getCurrentProductPrice] Procesando variante:', {
-          variantId: variant.id,
-          variantSku: variant.sku,
-          variantKey,
-          selectedOptionId,
-          hasOptions: variant.options && Array.isArray(variant.options),
-          optionsCount: variant.options?.length || 0
-        });
-        
         if (selectedOptionId) {
-          // Hay una opción seleccionada para esta variante
           hasSelectedVariant = true;
-          // Buscar precio de la opción seleccionada
-          console.log('[getCurrentProductPrice] Llamando getVariantPriceByLocality con optionId:', selectedOptionId);
           const price = getVariantPriceByLocality(variant, selectedOptionId, locality.id);
-          console.log('[getCurrentProductPrice] Precio obtenido de getVariantPriceByLocality:', price);
           if (price > 0) {
             selectedPrice = price;
             break;
           }
         } else if (selectedVariant === variant.id) {
-          // Si no hay opciones pero la variante está seleccionada
           hasSelectedVariant = true;
-          console.log('[getCurrentProductPrice] Llamando getVariantPriceByLocality sin optionId para variant:', variant.id);
           const price = getVariantPriceByLocality(variant, undefined, locality.id);
-          console.log('[getCurrentProductPrice] Precio obtenido de getVariantPriceByLocality:', price);
           if (price > 0) {
             selectedPrice = price;
             break;
           }
         }
       }
-    } else {
-      console.log('[getCurrentProductPrice] No hay variantes o el producto no tiene variantes');
     }
 
-    // Si se seleccionó una variante pero no tiene precio, retornar 0 (sin precio)
     if (hasSelectedVariant && selectedPrice === 0) {
-      console.log('[getCurrentProductPrice] Variante seleccionada no tiene precio, retornando 0');
       return { price: 0, formattedPrice: 'Sin precio' };
     }
 
-    // Si no se encontró precio específico y no hay variante seleccionada, usar el precio del producto (ya filtrado por localidad en el backend)
     if (selectedPrice === 0 && !hasSelectedVariant) {
       const numericPrice = parseFloat(product.currentPrice.replace(/[$.]/g, '').replace(/\./g, '')) || 0;
-      console.log('[getCurrentProductPrice] No se encontró precio específico, usando precio del producto:', numericPrice);
       return { price: numericPrice, formattedPrice: product.currentPrice };
     }
 
-    // Aplicar promociones si existen
     const apiProduct = product as any;
     if (apiProduct.promos && apiProduct.promos.length > 0) {
-      console.log('[getCurrentProductPrice] Aplicando promociones');
-      // Usar calculateProductPrice para aplicar promociones
       const tempProduct = { ...apiProduct, min_price: selectedPrice, max_price: selectedPrice };
       const priceInfo = calculateProductPrice(tempProduct, 1);
-      console.log('[getCurrentProductPrice] Precio final con promociones:', priceInfo.currentPriceValue);
       return { price: priceInfo.currentPriceValue, formattedPrice: priceInfo.currentPrice };
     }
 
-    console.log('[getCurrentProductPrice] Precio final sin promociones:', selectedPrice);
     return { price: selectedPrice, formattedPrice: formatPrice(selectedPrice) };
   };
 
@@ -909,7 +847,6 @@ export default function ProductDetailPage() {
                       }
                       
                       const productPromos = (product as any).promos || [];
-                      console.log('[ProductView] Precio base sin promos:', basePriceWithoutPromos, 'Promos:', productPromos.length, productPromos);
                       
                       const tempProduct = { 
                         ...product, 
@@ -926,7 +863,6 @@ export default function ProductDetailPage() {
                       let discountLabel = priceInfo.discount;
                       if (!discountLabel && tempProduct.promos && tempProduct.promos.length > 0) {
                         discountLabel = getPromoLabel(tempProduct.promos as any, 'product_view');
-                        console.log('[ProductView] Label obtenido de getPromoLabel:', discountLabel, 'para promos:', tempProduct.promos);
                       }
                       
                       // Usar el precio con descuento de priceInfo, no de currentPriceInfo
@@ -946,21 +882,6 @@ export default function ProductDetailPage() {
                       
                       // Calcular precio sin impuestos usando el precio final con descuento
                       const priceWithoutTaxes = priceInfo.currentPriceValue * 0.79;
-                      
-                      console.log('[ProductView] Precio calculado:', {
-                        basePriceWithoutPromos,
-                        hasDiscount,
-                        discountLabel,
-                        finalPrice,
-                        originalPrice,
-                        originalPriceValue: priceInfo.originalPriceValue,
-                        currentPriceValue: priceInfo.currentPriceValue,
-                        priceWithoutTaxes,
-                        shouldShowDiscount,
-                        shouldShowOriginalPrice,
-                        promos: tempProduct.promos,
-                        promosLength: tempProduct.promos?.length || 0
-                      });
                       
                       return (
                         <>

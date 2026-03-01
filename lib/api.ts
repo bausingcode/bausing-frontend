@@ -98,7 +98,11 @@ export async function fetchCategories(includeOptions = false, cookieHeader?: str
     ? getAuthHeadersServer(cookieHeader)
     : getAuthHeaders();
   
-  const response = await fetch(url, { headers, cache: "no-store" });
+  const fetchOptions: RequestInit = typeof window === "undefined"
+    ? { headers, next: { revalidate: 3600 } } // cache 1h server-side
+    : { headers };
+
+  const response = await fetch(url, fetchOptions);
   
   if (!response.ok) {
     throw new Error(`Failed to fetch categories: ${response.statusText}`);
@@ -1939,7 +1943,11 @@ export async function fetchHeroImages(
     ? getAuthHeadersServer(cookieHeader)
     : getAuthHeaders();
 
-  const response = await fetch(url, { headers, cache: "no-store" });
+  const fetchOptions: RequestInit = typeof window === "undefined"
+    ? { headers, next: { revalidate: 300 } } // cache 5 min server-side
+    : { headers };
+
+  const response = await fetch(url, fetchOptions);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch hero images: ${response.statusText}`);
@@ -4166,7 +4174,11 @@ export async function fetchActiveEvent(): Promise<Event | null> {
       ? `${BACKEND_URL}/public/active`
       : `/api/public/active`;
     
-    const response = await fetch(url, { cache: "no-store" });
+    const fetchOptions: RequestInit = typeof window === "undefined"
+      ? { next: { revalidate: 60 } } // cache 1 min server-side
+      : {};
+
+    const response = await fetch(url, fetchOptions);
     
     if (!response.ok) {
       throw new Error(`Failed to fetch active event: ${response.statusText}`);

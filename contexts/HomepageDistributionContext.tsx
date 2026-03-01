@@ -76,14 +76,6 @@ export function HomepageDistributionProvider({ children }: { children: ReactNode
       if (productIds.length > 0) {
         const pricesData = await fetchProductsPrices(productIds, locality?.id);
         
-        // Debug: verificar promociones recibidas
-        console.log("[HomepageDistributionContext] Precios recibidos:", pricesData);
-        Object.keys(pricesData).forEach(productId => {
-          if (pricesData[productId].promos && pricesData[productId].promos.length > 0) {
-            console.log(`[HomepageDistributionContext] Producto ${productId} tiene ${pricesData[productId].promos.length} promociones:`, pricesData[productId].promos);
-          }
-        });
-        
         // Actualizar productos con precios y promociones
         const updatedDistribution: HomepageDistribution = {
           featured: (dist.featured || []).map(p => {
@@ -97,9 +89,6 @@ export function HomepageDistributionProvider({ children }: { children: ReactNode
                 // Asegurarse de que las promociones sean un array
                 promos: Array.isArray(priceInfo.promos) ? priceInfo.promos : (priceInfo.promos ? [priceInfo.promos] : [])
               };
-              if (updated.promos && updated.promos.length > 0) {
-                console.log(`[HomepageDistributionContext] Producto ${p.id} actualizado con ${updated.promos.length} promociones:`, updated.promos);
-              }
               return updated;
             }
             return p;
@@ -156,22 +145,9 @@ export function HomepageDistributionProvider({ children }: { children: ReactNode
   };
 
   // Cargar distribución inmediatamente al montar, y luego cuando cambie la localidad
+  // loadDistribution ya llama a loadPrices internamente, no hace falta un segundo efecto
   useEffect(() => {
-    // Cargar inmediatamente sin esperar localityLoading
-    // Usar un pequeño delay para evitar múltiples llamadas simultáneas
-    const timeoutId = setTimeout(() => {
-      loadDistribution();
-    }, 100);
-    
-    return () => clearTimeout(timeoutId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locality?.id]);
-
-  // Recargar precios cuando cambia la localidad
-  useEffect(() => {
-    if (distribution && !isLoading) {
-      loadPrices(distribution);
-    }
+    loadDistribution();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locality?.id]);
 
