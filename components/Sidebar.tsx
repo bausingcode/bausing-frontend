@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import NavLink from "./NavLink";
-import { LogOut, Home, ShoppingCart, Users, CreditCard, Package, Truck, BarChart3, UserCog, Settings, Tag, User, ChevronDown, Image, FileText, Calendar, Mail, Star, PackageX } from "lucide-react";
+import { LogOut, Home, ShoppingCart, Users, CreditCard, Package, Truck, BarChart3, UserCog, Settings, Tag, User, ChevronDown, Image, FileText, Calendar, Mail, Star, PackageX, AlertTriangle } from "lucide-react";
 import { getCurrentAdminUser, AdminUser } from "@/lib/api";
 
 export default function Sidebar() {
@@ -158,6 +158,14 @@ export default function Sidebar() {
                   icon={<ShoppingCart className="w-5 h-5" />}
                 >
                   Ventas
+                </NavLink>
+              </li>
+              <li key="ordenes-fallidas">
+                <NavLink
+                  href="/admin/ordenes-fallidas"
+                  icon={<AlertTriangle className="w-5 h-5" />}
+                >
+                  Órdenes Fallidas
                 </NavLink>
               </li>
               <li key="clientes">

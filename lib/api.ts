@@ -5136,3 +5136,53 @@ export async function bulkUpdateZoneLocalities(
   const data = await response.json();
   return data.success ? { data: data.data, errors: data.errors } : { data: [] };
 }
+
+// Failed Orders Retry Queue API
+export interface SaleRetryQueueItem {
+  id: string;
+  order_id: string | null;
+  status: string;
+  retry_count: number;
+  max_retries: number;
+  created_at: string | null;
+  updated_at: string | null;
+  last_retry_at: string | null;
+  completed_at: string | null;
+  error_message: string | null;
+  error_details: any;
+  crm_payload: any;
+  fecha_detalle: string | null;
+  tipo_venta: number | null;
+  cliente_nombre: string | null;
+  cliente_email: string | null;
+  provincia_id: number | null;
+  zona_id: number | null;
+  monto_total: number | null;
+  payment_method: string | null;
+  payment_processed: boolean | null;
+  user_id: string | null;
+  priority: number;
+}
+
+export interface FailedRetriesResponse {
+  normal_pending: SaleRetryQueueItem[];
+  manual_required: SaleRetryQueueItem[];
+}
+
+export async function getFailedRetries(): Promise<FailedRetriesResponse> {
+  const url = typeof window === "undefined"
+    ? `${API_BASE_URL}/api/failed-retries`
+    : `/api/api/failed-retries`;
+  
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to fetch failed retries: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.success ? data.data : { normal_pending: [], manual_required: [] };
+}
