@@ -138,7 +138,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
         {[...Array(skeletonCount)].map((_, index) => (
           <div 
             key={index} 
-            className={`relative group block animate-pulse ${section === "discounts" && index >= 2 ? 'hidden md:block' : ''}`}
+            className={`relative group block animate-pulse flex-shrink-0 snap-start w-[calc((100vw-1rem-1.5rem-0.75rem)/2)] md:w-auto ${section === "discounts" && index >= 2 ? 'hidden md:block' : ''}`}
           >
             <div className={`relative w-full rounded-[10px] overflow-hidden bg-gray-200 ${section === "discounts" ? 'h-48 md:h-80' : 'h-48 md:h-80'}`}></div>
             <div className="pt-3">
@@ -172,7 +172,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
         {products.map((product, index) => (
           <div 
             key={`${product.id}-${index}-${locality?.id || 'no-locality'}`} 
-            className={`bg-white p-4 rounded-[20px] h-full cursor-pointer ${index >= 2 ? 'hidden md:block' : ''}`}
+            className={`bg-white p-2 md:p-4 rounded-lg md:rounded-[20px] h-full cursor-pointer flex-shrink-0 snap-start w-[calc((100vw-1rem-1.5rem-0.75rem)/2)] md:w-auto md:block ${index >= 2 ? 'hidden md:block' : ''}`}
           >
             <div className="h-full flex flex-col">
               <ProductCard
@@ -196,17 +196,21 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
   return (
     <>
       {products.map((product, index) => (
-        <ProductCard
+        <div
           key={`${product.id}-${index}-${locality?.id || 'no-locality'}`}
-          id={product.id}
-          image={product.image}
-          alt={product.alt}
-          name={product.name}
-          currentPrice={product.currentPrice}
-          originalPrice={product.originalPrice}
-          discount={product.discount}
-          isPriceLoading={product.isPriceLoading}
-        />
+          className="flex-shrink-0 snap-start w-[calc((100vw-2rem-1rem-0.75rem)/2)] md:w-auto"
+        >
+          <ProductCard
+            id={product.id}
+            image={product.image}
+            alt={product.alt}
+            name={product.name}
+            currentPrice={product.currentPrice}
+            originalPrice={product.originalPrice}
+            discount={product.discount}
+            isPriceLoading={product.isPriceLoading}
+          />
+        </div>
       ))}
     </>
   );

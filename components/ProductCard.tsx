@@ -141,14 +141,14 @@ export default function ProductCard({
           loading="lazy"
         />
         {discount && (
-          <div className="absolute top-2 right-2 bg-[#00C1A7] text-white px-2 py-1 rounded-[4px] font-semibold text-xs z-10">
+          <div className="absolute top-2 left-2 md:top-2 md:right-2 bg-[#00C1A7] text-white px-2 py-1 rounded-[4px] font-semibold text-xs z-10">
             {discount}
           </div>
         )}
         
-        {/* Botones de acción */}
+        {/* Botones de acción - Solo visible en desktop */}
         <div 
-          className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20"
+          className="hidden md:flex absolute bottom-3 right-3 gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();

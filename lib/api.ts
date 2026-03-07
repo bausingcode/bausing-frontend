@@ -2104,9 +2104,115 @@ export async function updateHeroImage(
 }
 
 /**
- * Delete a hero image
+ * Upload a video file directly to Supabase and save to database
  */
-export async function deleteHeroImage(imageId: string): Promise<void> {
+export async function uploadVideoFile(file: File, position: number): Promise<HeroImage> {
+  // Upload to Supabase Storage using client
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error("Supabase configuration is missing. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  }
+
+  // Generate unique filename
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+  const folder = `position-${position}`;
+  const filePath = `${folder}/${fileName}`;
+
+  // Upload to Supabase Storage using REST API
+  const uploadResponse = await fetch(
+    `${supabaseUrl}/storage/v1/object/hero-images/${filePath}`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${supabaseKey}`,
+        "Content-Type": file.type,
+        "x-upsert": "true",
+      },
+      body: file,
+    }
+  );
+
+  if (!uploadResponse.ok) {
+    const errorText = await uploadResponse.text();
+    let errorMessage = `Failed to upload to Supabase: ${uploadResponse.statusText}`;
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.message || errorJson.error || errorMessage;
+    } catch {
+      errorMessage = errorText || errorMessage;
+    }
+    throw new Error(errorMessage);
+  }
+
+  // Get public URL
+  const publicUrl = `${supabaseUrl}/storage/v1/object/public/hero-images/${filePath}`;
+
+  // Save to database via backend
+  const url = `/api/hero-images`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      image_url: publicUrl,
+      position: position,
+      is_active: true,
+    }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to save video: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to save video: Invalid response");
+  }
+  return data.data;
+}
+
+/**
+ * Delete a hero image (and its file from storage if it's a video)
+ */
+export async function deleteHeroImage(imageId: string, imageUrl?: string): Promise<void> {
+  // Si es un video (URL de storage de Supabase), eliminar del storage primero
+  if (imageUrl && imageUrl.includes('/storage/v1/object/public/hero-images/')) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    
+    if (supabaseUrl && supabaseKey) {
+      // Extraer el path del archivo de la URL
+      const urlParts = imageUrl.split('/storage/v1/object/public/hero-images/');
+      if (urlParts.length > 1) {
+        const filePath = urlParts[1];
+        
+        // Intentar eliminar del storage
+        try {
+          const deleteResponse = await fetch(
+            `${supabaseUrl}/storage/v1/object/hero-images/${filePath}`,
+            {
+              method: "DELETE",
+              headers: {
+                "Authorization": `Bearer ${supabaseKey}`,
+              },
+            }
+          );
+          
+          // No lanzar error si falla la eliminación del storage, solo loguear
+          if (!deleteResponse.ok) {
+            console.warn(`Failed to delete file from storage: ${filePath}`);
+          }
+        } catch (error) {
+          console.warn("Error deleting file from storage:", error);
+        }
+      }
+    }
+  }
+  
+  // Eliminar de la base de datos
   const url = `/api/hero-images/${imageId}`;
   const response = await fetch(url, {
     method: "DELETE",

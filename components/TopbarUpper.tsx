@@ -151,14 +151,14 @@ export default function TopbarUpper({ initialEvent }: TopbarUpperProps = {}) {
         }
       `}</style>
       <div 
-        className="hidden md:block py-1"
+        className="block py-1.5 md:py-1"
         style={{ backgroundColor: event.background_color }}
       >
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-3 md:px-4">
           {event.animation_type === "marquee" ? (
             <div className="marquee-container">
               <div 
-                className="text-xs md:text-sm font-normal marquee-content"
+                className="text-[10px] md:text-sm font-normal marquee-content"
                 style={{ 
                   color: event.text_color,
                   fontFamily: fontFamily
@@ -169,14 +169,14 @@ export default function TopbarUpper({ initialEvent }: TopbarUpperProps = {}) {
             </div>
           ) : (
             <div 
-              className="flex items-center justify-center gap-4 text-xs md:text-sm font-normal"
+              className="flex items-center justify-center gap-2 md:gap-4 text-[10px] md:text-sm font-normal text-center px-2"
               style={{ 
                 color: event.text_color,
                 fontFamily: fontFamily,
                 animation: animationStyle
               }}
             >
-              <span>{displayText}</span>
+              <span className="truncate">{displayText}</span>
             </div>
           )}
         </div>
