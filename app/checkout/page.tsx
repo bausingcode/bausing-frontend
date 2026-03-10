@@ -176,6 +176,8 @@ export default function CheckoutPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isPaisCatalog, setIsPaisCatalog] = useState<boolean>(false);
   const PAIS_CATALOG_ID = "8335e521-f25a-4f92-8f59-c4439671ef26";
+  const [referralCode, setReferralCode] = useState<string>("");
+  const [referralCodeValidating, setReferralCodeValidating] = useState<boolean>(false);
   const [cardTypes, setCardTypes] = useState<CardType[]>([]);
   const [cardBankData, setCardBankData] = useState<CardBankData>({});
   const [loadingCardData, setLoadingCardData] = useState(false);
@@ -1284,6 +1286,9 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
           price: getItemUnitPrice(item),
         })),
         observations: "",
+        ...(referralCode.trim() && {
+          referral_code: referralCode.trim().toUpperCase(),
+        }),
       };
 
 
@@ -1346,6 +1351,12 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
           errorMessage.includes("compras previas registradas") ||
           errorMessage.includes("este artículo no tiene stock")) {
         errorMessage = "Lo sentimos, pero este artículo no tiene stock.";
+      }
+      
+      // Detectar error de localidad no encontrada
+      if (errorMessage.includes("No se pudo obtener crm_zone_id para la localidad") ||
+          errorMessage.includes("no se encontró") && errorMessage.includes("localidad")) {
+        errorMessage = "La localidad ingresada no se encontró. Por favor, verifica que la localidad sea correcta.";
       }
       
       // Detectar errores de pago rechazado (pero no tratar in_process como error)
@@ -3238,6 +3249,32 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                     </div>
                   </div>
                 )}
+
+                {/* Código de Referido */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Código de referido (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={referralCode}
+                    onChange={(e) => {
+                      const value = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+                      setReferralCode(value);
+                      if (errors.referral_code) {
+                        setErrors((prev) => ({ ...prev, referral_code: "" }));
+                      }
+                    }}
+                    placeholder="BAUSING-XXXXXX"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 placeholder:text-gray-400"
+                  />
+                  {errors.referral_code && (
+                    <p className="text-xs text-red-500 mt-1">{errors.referral_code}</p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    Si alguien te refirió, ingresa su código aquí
+                  </p>
+                </div>
 
                 {/* Botón Finalizar compra: solo en responsive (móvil/tablet), al final del formulario */}
                 <div className="lg:hidden mt-6 pt-6 border-t border-gray-200">

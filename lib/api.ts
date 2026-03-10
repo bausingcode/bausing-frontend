@@ -2239,6 +2239,7 @@ export interface User {
   email_verified: boolean;
   is_suspended?: boolean;
   created_at?: string;
+  referral_code?: string | null;
   wallet?: {
     balance: number;
     is_blocked: boolean;
@@ -2479,6 +2480,233 @@ export async function toggleSuspendCustomer(userId: string, isSuspended: boolean
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || `Failed to update customer: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.data;
+}
+
+// ============================================
+// REFERRALS API
+// ============================================
+
+export interface ReferralStats {
+  total_referrals: number;
+  total_credits: number;
+  credited_referrals: number;
+  pending_referrals: number;
+  referral_code: string | null;
+}
+
+export interface ReferralHistoryItem {
+  id: string;
+  referrer_id: string;
+  referred_id: string;
+  order_id: string;
+  credit_amount: number;
+  credited: boolean;
+  credited_at: string | null;
+  created_at: string;
+  referrer?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
+  referred?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
+  order?: {
+    id: string;
+    total: number;
+    created_at: string;
+  };
+}
+
+export interface ReferralHistoryResponse {
+  referrals: ReferralHistoryItem[];
+  pagination: {
+    page: number;
+    per_page: number;
+    total: number;
+    pages: number;
+  };
+}
+
+export interface ReferralConfig {
+  credit_type: 'fixed' | 'percentage';
+  credit_amount: number;
+  percentage: number;
+}
+
+export interface AdminReferralStats {
+  total_referrals: number;
+  total_credits: number;
+  credited_referrals: number;
+  pending_referrals: number;
+  top_referrers: Array<{
+    user_id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    total_referrals: number;
+    total_credits: number;
+  }>;
+}
+
+/**
+ * Get my referral code
+ */
+export async function getMyReferralCode(): Promise<string> {
+  const url = typeof window === "undefined"
+    ? `${API_BASE_URL}/api/referrals/my-code`
+    : `/api/api/referrals/my-code`;
+  
+  const response = await fetch(url, {
+    headers: getUserAuthHeaders(),
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to get referral code: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.data.referral_code;
+}
+
+/**
+ * Validate referral code
+ */
+export async function validateReferralCode(code: string): Promise<{ valid: boolean; message: string }> {
+  const url = typeof window === "undefined"
+    ? `${API_BASE_URL}/api/referrals/validate`
+    : `/api/api/referrals/validate`;
+  
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getUserAuthHeaders(),
+    body: JSON.stringify({ code }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to validate referral code: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return {
+    valid: data.valid,
+    message: data.message || '',
+  };
+}
+
+/**
+ * Get referral statistics
+ */
+export async function getReferralStats(): Promise<ReferralStats> {
+  const url = typeof window === "undefined"
+    ? `${API_BASE_URL}/api/referrals/stats`
+    : `/api/api/referrals/stats`;
+  
+  const response = await fetch(url, {
+    headers: getUserAuthHeaders(),
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to get referral stats: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.data;
+}
+
+/**
+ * Get referral history
+ */
+export async function getReferralHistory(page: number = 1, perPage: number = 20): Promise<ReferralHistoryResponse> {
+  const url = typeof window === "undefined"
+    ? `${API_BASE_URL}/api/referrals/history?page=${page}&per_page=${perPage}`
+    : `/api/api/referrals/history?page=${page}&per_page=${perPage}`;
+  
+  const response = await fetch(url, {
+    headers: getUserAuthHeaders(),
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to get referral history: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.data;
+}
+
+/**
+ * Get admin referral configuration
+ */
+export async function getAdminReferralConfig(): Promise<ReferralConfig> {
+  const url = typeof window === "undefined"
+    ? `${API_BASE_URL}/api/admin/referrals/config`
+    : `/api/api/admin/referrals/config`;
+  
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to get referral config: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.data;
+}
+
+/**
+ * Update admin referral configuration
+ */
+export async function updateAdminReferralConfig(config: Partial<ReferralConfig>): Promise<void> {
+  const url = typeof window === "undefined"
+    ? `${API_BASE_URL}/api/admin/referrals/config`
+    : `/api/api/admin/referrals/config`;
+  
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(config),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to update referral config: ${response.statusText}`);
+  }
+}
+
+/**
+ * Get admin referral statistics
+ */
+export async function getAdminReferralStats(): Promise<AdminReferralStats> {
+  const url = typeof window === "undefined"
+    ? `${API_BASE_URL}/api/admin/referrals/stats`
+    : `/api/api/admin/referrals/stats`;
+  
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+    cache: "no-store",
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to get admin referral stats: ${response.statusText}`);
   }
   
   const data = await response.json();

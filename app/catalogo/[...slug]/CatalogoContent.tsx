@@ -906,8 +906,24 @@ export default function CatalogoContent({
   const [categoryIdMap, setCategoryIdMap] = useState<Record<string, string>>(initialCategoryIdMap);
   const [isLoadingCategories, setIsLoadingCategories] = useState(initialCategories.length === 0);
 
-  // Saltear el primer fetch de productos si ya tenemos datos del servidor
+  // Saltear el primer fetch de productos solo si tenemos datos del servidor
+  // y estamos en la misma página (mismo slug) que cuando se montó
+  const initialSlugRef = useRef<string | undefined>(slug?.join('/'));
   const skipFirstProductFetch = useRef(initialProducts.length > 0);
+  
+  // Resetear estado cuando cambia el slug (navegación del lado del cliente)
+  useEffect(() => {
+    const currentSlug = slug?.join('/');
+    if (currentSlug !== initialSlugRef.current) {
+      // Si el slug cambió, resetear todo y cargar productos nuevos
+      skipFirstProductFetch.current = false;
+      initialSlugRef.current = currentSlug;
+      // Resetear productos y página cuando cambia la categoría
+      setProducts([]);
+      setPage(1);
+      setTotalPages(1);
+    }
+  }, [slug]);
   
   // Estado para rango de precios
   const [priceRange, setPriceRange] = useState<{ min: number | null; max: number | null }>({ min: null, max: null });
@@ -1358,10 +1374,28 @@ export default function CatalogoContent({
       return;
     }
 
-    // Saltear el primer fetch si ya tenemos productos del servidor
-    if (skipFirstProductFetch.current) {
+    // Si hay un slug pero no tenemos categoryId, esperar solo si el categoryIdMap está vacío
+    // (es decir, las categorías aún no se han cargado)
+    // PERO si el slug cambió, intentar cargar de todos modos (puede ser un slug inválido)
+    const currentSlug = slug?.join('/');
+    const slugChanged = currentSlug !== initialSlugRef.current;
+    
+    if (slug && slug.length > 0 && !categoryId && Object.keys(categoryIdMap).length === 0 && !slugChanged) {
+      return;
+    }
+
+    // Saltear el primer fetch solo si tenemos productos iniciales del servidor
+    // y estamos en el mismo slug que cuando se montó el componente
+    // Si el slug cambió, nunca saltar el fetch
+    if (!slugChanged && skipFirstProductFetch.current && currentSlug === initialSlugRef.current && initialProducts.length > 0) {
       skipFirstProductFetch.current = false;
       return;
+    }
+    
+    // Si llegamos aquí, necesitamos cargar productos
+    // Si el slug cambió, forzar la carga
+    if (slugChanged) {
+      skipFirstProductFetch.current = false;
     }
 
     const loadProducts = async () => {

@@ -19,10 +19,15 @@ import {
   getUserOrders,
   getUserOrder,
   getProvinces,
+  getMyReferralCode,
+  getReferralStats,
+  getReferralHistory,
   type Address,
   type WalletMovement,
   type Order,
   type Province,
+  type ReferralStats,
+  type ReferralHistoryItem,
 } from "@/lib/api";
 import {
   Calendar,
@@ -48,16 +53,20 @@ import {
   ExternalLink,
   ArrowLeft,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Users,
+  Copy,
+  Check
 } from "lucide-react";
 
-type MenuKey = "perfil" | "direcciones" | "pedidos" | "seguridad" | "billetera" | "logout";
+type MenuKey = "perfil" | "direcciones" | "pedidos" | "seguridad" | "billetera" | "referidos" | "logout";
 
 const menuItems: { key: MenuKey; label: string; icon: LucideIcon }[] = [
   { key: "perfil", label: "Perfil", icon: User },
   { key: "direcciones", label: "Direcciones", icon: MapPin },
   { key: "billetera", label: "Billetera", icon: CreditCard },
   { key: "pedidos", label: "Pedidos", icon: Package },
+  { key: "referidos", label: "Referidos", icon: Users },
   { key: "seguridad", label: "Seguridad", icon: Shield },
   { key: "logout", label: "Cerrar sesión", icon: LogOut },
 ];
@@ -164,6 +173,26 @@ export default function UsuarioPage() {
     total: 0,
     pages: 0,
   });
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [referralStats, setReferralStats] = useState<ReferralStats | null>(null);
+  const [referralHistory, setReferralHistory] = useState<ReferralHistoryItem[]>([]);
+  const [referralLoading, setReferralLoading] = useState(false);
+  const [referralHistoryLoading, setReferralHistoryLoading] = useState(false);
+  const [referralHistoryPage, setReferralHistoryPage] = useState(1);
+  const [referralHistoryPagination, setReferralHistoryPagination] = useState({
+    page: 1,
+    per_page: 20,
+    total: 0,
+    pages: 0,
+  });
+  const [copiedCode, setCopiedCode] = useState(false);
+
+  // Cargar datos de referidos cuando se activa la sección
+  useEffect(() => {
+    if (activeSection === "referidos" && isAuthenticated) {
+      loadReferralData();
+    }
+  }, [activeSection, isAuthenticated]);
 
   // Cargar datos de wallet cuando se activa la sección
   useEffect(() => {
@@ -262,6 +291,51 @@ export default function UsuarioPage() {
     }
   };
 
+  const loadReferralData = async () => {
+    setReferralLoading(true);
+    try {
+      const code = await getMyReferralCode();
+      setReferralCode(code);
+      
+      const stats = await getReferralStats();
+      setReferralStats(stats);
+      
+      const history = await getReferralHistory(1, 20);
+      setReferralHistory(history.referrals);
+      setReferralHistoryPagination(history.pagination);
+    } catch (error: any) {
+      console.error("Error loading referral data:", error);
+    } finally {
+      setReferralLoading(false);
+    }
+  };
+
+  const loadReferralHistoryPage = async (page: number) => {
+    setReferralHistoryLoading(true);
+    try {
+      const history = await getReferralHistory(page, 20);
+      setReferralHistory(history.referrals);
+      setReferralHistoryPagination(history.pagination);
+      setReferralHistoryPage(page);
+    } catch (error: any) {
+      console.error("Error loading referral history:", error);
+    } finally {
+      setReferralHistoryLoading(false);
+    }
+  };
+
+  const copyReferralCode = async () => {
+    if (referralCode) {
+      try {
+        await navigator.clipboard.writeText(referralCode);
+        setCopiedCode(true);
+        setTimeout(() => setCopiedCode(false), 2000);
+      } catch (error) {
+        console.error("Error copying code:", error);
+      }
+    }
+  };
+
   // Datos de ejemplo de transacciones (transferencias y compras) - DEPRECATED, usar walletMovements
   const exampleTransactions = [
     {
@@ -325,7 +399,7 @@ export default function UsuarioPage() {
   // Leer query params para establecer la sección activa
   useEffect(() => {
     const section = searchParams.get("section");
-    if (section && ["perfil", "direcciones", "billetera", "pedidos", "seguridad"].includes(section)) {
+    if (section && ["perfil", "direcciones", "billetera", "pedidos", "referidos", "seguridad"].includes(section)) {
       setActiveSection(section as MenuKey);
     }
   }, [searchParams]);
@@ -430,7 +504,7 @@ export default function UsuarioPage() {
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeSection === item.key;
-                const isDisabled = !["perfil", "direcciones", "seguridad", "billetera", "pedidos", "logout"].includes(item.key);
+                const isDisabled = !["perfil", "direcciones", "seguridad", "billetera", "pedidos", "referidos", "logout"].includes(item.key);
 
                 return (
                   <button
@@ -1060,6 +1134,177 @@ export default function UsuarioPage() {
                       </div>
                     </button>
                   </div>
+                </div>
+              )}
+
+              {activeSection === "referidos" && (
+                <div className="space-y-6 md:space-y-8">
+                  {referralLoading ? (
+                    <div className="text-center py-12">
+                      <p className="text-gray-500">Cargando datos de referidos...</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Mi Código de Referido */}
+                      <div className="border border-gray-200 rounded-[14px] p-6 bg-gradient-to-br from-[#00C1A7]/5 to-[#00C1A7]/10">
+                        <h2 className="text-lg font-semibold text-gray-900 mb-4">Mi Código de Referido</h2>
+                        {referralCode ? (
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-3">
+                              <div className="flex-1 bg-white border-2 border-[#00C1A7] rounded-lg px-4 py-3">
+                                <p className="text-lg font-mono font-semibold text-gray-900">{referralCode}</p>
+                              </div>
+                              <button
+                                onClick={copyReferralCode}
+                                className="px-4 py-3 bg-[#00C1A7] text-white rounded-lg font-semibold hover:bg-[#00a892] transition-colors flex items-center gap-2"
+                              >
+                                {copiedCode ? (
+                                  <>
+                                    <Check className="w-5 h-5" />
+                                    Copiado
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-5 h-5" />
+                                    Copiar
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                            <p className="text-sm text-gray-600">
+                              Comparte este código con tus conocidos. Cuando usen tu código en una compra, ganarás Pesos Bausing.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="text-center py-4">
+                            <p className="text-gray-500">No tienes código de referido. Se generará automáticamente.</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Estadísticas */}
+                      {referralStats && (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="border border-gray-200 rounded-[12px] p-4 bg-white">
+                            <p className="text-xs text-gray-600 mb-1">Total Referidos</p>
+                            <p className="text-2xl font-bold text-gray-900">{referralStats.total_referrals}</p>
+                          </div>
+                          <div className="border border-gray-200 rounded-[12px] p-4 bg-white">
+                            <p className="text-xs text-gray-600 mb-1">Total Ganado</p>
+                            <p className="text-2xl font-bold text-[#00C1A7]">
+                              ${referralStats.total_credits.toLocaleString("es-AR", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </p>
+                          </div>
+                          <div className="border border-gray-200 rounded-[12px] p-4 bg-white">
+                            <p className="text-xs text-gray-600 mb-1">Acreditados</p>
+                            <p className="text-2xl font-bold text-green-600">{referralStats.credited_referrals}</p>
+                          </div>
+                          <div className="border border-gray-200 rounded-[12px] p-4 bg-white">
+                            <p className="text-xs text-gray-600 mb-1">Pendientes</p>
+                            <p className="text-2xl font-bold text-amber-600">{referralStats.pending_referrals}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Historial de Referidos */}
+                      <div className="border border-gray-200 rounded-[14px] p-6">
+                        <h2 className="text-lg font-semibold text-gray-900 mb-4">Historial de Referidos</h2>
+                        {referralHistoryLoading ? (
+                          <div className="text-center py-8">
+                            <p className="text-gray-500">Cargando historial...</p>
+                          </div>
+                        ) : referralHistory.length === 0 ? (
+                          <div className="text-center py-8">
+                            <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                            <p className="text-gray-500">Aún no tienes referidos</p>
+                            <p className="text-sm text-gray-400 mt-2">Comparte tu código para empezar a ganar Pesos Bausing</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {referralHistory.map((referral) => (
+                              <div
+                                key={referral.id}
+                                className="border border-gray-200 rounded-[12px] p-4 hover:border-[#00C1A7] transition-colors"
+                              >
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      {referral.credited ? (
+                                        <CheckCircle className="w-5 h-5 text-green-600" />
+                                      ) : (
+                                        <RefreshCw className="w-5 h-5 text-amber-600 animate-spin" />
+                                      )}
+                                      <span className={`text-sm font-semibold ${referral.credited ? "text-green-700" : "text-amber-700"}`}>
+                                        {referral.credited ? "Acreditado" : "Pendiente"}
+                                      </span>
+                                    </div>
+                                    {referral.referred && (
+                                      <p className="text-sm text-gray-700 mb-1">
+                                        Referido: {referral.referred.first_name} {referral.referred.last_name}
+                                      </p>
+                                    )}
+                                    <p className="text-xs text-gray-500">
+                                      {new Date(referral.created_at).toLocaleDateString("es-AR", {
+                                        day: "2-digit",
+                                        month: "2-digit",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
+                                    </p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-lg font-bold text-[#00C1A7]">
+                                      +${referral.credit_amount.toLocaleString("es-AR", {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      })}
+                                    </p>
+                                    {referral.order && (
+                                      <p className="text-xs text-gray-500 mt-1">
+                                        Orden: ${referral.order.total.toLocaleString("es-AR", {
+                                          minimumFractionDigits: 2,
+                                          maximumFractionDigits: 2,
+                                        })}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                            
+                            {/* Paginación */}
+                            {referralHistoryPagination.pages > 1 && (
+                              <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                                <button
+                                  onClick={() => loadReferralHistoryPage(referralHistoryPage - 1)}
+                                  disabled={referralHistoryPage === 1 || referralHistoryLoading}
+                                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <ChevronLeft className="w-4 h-4" />
+                                  Anterior
+                                </button>
+                                <span className="text-sm text-gray-600">
+                                  Página {referralHistoryPage} de {referralHistoryPagination.pages}
+                                </span>
+                                <button
+                                  onClick={() => loadReferralHistoryPage(referralHistoryPage + 1)}
+                                  disabled={referralHistoryPage === referralHistoryPagination.pages || referralHistoryLoading}
+                                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  Siguiente
+                                  <ChevronRight className="w-4 h-4" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
