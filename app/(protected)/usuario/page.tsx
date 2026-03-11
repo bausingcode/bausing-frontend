@@ -964,8 +964,22 @@ export default function UsuarioPage() {
 
                   {/* List of addresses */}
                   {loadingAddresses ? (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500">Cargando direcciones...</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-pulse">
+                      {[...Array(2)].map((_, i) => (
+                        <div key={i} className="border border-gray-200 rounded-[12px] p-4 space-y-2 bg-white">
+                          <div className="flex items-center justify-between">
+                            <div className="h-4 bg-gray-200 rounded w-32"></div>
+                            <div className="h-5 bg-gray-200 rounded w-20"></div>
+                          </div>
+                          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                          <div className="h-4 bg-gray-200 rounded w-full"></div>
+                          <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                          <div className="flex items-center gap-2 pt-2">
+                            <div className="h-4 bg-gray-200 rounded w-24"></div>
+                            <div className="h-4 bg-gray-200 rounded w-24"></div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : addresses.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1140,109 +1154,154 @@ export default function UsuarioPage() {
               {activeSection === "referidos" && (
                 <div className="space-y-6 md:space-y-8">
                   {referralLoading ? (
-                    <div className="text-center py-12">
-                      <p className="text-gray-500">Cargando datos de referidos...</p>
+                    <div className="space-y-6 md:space-y-8 animate-pulse">
+                      {/* Skeleton para Mi Código de Referido */}
+                      <div className="border border-gray-200 rounded-[14px] p-4 md:p-6 bg-gradient-to-br from-[#00C1A7]/5 to-[#00C1A7]/10">
+                        <div className="h-5 md:h-6 bg-gray-200 rounded w-40 md:w-48 mb-4"></div>
+                        <div className="space-y-4">
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                            <div className="flex-1 bg-gray-200 rounded-lg h-10 md:h-12"></div>
+                            <div className="w-full sm:w-32 h-10 md:h-12 bg-gray-200 rounded-lg"></div>
+                          </div>
+                          <div className="h-3 md:h-4 bg-gray-200 rounded w-3/4"></div>
+                        </div>
+                      </div>
+
+                      {/* Skeleton para Estadísticas */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                        {[...Array(4)].map((_, i) => (
+                          <div key={i} className="border border-gray-200 rounded-[12px] p-3 md:p-4 bg-white">
+                            <div className="h-3 bg-gray-200 rounded w-20 md:w-24 mb-2"></div>
+                            <div className="h-7 md:h-8 bg-gray-200 rounded w-14 md:w-16"></div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Skeleton para Historial */}
+                      <div className="border border-gray-200 rounded-[14px] p-4 md:p-6">
+                        <div className="h-5 md:h-6 bg-gray-200 rounded w-36 md:w-40 mb-4"></div>
+                        <div className="space-y-3 md:space-y-4">
+                          {[...Array(3)].map((_, i) => (
+                            <div key={i} className="border border-gray-200 rounded-[12px] p-3 md:p-4">
+                              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                <div className="flex-1 space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 md:w-5 md:h-5 bg-gray-200 rounded"></div>
+                                    <div className="h-3 md:h-4 bg-gray-200 rounded w-20 md:w-24"></div>
+                                  </div>
+                                  <div className="h-3 md:h-4 bg-gray-200 rounded w-40 md:w-48"></div>
+                                  <div className="h-3 bg-gray-200 rounded w-28 md:w-32"></div>
+                                </div>
+                                <div className="text-left sm:text-right space-y-2">
+                                  <div className="h-5 md:h-6 bg-gray-200 rounded w-16 md:w-20"></div>
+                                  <div className="h-3 bg-gray-200 rounded w-20 md:w-24"></div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <>
                       {/* Mi Código de Referido */}
-                      <div className="border border-gray-200 rounded-[14px] p-6 bg-gradient-to-br from-[#00C1A7]/5 to-[#00C1A7]/10">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-4">Mi Código de Referido</h2>
+                      <div className="border border-gray-200 rounded-[14px] p-4 md:p-6 bg-gradient-to-br from-[#00C1A7]/5 to-[#00C1A7]/10">
+                        <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">Mi Código de Referido</h2>
                         {referralCode ? (
                           <div className="space-y-4">
-                            <div className="flex items-center gap-3">
-                              <div className="flex-1 bg-white border-2 border-[#00C1A7] rounded-lg px-4 py-3">
-                                <p className="text-lg font-mono font-semibold text-gray-900">{referralCode}</p>
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                              <div className="flex-1 bg-white border-2 border-[#00C1A7] rounded-lg px-3 md:px-4 py-2.5 md:py-3">
+                                <p className="text-base md:text-lg font-mono font-semibold text-gray-900 break-all">{referralCode}</p>
                               </div>
                               <button
                                 onClick={copyReferralCode}
-                                className="px-4 py-3 bg-[#00C1A7] text-white rounded-lg font-semibold hover:bg-[#00a892] transition-colors flex items-center gap-2"
+                                className="w-full sm:w-auto px-4 py-2.5 md:py-3 bg-[#00C1A7] text-white rounded-lg font-semibold hover:bg-[#00a892] transition-colors flex items-center justify-center gap-2"
                               >
                                 {copiedCode ? (
                                   <>
-                                    <Check className="w-5 h-5" />
+                                    <Check className="w-4 h-4 md:w-5 md:h-5" />
                                     Copiado
                                   </>
                                 ) : (
                                   <>
-                                    <Copy className="w-5 h-5" />
+                                    <Copy className="w-4 h-4 md:w-5 md:h-5" />
                                     Copiar
                                   </>
                                 )}
                               </button>
                             </div>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-xs md:text-sm text-gray-600">
                               Comparte este código con tus conocidos. Cuando usen tu código en una compra, ganarás Pesos Bausing.
                             </p>
                           </div>
                         ) : (
                           <div className="text-center py-4">
-                            <p className="text-gray-500">No tienes código de referido. Se generará automáticamente.</p>
+                            <p className="text-sm md:text-base text-gray-500">No tienes código de referido. Se generará automáticamente.</p>
                           </div>
                         )}
                       </div>
 
                       {/* Estadísticas */}
                       {referralStats && (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <div className="border border-gray-200 rounded-[12px] p-4 bg-white">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                          <div className="border border-gray-200 rounded-[12px] p-3 md:p-4 bg-white">
                             <p className="text-xs text-gray-600 mb-1">Total Referidos</p>
-                            <p className="text-2xl font-bold text-gray-900">{referralStats.total_referrals}</p>
+                            <p className="text-xl md:text-2xl font-bold text-gray-900">{referralStats.total_referrals}</p>
                           </div>
-                          <div className="border border-gray-200 rounded-[12px] p-4 bg-white">
+                          <div className="border border-gray-200 rounded-[12px] p-3 md:p-4 bg-white">
                             <p className="text-xs text-gray-600 mb-1">Total Ganado</p>
-                            <p className="text-2xl font-bold text-[#00C1A7]">
+                            <p className="text-xl md:text-2xl font-bold text-[#00C1A7]">
                               ${referralStats.total_credits.toLocaleString("es-AR", {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2,
                               })}
                             </p>
                           </div>
-                          <div className="border border-gray-200 rounded-[12px] p-4 bg-white">
+                          <div className="border border-gray-200 rounded-[12px] p-3 md:p-4 bg-white">
                             <p className="text-xs text-gray-600 mb-1">Acreditados</p>
-                            <p className="text-2xl font-bold text-green-600">{referralStats.credited_referrals}</p>
+                            <p className="text-xl md:text-2xl font-bold text-green-600">{referralStats.credited_referrals}</p>
                           </div>
-                          <div className="border border-gray-200 rounded-[12px] p-4 bg-white">
+                          <div className="border border-gray-200 rounded-[12px] p-3 md:p-4 bg-white">
                             <p className="text-xs text-gray-600 mb-1">Pendientes</p>
-                            <p className="text-2xl font-bold text-amber-600">{referralStats.pending_referrals}</p>
+                            <p className="text-xl md:text-2xl font-bold text-amber-600">{referralStats.pending_referrals}</p>
                           </div>
                         </div>
                       )}
 
                       {/* Historial de Referidos */}
-                      <div className="border border-gray-200 rounded-[14px] p-6">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-4">Historial de Referidos</h2>
+                      <div className="border border-gray-200 rounded-[14px] p-4 md:p-6">
+                        <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">Historial de Referidos</h2>
                         {referralHistoryLoading ? (
                           <div className="text-center py-8">
-                            <p className="text-gray-500">Cargando historial...</p>
+                            <p className="text-sm md:text-base text-gray-500">Cargando historial...</p>
                           </div>
                         ) : referralHistory.length === 0 ? (
                           <div className="text-center py-8">
-                            <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                            <p className="text-gray-500">Aún no tienes referidos</p>
-                            <p className="text-sm text-gray-400 mt-2">Comparte tu código para empezar a ganar Pesos Bausing</p>
+                            <Users className="w-10 h-10 md:w-12 md:h-12 text-gray-300 mx-auto mb-4" />
+                            <p className="text-sm md:text-base text-gray-500">Aún no tienes referidos</p>
+                            <p className="text-xs md:text-sm text-gray-400 mt-2">Comparte tu código para empezar a ganar Pesos Bausing</p>
                           </div>
                         ) : (
-                          <div className="space-y-4">
+                          <div className="space-y-3 md:space-y-4">
                             {referralHistory.map((referral) => (
                               <div
                                 key={referral.id}
-                                className="border border-gray-200 rounded-[12px] p-4 hover:border-[#00C1A7] transition-colors"
+                                className="border border-gray-200 rounded-[12px] p-3 md:p-4 hover:border-[#00C1A7] transition-colors"
                               >
-                                <div className="flex items-start justify-between gap-4">
-                                  <div className="flex-1">
+                                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                  <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-2">
                                       {referral.credited ? (
-                                        <CheckCircle className="w-5 h-5 text-green-600" />
+                                        <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-green-600 flex-shrink-0" />
                                       ) : (
-                                        <RefreshCw className="w-5 h-5 text-amber-600 animate-spin" />
+                                        <RefreshCw className="w-4 h-4 md:w-5 md:h-5 text-amber-600 animate-spin flex-shrink-0" />
                                       )}
-                                      <span className={`text-sm font-semibold ${referral.credited ? "text-green-700" : "text-amber-700"}`}>
+                                      <span className={`text-xs md:text-sm font-semibold ${referral.credited ? "text-green-700" : "text-amber-700"}`}>
                                         {referral.credited ? "Acreditado" : "Pendiente"}
                                       </span>
                                     </div>
                                     {referral.referred && (
-                                      <p className="text-sm text-gray-700 mb-1">
+                                      <p className="text-xs md:text-sm text-gray-700 mb-1 break-words">
                                         Referido: {referral.referred.first_name} {referral.referred.last_name}
                                       </p>
                                     )}
@@ -1256,8 +1315,8 @@ export default function UsuarioPage() {
                                       })}
                                     </p>
                                   </div>
-                                  <div className="text-right">
-                                    <p className="text-lg font-bold text-[#00C1A7]">
+                                  <div className="text-left sm:text-right flex-shrink-0">
+                                    <p className="text-base md:text-lg font-bold text-[#00C1A7]">
                                       +${referral.credit_amount.toLocaleString("es-AR", {
                                         minimumFractionDigits: 2,
                                         maximumFractionDigits: 2,
@@ -1278,25 +1337,25 @@ export default function UsuarioPage() {
                             
                             {/* Paginación */}
                             {referralHistoryPagination.pages > 1 && (
-                              <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-gray-200">
                                 <button
                                   onClick={() => loadReferralHistoryPage(referralHistoryPage - 1)}
                                   disabled={referralHistoryPage === 1 || referralHistoryLoading}
-                                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                  <ChevronLeft className="w-4 h-4" />
+                                  <ChevronLeft className="w-3 h-3 md:w-4 md:h-4" />
                                   Anterior
                                 </button>
-                                <span className="text-sm text-gray-600">
+                                <span className="text-xs md:text-sm text-gray-600">
                                   Página {referralHistoryPage} de {referralHistoryPagination.pages}
                                 </span>
                                 <button
                                   onClick={() => loadReferralHistoryPage(referralHistoryPage + 1)}
                                   disabled={referralHistoryPage === referralHistoryPagination.pages || referralHistoryLoading}
-                                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                   Siguiente
-                                  <ChevronRight className="w-4 h-4" />
+                                  <ChevronRight className="w-3 h-3 md:w-4 md:h-4" />
                                 </button>
                               </div>
                             )}

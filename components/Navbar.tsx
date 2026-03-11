@@ -38,7 +38,8 @@ import {
   Shield,
   MapPin,
   Menu,
-  X
+  X,
+  Users
 } from "lucide-react";
 import Cart from "./Cart";
 import TopbarUpper from "./TopbarUpper";
@@ -1096,6 +1097,17 @@ export default function Navbar({ event }: NavbarProps = {}) {
                       <button
                         type="button"
                         onClick={() => {
+                          router.push("/usuario?section=referidos");
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                      >
+                        <Users className="w-4 h-4" />
+                        Referidos
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
                           logout();
                           setShowUserMenu(false);
                         }}
@@ -1179,6 +1191,13 @@ export default function Navbar({ event }: NavbarProps = {}) {
                     >
                       <Package className="w-5 h-5" />
                       <span>Mis pedidos</span>
+                    </button>
+                    <button
+                      onClick={() => { router.push("/usuario?section=referidos"); setIsMobileMenuOpen(false); }}
+                      className="w-full flex items-center gap-3 px-2 py-2 text-gray-700 hover:bg-gray-50 rounded-lg"
+                    >
+                      <Users className="w-5 h-5" />
+                      <span>Referidos</span>
                     </button>
                     <button
                       onClick={() => { handleFavoritesClick(); setIsMobileMenuOpen(false); }}
