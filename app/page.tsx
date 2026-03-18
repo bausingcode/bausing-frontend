@@ -74,6 +74,24 @@ export default async function Home() {
     alt: img.title || img.subtitle || "Banner informativo"
   }));
 
+  const infoCards = [
+    {
+      title: "Elegí el colchón para vos",
+      description:
+        "Encontrá el modelo que va con cómo dormís y lo que buscás en tu descanso.",
+    },
+    {
+      title: "Pagá cuando lo recibís",
+      description:
+        "Abonás cuando tenés el producto en casa, con la tranquilidad de verlo antes.",
+    },
+    {
+      title: "5 años de garantía",
+      description:
+        "Garantía de 5 años pensada para todos nuestros colchones.",
+    },
+  ];
+
 
   return (
     <div className="min-h-screen bg-white">
@@ -88,31 +106,43 @@ export default async function Home() {
       {/* Tres columnas informativas — debajo del hero; borde solo abajo, ancho pantalla */}
       <section className="bg-white">
         <div className="container mx-auto px-4 py-6">
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-6 lg:gap-8 max-w-5xl lg:max-w-6xl mx-auto">
-            <div className="flex flex-col items-center text-center px-2">
-              <h4 className="text-[#101828] font-bold text-sm md:text-base mb-2">
-                Elegí el colchón para vos
-              </h4>
-              <p className="text-[#64748B] text-xs md:text-sm leading-relaxed mb-4 flex-1 max-w-xs">
-                Encontrá el modelo que va con cómo dormís y lo que buscás en tu descanso.
-              </p>
+          {/* Mobile: carrusel horizontal */}
+          <div className="mt-4 md:hidden max-w-5xl lg:max-w-6xl mx-auto">
+            <div
+              className="overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory"
+              role="region"
+              aria-label="Beneficios"
+            >
+              <div className="flex gap-6 px-1" style={{ width: "max-content" }}>
+                {infoCards.map((item) => (
+                  <div
+                    key={item.title}
+                    className="flex flex-col items-center text-center px-2 min-w-[calc(100vw-2rem)] flex-shrink-0 snap-start"
+                  >
+                    <h4 className="text-[#101828] font-bold text-sm md:text-base mb-2">
+                      {item.title}
+                    </h4>
+                    <p className="text-[#64748B] text-xs md:text-sm leading-relaxed mb-4 flex-1 max-w-xs">
+                      {item.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="flex flex-col items-center text-center px-2">
-              <h4 className="text-[#101828] font-bold text-sm md:text-base mb-2">
-                Pagá cuando lo recibís
-              </h4>
-              <p className="text-[#64748B] text-xs md:text-sm leading-relaxed mb-4 flex-1 max-w-xs">
-                Abonás cuando tenés el producto en casa, con la tranquilidad de verlo antes.
-              </p>
-            </div>
-            <div className="flex flex-col items-center text-center px-2">
-              <h4 className="text-[#101828] font-bold text-sm md:text-base mb-2">
-                5 años de garantía
-              </h4>
-              <p className="text-[#64748B] text-xs md:text-sm leading-relaxed mb-4 flex-1 max-w-xs">
-                Garantía de 5 años pensada para todos nuestros colchones.
-              </p>
-            </div>
+          </div>
+
+          {/* Desktop: grid 3 columnas */}
+          <div className="hidden md:grid grid-cols-3 gap-8 md:gap-6 lg:gap-8 max-w-5xl lg:max-w-6xl mx-auto">
+            {infoCards.map((item) => (
+              <div key={item.title} className="flex flex-col items-center text-center px-2">
+                <h4 className="text-[#101828] font-bold text-sm md:text-base mb-2">
+                  {item.title}
+                </h4>
+                <p className="text-[#64748B] text-xs md:text-sm leading-relaxed mb-4 flex-1 max-w-xs">
+                  {item.description}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
         <div
@@ -207,7 +237,7 @@ export default async function Home() {
         <InfoBannerCarousel images={infoBannerImages} autoPlayInterval={5000} />
       )}
 
-      <section className="bg-[#fafafa] mt-10 md:mt-14 lg:mt-20 py-8 md:py-10 lg:py-12">
+      <section className="bg-[#fafafa] mt-0 md:mt-14 lg:mt-20 py-8 md:py-10 lg:py-12">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-4 md:mb-6">
             <h3 className="text-sm md:text-xl lg:text-2xl font-semibold text-gray-800">Mirá los más vendidos</h3>

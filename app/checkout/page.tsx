@@ -1130,6 +1130,109 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
           return;
         }
       }
+
+      // Transporte tercerizado + transferencia → WhatsApp (sin crear orden; si también hay tarjeta, ya se redirigió arriba)
+      if (
+        isThirdPartyTransport &&
+        selectedMethods.includes("transfer") &&
+        !selectedMethods.includes("card")
+      ) {
+        console.log(
+          "[Checkout] Transporte tercerizado con transferencia, redirigiendo a WhatsApp. NO se creará orden."
+        );
+        try {
+          const whatsappResponse = await fetch("/api/settings/public/phone", {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (whatsappResponse.ok) {
+            const whatsappData = await whatsappResponse.json();
+            if (whatsappData.success && whatsappData.phone) {
+              const cleanPhone = whatsappData.phone.replace(/\D/g, "");
+
+              const cartItems = cart
+                .map((item) => {
+                  const itemPrice = getItemPrice(item);
+                  const unitPrice = getItemUnitPrice(item);
+                  return `• ${item.name} x${item.quantity} - $${itemPrice.toLocaleString("es-AR")} ($${unitPrice.toLocaleString("es-AR")} c/u)`;
+                })
+                .join("\n");
+
+              const totalWithShipping = subtotal + shippingCost;
+
+              let paymentInfo = "";
+              if (selectedMethods.length > 0) {
+                const paymentMethodsText = selectedMethods
+                  .map((method) => {
+                    const methodName =
+                      method === "card"
+                        ? "Tarjeta"
+                        : method === "wallet"
+                          ? "Billetera Bausing"
+                          : method === "transfer"
+                            ? "Transferencia (completar por WhatsApp)"
+                            : "Efectivo";
+                    const amount = isMultiPayment
+                      ? methodAmounts[method] || 0
+                      : method === "wallet"
+                        ? Math.min(methodAmounts[method] || 0, walletBalance)
+                        : subtotal;
+                    return `  - ${methodName}: $${amount.toLocaleString("es-AR")}`;
+                  })
+                  .join("\n");
+                paymentInfo = `\n\n*Métodos de pago:*\n${paymentMethodsText}`;
+              }
+
+              const addressText = addressData.additional_info
+                ? `${addressData.street} ${addressData.number}, ${addressData.city}, ${addressData.postal_code}${addressData.additional_info ? ` (${addressData.additional_info})` : ""}`
+                : `${addressData.street} ${addressData.number}, ${addressData.city}, ${addressData.postal_code}`;
+
+              const provinceName =
+                "province" in addressData && addressData.province
+                  ? addressData.province
+                  : addressData.province_id
+                    ? provinces.find((p) => p.id === addressData.province_id)?.name || ""
+                    : "";
+
+              const message = `Hola! Quiero realizar el siguiente pedido:
+
+*PRODUCTOS:*
+${cartItems}
+
+*RESUMEN:*
+Subtotal: $${subtotal.toLocaleString("es-AR")}
+${shippingCost > 0 ? `Envío: $${shippingCost.toLocaleString("es-AR")}` : "Envío: Gratis"}
+*Total: $${totalWithShipping.toLocaleString("es-AR")}*${paymentInfo}
+
+*DATOS DEL CLIENTE:*
+Nombre: ${formData.first_name} ${formData.last_name}
+Teléfono: ${formData.phone}
+${formData.alternate_phone ? `Teléfono alternativo: ${formData.alternate_phone}\n` : ""}Email: ${formData.email}
+${formData.document_type ? `Tipo de documento: ${docTypes.find((dt) => dt.id === formData.document_type)?.name || formData.document_type}\n` : ""}DNI: ${formData.dni}
+
+*DIRECCIÓN DE ENTREGA:*
+${addressData.full_name}
+${addressData.phone}
+${addressText}${provinceName ? `, ${provinceName}` : ""}`;
+
+              const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+              window.location.href = whatsappUrl;
+              setSubmitting(false);
+              return;
+            }
+          }
+        } catch (whatsappError) {
+          console.error("[Checkout] Error al obtener número de WhatsApp (transferencia tercerizada):", whatsappError);
+          setErrors({
+            submit: "No se pudo obtener el número de WhatsApp. Por favor, intenta nuevamente.",
+          });
+          setSubmitting(false);
+          return;
+        }
+      }
       
       // Solo redirigir a WhatsApp si isPaisCatalog es true (estado actualizado correctamente)
       if (isPaisCatalog) {
@@ -2961,8 +3064,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                     )}
                   </div>
 
-                  {/* Transferencia - Oculto si es transporte tercerizado */}
-                  {!isThirdPartyTransport && (
+                  {/* Transferencia — con transporte tercerizado se completa la venta por WhatsApp */}
                   <div
                     className={`border rounded-lg transition-colors ${
                       selectedMethods.includes("transfer")
@@ -2981,7 +3083,9 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                       <div className="flex-1">
                         <span className="font-medium text-gray-900 text-sm md:text-base">Transferencia</span>
                         <p className="text-xs text-gray-500 mt-0.5">
-                          {isPaisCatalog ? "Completarás la venta por WhatsApp" : "Abonás al recibir"}
+                          {isThirdPartyTransport || isPaisCatalog
+                            ? "Completarás la venta por WhatsApp"
+                            : "Abonás al recibir"}
                         </p>
                       </div>
                       {selectedMethods.includes("transfer") && (
@@ -3013,11 +3117,12 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                           <div className="flex items-start gap-2">
                             <Check className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
                             <p className="text-xs md:text-sm text-blue-800">
-                              {isPaisCatalog ? (
+                              {isThirdPartyTransport || isPaisCatalog ? (
                                 <span className="font-semibold">Completarás la venta por WhatsApp</span>
                               ) : (
                                 <>
-                                  <span className="font-semibold">Abonarás al recibir</span> - Pagarás con tarjeta cuando recibas tu pedido
+                                  <span className="font-semibold">Abonarás al recibir</span> - Pagarás con
+                                  transferencia cuando recibas tu pedido
                                 </>
                               )}
                             </p>
@@ -3026,7 +3131,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                       </div>
                     )}
                   </div>
-                  )}
 
                   {/* Billetera Bausing - Oculto si es transporte tercerizado */}
                   {!isThirdPartyTransport && walletBalance > 0 && !walletIsBlocked && (

@@ -82,7 +82,7 @@ export default function ProductCarousel({ children }: ProductCarouselProps) {
       {showLeftArrow && (
         <button
           onClick={() => scroll('left')}
-          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white shadow-lg rounded-full p-2 transition-all"
+          className="absolute left-2 top-[38%] -translate-y-1/2 z-10 bg-white/90 hover:bg-white shadow-lg rounded-full p-2 transition-all"
           aria-label="Anterior"
         >
           <ChevronLeft className="w-5 h-5 text-gray-700" />
@@ -93,7 +93,7 @@ export default function ProductCarousel({ children }: ProductCarouselProps) {
       {showRightArrow && (
         <button
           onClick={() => scroll('right')}
-          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white shadow-lg rounded-full p-2 transition-all"
+          className="absolute right-2 top-[38%] -translate-y-1/2 z-10 bg-white/90 hover:bg-white shadow-lg rounded-full p-2 transition-all"
           aria-label="Siguiente"
         >
           <ChevronRight className="w-5 h-5 text-gray-700" />
