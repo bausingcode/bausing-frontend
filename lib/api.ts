@@ -1902,20 +1902,6 @@ export interface HeroImage {
   created_at?: string;
 }
 
-
-// Hero Images API
-export interface HeroImage {
-  id: string;
-  image_url: string;
-  title?: string;
-  subtitle?: string;
-  cta_text?: string;
-  cta_link?: string;
-  position: number;
-  is_active: boolean;
-  created_at?: string;
-}
-
 /**
  * Fetch hero images from the backend (server-side compatible)
  * @param position - Optional position filter (1, 2, or 3)

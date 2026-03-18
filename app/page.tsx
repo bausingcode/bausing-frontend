@@ -57,10 +57,15 @@ export default async function Home() {
     console.error("Error fetching data:", error);
   }
 
-  const bannerImages = heroImages.map((img) => ({
-    id: parseInt(img.id.slice(0, 8), 16) || img.id.charCodeAt(0),
+  const heroSlides = heroImages.map((img, index) => ({
+    id: parseInt(img.id.replace(/-/g, "").slice(0, 8), 16) || index + 1,
+    heroId: img.id,
     url: img.image_url,
-    alt: img.title || img.subtitle || "Banner"
+    alt: img.title || img.subtitle || "Banner",
+    title: img.title,
+    subtitle: img.subtitle,
+    cta_text: img.cta_text,
+    cta_link: img.cta_link,
   }));
 
   const infoBannerImages = infoBanners.map((img, index) => ({
@@ -76,9 +81,45 @@ export default async function Home() {
       <FirstVisitModal />
       <Navbar event={activeEvent} />
 
-      {bannerImages.length > 0 && (
-        <BannerCarousel images={bannerImages} autoPlayInterval={5000} />
+      {heroSlides.length > 0 && (
+        <BannerCarousel slides={heroSlides} autoPlayInterval={5000} />
       )}
+
+      {/* Tres columnas informativas — debajo del hero; borde solo abajo, ancho pantalla */}
+      <section className="bg-white">
+        <div className="container mx-auto px-4 py-6">
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-6 lg:gap-8 max-w-5xl lg:max-w-6xl mx-auto">
+            <div className="flex flex-col items-center text-center px-2">
+              <h4 className="text-[#101828] font-bold text-sm md:text-base mb-2">
+                Elegí el colchón para vos
+              </h4>
+              <p className="text-[#64748B] text-xs md:text-sm leading-relaxed mb-4 flex-1 max-w-xs">
+                Encontrá el modelo que va con cómo dormís y lo que buscás en tu descanso.
+              </p>
+            </div>
+            <div className="flex flex-col items-center text-center px-2">
+              <h4 className="text-[#101828] font-bold text-sm md:text-base mb-2">
+                Pagá cuando lo recibís
+              </h4>
+              <p className="text-[#64748B] text-xs md:text-sm leading-relaxed mb-4 flex-1 max-w-xs">
+                Abonás cuando tenés el producto en casa, con la tranquilidad de verlo antes.
+              </p>
+            </div>
+            <div className="flex flex-col items-center text-center px-2">
+              <h4 className="text-[#101828] font-bold text-sm md:text-base mb-2">
+                5 años de garantía
+              </h4>
+              <p className="text-[#64748B] text-xs md:text-sm leading-relaxed mb-4 flex-1 max-w-xs">
+                Garantía de 5 años pensada para todos nuestros colchones.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div
+          className="w-screen max-w-[100vw] relative left-1/2 -translate-x-1/2 border-b border-gray-200/90"
+          aria-hidden
+        />
+      </section>
 
       {/* <section className="bg-white py-16">
         <div className="container mx-auto px-4">
@@ -252,11 +293,9 @@ export default async function Home() {
 
       {/* Video Section */}
       <VideoSection videoData={videoData} />
-
-      {/* Nuestras Almohadas Section */}
+{/* 
       <section className="bg-white py-8 md:py-10 lg:py-12">
         <div className="container mx-auto px-4">
-          {/* Section Header */}
           <div className="flex items-center justify-between mb-4 md:mb-6 lg:mb-8">
             <h3 className="text-sm md:text-xl lg:text-2xl font-semibold text-gray-800">Nuestros Colchones</h3>
             <a href="/catalogo/colchones" className="flex items-center gap-1 md:gap-2 text-gray-700 hover:text-gray-900 transition-colors">
@@ -265,17 +304,15 @@ export default async function Home() {
             </a>
           </div>
 
-          {/* Mobile: Carrusel si hay más de 2 productos */}
           <ProductCarousel>
             <HomeProducts section="mattresses" count={4} />
           </ProductCarousel>
 
-          {/* Desktop: Grid normal */}
           <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
             <HomeProducts section="mattresses" count={4} />
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Nuestros Sommiers Section */}
       <section className="bg-white py-8 md:py-10 lg:py-12">

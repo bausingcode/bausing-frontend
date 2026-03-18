@@ -14,6 +14,7 @@ import {
   getAuthHeaders
 } from "@/lib/api";
 import wsrvLoader from "@/lib/wsrvLoader";
+import { isHeroVideoUrl } from "@/lib/heroMedia";
 import { 
   Image as ImageIcon, 
   Upload, 
@@ -23,10 +24,12 @@ import {
   Check, 
   AlertCircle,
   Info,
-  Maximize2
+  Maximize2,
+  Film
 } from "lucide-react";
 
 const MAX_HERO_IMAGES = 5;
+const MAX_HERO_VIDEO_BYTES = 100 * 1024 * 1024;
 
 // Función para formatear la fecha de creación
 const formatDate = (dateString?: string): string => {
@@ -65,6 +68,7 @@ export default function ImagenesPage() {
 
   // Estados para archivos pendientes de subir
   const [pendingHeroFiles, setPendingHeroFiles] = useState<File[]>([]);
+  const [pendingHeroVideos, setPendingHeroVideos] = useState<File[]>([]);
   const [pendingInfoFiles, setPendingInfoFiles] = useState<File[]>([]);
   const [pendingDiscountFile, setPendingDiscountFile] = useState<File | null>(null);
   const [pendingProductFile, setPendingProductFile] = useState<File | null>(null);
@@ -77,6 +81,26 @@ export default function ImagenesPage() {
   
   // Estado para preview ampliado
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  /** Texto superpuesto en el hero del home (por imagen) */
+  const [heroCopyEdits, setHeroCopyEdits] = useState<
+    Record<string, { title: string; subtitle: string; cta_text: string; cta_link: string }>
+  >({});
+  const [heroTextSavingId, setHeroTextSavingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const m: Record<string, { title: string; subtitle: string; cta_text: string; cta_link: string }> =
+      {};
+    heroImages.forEach((img) => {
+      m[img.id] = {
+        title: img.title ?? "",
+        subtitle: img.subtitle ?? "",
+        cta_text: img.cta_text ?? "",
+        cta_link: img.cta_link ?? "",
+      };
+    });
+    setHeroCopyEdits(m);
+  }, [heroImages]);
 
   useEffect(() => {
     loadImages();
@@ -132,21 +156,24 @@ export default function ImagenesPage() {
       return;
     }
     
-    // Validar límite para hero images
+    // Validar límite para hero (imágenes + videos)
     if (type === 'hero') {
-      const currentCount = heroImages.filter(img => !imagesToDelete.has(img.id)).length;
-      const totalWithPending = currentCount + pendingHeroFiles.length;
+      const currentCount = heroImages.filter((img) => !imagesToDelete.has(img.id)).length;
+      const totalWithPending =
+        currentCount + pendingHeroFiles.length + pendingHeroVideos.length;
       if (totalWithPending >= MAX_HERO_IMAGES) {
-        setError(`Ya tienes ${MAX_HERO_IMAGES} imágenes (incluyendo las pendientes). Elimina algunas primero para agregar más.`);
+        setError(
+          `Ya tienes ${MAX_HERO_IMAGES} elementos en el hero (incl. pendientes). Eliminá alguno para agregar más.`
+        );
         return;
       }
     }
     
     setError("");
     
-    if (type === 'hero') {
+    if (type === "hero") {
       setPendingHeroFiles([...pendingHeroFiles, file]);
-    } else if (type === 'info') {
+    } else if (type === "info") {
       setPendingInfoFiles([...pendingInfoFiles, file]);
     } else if (type === 'discount') {
       setPendingDiscountFile(file);
@@ -156,6 +183,33 @@ export default function ImagenesPage() {
       setPendingLocalFile(file);
     }
   };
+
+  const handleHeroVideoSelect = (file: File) => {
+    if (!file.type.startsWith("video/")) {
+      setError("Seleccioná un archivo de video válido");
+      return;
+    }
+    if (file.size > MAX_HERO_VIDEO_BYTES) {
+      setError("El video es demasiado grande. Máximo: 100MB");
+      return;
+    }
+    const currentCount = heroImages.filter((img) => !imagesToDelete.has(img.id)).length;
+    const total =
+      currentCount + pendingHeroFiles.length + pendingHeroVideos.length;
+    if (total >= MAX_HERO_IMAGES) {
+      setError(
+        `Ya tenés ${MAX_HERO_IMAGES} elementos en el hero. Eliminá alguno para agregar más.`
+      );
+      return;
+    }
+    setError("");
+    setPendingHeroVideos((prev) => [...prev, file]);
+  };
+
+  const heroSlotsUsed = () =>
+    heroImages.filter((img) => !imagesToDelete.has(img.id)).length +
+    pendingHeroFiles.length +
+    pendingHeroVideos.length;
 
   const toggleImageDelete = (imageId: string) => {
     const newSet = new Set(imagesToDelete);
@@ -190,6 +244,11 @@ export default function ImagenesPage() {
         await uploadHeroImageFile(file, 1);
       }
       setPendingHeroFiles([]);
+
+      for (const file of pendingHeroVideos) {
+        await uploadVideoFile(file, 1);
+      }
+      setPendingHeroVideos([]);
 
       for (const file of pendingInfoFiles) {
         await uploadHeroImageFile(file, 2);
@@ -280,7 +339,17 @@ export default function ImagenesPage() {
   };
 
   const hasChanges = () => {
-    return imagesToDelete.size > 0 || pendingHeroFiles.length > 0 || pendingInfoFiles.length > 0 || pendingDiscountFile || pendingProductFile || pendingLocalFile || pendingVideoFile || isEditingVideo;
+    return (
+      imagesToDelete.size > 0 ||
+      pendingHeroFiles.length > 0 ||
+      pendingHeroVideos.length > 0 ||
+      pendingInfoFiles.length > 0 ||
+      pendingDiscountFile ||
+      pendingProductFile ||
+      pendingLocalFile ||
+      pendingVideoFile ||
+      isEditingVideo
+    );
   };
 
 
@@ -337,10 +406,11 @@ export default function ImagenesPage() {
                   Imágenes de Encabezado (Hero)
                 </h2>
                 <p className="text-sm text-gray-600">
-                  Máximo {MAX_HERO_IMAGES} imágenes. Recomendado: 1920x600px, formato JPG/PNG
+                  Hasta {MAX_HERO_IMAGES} slides (imágenes y/o videos). Imágenes ~1920×600px; videos
+                  MP4/WebM hasta 100MB.
                 </p>
               </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input
                 type="file"
                 id="hero-file-input"
@@ -348,21 +418,42 @@ export default function ImagenesPage() {
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (file) handleFileSelect(file, 'hero');
-                  // Reset input para permitir seleccionar el mismo archivo de nuevo
-                  e.target.value = '';
+                  if (file) handleFileSelect(file, "hero");
+                  e.target.value = "";
                 }}
               />
               <label
                 htmlFor="hero-file-input"
                 className={`px-3 py-2 text-sm rounded-lg flex items-center gap-2 transition-colors cursor-pointer ${
-                  heroImages.filter(img => !imagesToDelete.has(img.id)).length + pendingHeroFiles.length >= MAX_HERO_IMAGES
+                  heroSlotsUsed() >= MAX_HERO_IMAGES
                     ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                     : "bg-blue-600 text-white hover:bg-blue-700"
                 }`}
               >
                 <Upload className="w-4 h-4" />
-                <span>Agregar</span>
+                <span>Imagen</span>
+              </label>
+              <input
+                type="file"
+                id="hero-video-input"
+                accept="video/mp4,video/webm,video/quicktime,video/ogg"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleHeroVideoSelect(file);
+                  e.target.value = "";
+                }}
+              />
+              <label
+                htmlFor="hero-video-input"
+                className={`px-3 py-2 text-sm rounded-lg flex items-center gap-2 transition-colors cursor-pointer ${
+                  heroSlotsUsed() >= MAX_HERO_IMAGES
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-slate-700 text-white hover:bg-slate-800"
+                }`}
+              >
+                <Film className="w-4 h-4" />
+                <span>Video</span>
               </label>
             </div>
           </div>
@@ -370,45 +461,76 @@ export default function ImagenesPage() {
           
           <div className="p-6">
           {/* Previews de imágenes pendientes */}
-          {pendingHeroFiles.length > 0 && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-blue-900">
-                  {pendingHeroFiles.length} imagen(es) pendiente(s) de subir
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {pendingHeroFiles.map((file, index) => (
-                  <div key={index} className="relative group">
-                    <div 
-                      className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() => setPreviewImage(URL.createObjectURL(file))}
-                    >
-                      <img
-                        src={URL.createObjectURL(file)}
-                        alt={`Preview ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <button
-                      onClick={() => {
-                        const newFiles = pendingHeroFiles.filter((_, i) => i !== index);
-                        setPendingHeroFiles(newFiles);
-                      }}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
+          {(pendingHeroFiles.length > 0 || pendingHeroVideos.length > 0) && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
+              {pendingHeroFiles.length > 0 && (
+                <div>
+                  <span className="text-sm font-medium text-blue-900 block mb-2">
+                    {pendingHeroFiles.length} imagen(es) pendiente(s)
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {pendingHeroFiles.map((file, index) => (
+                      <div key={`img-${index}`} className="relative group">
+                        <div
+                          className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => setPreviewImage(URL.createObjectURL(file))}
+                        >
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`Preview ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPendingHeroFiles((f) => f.filter((_, i) => i !== index))
+                          }
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
+              {pendingHeroVideos.length > 0 && (
+                <div>
+                  <span className="text-sm font-medium text-blue-900 block mb-2">
+                    {pendingHeroVideos.length} video(s) pendiente(s)
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {pendingHeroVideos.map((file, index) => (
+                      <div key={`vid-${index}`} className="relative group flex items-center gap-2 bg-white border border-blue-200 rounded-lg px-3 py-2 pr-8">
+                        <Film className="w-5 h-5 text-slate-600 shrink-0" />
+                        <span className="text-xs text-gray-800 truncate max-w-[180px]">
+                          {file.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPendingHeroVideos((f) => f.filter((_, i) => i !== index))
+                          }
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {heroImages.length === 0 && pendingHeroFiles.length === 0 ? (
+          {heroImages.length === 0 &&
+          pendingHeroFiles.length === 0 &&
+          pendingHeroVideos.length === 0 ? (
             <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
               <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-500">No hay imágenes de encabezado</p>
+              <p className="text-gray-500">No hay contenido en el hero</p>
+              <p className="text-sm text-gray-400 mt-1">Agregá imágenes o videos</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -422,18 +544,27 @@ export default function ImagenesPage() {
                     }`}
                   >
                     <div className="bg-gray-100 relative" style={{ aspectRatio: '1920/600', maxHeight: '150px' }}>
-                      <img
-                        src={image.image_url}
-                        alt={image.title || "Hero image"}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          // Fallback a wsrvLoader si la imagen directa falla
-                          const target = e.target as HTMLImageElement;
-                          if (target.src !== wsrvLoader({ src: image.image_url, width: 400 })) {
-                            target.src = wsrvLoader({ src: image.image_url, width: 400 });
-                          }
-                        }}
-                      />
+                      {isHeroVideoUrl(image.image_url) ? (
+                        <video
+                          src={image.image_url}
+                          className="w-full h-full object-cover"
+                          muted
+                          playsInline
+                          preload="metadata"
+                        />
+                      ) : (
+                        <img
+                          src={image.image_url}
+                          alt={image.title || "Hero"}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            if (target.src !== wsrvLoader({ src: image.image_url, width: 400 })) {
+                              target.src = wsrvLoader({ src: image.image_url, width: 400 });
+                            }
+                          }}
+                        />
+                      )}
                       {isMarkedForDelete && (
                         <div className="absolute inset-0 bg-red-500 bg-opacity-20 flex items-center justify-center">
                           <span className="text-red-700 font-semibold bg-white px-3 py-1 rounded">Se eliminará</span>
@@ -449,10 +580,10 @@ export default function ImagenesPage() {
                         </button>
                       </div>
                     </div>
-                    <div className="p-3 bg-white">
-                      <div className="flex items-center justify-between mb-2">
+                    <div className="p-3 bg-white space-y-3">
+                      <div className="flex items-center justify-between">
                         <h3 className="text-sm font-medium text-gray-900 truncate">
-                          {image.title || formatDate(image.created_at)}
+                          {formatDate(image.created_at)}
                         </h3>
                         <button
                           onClick={() => toggleImageDelete(image.id)}
@@ -466,9 +597,133 @@ export default function ImagenesPage() {
                           <X className="w-4 h-4" />
                         </button>
                       </div>
-                      {image.subtitle && (
-                        <p className="text-xs text-gray-500 truncate">{image.subtitle}</p>
-                      )}
+                      <div className="space-y-2 border-t border-gray-100 pt-3">
+                        <p className="text-sm font-medium text-gray-900 flex items-center gap-1">
+                          <Edit2 className="w-3.5 h-3.5 text-gray-800" /> Texto en el home (opcional)
+                        </p>
+                        <input
+                          type="text"
+                          placeholder="Título"
+                          maxLength={255}
+                          disabled={isMarkedForDelete}
+                          value={heroCopyEdits[image.id]?.title ?? ""}
+                          onChange={(e) =>
+                            setHeroCopyEdits((prev) => ({
+                              ...prev,
+                              [image.id]: {
+                                ...(prev[image.id] ?? {
+                                  title: "",
+                                  subtitle: "",
+                                  cta_text: "",
+                                  cta_link: "",
+                                }),
+                                title: e.target.value,
+                              },
+                            }))
+                          }
+                          className="w-full text-sm text-gray-900 placeholder:text-gray-600 bg-white border border-gray-400 rounded-lg px-2.5 py-2 focus:border-[#00C1A7] focus:ring-1 focus:ring-[#00C1A7] focus:outline-none disabled:bg-gray-100 disabled:text-gray-700"
+                        />
+                        <textarea
+                          placeholder="Descripción"
+                          maxLength={255}
+                          rows={2}
+                          disabled={isMarkedForDelete}
+                          value={heroCopyEdits[image.id]?.subtitle ?? ""}
+                          onChange={(e) =>
+                            setHeroCopyEdits((prev) => ({
+                              ...prev,
+                              [image.id]: {
+                                ...(prev[image.id] ?? {
+                                  title: "",
+                                  subtitle: "",
+                                  cta_text: "",
+                                  cta_link: "",
+                                }),
+                                subtitle: e.target.value,
+                              },
+                            }))
+                          }
+                          className="w-full text-sm text-gray-900 placeholder:text-gray-600 bg-white border border-gray-400 rounded-lg px-2.5 py-2 resize-none focus:border-[#00C1A7] focus:ring-1 focus:ring-[#00C1A7] focus:outline-none disabled:bg-gray-100 disabled:text-gray-700"
+                        />
+                        <div className="grid grid-cols-1 gap-2">
+                          <input
+                            type="text"
+                            placeholder="Texto del botón (ej. Ver catálogo)"
+                            maxLength={255}
+                            disabled={isMarkedForDelete}
+                            value={heroCopyEdits[image.id]?.cta_text ?? ""}
+                            onChange={(e) =>
+                              setHeroCopyEdits((prev) => ({
+                                ...prev,
+                                [image.id]: {
+                                  ...(prev[image.id] ?? {
+                                    title: "",
+                                    subtitle: "",
+                                    cta_text: "",
+                                    cta_link: "",
+                                  }),
+                                  cta_text: e.target.value,
+                                },
+                              }))
+                            }
+                            className="w-full text-sm text-gray-900 placeholder:text-gray-600 bg-white border border-gray-400 rounded-lg px-2.5 py-2 focus:border-[#00C1A7] focus:ring-1 focus:ring-[#00C1A7] focus:outline-none disabled:bg-gray-100 disabled:text-gray-700"
+                          />
+                          <input
+                            type="text"
+                            placeholder="URL del botón (ej. /catalogo)"
+                            maxLength={500}
+                            disabled={isMarkedForDelete}
+                            value={heroCopyEdits[image.id]?.cta_link ?? ""}
+                            onChange={(e) =>
+                              setHeroCopyEdits((prev) => ({
+                                ...prev,
+                                [image.id]: {
+                                  ...(prev[image.id] ?? {
+                                    title: "",
+                                    subtitle: "",
+                                    cta_text: "",
+                                    cta_link: "",
+                                  }),
+                                  cta_link: e.target.value,
+                                },
+                              }))
+                            }
+                            className="w-full text-sm text-gray-900 placeholder:text-gray-600 bg-white border border-gray-400 rounded-lg px-2.5 py-2 focus:border-[#00C1A7] focus:ring-1 focus:ring-[#00C1A7] focus:outline-none disabled:bg-gray-100 disabled:text-gray-700"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          disabled={
+                            isMarkedForDelete || heroTextSavingId === image.id || submitting
+                          }
+                          onClick={async () => {
+                            const copy = heroCopyEdits[image.id];
+                            if (!copy) return;
+                            setHeroTextSavingId(image.id);
+                            setError("");
+                            setSuccess("");
+                            try {
+                              await updateHeroImage(image.id, {
+                                title: copy.title.trim(),
+                                subtitle: copy.subtitle.trim(),
+                                cta_text: copy.cta_text.trim(),
+                                cta_link: copy.cta_link.trim(),
+                              });
+                              setSuccess("Texto del hero guardado.");
+                              await loadImages();
+                            } catch (err) {
+                              setError(
+                                err instanceof Error ? err.message : "Error al guardar el texto"
+                              );
+                            } finally {
+                              setHeroTextSavingId(null);
+                            }
+                          }}
+                          className="w-full text-xs py-2 rounded-lg bg-[#00C1A7] text-white font-medium hover:bg-[#00A892] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          {heroTextSavingId === image.id ? "Guardando…" : "Guardar texto"}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -478,7 +733,7 @@ export default function ImagenesPage() {
 
           {heroImages.length > 0 && (
             <div className="mt-4 text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded-lg inline-block">
-              {heroImages.filter(img => !imagesToDelete.has(img.id)).length + pendingHeroFiles.length} de {MAX_HERO_IMAGES} imágenes
+              {heroSlotsUsed()} de {MAX_HERO_IMAGES} slides (orden: fecha de creación)
             </div>
           )}
           </div>
