@@ -3023,6 +3023,7 @@ export interface Address {
   id: string;
   user_id: string;
   full_name: string;
+  contact_name?: string;
   phone: string;
   street: string;
   number: string;
@@ -4481,6 +4482,8 @@ export interface Event {
   is_active: boolean;
   display_type: 'fixed' | 'countdown';
   countdown_end_date: string | null;
+  font_family?: string | null;
+  animation_type?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -4557,6 +4560,8 @@ export async function createEvent(eventData: {
   is_active?: boolean;
   display_type: 'fixed' | 'countdown';
   countdown_end_date?: string | null;
+  font_family?: string | null;
+  animation_type?: string | null;
 }): Promise<Event> {
   try {
     const url = typeof window === "undefined"
@@ -4601,6 +4606,8 @@ export async function updateEvent(eventId: string, eventData: {
   is_active?: boolean;
   display_type?: 'fixed' | 'countdown';
   countdown_end_date?: string | null;
+  font_family?: string | null;
+  animation_type?: string | null;
 }): Promise<Event> {
   try {
     const url = typeof window === "undefined"
@@ -5428,7 +5435,10 @@ export async function updateZoneLocality(
   }
   
   const data = await response.json();
-  return data.success ? data.data : null;
+  if (!data.success) {
+    throw new Error(data.error || "Failed to update zone locality");
+  }
+  return data.data;
 }
 
 export async function bulkUpdateZoneLocalities(
