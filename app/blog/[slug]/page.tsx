@@ -151,7 +151,7 @@ export default function ArticlePage() {
   const date = formatDate(article.published_at || article.created_at);
   const readTime = calculateReadTime(article.content);
   const author = article.author?.email || "Equipo Bausing";
-  const coverImage = article.cover_image_url || "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=80";
+  const coverImage = article.cover_image_url || "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=90";
 
   // Parsear contenido HTML si existe
   const content = article.content || "";

@@ -61,7 +61,7 @@ function transformPostToArticle(post: BlogPost, index: number): Article {
     readTime: calculateReadTime(post.content),
     category: getCategory(post.keywords),
     featured: index < 3, // Los primeros 3 son featured
-    image: post.cover_image_url || "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1200&q=80",
+    image: post.cover_image_url || "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1200&q=90",
   };
 }
 
@@ -126,7 +126,7 @@ export default function BlogPage() {
         <section className="relative overflow-hidden py-16 md:py-24">
           <div className="absolute inset-0">
             <Image
-              src="https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=80"
+              src="https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=90"
               alt="Dormitorio luminoso"
               fill
               priority
