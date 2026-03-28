@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+  ReactNode,
+  useCallback,
+} from "react";
 import { usePathname } from "next/navigation";
 import { fetchPublicHomepageDistributionQuick, fetchProductsPrices, Product } from "@/lib/api";
 import { useLocality } from "./LocalityContext";
@@ -32,129 +40,137 @@ interface HomepageDistributionContextType {
 
 const HomepageDistributionContext = createContext<HomepageDistributionContextType | undefined>(undefined);
 
+function mergePricesIntoDistribution(
+  dist: HomepageDistribution,
+  pricesData: Record<string, PricesMap[string]>,
+): HomepageDistribution {
+  const apply = (products: Product[]) =>
+    products.map((p) => {
+      const priceInfo = pricesData[p.id];
+      if (!priceInfo) return p;
+      return {
+        ...p,
+        min_price: priceInfo.min_price,
+        max_price: priceInfo.max_price,
+        price_range: priceInfo.price_range,
+        promos: Array.isArray(priceInfo.promos)
+          ? priceInfo.promos
+          : priceInfo.promos
+            ? [priceInfo.promos]
+            : [],
+      };
+    });
+
+  return {
+    featured: apply(dist.featured || []),
+    discounts: apply(dist.discounts || []),
+    mattresses: apply(dist.mattresses || []),
+    complete_purchase: apply(dist.complete_purchase || []),
+  };
+}
+
 export function HomepageDistributionProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { locality } = useLocality();
+  const localityId = locality?.id;
+
   const [distribution, setDistribution] = useState<HomepageDistribution | null>(null);
   const [prices, setPrices] = useState<PricesMap>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingPrices, setIsLoadingPrices] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const loadDistribution = async () => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      // Cargar distribución rápida (sin precios ni promociones)
-      const data = await fetchPublicHomepageDistributionQuick();
-      setDistribution(data);
-      
-      // Cargar precios y promociones en segundo plano
-      loadPrices(data);
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Error loading homepage distribution');
-      setError(error);
-      console.error("[HomepageDistributionContext] Error loading distribution:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const quickBaseRef = useRef<HomepageDistribution | null>(null);
+  const homeDataReadyRef = useRef(false);
+  const pricesGenRef = useRef(0);
 
-  const loadPrices = async (dist: HomepageDistribution) => {
-    setIsLoadingPrices(true);
-    
-    try {
-      // Recopilar todos los IDs de productos
-      const allProducts = [
-        ...(dist.featured || []),
-        ...(dist.discounts || []),
-        ...(dist.mattresses || []),
-        ...(dist.complete_purchase || [])
-      ];
-      
-      const productIds = allProducts.map(p => p.id).filter(Boolean);
-      
-      if (productIds.length > 0) {
-        const pricesData = await fetchProductsPrices(productIds, locality?.id);
-        
-        // Actualizar productos con precios y promociones
-        const updatedDistribution: HomepageDistribution = {
-          featured: (dist.featured || []).map(p => {
-            const priceInfo = pricesData[p.id];
-            if (priceInfo) {
-              const updated = {
-                ...p,
-                min_price: priceInfo.min_price,
-                max_price: priceInfo.max_price,
-                price_range: priceInfo.price_range,
-                // Asegurarse de que las promociones sean un array
-                promos: Array.isArray(priceInfo.promos) ? priceInfo.promos : (priceInfo.promos ? [priceInfo.promos] : [])
-              };
-              return updated;
-            }
-            return p;
-          }),
-          discounts: (dist.discounts || []).map(p => {
-            const priceInfo = pricesData[p.id];
-            if (priceInfo) {
-              return {
-                ...p,
-                min_price: priceInfo.min_price,
-                max_price: priceInfo.max_price,
-                price_range: priceInfo.price_range,
-                promos: Array.isArray(priceInfo.promos) ? priceInfo.promos : (priceInfo.promos ? [priceInfo.promos] : [])
-              };
-            }
-            return p;
-          }),
-          mattresses: (dist.mattresses || []).map(p => {
-            const priceInfo = pricesData[p.id];
-            if (priceInfo) {
-              return {
-                ...p,
-                min_price: priceInfo.min_price,
-                max_price: priceInfo.max_price,
-                price_range: priceInfo.price_range,
-                promos: Array.isArray(priceInfo.promos) ? priceInfo.promos : (priceInfo.promos ? [priceInfo.promos] : [])
-              };
-            }
-            return p;
-          }),
-          complete_purchase: (dist.complete_purchase || []).map(p => {
-            const priceInfo = pricesData[p.id];
-            if (priceInfo) {
-              return {
-                ...p,
-                min_price: priceInfo.min_price,
-                max_price: priceInfo.max_price,
-                price_range: priceInfo.price_range,
-                promos: Array.isArray(priceInfo.promos) ? priceInfo.promos : (priceInfo.promos ? [priceInfo.promos] : [])
-              };
-            }
-            return p;
-          })
-        };
-        
-        setDistribution(updatedDistribution);
+  const loadPricesForBase = useCallback(
+    async (base: HomepageDistribution, localityKey: string | undefined) => {
+      const gen = ++pricesGenRef.current;
+      setIsLoadingPrices(true);
+      try {
+        const allProducts = [
+          ...(base.featured || []),
+          ...(base.discounts || []),
+          ...(base.mattresses || []),
+          ...(base.complete_purchase || []),
+        ];
+        const productIds = allProducts.map((p) => p.id).filter(Boolean);
+        if (productIds.length === 0) return;
+
+        const pricesData = await fetchProductsPrices(productIds, localityKey);
+        if (gen !== pricesGenRef.current) return;
+
+        setDistribution(mergePricesIntoDistribution(base, pricesData));
         setPrices(pricesData);
+      } catch (err) {
+        console.error("[HomepageDistributionContext] Error loading prices:", err);
+      } finally {
+        if (gen === pricesGenRef.current) setIsLoadingPrices(false);
       }
-    } catch (err) {
-      console.error("[HomepageDistributionContext] Error loading prices:", err);
-    } finally {
-      setIsLoadingPrices(false);
-    }
-  };
+    },
+    [],
+  );
 
-  // Solo el home usa esta data (HomeProducts). Evita 2 requests pesados en catálogo, PDP, etc.
   useEffect(() => {
     if (pathname !== "/") {
       setIsLoading(false);
+      quickBaseRef.current = null;
+      homeDataReadyRef.current = false;
       return;
     }
-    loadDistribution();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locality?.id, pathname]);
+
+
+    let cancelled = false;
+    const needQuickFetch = !homeDataReadyRef.current;
+
+    (async () => {
+      if (needQuickFetch) {
+        setIsLoading(true);
+        setError(null);
+        try {
+          const data = await fetchPublicHomepageDistributionQuick();
+          if (cancelled) return;
+          quickBaseRef.current = data;
+          homeDataReadyRef.current = true;
+          setDistribution(data);
+        } catch (err) {
+          const e = err instanceof Error ? err : new Error("Error loading homepage distribution");
+          setError(e);
+          console.error("[HomepageDistributionContext] Error loading distribution:", e);
+        } finally {
+          if (!cancelled) setIsLoading(false);
+        }
+      }
+
+      if (cancelled || !quickBaseRef.current) return;
+      await loadPricesForBase(quickBaseRef.current, localityId);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, localityId, loadPricesForBase]);
+
+  const refetch = useCallback(async () => {
+    if (pathname !== "/") return;
+    homeDataReadyRef.current = false;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await fetchPublicHomepageDistributionQuick();
+      quickBaseRef.current = data;
+      homeDataReadyRef.current = true;
+      setDistribution(data);
+      await loadPricesForBase(data, localityId);
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error("Error loading homepage distribution");
+      setError(e);
+      console.error("[HomepageDistributionContext] Error loading distribution:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [pathname, localityId, loadPricesForBase]);
 
   return (
     <HomepageDistributionContext.Provider
@@ -164,7 +180,7 @@ export function HomepageDistributionProvider({ children }: { children: ReactNode
         isLoading,
         isLoadingPrices,
         error,
-        refetch: loadDistribution,
+        refetch,
       }}
     >
       {children}
