@@ -121,10 +121,9 @@ export default function ProductDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId, favorites]);
 
-  // Inicializar cache de catálogos cuando se carga la localidad
   useEffect(() => {
     if (locality?.id) {
-      initializeCatalogCache().catch(() => {});
+      initializeCatalogCache(locality.id).catch(() => {});
     }
   }, [locality?.id]);
 

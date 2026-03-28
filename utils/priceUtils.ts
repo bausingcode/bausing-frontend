@@ -4,7 +4,7 @@
  * para facilitar agregar nuevas condiciones en el futuro
  */
 
-import { Product, fetchCatalogs, Catalog } from "@/lib/api";
+import { Product, fetchCatalogs, Catalog, fetchCatalogIdForLocality } from "@/lib/api";
 import { calculatePriceWithPromo, getPromoLabel, PromoCalculationResult } from "./promoUtils";
 
 // Cache para mapeo de localidad a catálogo (para evitar múltiples llamadas)
@@ -46,32 +46,23 @@ async function getCatalogForLocality(localityId: string): Promise<string | null>
 }
 
 /**
- * Inicializa el cache de catálogos (debe llamarse cuando se carga la localidad)
+ * Inicializa el mapeo localidad → catálogo para la página actual.
+ * Con localityId: una sola petición GET /localities/:id/catalog (evita GET /catalogs?include_localities=true).
  */
-export async function initializeCatalogCache(): Promise<void> {
+export async function initializeCatalogCache(localityId?: string | null): Promise<void> {
   try {
-    console.log('[initializeCatalogCache] Iniciando inicialización del cache...');
-    if (!catalogsCache) {
-      console.log('[initializeCatalogCache] Cache no existe, cargando catálogos...');
-      catalogsCache = await fetchCatalogs(true);
-      console.log('[initializeCatalogCache] Catálogos cargados:', catalogsCache.length);
-      
-      // Construir el mapa de localidad -> catálogo
+    if (!localityId) {
+      return;
+    }
+    if (!localityToCatalogCache) {
       localityToCatalogCache = new Map();
-      let totalLocalities = 0;
-      catalogsCache.forEach(catalog => {
-        if (catalog.localities) {
-          catalog.localities.forEach(locality => {
-            localityToCatalogCache!.set(locality.id, catalog.id);
-            totalLocalities++;
-          });
-          console.log('[initializeCatalogCache] Catálogo:', catalog.name, '- Localidades:', catalog.localities.length);
-        }
-      });
-      console.log('[initializeCatalogCache] Cache inicializado. Total localidades mapeadas:', totalLocalities);
-      console.log('[initializeCatalogCache] Mapa completo:', Array.from(localityToCatalogCache.entries()));
-    } else {
-      console.log('[initializeCatalogCache] Cache ya existe, no es necesario recargar');
+    }
+    if (localityToCatalogCache.has(localityId)) {
+      return;
+    }
+    const catalogId = await fetchCatalogIdForLocality(localityId);
+    if (catalogId) {
+      localityToCatalogCache.set(localityId, catalogId);
     }
   } catch (error) {
     console.error('[initializeCatalogCache] Error inicializando cache:', error);

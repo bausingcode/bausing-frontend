@@ -193,6 +193,34 @@ export async function fetchCatalogs(includeLocalities = false, cookieHeader?: st
 }
 
 /**
+ * Resolve catalog_id for a locality (single round-trip; avoids fetching all catalogs).
+ */
+export async function fetchCatalogIdForLocality(
+  localityId: string,
+  cookieHeader?: string | null
+): Promise<string | null> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/localities/${localityId}/catalog`
+      : `/api/localities/${localityId}/catalog`;
+
+  const headers =
+    typeof window === "undefined"
+      ? getAuthHeadersServer(cookieHeader)
+      : getAuthHeaders();
+
+  const response = await fetch(url, { headers, cache: "no-store" });
+  if (!response.ok) {
+    return null;
+  }
+  const data = await response.json();
+  if (data.success && data.data?.catalog_id) {
+    return data.data.catalog_id as string;
+  }
+  return null;
+}
+
+/**
  * Fetch a single catalog by ID
  */
 export async function fetchCatalogById(catalogId: string, cookieHeader?: string | null): Promise<Catalog | null> {
