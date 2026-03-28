@@ -40,16 +40,15 @@ export default async function Home() {
   let activeEvent = null;
 
   try {
-    const [fetchedHeroImages, fetchedInfoBanners, descuentazosBanners, fetchedVideos, fetchedEvent] = await Promise.all([
-      fetchHeroImages(1, true).catch(() => [] as HeroImage[]),
-      fetchHeroImages(2, true).catch(() => [] as HeroImage[]),
-      fetchHeroImages(3, true).catch(() => [] as HeroImage[]),
-      fetchHeroImages(6, true).catch(() => [] as HeroImage[]),
+    const [allHeroImages, fetchedEvent] = await Promise.all([
+      fetchHeroImages(undefined, true).catch(() => [] as HeroImage[]),
       fetchActiveEvent().catch(() => null),
     ]);
 
-    heroImages = fetchedHeroImages;
-    infoBanners = fetchedInfoBanners;
+    heroImages = allHeroImages.filter((img) => img.position === 1);
+    infoBanners = allHeroImages.filter((img) => img.position === 2);
+    const descuentazosBanners = allHeroImages.filter((img) => img.position === 3);
+    const fetchedVideos = allHeroImages.filter((img) => img.position === 6);
     descuentazosBanner = descuentazosBanners.length > 0 ? descuentazosBanners[0] : null;
     videoData = fetchedVideos.length > 0 ? fetchedVideos[0] : null;
     activeEvent = fetchedEvent;

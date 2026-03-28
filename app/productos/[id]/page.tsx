@@ -133,19 +133,11 @@ export default function ProductDetailPage() {
       try {
         setLoading(true);
         
-        // Cargar producto, combos y banner en paralelo (productos similares se cargan después para no bloquear)
-        const [apiProduct, combos, banners] = await Promise.all([
+        const [apiProduct, combos] = await Promise.all([
           fetchProductById(productId, locality?.id),
           fetchProductCombos(productId).catch(() => []),
-          fetchHeroImages(4, true).catch(() => []) // Position 4 para banner de productos
         ]);
-        
-        // Establecer banner si existe
-        if (banners && banners.length > 0) {
-          setProductBanner(banners[0]);
-        }
 
-        // Establecer combos inmediatamente
         setProductCombos(combos);
 
         // Special category logic - fetch category products for combo section
@@ -340,6 +332,19 @@ export default function ProductDetailPage() {
 
     loadProduct();
   }, [productId, locality?.id]);
+
+  useEffect(() => {
+    if (!productId) return;
+    let cancelled = false;
+    fetchHeroImages(4, true)
+      .then((banners) => {
+        if (!cancelled && banners?.length) setProductBanner(banners[0]);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [productId]);
   
   // Escuchar cambios de localidad desde el evento personalizado
   useEffect(() => {

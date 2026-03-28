@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { fetchPublicHomepageDistributionQuick, fetchProductsPrices, Product } from "@/lib/api";
 import { useLocality } from "./LocalityContext";
 
@@ -32,7 +33,8 @@ interface HomepageDistributionContextType {
 const HomepageDistributionContext = createContext<HomepageDistributionContextType | undefined>(undefined);
 
 export function HomepageDistributionProvider({ children }: { children: ReactNode }) {
-  const { locality, isLoading: localityLoading } = useLocality();
+  const pathname = usePathname();
+  const { locality } = useLocality();
   const [distribution, setDistribution] = useState<HomepageDistribution | null>(null);
   const [prices, setPrices] = useState<PricesMap>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -144,12 +146,15 @@ export function HomepageDistributionProvider({ children }: { children: ReactNode
     }
   };
 
-  // Cargar distribución inmediatamente al montar, y luego cuando cambie la localidad
-  // loadDistribution ya llama a loadPrices internamente, no hace falta un segundo efecto
+  // Solo el home usa esta data (HomeProducts). Evita 2 requests pesados en catálogo, PDP, etc.
   useEffect(() => {
+    if (pathname !== "/") {
+      setIsLoading(false);
+      return;
+    }
     loadDistribution();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locality?.id]);
+  }, [locality?.id, pathname]);
 
   return (
     <HomepageDistributionContext.Provider
