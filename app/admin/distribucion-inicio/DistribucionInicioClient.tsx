@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import PageHeader from "@/components/PageHeader";
 import { Package, Search, X, Loader2, Plus } from "lucide-react";
 import {
@@ -9,6 +9,7 @@ import {
   publishHomepageDistribution,
   discardHomepageDraft,
   HomepageDistribution,
+  HomepageDistributionItem,
   fetchProducts,
   Product,
 } from "@/lib/api";
@@ -279,6 +280,24 @@ export default function DistribucionInicioClient() {
   const [loadingSections, setLoadingSections] = useState<Set<string>>(new Set());
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const productById = useMemo(() => {
+    const m = new Map<string, Product>();
+    for (const p of products) {
+      m.set(p.id, p);
+    }
+    return m;
+  }, [products]);
+
+  const resolveSlotProduct = (
+    item: HomepageDistributionItem | null | undefined
+  ): Product | null => {
+    if (!item) return null;
+    if (item.product) return item.product;
+    if (item.product_id) return productById.get(item.product_id) ?? null;
+    return null;
+  };
 
   useEffect(() => {
     // Cargar distribución y productos al montar el componente
@@ -294,12 +313,18 @@ export default function DistribucionInicioClient() {
   const loadDistribution = async () => {
     setIsLoading(true);
     try {
+      setLoadError(null);
       const data = await fetchHomepageDistribution();
       setDistribution(data.draft);
       setPublishedGrid(data.published);
       setHasUnpublishedChanges(data.has_unpublished_changes);
     } catch (error) {
       console.error("Error loading distribution:", error);
+      setLoadError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo cargar la distribución del inicio"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -341,12 +366,16 @@ export default function DistribucionInicioClient() {
     }
     
     try {
+      setLoadError(null);
       const data = await fetchHomepageDistribution();
       setDistribution(data.draft);
       setPublishedGrid(data.published);
       setHasUnpublishedChanges(data.has_unpublished_changes);
     } catch (error) {
       console.error("Error loading distribution:", error);
+      setLoadError(
+        error instanceof Error ? error.message : "Error al sincronizar la distribución"
+      );
     } finally {
       if (section) {
         setLoadingSections((prev) => {
@@ -526,6 +555,12 @@ export default function DistribucionInicioClient() {
         tocás &quot;Publicar cambios&quot;.
       </p>
 
+      {loadError ? (
+        <div className="mt-4 rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 whitespace-pre-wrap">
+          {loadError}
+        </div>
+      ) : null}
+
       {hasUnpublishedChanges ? (
         <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-[10px] border border-amber-200 bg-amber-50 px-4 py-3">
           <p className="text-sm text-amber-900">
@@ -607,8 +642,8 @@ export default function DistribucionInicioClient() {
               <div className={`grid gap-4 ${count === 3 ? 'grid-cols-3' : 'grid-cols-4'}`}>
                 {Array.from({ length: count }).map((_, index) => {
                   const item = activeGrid?.[key as keyof HomepageDistribution]?.[index];
-                  const product = item?.product || null;
-                  const brokenRef = Boolean(item?.product_id && !item?.product);
+                  const product = resolveSlotProduct(item);
+                  const brokenRef = Boolean(item?.product_id && !product);
 
                   return (
                     <div key={index}>

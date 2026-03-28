@@ -1,3 +1,12 @@
+/** Cookie value puede incluir "=" (p. ej. padding en JWT); no usar split("=")[1]. */
+function _parseCookiePair(cookiePair: string): { name: string; value: string } | null {
+  const t = cookiePair.trim();
+  if (!t) return null;
+  const eq = t.indexOf("=");
+  if (eq <= 0) return null;
+  return { name: t.slice(0, eq).trim(), value: t.slice(eq + 1) };
+}
+
 /**
  * Helper function to get admin token from cookies
  */
@@ -6,9 +15,13 @@ export function getAdminToken(): string | null {
   
   const cookies = document.cookie.split(";");
   for (const cookie of cookies) {
-    const [name, value] = cookie.trim().split("=");
-    if (name === "admin_token") {
-      return value;
+    const pair = _parseCookiePair(cookie);
+    if (pair && pair.name === "admin_token") {
+      try {
+        return decodeURIComponent(pair.value);
+      } catch {
+        return pair.value;
+      }
     }
   }
   return null;
@@ -22,9 +35,13 @@ export function getAdminTokenServer(cookieHeader?: string | null): string | null
   
   const cookies = cookieHeader.split(";");
   for (const cookie of cookies) {
-    const [name, value] = cookie.trim().split("=");
-    if (name === "admin_token") {
-      return value;
+    const pair = _parseCookiePair(cookie);
+    if (pair && pair.name === "admin_token") {
+      try {
+        return decodeURIComponent(pair.value);
+      } catch {
+        return pair.value;
+      }
     }
   }
   return null;
@@ -4786,6 +4803,45 @@ export interface HomepageDistributionItem {
   updated_at?: string;
 }
 
+function _isHomepageGridShape(x: unknown): x is HomepageDistribution {
+  if (!x || typeof x !== "object") return false;
+  const o = x as Record<string, unknown>;
+  return (
+    Array.isArray(o.featured) &&
+    Array.isArray(o.discounts) &&
+    Array.isArray(o.mattresses) &&
+    Array.isArray(o.complete_purchase)
+  );
+}
+
+/** Acepta `{ published, draft }` o la grilla plana legacy `{ featured, ... }`. */
+function _normalizeHomepageAdminPayload(raw: unknown): HomepageDistributionAdminResponse {
+  if (!raw || typeof raw !== "object") {
+    throw new Error("Respuesta de distribución vacía o inválida");
+  }
+  const d = raw as Record<string, unknown>;
+  if (
+    _isHomepageGridShape(d.draft) &&
+    _isHomepageGridShape(d.published) &&
+    typeof d.has_unpublished_changes === "boolean"
+  ) {
+    return {
+      published: d.published,
+      draft: d.draft,
+      has_unpublished_changes: d.has_unpublished_changes,
+    };
+  }
+  if (_isHomepageGridShape(raw)) {
+    const grid = raw;
+    return {
+      published: grid,
+      draft: grid,
+      has_unpublished_changes: false,
+    };
+  }
+  throw new Error("Formato de distribución no reconocido");
+}
+
 /**
  * Fetch homepage product distribution (admin): published + draft merged
  */
@@ -4810,7 +4866,7 @@ export async function fetchHomepageDistribution(): Promise<HomepageDistributionA
       throw new Error(data.error || "Failed to fetch homepage distribution");
     }
     
-    return data.data;
+    return _normalizeHomepageAdminPayload(data.data);
   } catch (error) {
     console.error("Error fetching homepage distribution:", error);
     throw error;
