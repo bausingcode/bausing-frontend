@@ -5008,8 +5008,10 @@ export async function setHomepageDistribution(params: {
     if (!data.success) {
       throw new Error(data.error || "Failed to set homepage distribution");
     }
-    
-    return data.data as HomepageDistributionItem | undefined;
+    if (data.data == null) {
+      throw new Error("Failed to set homepage distribution: empty response");
+    }
+    return data.data as HomepageDistributionItem;
   } catch (error) {
     console.error("Error setting homepage distribution:", error);
     throw error;
