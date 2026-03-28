@@ -21,16 +21,19 @@ interface ProductCardProps {
   position: number;
   onSelect: () => void;
   onRemove: () => void;
+  readOnly?: boolean;
 }
 
 function BrokenRefSlot({
   productId,
   onSelect,
   onRemove,
+  readOnly = false,
 }: {
   productId?: string | null;
   onSelect: () => void;
   onRemove: () => void;
+  readOnly?: boolean;
 }) {
   return (
     <div className="relative flex min-h-[320px] flex-col justify-between rounded-[10px] border-2 border-dashed border-amber-300 bg-amber-50/50 p-4">
@@ -40,42 +43,54 @@ function BrokenRefSlot({
       {productId ? (
         <p className="mt-2 font-mono text-xs text-gray-600 break-all">{productId}</p>
       ) : null}
-      <div className="mt-4 flex gap-2">
-        <button
-          type="button"
-          onClick={onSelect}
-          className="flex-1 rounded-[8px] bg-[#00C1A7] px-3 py-2 text-sm text-white hover:opacity-90"
-        >
-          Reemplazar
-        </button>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="rounded-[8px] border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-        >
-          Quitar
-        </button>
-      </div>
+      {readOnly ? null : (
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={onSelect}
+            className="flex-1 rounded-[8px] bg-[#00C1A7] px-3 py-2 text-sm text-white hover:opacity-90"
+          >
+            Reemplazar
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="rounded-[8px] border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            Quitar
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-function ProductCardSlot({ product, section, position, onSelect, onRemove }: ProductCardProps) {
+function ProductCardSlot({
+  product,
+  section,
+  position,
+  onSelect,
+  onRemove,
+  readOnly = false,
+}: ProductCardProps) {
   const handleRemove = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Llamar directamente sin loader
     onRemove();
   };
 
   if (!product) {
     return (
       <div
-        onClick={onSelect}
-        className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-[10px] p-6 flex flex-col items-center justify-center min-h-[320px] cursor-pointer hover:border-[#00C1A7] hover:bg-gray-100 transition-all group"
+        onClick={readOnly ? undefined : onSelect}
+        className={
+          readOnly
+            ? "bg-gray-50 border-2 border-dashed border-gray-200 rounded-[10px] p-6 flex flex-col items-center justify-center min-h-[320px] cursor-default"
+            : "bg-gray-50 border-2 border-dashed border-gray-300 rounded-[10px] p-6 flex flex-col items-center justify-center min-h-[320px] cursor-pointer hover:border-[#00C1A7] hover:bg-gray-100 transition-all group"
+        }
       >
-        <Plus className="w-12 h-12 text-gray-400 group-hover:text-[#00C1A7] transition-colors mb-3" />
-        <p className="text-sm text-gray-500 group-hover:text-[#00C1A7] transition-colors">
-          Seleccionar producto
+        <Plus className={`w-12 h-12 mb-3 ${readOnly ? "text-gray-300" : "text-gray-400 group-hover:text-[#00C1A7] transition-colors"}`} />
+        <p className={`text-sm ${readOnly ? "text-gray-400" : "text-gray-500 group-hover:text-[#00C1A7] transition-colors"}`}>
+          {readOnly ? "Vacío" : "Seleccionar producto"}
         </p>
       </div>
     );
@@ -86,20 +101,22 @@ function ProductCardSlot({ product, section, position, onSelect, onRemove }: Pro
   const optimizedImage = image.includes('wsrv.nl') ? image : wsrvLoader({ src: image, width: 400 });
 
   return (
-    <div className="relative group bg-white border border-gray-200 rounded-[10px] overflow-hidden hover:shadow-lg transition-all">
+    <div className={`relative group bg-white border border-gray-200 rounded-[10px] overflow-hidden ${readOnly ? "" : "hover:shadow-lg"} transition-all`}>
       <div className="relative w-full h-64 overflow-hidden">
         <img
           src={optimizedImage}
           alt={product.name}
           className="w-full h-full object-cover"
         />
-        <button
-          onClick={handleRemove}
-          className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-          title="Eliminar producto"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        {readOnly ? null : (
+          <button
+            onClick={handleRemove}
+            className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+            title="Eliminar producto"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
       <div className="p-4">
         <h4 className="text-sm font-medium text-gray-900 mb-2 line-clamp-2">
@@ -252,6 +269,8 @@ function ProductSelectionModal({
 
 export default function DistribucionInicioClient() {
   const [distribution, setDistribution] = useState<HomepageDistribution | null>(null);
+  const [publishedGrid, setPublishedGrid] = useState<HomepageDistribution | null>(null);
+  const [adminView, setAdminView] = useState<"draft" | "published">("draft");
   const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -277,6 +296,7 @@ export default function DistribucionInicioClient() {
     try {
       const data = await fetchHomepageDistribution();
       setDistribution(data.draft);
+      setPublishedGrid(data.published);
       setHasUnpublishedChanges(data.has_unpublished_changes);
     } catch (error) {
       console.error("Error loading distribution:", error);
@@ -323,6 +343,7 @@ export default function DistribucionInicioClient() {
     try {
       const data = await fetchHomepageDistribution();
       setDistribution(data.draft);
+      setPublishedGrid(data.published);
       setHasUnpublishedChanges(data.has_unpublished_changes);
     } catch (error) {
       console.error("Error loading distribution:", error);
@@ -489,6 +510,10 @@ export default function DistribucionInicioClient() {
     { key: "complete_purchase", count: 4 },
   ];
 
+  const activeGrid =
+    adminView === "draft" ? distribution : publishedGrid ?? distribution;
+  const gridReadOnly = adminView === "published";
+
   return (
     <div className="p-6">
       <PageHeader
@@ -527,6 +552,38 @@ export default function DistribucionInicioClient() {
         </div>
       ) : null}
 
+      <div className="mt-4 inline-flex flex-wrap gap-1 rounded-[10px] border border-gray-200 bg-gray-50 p-1">
+        <button
+          type="button"
+          onClick={() => setAdminView("draft")}
+          className={`rounded-[8px] px-4 py-2 text-sm font-medium transition-colors ${
+            adminView === "draft"
+              ? "bg-white text-gray-900 shadow-sm"
+              : "text-gray-600 hover:text-gray-900"
+          }`}
+        >
+          Borrador (editable)
+        </button>
+        <button
+          type="button"
+          onClick={() => setAdminView("published")}
+          className={`rounded-[8px] px-4 py-2 text-sm font-medium transition-colors ${
+            adminView === "published"
+              ? "bg-white text-gray-900 shadow-sm"
+              : "text-gray-600 hover:text-gray-900"
+          }`}
+        >
+          Publicado en el sitio
+        </button>
+      </div>
+
+      {adminView === "published" ? (
+        <p className="mt-2 text-xs text-gray-500">
+          Vista de solo lectura: es lo que ven los visitantes hoy (si no hay borrador sin publicar
+          pendiente coincide con el borrador).
+        </p>
+      ) : null}
+
       <div className="mt-6 space-y-8">
         {sections.map(({ key, count }) => {
           const isLoadingSection = loadingSections.has(key);
@@ -549,7 +606,7 @@ export default function DistribucionInicioClient() {
               
               <div className={`grid gap-4 ${count === 3 ? 'grid-cols-3' : 'grid-cols-4'}`}>
                 {Array.from({ length: count }).map((_, index) => {
-                  const item = distribution?.[key as keyof HomepageDistribution]?.[index];
+                  const item = activeGrid?.[key as keyof HomepageDistribution]?.[index];
                   const product = item?.product || null;
                   const brokenRef = Boolean(item?.product_id && !item?.product);
 
@@ -558,6 +615,7 @@ export default function DistribucionInicioClient() {
                       {brokenRef ? (
                         <BrokenRefSlot
                           productId={item?.product_id}
+                          readOnly={gridReadOnly}
                           onSelect={() => setSelectedSlot({ section: key, position: index })}
                           onRemove={() => handleRemoveProduct(key, index)}
                         />
@@ -566,6 +624,7 @@ export default function DistribucionInicioClient() {
                           product={product}
                           section={key}
                           position={index}
+                          readOnly={gridReadOnly}
                           onSelect={() => setSelectedSlot({ section: key, position: index })}
                           onRemove={() => handleRemoveProduct(key, index)}
                         />
