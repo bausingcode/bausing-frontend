@@ -4842,6 +4842,42 @@ function _normalizeHomepageAdminPayload(raw: unknown): HomepageDistributionAdmin
   throw new Error("Formato de distribución no reconocido");
 }
 
+/** Debug en consola del navegador (filtrar: "Distribución inicio") */
+function _debugLogHomepageAdminRaw(data: unknown): void {
+  if (typeof window === "undefined") return;
+  const P = "[Distribución inicio API]";
+  try {
+    const root = data as Record<string, unknown>;
+    const inner = root?.data;
+    console.log(P, "success:", root?.success, "top-level keys:", inner && typeof inner === "object" ? Object.keys(inner as object) : typeof inner);
+    if (!inner || typeof inner !== "object") {
+      console.log(P, "data (raw):", inner);
+      return;
+    }
+    const o = inner as Record<string, unknown>;
+    for (const sec of ["featured", "discounts", "mattresses", "complete_purchase"] as const) {
+      const arr = o[sec];
+      if (!Array.isArray(arr)) {
+        console.log(P, sec, "→ no es array:", arr);
+        continue;
+      }
+      const filled = arr.filter((x) => x != null).length;
+      const sample = arr.find((x) => x != null) as Record<string, unknown> | undefined;
+      const sampleInfo = sample
+        ? {
+            keys: Object.keys(sample),
+            product_id: sample.product_id,
+            has_product: !!sample.product,
+            product_name: (sample.product as { name?: string } | undefined)?.name,
+          }
+        : null;
+      console.log(P, sec, `slots=${arr.length} con_dato=${filled}`, "muestra:", sampleInfo);
+    }
+  } catch (e) {
+    console.warn(P, "debug falló", e);
+  }
+}
+
 /**
  * Fetch homepage product distribution (admin): published + draft merged
  */
@@ -4865,8 +4901,16 @@ export async function fetchHomepageDistribution(): Promise<HomepageDistributionA
     if (!data.success) {
       throw new Error(data.error || "Failed to fetch homepage distribution");
     }
-    
-    return _normalizeHomepageAdminPayload(data.data);
+
+    _debugLogHomepageAdminRaw(data);
+
+    const normalized = _normalizeHomepageAdminPayload(data.data);
+    if (typeof window !== "undefined") {
+      console.log("[Distribución inicio API]", "normalizado OK", {
+        has_unpublished_changes: normalized.has_unpublished_changes,
+      });
+    }
+    return normalized;
   } catch (error) {
     console.error("Error fetching homepage distribution:", error);
     throw error;
