@@ -4769,6 +4769,13 @@ export interface HomepageDistribution {
   complete_purchase: (HomepageDistributionItem | null)[];
 }
 
+/** Respuesta del GET admin: borrador mezclado + vista publicada */
+export interface HomepageDistributionAdminResponse {
+  published: HomepageDistribution;
+  draft: HomepageDistribution;
+  has_unpublished_changes: boolean;
+}
+
 export interface HomepageDistributionItem {
   id: string;
   section: string;
@@ -4780,9 +4787,9 @@ export interface HomepageDistributionItem {
 }
 
 /**
- * Fetch homepage product distribution (admin)
+ * Fetch homepage product distribution (admin): published + draft merged
  */
-export async function fetchHomepageDistribution(): Promise<HomepageDistribution> {
+export async function fetchHomepageDistribution(): Promise<HomepageDistributionAdminResponse> {
   try {
     const url = typeof window === "undefined"
       ? `${BACKEND_URL}/admin/homepage-distribution`
@@ -4807,6 +4814,64 @@ export async function fetchHomepageDistribution(): Promise<HomepageDistribution>
   } catch (error) {
     console.error("Error fetching homepage distribution:", error);
     throw error;
+  }
+}
+
+/**
+ * Aplicar borrador al sitio (reemplaza la distribución publicada).
+ */
+export async function publishHomepageDistribution(): Promise<void> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/homepage-distribution/publish`
+    : `/api/admin/homepage-distribution/publish`;
+
+  const headers = typeof window === "undefined"
+    ? getAuthHeadersServer()
+    : getAuthHeaders();
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Error al publicar: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  if (!data.success) {
+    throw new Error(data.error || "Error al publicar la distribución");
+  }
+}
+
+/**
+ * Eliminar todas las filas de borrador (sin tocar lo publicado).
+ */
+export async function discardHomepageDraft(): Promise<void> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/homepage-distribution/draft`
+    : `/api/admin/homepage-distribution/draft`;
+
+  const headers = typeof window === "undefined"
+    ? getAuthHeadersServer()
+    : getAuthHeaders();
+
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers,
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Error al descartar borrador: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  if (!data.success) {
+    throw new Error(data.error || "Error al descartar el borrador");
   }
 }
 
@@ -4844,7 +4909,7 @@ export async function setHomepageDistribution(params: {
       throw new Error(data.error || "Failed to set homepage distribution");
     }
     
-    return data.data;
+    return data.data as HomepageDistributionItem | undefined;
   } catch (error) {
     console.error("Error setting homepage distribution:", error);
     throw error;

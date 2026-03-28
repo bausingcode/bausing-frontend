@@ -3,13 +3,14 @@
 import React, { useState, useEffect } from "react";
 import PageHeader from "@/components/PageHeader";
 import { Package, Search, X, Loader2, Plus } from "lucide-react";
-import { 
-  fetchHomepageDistribution, 
-  setHomepageDistribution, 
-  HomepageDistribution, 
-  HomepageDistributionItem,
+import {
+  fetchHomepageDistribution,
+  setHomepageDistribution,
+  publishHomepageDistribution,
+  discardHomepageDraft,
+  HomepageDistribution,
   fetchProducts,
-  Product
+  Product,
 } from "@/lib/api";
 import { calculateProductPrice } from "@/utils/priceUtils";
 import wsrvLoader from "@/lib/wsrvLoader";
@@ -20,6 +21,43 @@ interface ProductCardProps {
   position: number;
   onSelect: () => void;
   onRemove: () => void;
+}
+
+function BrokenRefSlot({
+  productId,
+  onSelect,
+  onRemove,
+}: {
+  productId?: string | null;
+  onSelect: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="relative flex min-h-[320px] flex-col justify-between rounded-[10px] border-2 border-dashed border-amber-300 bg-amber-50/50 p-4">
+      <p className="text-sm text-amber-900">
+        Referencia rota: el producto ya no existe o no se pudo cargar.
+      </p>
+      {productId ? (
+        <p className="mt-2 font-mono text-xs text-gray-600 break-all">{productId}</p>
+      ) : null}
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          onClick={onSelect}
+          className="flex-1 rounded-[8px] bg-[#00C1A7] px-3 py-2 text-sm text-white hover:opacity-90"
+        >
+          Reemplazar
+        </button>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="rounded-[8px] border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+        >
+          Quitar
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function ProductCardSlot({ product, section, position, onSelect, onRemove }: ProductCardProps) {
@@ -214,7 +252,10 @@ function ProductSelectionModal({
 
 export default function DistribucionInicioClient() {
   const [distribution, setDistribution] = useState<HomepageDistribution | null>(null);
+  const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isDiscarding, setIsDiscarding] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ section: string; position: number } | null>(null);
   const [loadingSections, setLoadingSections] = useState<Set<string>>(new Set());
   const [products, setProducts] = useState<Product[]>([]);
@@ -235,7 +276,8 @@ export default function DistribucionInicioClient() {
     setIsLoading(true);
     try {
       const data = await fetchHomepageDistribution();
-      setDistribution(data);
+      setDistribution(data.draft);
+      setHasUnpublishedChanges(data.has_unpublished_changes);
     } catch (error) {
       console.error("Error loading distribution:", error);
     } finally {
@@ -280,17 +322,58 @@ export default function DistribucionInicioClient() {
     
     try {
       const data = await fetchHomepageDistribution();
-      setDistribution(data);
+      setDistribution(data.draft);
+      setHasUnpublishedChanges(data.has_unpublished_changes);
     } catch (error) {
       console.error("Error loading distribution:", error);
     } finally {
       if (section) {
-        setLoadingSections(prev => {
+        setLoadingSections((prev) => {
           const newSet = new Set(prev);
           newSet.delete(section);
           return newSet;
         });
       }
+    }
+  };
+
+  const handlePublish = async () => {
+    if (
+      !window.confirm(
+        "¿Publicar el borrador? Los visitantes verán esta distribución en el inicio."
+      )
+    ) {
+      return;
+    }
+    setIsPublishing(true);
+    try {
+      await publishHomepageDistribution();
+      await loadDistribution();
+    } catch (error) {
+      console.error(error);
+      alert("No se pudo publicar. Reintentá o revisá la consola.");
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleDiscardDraft = async () => {
+    if (
+      !window.confirm(
+        "¿Descartar todo el borrador? Volvé a la distribución que está publicada ahora."
+      )
+    ) {
+      return;
+    }
+    setIsDiscarding(true);
+    try {
+      await discardHomepageDraft();
+      await loadDistribution();
+    } catch (error) {
+      console.error(error);
+      alert("No se pudo descartar el borrador.");
+    } finally {
+      setIsDiscarding(false);
     }
   };
 
@@ -413,6 +496,37 @@ export default function DistribucionInicioClient() {
         icon={<Package className="w-6 h-6" />}
       />
 
+      <p className="mt-4 text-sm text-gray-600 max-w-3xl">
+        Los cambios en los casilleros quedan en borrador. La web pública no se actualiza hasta que
+        tocás &quot;Publicar cambios&quot;.
+      </p>
+
+      {hasUnpublishedChanges ? (
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-[10px] border border-amber-200 bg-amber-50 px-4 py-3">
+          <p className="text-sm text-amber-900">
+            Hay cambios en borrador que aún no están en el sitio.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handlePublish}
+              disabled={isPublishing || isDiscarding}
+              className="rounded-[8px] bg-[#00C1A7] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            >
+              {isPublishing ? "Publicando…" : "Publicar cambios"}
+            </button>
+            <button
+              type="button"
+              onClick={handleDiscardDraft}
+              disabled={isPublishing || isDiscarding}
+              className="rounded-[8px] border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {isDiscarding ? "Descartando…" : "Descartar borrador"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="mt-6 space-y-8">
         {sections.map(({ key, count }) => {
           const isLoadingSection = loadingSections.has(key);
@@ -437,16 +551,26 @@ export default function DistribucionInicioClient() {
                 {Array.from({ length: count }).map((_, index) => {
                   const item = distribution?.[key as keyof HomepageDistribution]?.[index];
                   const product = item?.product || null;
+                  const brokenRef = Boolean(item?.product_id && !item?.product);
 
                   return (
-                    <ProductCardSlot
-                      key={index}
-                      product={product}
-                      section={key}
-                      position={index}
-                      onSelect={() => setSelectedSlot({ section: key, position: index })}
-                      onRemove={() => handleRemoveProduct(key, index)}
-                    />
+                    <div key={index}>
+                      {brokenRef ? (
+                        <BrokenRefSlot
+                          productId={item?.product_id}
+                          onSelect={() => setSelectedSlot({ section: key, position: index })}
+                          onRemove={() => handleRemoveProduct(key, index)}
+                        />
+                      ) : (
+                        <ProductCardSlot
+                          product={product}
+                          section={key}
+                          position={index}
+                          onSelect={() => setSelectedSlot({ section: key, position: index })}
+                          onRemove={() => handleRemoveProduct(key, index)}
+                        />
+                      )}
+                    </div>
                   );
                 })}
               </div>
