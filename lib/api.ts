@@ -84,10 +84,19 @@ export interface CategoryOption {
   created_at?: string;
 }
 
+const categoriesClientInflight = new Map<string, Promise<Category[]>>();
+
 /**
  * Fetch all categories from the backend
  */
 export async function fetchCategories(includeOptions = false, cookieHeader?: string | null): Promise<Category[]> {
+  const dedupeKey = `${includeOptions}:${cookieHeader ?? ""}`;
+  if (typeof window !== "undefined") {
+    const pending = categoriesClientInflight.get(dedupeKey);
+    if (pending) return pending;
+  }
+
+  const run = (async () => {
   // En el servidor, usar la URL completa del backend
   // En el cliente, usar la ruta relativa que será manejada por el rewrite de Next.js
   const url = typeof window === "undefined"
@@ -110,6 +119,16 @@ export async function fetchCategories(includeOptions = false, cookieHeader?: str
   
   const data = await response.json();
   return data.success ? data.data : [];
+  })();
+
+  if (typeof window !== "undefined") {
+    categoriesClientInflight.set(dedupeKey, run);
+    run.finally(() => {
+      categoriesClientInflight.delete(dedupeKey);
+    });
+  }
+
+  return run;
 }
 
 // Localities API
@@ -4818,7 +4837,7 @@ export async function fetchPublicHomepageDistributionQuick(): Promise<{
       ? `${BACKEND_URL}/homepage-distribution/quick`
       : `/api/homepage-distribution/quick`;
     
-    const response = await fetch(url, { cache: "no-store" });
+    const response = await fetch(url, { cache: "default" });
     
     if (!response.ok) {
       console.warn("Homepage distribution quick endpoint not available, using fallback");
