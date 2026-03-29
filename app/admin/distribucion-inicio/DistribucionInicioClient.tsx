@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import PageHeader from "@/components/PageHeader";
-import { Package, Search, X, Loader2, Plus } from "lucide-react";
+import { Package, Search, X, Loader2, Plus, AlertCircle } from "lucide-react";
 import {
   fetchHomepageDistribution,
   setHomepageDistribution,
@@ -302,6 +302,124 @@ function ProductSelectionModal({
   );
 }
 
+function MessageModal({
+  isOpen,
+  title,
+  message,
+  onClose,
+}: {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  onClose: () => void;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center backdrop-blur-sm bg-black/20"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        className="bg-white rounded-[14px] w-full max-w-md shadow-xl border border-gray-100"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="message-modal-title"
+      >
+        <div className="p-6">
+          <div className="flex gap-3">
+            <div className="shrink-0 w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
+              <AlertCircle className="w-5 h-5 text-red-600" aria-hidden />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 id="message-modal-title" className="text-lg font-semibold text-gray-900">
+                {title}
+              </h2>
+              <p className="mt-2 text-sm text-gray-600 whitespace-pre-wrap">{message}</p>
+            </div>
+          </div>
+          <div className="mt-6 flex justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-[8px] bg-[#00C1A7] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmModal({
+  isOpen,
+  title,
+  message,
+  confirmLabel,
+  cancelLabel,
+  destructive,
+  onConfirm,
+  onCancel,
+}: {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  confirmLabel: string;
+  cancelLabel?: string;
+  destructive?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  if (!isOpen) return null;
+
+  const confirmClass = destructive
+    ? "bg-red-600 hover:bg-red-700 text-white"
+    : "bg-[#00C1A7] hover:opacity-90 text-white";
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center backdrop-blur-sm bg-black/20"
+      onClick={onCancel}
+      role="presentation"
+    >
+      <div
+        className="bg-white rounded-[14px] w-full max-w-md shadow-xl border border-gray-100"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-modal-title"
+      >
+        <div className="p-6">
+          <h2 id="confirm-modal-title" className="text-lg font-semibold text-gray-900">
+            {title}
+          </h2>
+          <p className="mt-2 text-sm text-gray-600 whitespace-pre-wrap">{message}</p>
+          <div className="mt-6 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="rounded-[8px] border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              {cancelLabel ?? "Cancelar"}
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              className={`rounded-[8px] px-4 py-2 text-sm font-medium ${confirmClass}`}
+            >
+              {confirmLabel}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DistribucionInicioClient() {
   const [distribution, setDistribution] = useState<HomepageDistribution | null>(null);
   const [publishedGrid, setPublishedGrid] = useState<HomepageDistribution | null>(null);
@@ -310,6 +428,16 @@ export default function DistribucionInicioClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isDiscarding, setIsDiscarding] = useState(false);
+  const [messageModal, setMessageModal] = useState<{ title: string; message: string } | null>(
+    null
+  );
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    destructive?: boolean;
+    onConfirm: () => void;
+  } | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<{ section: string; position: number } | null>(null);
   const [loadingSections, setLoadingSections] = useState<Set<string>>(new Set());
   const [products, setProducts] = useState<Product[]>([]);
@@ -453,44 +581,60 @@ export default function DistribucionInicioClient() {
     }
   };
 
-  const handlePublish = async () => {
-    if (
-      !window.confirm(
-        "¿Publicar el borrador? Los visitantes verán esta distribución en el inicio."
-      )
-    ) {
-      return;
-    }
-    setIsPublishing(true);
-    try {
-      await publishHomepageDistribution();
-      await loadDistribution();
-    } catch (error) {
-      console.error(error);
-      alert("No se pudo publicar. Reintentá o revisá la consola.");
-    } finally {
-      setIsPublishing(false);
-    }
+  const handlePublish = () => {
+    setConfirmModal({
+      title: "Publicar borrador",
+      message:
+        "¿Publicar el borrador? Los visitantes verán esta distribución en el inicio.",
+      confirmLabel: "Publicar",
+      destructive: false,
+      onConfirm: () => {
+        setConfirmModal(null);
+        void (async () => {
+          setIsPublishing(true);
+          try {
+            await publishHomepageDistribution();
+            await loadDistribution();
+          } catch (error) {
+            console.error(error);
+            setMessageModal({
+              title: "No se pudo publicar",
+              message: "Reintentá o revisá la consola.",
+            });
+          } finally {
+            setIsPublishing(false);
+          }
+        })();
+      },
+    });
   };
 
-  const handleDiscardDraft = async () => {
-    if (
-      !window.confirm(
-        "¿Descartar todo el borrador? Volvé a la distribución que está publicada ahora."
-      )
-    ) {
-      return;
-    }
-    setIsDiscarding(true);
-    try {
-      await discardHomepageDraft();
-      await loadDistribution();
-    } catch (error) {
-      console.error(error);
-      alert("No se pudo descartar el borrador.");
-    } finally {
-      setIsDiscarding(false);
-    }
+  const handleDiscardDraft = () => {
+    setConfirmModal({
+      title: "Descartar borrador",
+      message:
+        "¿Descartar todo el borrador? Volvé a la distribución que está publicada ahora.",
+      confirmLabel: "Descartar",
+      destructive: true,
+      onConfirm: () => {
+        setConfirmModal(null);
+        void (async () => {
+          setIsDiscarding(true);
+          try {
+            await discardHomepageDraft();
+            await loadDistribution();
+          } catch (error) {
+            console.error(error);
+            setMessageModal({
+              title: "No se pudo descartar",
+              message: "No se pudo descartar el borrador. Reintentá o revisá la consola.",
+            });
+          } finally {
+            setIsDiscarding(false);
+          }
+        })();
+      },
+    });
   };
 
   const handleSelectProduct = async (product: Product) => {
@@ -534,7 +678,10 @@ export default function DistribucionInicioClient() {
       console.error("Error setting distribution:", error);
       // Revertir el cambio optimista en caso de error
       await loadDistributionSilent(section);
-      alert("Error al guardar la distribución");
+      setMessageModal({
+        title: "Error al guardar",
+        message: "No se pudo guardar la distribución. Reintentá.",
+      });
     }
   };
 
@@ -566,7 +713,10 @@ export default function DistribucionInicioClient() {
       console.error("Error removing product:", error);
       // Revertir el cambio optimista en caso de error
       await loadDistributionSilent(section);
-      alert("Error al eliminar el producto");
+      setMessageModal({
+        title: "Error al quitar producto",
+        message: "No se pudo eliminar el producto del casillero. Reintentá.",
+      });
     }
   };
 
@@ -744,6 +894,23 @@ export default function DistribucionInicioClient() {
         onClose={() => setSelectedSlot(null)}
         onSelect={handleSelectProduct}
         products={products}
+      />
+
+      <MessageModal
+        isOpen={messageModal !== null}
+        title={messageModal?.title ?? ""}
+        message={messageModal?.message ?? ""}
+        onClose={() => setMessageModal(null)}
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal !== null}
+        title={confirmModal?.title ?? ""}
+        message={confirmModal?.message ?? ""}
+        confirmLabel={confirmModal?.confirmLabel ?? ""}
+        destructive={confirmModal?.destructive}
+        onCancel={() => setConfirmModal(null)}
+        onConfirm={() => confirmModal?.onConfirm()}
       />
     </div>
   );
