@@ -183,7 +183,10 @@ export default function CheckoutPage() {
   const [loadingCardData, setLoadingCardData] = useState(false);
   const [isThirdPartyTransport, setIsThirdPartyTransport] = useState<boolean>(false);
   const [configuredShippingPrice, setConfiguredShippingPrice] = useState<number | null>(null);
-  const lastLocalityIdRef = useRef<string | null>(null);
+  const [shippingLocalityError, setShippingLocalityError] = useState(false);
+  const [shippingQuoteLoading, setShippingQuoteLoading] = useState(false);
+  /** Evita duplicar fetch para la misma localidad + dirección de envío */
+  const lastShippingContextKeyRef = useRef<string | null>(null);
 
   // Resetear selecciones de tarjeta cuando se deselecciona
   useEffect(() => {
@@ -314,21 +317,31 @@ export default function CheckoutPage() {
         setIsPaisCatalog(false);
         setIsThirdPartyTransport(false);
         setConfiguredShippingPrice(null);
-        lastLocalityIdRef.current = null;
+        setShippingLocalityError(false);
+        setShippingQuoteLoading(false);
+        lastShippingContextKeyRef.current = null;
         return;
       }
 
-      // Evitar ejecutar si ya procesamos esta localidad
-      if (lastLocalityIdRef.current === locality.id) {
-        console.log("[DEBUG] Ya procesamos esta localidad, saltando:", locality.id);
+      const shippingContextKey = `${locality.id}:${selectedAddressId ?? ""}`;
+      if (lastShippingContextKeyRef.current === shippingContextKey) {
+        console.log("[DEBUG] Ya procesamos este contexto envío, saltando:", shippingContextKey);
+        setShippingQuoteLoading(false);
         return;
       }
 
-      console.log("[DEBUG] Procesando nueva localidad:", locality.id);
-      lastLocalityIdRef.current = locality.id;
+      console.log("[DEBUG] Procesando envío para localidad + dirección:", shippingContextKey);
+      const fetchForContextKey = shippingContextKey;
+      lastShippingContextKeyRef.current = shippingContextKey;
+      setShippingLocalityError(false);
+      setShippingQuoteLoading(true);
+      // No mostrar envío de la localidad anterior: hasta el API puede ser incorrecto usar localStorage
+      setIsPaisCatalog(false);
+      setIsThirdPartyTransport(false);
+      setConfiguredShippingPrice(null);
 
       try {
-        // Primero verificar desde localStorage (más rápido, información ya disponible)
+        // Leer localStorage solo para comparar con el servidor (no hidratar precio / tercerizado en UI)
         const savedLocality = localStorage.getItem("bausing_locality");
         let localIsThirdParty = false;
         let localShippingPrice: number | null = null;
@@ -341,31 +354,16 @@ export default function CheckoutPage() {
             shipping_price: parsedLocality.shipping_price
           });
           
-          // Verificar que la localidad del localStorage coincide con la actual
           if (parsedLocality.id === locality.id) {
-            if (parsedLocality.catalog_id === PAIS_CATALOG_ID) {
-              setIsPaisCatalog(true);
-            }
-            
-            // Guardar valores de localStorage para comparar después
             if (parsedLocality.is_third_party_transport !== undefined) {
               localIsThirdParty = parsedLocality.is_third_party_transport;
               localShippingPrice = parsedLocality.shipping_price !== undefined && parsedLocality.shipping_price !== null 
                 ? parsedLocality.shipping_price 
                 : null;
-              
-              console.log("[DEBUG] Actualizando desde localStorage:", {
+              console.log("[DEBUG] Valores localStorage (solo referencia para diff):", {
                 isThirdParty: localIsThirdParty,
                 shippingPrice: localShippingPrice
               });
-              
-              // Actualizar transporte tercerizado desde localStorage inmediatamente
-              setIsThirdPartyTransport(localIsThirdParty);
-              setConfiguredShippingPrice(localShippingPrice);
-            } else {
-              console.log("[DEBUG] No hay is_third_party_transport en localStorage, reseteando");
-              setIsThirdPartyTransport(false);
-              setConfiguredShippingPrice(null);
             }
           } else {
             console.log("[DEBUG] LocalStorage locality.id no coincide con locality.id actual");
@@ -374,13 +372,24 @@ export default function CheckoutPage() {
           console.log("[DEBUG] No hay savedLocality en localStorage");
         }
 
-        // Siempre verificar desde el endpoint para asegurar información actualizada
-        console.log("[DEBUG] Haciendo fetch a /api/detect-locality");
-        const detectResponse = await fetch("/api/detect-locality", {
+        // Misma fuente que LocalityContext: con address_id + token si hay, no solo IP genérica
+        const detectParams = new URLSearchParams();
+        if (selectedAddressId) {
+          detectParams.set("address_id", selectedAddressId);
+        }
+        const detectQuery = detectParams.toString();
+        const detectUrl = detectQuery ? `/api/detect-locality?${detectQuery}` : "/api/detect-locality";
+        const detectHeaders: HeadersInit = { "Content-Type": "application/json" };
+        if (typeof window !== "undefined") {
+          const token = localStorage.getItem("user_token");
+          if (token) {
+            detectHeaders["Authorization"] = `Bearer ${token}`;
+          }
+        }
+        console.log("[DEBUG] Haciendo fetch a", detectUrl);
+        const detectResponse = await fetch(detectUrl, {
           method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: detectHeaders,
         });
         
         if (detectResponse.ok) {
@@ -390,8 +399,16 @@ export default function CheckoutPage() {
             is_third_party_transport: detectData.data?.is_third_party_transport,
             shipping_price: detectData.data?.shipping_price
           });
+
+          if (!detectData.success || !detectData.data) {
+            setShippingLocalityError(true);
+          }
           
           if (detectData.success && detectData.data) {
+            const detectedLid = detectData.data.locality?.id;
+            if (detectedLid && detectedLid !== locality.id) {
+              setShippingLocalityError(true);
+            }
             // Verificar catalog
             if (detectData.data.catalog?.id === PAIS_CATALOG_ID || 
                 (detectData.data.locality?.id && detectData.data.locality.id === locality.id)) {
@@ -402,8 +419,13 @@ export default function CheckoutPage() {
                 },
               });
               
-              if (catalogResponse.ok) {
+              if (!catalogResponse.ok) {
+                setShippingLocalityError(true);
+              } else {
                 const catalogData = await catalogResponse.json();
+                if (!catalogData.success) {
+                  setShippingLocalityError(true);
+                }
                 if (catalogData.success && catalogData.data?.catalog_id) {
                   setIsPaisCatalog(catalogData.data.catalog_id === PAIS_CATALOG_ID);
                 }
@@ -424,43 +446,33 @@ export default function CheckoutPage() {
               serverIsThirdParty,
               localShippingPrice,
               serverShippingPrice,
-              serverHasValue: detectData.data.is_third_party_transport !== undefined,
-              areEqual: serverIsThirdParty === localIsThirdParty && localShippingPrice === serverShippingPrice
+              serverHasValue: detectData.data.is_third_party_transport !== undefined
             });
-            
-            // Comparar valores numéricos correctamente (pueden ser diferentes tipos)
-            const shippingPriceChanged = localShippingPrice !== serverShippingPrice && 
-              (localShippingPrice === null || serverShippingPrice === null || 
-               Math.abs(Number(localShippingPrice) - Number(serverShippingPrice)) > 0.01);
-            
-            // Solo actualizar si el servidor retornó valores Y son diferentes
-            if (detectData.data.is_third_party_transport !== undefined && 
-                (serverIsThirdParty !== localIsThirdParty || shippingPriceChanged)) {
-              console.log("[DEBUG] Valores diferentes, actualizando desde servidor:", {
-                serverIsThirdParty,
-                serverShippingPrice
-              });
+
+            if (detectData.data.is_third_party_transport !== undefined) {
               setIsThirdPartyTransport(serverIsThirdParty);
               setConfiguredShippingPrice(serverShippingPrice);
-            } else if (detectData.data.is_third_party_transport === undefined) {
-              console.log("[DEBUG] Servidor no retornó is_third_party_transport, manteniendo valores de localStorage");
-            } else {
-              console.log("[DEBUG] Valores iguales, no actualizando desde servidor");
             }
           }
         } else {
           console.log("[DEBUG] Error en detect-locality response:", detectResponse.status);
+          setShippingLocalityError(true);
         }
       } catch (error) {
         console.error("[DEBUG] Error checking pais catalog and third party transport:", error);
         setIsPaisCatalog(false);
         setIsThirdPartyTransport(false);
         setConfiguredShippingPrice(null);
+        setShippingLocalityError(true);
+      } finally {
+        if (fetchForContextKey === lastShippingContextKeyRef.current) {
+          setShippingQuoteLoading(false);
+        }
       }
     };
 
     checkPaisCatalog();
-  }, [locality?.id]);
+  }, [locality?.id, selectedAddressId]);
 
   // Debug: Monitorear cambios en isThirdPartyTransport y configuredShippingPrice
   useEffect(() => {
@@ -1543,6 +1555,11 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
   // - Si es transporte tercerizado, usar el precio configurado
   // - Si el catálogo es Pais y no es transporte tercerizado, calcular por distancia
   const selectedAddressForShipping = addresses.find((addr) => addr.id === selectedAddressId);
+  const localityShippingProblem =
+    !locality?.id ||
+    shippingLocalityError ||
+    (isPaisCatalog &&
+      (!selectedAddressForShipping || !selectedAddressForShipping.lat_lon));
   let shippingCost = 0;
   if (isThirdPartyTransport && configuredShippingPrice !== null) {
     shippingCost = configuredShippingPrice;
@@ -3309,21 +3326,13 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                                       key={index}
                                       className="bg-white p-3 rounded-lg border border-gray-200 text-center"
                                     >
-                                      <p className="font-semibold text-gray-900 text-sm">
-                                        {inst.cuotas} {inst.cuotas === 1 ? "cuota" : "cuotas"}
+                                      <p className="text-base font-semibold text-gray-900 tabular-nums leading-snug">
+                                        {inst.cuotas}{" "}
+                                        {inst.cuotas === 1 ? "cuota de" : "cuotas de"}{" "}
+                                        {formatPrice(cuotaAmount)}
                                       </p>
-                                      {inst.recargoPorcentaje === 0 ? (
-                                        <p className="text-xs text-gray-600 mt-1">Sin recargo</p>
-                                      ) : (
-                                        <p className="text-xs text-gray-600 mt-1">
-                                          +{inst.recargoPorcentaje}% recargo
-                                        </p>
-                                      )}
-                                      <p className="text-xs font-medium text-gray-900 mt-2">
+                                      <p className="text-xs text-gray-500 mt-1.5 font-normal tabular-nums">
                                         Total: {formatPrice(totalAmount)}
-                                      </p>
-                                      <p className="text-xs text-gray-600 mt-1">
-                                        {inst.cuotas > 1 && `Cuota: ${formatPrice(cuotaAmount)}`}
                                       </p>
                                     </div>
                                   );
@@ -3509,17 +3518,37 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                       {isThirdPartyTransport ? (
                         configuredShippingPrice !== null ? (
                           formatPrice(configuredShippingPrice)
+                        ) : localityShippingProblem ? (
+                          <span className="text-red-600 text-xs font-medium text-right block max-w-[200px] ml-auto leading-snug">
+                            Ingresá una localidad correcta
+                          </span>
+                        ) : shippingQuoteLoading ? (
+                          <span
+                            className="inline-block align-middle h-5 min-w-[5rem] rounded-md bg-gray-200 animate-pulse ml-auto"
+                            aria-busy="true"
+                            aria-label="Calculando costo de envío"
+                          />
                         ) : (
                           <span className="text-gray-400 text-xs">Calculando...</span>
                         )
                       ) : isPaisCatalog ? (
                         shippingCost > 0 ? (
                           formatPrice(shippingCost)
+                        ) : localityShippingProblem ? (
+                          <span className="text-red-600 text-xs font-medium text-right block max-w-[200px] ml-auto leading-snug">
+                            Ingresá una localidad correcta
+                          </span>
+                        ) : shippingQuoteLoading ? (
+                          <span
+                            className="inline-block align-middle h-5 min-w-[5rem] rounded-md bg-gray-200 animate-pulse ml-auto"
+                            aria-busy="true"
+                            aria-label="Calculando costo de envío"
+                          />
                         ) : (
                           <span className="text-gray-400 text-xs">Calculando...</span>
                         )
                       ) : (
-                        <span className="text-green-600 text-xs">Envío gratuito</span>
+                        <span className="text-green-600 text-xs">Envío gratis</span>
                       )}
                     </span>
                   </div>

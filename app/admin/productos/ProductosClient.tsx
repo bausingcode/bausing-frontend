@@ -1410,6 +1410,11 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                             (viewingProductData as any).has_pillow_top !== undefined || 
                             (viewingProductData as any).is_bed_in_box !== undefined || 
                             (viewingProductData as any).mattress_firmness || 
+                            (viewingProductData as any).mattress_height_cm != null ||
+                            (viewingProductData as any).mattress_fabric_type ||
+                            (viewingProductData as any).has_double_pillow ||
+                            (viewingProductData as any).has_moisture_breathers ||
+                            (viewingProductData as any).has_side_handles ||
                             (viewingProductData as any).size_label) && (
                             <div>
                               <span className="text-sm font-medium text-gray-600 block mb-2">Información del Colchón:</span>
@@ -1442,6 +1447,36 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                                   <div className="flex justify-between">
                                     <span className="text-sm text-gray-600">Firmeza:</span>
                                     <span className="text-sm text-gray-900">{(viewingProductData as any).mattress_firmness}</span>
+                                  </div>
+                                )}
+                                {(viewingProductData as any).mattress_height_cm != null && (viewingProductData as any).mattress_height_cm > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">Altura:</span>
+                                    <span className="text-sm text-gray-900">{(viewingProductData as any).mattress_height_cm} cm</span>
+                                  </div>
+                                )}
+                                {(viewingProductData as any).mattress_fabric_type && (
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">Tipo de tela:</span>
+                                    <span className="text-sm text-gray-900">{(viewingProductData as any).mattress_fabric_type}</span>
+                                  </div>
+                                )}
+                                {(viewingProductData as any).has_double_pillow === true && (
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">Doble pillow:</span>
+                                    <span className="text-sm text-gray-900">Sí</span>
+                                  </div>
+                                )}
+                                {(viewingProductData as any).has_moisture_breathers === true && (
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">Respiradores anti humedad:</span>
+                                    <span className="text-sm text-gray-900">Sí</span>
+                                  </div>
+                                )}
+                                {(viewingProductData as any).has_side_handles === true && (
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">Agarraderas laterales:</span>
+                                    <span className="text-sm text-gray-900">Sí</span>
                                   </div>
                                 )}
                                 {(viewingProductData as any).size_label && (

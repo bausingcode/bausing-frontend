@@ -437,6 +437,11 @@ export interface Product {
   has_pillow_top?: boolean;
   is_bed_in_box?: boolean;
   mattress_firmness?: string;
+  mattress_height_cm?: number;
+  mattress_fabric_type?: string;
+  has_double_pillow?: boolean;
+  has_moisture_breathers?: boolean;
+  has_side_handles?: boolean;
   is_active: boolean;
   min_price?: number;
   max_price?: number;
@@ -789,6 +794,11 @@ export async function completeCrmProduct(
     has_pillow_top?: boolean;
     is_bed_in_box?: boolean;
     mattress_firmness?: string;
+    mattress_height_cm?: number;
+    mattress_fabric_type?: string;
+    has_double_pillow?: boolean;
+    has_moisture_breathers?: boolean;
+    has_side_handles?: boolean;
     size_label?: string;
     sku?: string;
     category_id?: string;
@@ -1002,6 +1012,21 @@ export async function createCompleteProduct(productData: {
   category_id?: string;
   subcategory_id?: string;
   is_active?: boolean;
+  technical_description?: string;
+  warranty_months?: number;
+  warranty_description?: string;
+  materials?: string;
+  filling_type?: string;
+  max_supported_weight_kg?: number;
+  has_pillow_top?: boolean;
+  is_bed_in_box?: boolean;
+  mattress_firmness?: string;
+  mattress_height_cm?: number;
+  mattress_fabric_type?: string;
+  has_double_pillow?: boolean;
+  has_moisture_breathers?: boolean;
+  has_side_handles?: boolean;
+  size_label?: string;
   variants: Array<{
     sku?: string;
     stock: number;

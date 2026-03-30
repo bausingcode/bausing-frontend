@@ -187,13 +187,29 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
               if (savedData.success && savedData.data?.locality) {
                 const detectedLocality = savedData.data.locality;
                 const crmZoneId = savedData.data.crm_zone_id;
+                const tp = !!savedData.data.is_third_party_transport;
+                const sp =
+                  savedData.data.shipping_price !== undefined &&
+                  savedData.data.shipping_price !== null
+                    ? savedData.data.shipping_price
+                    : null;
                 
                 setRequiresAddressSelection(false);
                 setAvailableAddresses([]);
                 
-                const localityWithZone = { ...detectedLocality };
+                const localityWithZone = { ...detectedLocality } as Locality & {
+                  crm_zone_id?: string;
+                  is_third_party_transport?: boolean;
+                  shipping_price?: number | null;
+                };
                 if (crmZoneId) {
                   localityWithZone.crm_zone_id = crmZoneId;
+                }
+                localityWithZone.is_third_party_transport = tp;
+                if (tp && sp !== null) {
+                  localityWithZone.shipping_price = sp;
+                } else {
+                  delete localityWithZone.shipping_price;
                 }
                 setLocalityState(localityWithZone);
                 setUpdateKey(prev => prev + 1);
@@ -229,8 +245,11 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
       if (data.success && data.data?.locality) {
         const detectedLocality = data.data.locality;
         const crmZoneId = data.data.crm_zone_id;
-        const isThirdPartyTransport = data.data.is_third_party_transport || false;
-        const shippingPrice = data.data.shipping_price || null;
+        const isThirdPartyTransport = !!data.data.is_third_party_transport;
+        const shippingPrice =
+          data.data.shipping_price !== undefined && data.data.shipping_price !== null
+            ? data.data.shipping_price
+            : null;
         console.log("[LocalityContext] Localidad detectada:", detectedLocality);
         console.log("[LocalityContext] Zona de entrega detectada:", crmZoneId);
         console.log("[LocalityContext] Transporte tercerizado:", isThirdPartyTransport);
@@ -240,16 +259,19 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
         setRequiresAddressSelection(false);
         setAvailableAddresses([]);
         
-        // Crear un nuevo objeto para forzar la actualización, incluyendo la zona y transporte tercerizado
-        const localityWithZone = { ...detectedLocality };
+        const localityWithZone = { ...detectedLocality } as Locality & {
+          crm_zone_id?: string;
+          is_third_party_transport?: boolean;
+          shipping_price?: number | null;
+        };
         if (crmZoneId) {
           localityWithZone.crm_zone_id = crmZoneId;
         }
-        if (isThirdPartyTransport) {
-          localityWithZone.is_third_party_transport = true;
-        }
-        if (shippingPrice !== null && shippingPrice !== undefined) {
+        localityWithZone.is_third_party_transport = isThirdPartyTransport;
+        if (isThirdPartyTransport && shippingPrice !== null) {
           localityWithZone.shipping_price = shippingPrice;
+        } else {
+          delete localityWithZone.shipping_price;
         }
         setLocalityState(localityWithZone);
         setUpdateKey(prev => prev + 1);
@@ -298,12 +320,15 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
 
   const setLocality = (newLocality: Locality | null) => {
     console.log("[LocalityContext] Cambiando localidad:", newLocality);
-    // Crear un nuevo objeto para forzar la actualización de React
     const updatedLocality = newLocality ? { ...newLocality } : null;
+    if (updatedLocality) {
+      delete (updatedLocality as Locality & { is_third_party_transport?: boolean }).is_third_party_transport;
+      delete (updatedLocality as Locality & { shipping_price?: number | null }).shipping_price;
+    }
     setLocalityState(updatedLocality);
     setUpdateKey(prev => prev + 1); // Incrementar key para forzar actualización
     if (newLocality) {
-      localStorage.setItem("bausing_locality", JSON.stringify(newLocality));
+      localStorage.setItem("bausing_locality", JSON.stringify(updatedLocality));
       console.log("[LocalityContext] Localidad guardada en localStorage:", newLocality.id);
     } else {
       localStorage.removeItem("bausing_locality");

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, ShoppingCart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight, Layers, Bed, Scale, Package, Maximize, CheckCircle2, Package2, ChevronDown, ChevronUp } from "lucide-react";
+import { Heart, ShoppingCart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight, Layers, Bed, BedDouble, Scale, Package, Maximize, CheckCircle2, Package2, ChevronDown, ChevronUp, Ruler, Shirt, Wind, GripHorizontal } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
@@ -68,6 +68,11 @@ interface Product {
   has_pillow_top?: boolean;
   is_bed_in_box?: boolean;
   mattress_firmness?: string;
+  mattress_height_cm?: number;
+  mattress_fabric_type?: string;
+  has_double_pillow?: boolean;
+  has_moisture_breathers?: boolean;
+  has_side_handles?: boolean;
   size_label?: string;
   // Otras secciones
   warranty?: string;
@@ -88,6 +93,15 @@ interface SimilarProduct {
 const CATEGORY_COLCHONES_ID = "12788182-9221-4d8a-9bf5-1a00503dcd34";
 const CATEGORY_SOMMIERS_ID = "57e5e2e5-e054-4b18-84dc-be94a22e2994";
 const CATEGORY_OPTION_SOMMIER_FILTER = "04dbb0ef-d918-496e-ba9c-db61664f5d0";
+
+/** Barra 1–5: SOFT → 1, MEDIO → 3, FIRME → 5 (valores del admin: SOFT / MEDIO / FIRME). */
+function firmnessLabelToBarLevel(label: string | undefined | null): number {
+  const key = (label ?? "").trim().toUpperCase();
+  if (key === "SOFT" || key === "BLANDO" || key === "SUAVE") return 1;
+  if (key === "MEDIO" || key === "MEDIUM" || key === "MEDIA") return 3;
+  if (key === "FIRME" || key === "FIRM" || key === "HARD") return 5;
+  return 3;
+}
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -275,10 +289,15 @@ export default function ProductDetailPage() {
           has_pillow_top: apiProductWithTech.has_pillow_top,
           is_bed_in_box: apiProductWithTech.is_bed_in_box,
           mattress_firmness: apiProductWithTech.mattress_firmness || "",
+          mattress_height_cm: apiProductWithTech.mattress_height_cm,
+          mattress_fabric_type: apiProductWithTech.mattress_fabric_type || "",
+          has_double_pillow: apiProductWithTech.has_double_pillow === true,
+          has_moisture_breathers: apiProductWithTech.has_moisture_breathers === true,
+          has_side_handles: apiProductWithTech.has_side_handles === true,
           size_label: apiProductWithTech.size_label || "",
           // Características principales (transformadas desde campos técnicos)
-          firmness: apiProductWithTech.mattress_firmness || "Medio",
-          firmnessLevel: 3, // TODO: calcular desde mattress_firmness si es necesario
+          firmness: apiProductWithTech.mattress_firmness || "",
+          firmnessLevel: firmnessLabelToBarLevel(apiProductWithTech.mattress_firmness),
           withPillow: apiProductWithTech.has_pillow_top ? "Sí" : "No",
           maxWeight: apiProductWithTech.max_supported_weight_kg ? `${apiProductWithTech.max_supported_weight_kg} kg` : undefined,
           boxed: apiProductWithTech.is_bed_in_box ? "Sí" : "No",
@@ -578,6 +597,8 @@ export default function ProductDetailPage() {
       </div>
     );
   }
+
+  const firmnessBarLevel = firmnessLabelToBarLevel(product.firmness);
 
   // Calcular precio basado en variante/opción seleccionada y localidad
   const getCurrentProductPrice = (): { price: number; formattedPrice: string } => {
@@ -1131,6 +1152,19 @@ export default function ProductDetailPage() {
                 >
                   <div className="pb-4">
                     <div className="space-y-4">
+                      {/* Tipo de relleno */}
+                      {product.fillingType && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <CheckCircle2 className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Tipo de relleno</div>
+                            <div className="text-sm text-gray-900">{product.fillingType}</div>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Firmeza del colchón con barra visual */}
                       {product.firmness && (
                         <div className="flex items-center gap-4">
@@ -1143,8 +1177,7 @@ export default function ProductDetailPage() {
                               <div className="flex-1">
                                 <div className="flex gap-1">
                                   {[1, 2, 3, 4, 5].map((level) => {
-                                    const firmnessLevel = product.firmnessLevel || 3;
-                                    const isActive = level <= firmnessLevel;
+                                    const isActive = level <= firmnessBarLevel;
                                     return (
                                       <div
                                         key={level}
@@ -1220,15 +1253,62 @@ export default function ProductDetailPage() {
                         </div>
                       )}
 
-                      {/* Tipo de relleno */}
-                      {product.fillingType && (
+                      {product.mattress_height_cm != null && product.mattress_height_cm > 0 && (
                         <div className="flex items-center gap-4">
                           <div className="flex-shrink-0">
-                            <CheckCircle2 className="w-5 h-5 text-gray-600" />
+                            <Ruler className="w-5 h-5 text-gray-600" />
                           </div>
                           <div className="flex-1">
-                            <div className="text-sm font-medium text-gray-700 mb-1">Tipo de relleno</div>
-                            <div className="text-sm text-gray-900">{product.fillingType}</div>
+                            <div className="text-sm font-medium text-gray-700 mb-1">Altura</div>
+                            <div className="text-sm text-gray-900">{product.mattress_height_cm} cm</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {!!product.mattress_fabric_type?.trim() && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Shirt className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Tipo de tela</div>
+                            <div className="text-sm text-gray-900">{product.mattress_fabric_type?.trim()}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {product.has_double_pillow && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <BedDouble className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Doble pillow</div>
+                            <div className="text-sm text-gray-900">Sí</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {product.has_moisture_breathers && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Wind className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Respiradores anti humedad</div>
+                            <div className="text-sm text-gray-900">Sí</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {product.has_side_handles && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <GripHorizontal className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Agarraderas laterales</div>
+                            <div className="text-sm text-gray-900">Sí</div>
                           </div>
                         </div>
                       )}

@@ -69,6 +69,11 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   const [hasPillowTop, setHasPillowTop] = useState(false);
   const [isBedInBox, setIsBedInBox] = useState(false);
   const [mattressFirmness, setMattressFirmness] = useState("");
+  const [mattressHeightCm, setMattressHeightCm] = useState<number | undefined>(undefined);
+  const [mattressFabricType, setMattressFabricType] = useState("");
+  const [hasDoublePillow, setHasDoublePillow] = useState(false);
+  const [hasMoistureBreathers, setHasMoistureBreathers] = useState(false);
+  const [hasSideHandles, setHasSideHandles] = useState(false);
   const [sizeLabel, setSizeLabel] = useState("");
   
   // Images
@@ -366,13 +371,20 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         
         // Campos de colchón
         const hasMattressData = !!(fullProduct.filling_type || fullProduct.max_supported_weight_kg || 
-          fullProduct.has_pillow_top || fullProduct.is_bed_in_box || fullProduct.mattress_firmness || fullProduct.size_label);
+          fullProduct.has_pillow_top || fullProduct.is_bed_in_box || fullProduct.mattress_firmness || fullProduct.size_label ||
+          fullProduct.mattress_height_cm != null || fullProduct.mattress_fabric_type ||
+          fullProduct.has_double_pillow || fullProduct.has_moisture_breathers || fullProduct.has_side_handles);
         setShowMattressFields(hasMattressData);
         setFillingType(fullProduct.filling_type || "");
         setMaxSupportedWeightKg(fullProduct.max_supported_weight_kg);
         setHasPillowTop(fullProduct.has_pillow_top || false);
         setIsBedInBox(fullProduct.is_bed_in_box || false);
         setMattressFirmness(fullProduct.mattress_firmness || "");
+        setMattressHeightCm(fullProduct.mattress_height_cm);
+        setMattressFabricType(fullProduct.mattress_fabric_type || "");
+        setHasDoublePillow(fullProduct.has_double_pillow || false);
+        setHasMoistureBreathers(fullProduct.has_moisture_breathers || false);
+        setHasSideHandles(fullProduct.has_side_handles || false);
         setSizeLabel(fullProduct.size_label || "");
         
         // Imágenes
@@ -1024,6 +1036,11 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           has_pillow_top: hasPillowTop,
           is_bed_in_box: isBedInBox,
           mattress_firmness: mattressFirmness || undefined,
+          mattress_height_cm: mattressHeightCm || undefined,
+          mattress_fabric_type: mattressFabricType || undefined,
+          has_double_pillow: hasDoublePillow,
+          has_moisture_breathers: hasMoistureBreathers,
+          has_side_handles: hasSideHandles,
           size_label: sizeLabel || undefined,
           category_id: finalCategoryId || undefined, // Categoría padre
           subcategory_ids: subcategoryIds.length > 0 ? subcategoryIds : undefined, // Múltiples subcategorías
@@ -1088,6 +1105,21 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           category_id: subcategoryIds.length > 0 ? undefined : categoryId,
           subcategory_id: subcategoryIds.length > 0 ? subcategoryIds[0] : undefined,
           is_active: isActive,
+          technical_description: technicalDescription || undefined,
+          warranty_months: warrantyMonths || undefined,
+          warranty_description: warrantyDescription || undefined,
+          materials: materials || undefined,
+          filling_type: showMattressFields && fillingType ? fillingType : undefined,
+          max_supported_weight_kg: showMattressFields ? maxSupportedWeightKg || undefined : undefined,
+          has_pillow_top: showMattressFields ? hasPillowTop : undefined,
+          is_bed_in_box: showMattressFields ? isBedInBox : undefined,
+          mattress_firmness: showMattressFields && mattressFirmness ? mattressFirmness : undefined,
+          mattress_height_cm: showMattressFields ? mattressHeightCm || undefined : undefined,
+          mattress_fabric_type: showMattressFields && mattressFabricType ? mattressFabricType : undefined,
+          has_double_pillow: showMattressFields ? hasDoublePillow : undefined,
+          has_moisture_breathers: showMattressFields ? hasMoistureBreathers : undefined,
+          has_side_handles: showMattressFields ? hasSideHandles : undefined,
+          size_label: showMattressFields && sizeLabel ? sizeLabel : undefined,
           variants: variants.map((variant) => {
             // Generar nombre descriptivo de la variant basado en atributos
             const variantName = Object.entries(variant.attributes)
@@ -1139,11 +1171,17 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       setWarrantyMonths(undefined);
       setWarrantyDescription("");
       setMaterials("");
+      setShowMattressFields(false);
       setFillingType("");
       setMaxSupportedWeightKg(undefined);
       setHasPillowTop(false);
       setIsBedInBox(false);
       setMattressFirmness("");
+      setMattressHeightCm(undefined);
+      setMattressFabricType("");
+      setHasDoublePillow(false);
+      setHasMoistureBreathers(false);
+      setHasSideHandles(false);
       setSizeLabel("");
       setImages([]);
       setImageFiles([]);
@@ -1598,6 +1636,11 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                                 setHasPillowTop(false);
                                 setIsBedInBox(false);
                                 setMattressFirmness("");
+                                setMattressHeightCm(undefined);
+                                setMattressFabricType("");
+                                setHasDoublePillow(false);
+                                setHasMoistureBreathers(false);
+                                setHasSideHandles(false);
                                 setSizeLabel("");
                               }
                             }}
@@ -1653,6 +1696,75 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                                 <option value="MEDIO">MEDIO</option>
                                 <option value="FIRME">FIRME</option>
                               </select>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Altura (cm)
+                                </label>
+                                <input
+                                  type="number"
+                                  value={mattressHeightCm ?? ""}
+                                  onChange={(e) =>
+                                    setMattressHeightCm(e.target.value ? parseInt(e.target.value, 10) : undefined)
+                                  }
+                                  min="0"
+                                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                                  placeholder="Ej: 28"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Tipo de tela
+                                </label>
+                                <input
+                                  type="text"
+                                  value={mattressFabricType}
+                                  onChange={(e) => setMattressFabricType(e.target.value)}
+                                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                                  placeholder="Ej: Jacquard"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-6">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  id="hasDoublePillow"
+                                  checked={hasDoublePillow}
+                                  onChange={(e) => setHasDoublePillow(e.target.checked)}
+                                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                                <label htmlFor="hasDoublePillow" className="text-sm font-medium text-gray-700">
+                                  Doble pillow
+                                </label>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  id="hasMoistureBreathers"
+                                  checked={hasMoistureBreathers}
+                                  onChange={(e) => setHasMoistureBreathers(e.target.checked)}
+                                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                                <label htmlFor="hasMoistureBreathers" className="text-sm font-medium text-gray-700">
+                                  Respiradores anti humedad
+                                </label>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  id="hasSideHandles"
+                                  checked={hasSideHandles}
+                                  onChange={(e) => setHasSideHandles(e.target.checked)}
+                                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                                <label htmlFor="hasSideHandles" className="text-sm font-medium text-gray-700">
+                                  Agarraderas laterales
+                                </label>
+                              </div>
                             </div>
 
                             <div className="flex items-center gap-6">
