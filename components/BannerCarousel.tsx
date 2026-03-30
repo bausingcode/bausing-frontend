@@ -109,7 +109,7 @@ export default function BannerCarousel({
   );
 
   return (
-    <section className="relative bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0f0f0f] min-h-[200px] sm:min-h-[300px] md:min-h-[400px] lg:min-h-[450px] flex items-center overflow-hidden">
+    <section className="relative bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0f0f0f] min-h-[200px] sm:min-h-[300px] md:min-h-[400px] lg:min-h-[max(450px,calc(100vw*450/1440))] flex items-center overflow-hidden">
       <div className="absolute inset-0 opacity-10 z-0">
         <div
           className="absolute inset-0"
@@ -121,7 +121,7 @@ export default function BannerCarousel({
         />
       </div>
 
-      <div className="relative w-full h-full min-h-[200px] sm:min-h-[300px] md:min-h-[400px] lg:min-h-[450px]">
+      <div className="relative w-full h-full min-h-[200px] sm:min-h-[300px] md:min-h-[400px] lg:min-h-[max(450px,calc(100vw*450/1440))]">
         {slides.map((slide, index) => {
           const video = isHeroVideoUrl(slide.url);
           return (

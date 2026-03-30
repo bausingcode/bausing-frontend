@@ -111,7 +111,7 @@ export async function compressToWebp(
 ): Promise<File> {
   const opts: Required<CompressOptions> = {
     maxSide: options.maxSide ?? 2048,
-    quality: options.quality ?? 0.86,
+    quality: options.quality ?? 1,
   };
   if (!isAllowed(input)) {
     throw new Error("Tipo de archivo no permitido");
