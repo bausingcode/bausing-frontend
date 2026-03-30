@@ -251,12 +251,12 @@ export default async function Home() {
             <HomeProducts section="discounts" count={3} />
           </div>
 
-          {/* Desktop: Grid normal */}
-          <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6 items-start">
-            <div className="md:row-span-1 rounded-[10px] md:rounded-xl overflow-hidden w-full max-w-full md:max-w-[280px] lg:max-w-[300px] h-[320px] md:h-[380px] lg:h-[430px]">
+          {/* Desktop: Grid normal — primera columna fija 300px para el banner 300×400 */}
+          <div className="hidden md:grid md:grid-cols-[300px_minmax(0,1fr)_minmax(0,1fr)] lg:grid-cols-[300px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
+            <div className="w-[300px] h-[400px] shrink-0 rounded-[10px] md:rounded-xl overflow-hidden">
               {descuentazosBanner ? (
                 <img
-                  src={wsrvLoader({ src: descuentazosBanner.image_url, width: 400 })}
+                  src={wsrvLoader({ src: descuentazosBanner.image_url, width: 600 })}
                   alt={descuentazosBanner.title || descuentazosBanner.subtitle || "Foto"}
                   className="w-full h-full object-cover"
                   loading="eager"

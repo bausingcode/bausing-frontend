@@ -125,7 +125,7 @@ export default function ProductCard({
   };
 
   return (
-    <Link href={`/productos/${productId}`} className="relative group block cursor-pointer" style={{ fontFamily: 'DM Sans, sans-serif' }}>
+    <Link href={`/productos/${productId}`} className="relative group block min-w-0 cursor-pointer" style={{ fontFamily: 'DM Sans, sans-serif' }}>
       <div className={`relative w-full rounded-[10px] overflow-hidden ${useNormalHeight ? 'h-80' : 'h-48 md:h-80'}`}>
         <img
           src={optimizedUrl}
@@ -186,8 +186,15 @@ export default function ProductCard({
         </div>
       </div>
       <div className={useNormalHeight ? "pt-3" : "pt-2 md:pt-3"}>
-        <div className="mb-1">
-          <h4 className={useNormalHeight ? "text-sm font-normal text-gray-900 leading-tight" : "text-xs md:text-sm font-normal text-gray-900 leading-tight"}>
+        <div className="mb-1 min-w-0">
+          <h4
+            title={name}
+            className={`truncate ${
+              useNormalHeight
+                ? "text-sm font-normal text-gray-900 leading-tight"
+                : "text-xs md:text-sm font-normal text-gray-900 leading-tight"
+            }`}
+          >
             {name}
           </h4>
         </div>
