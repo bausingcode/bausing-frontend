@@ -586,9 +586,18 @@ export async function fetchProductById(productId: string, localityId?: string): 
     if (localityId) {
       queryParams.append('locality_id', localityId);
     }
-    
-    const url = `/api/products/${productId}?${queryParams.toString()}`;
+
+    // En el servidor, llamar al backend directamente (los rewrites /api solo aplican al request HTTP entrante).
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/products/${productId}?${queryParams.toString()}`
+      : `/api/products/${productId}?${queryParams.toString()}`;
+
+    const headers = typeof window === "undefined"
+      ? getAuthHeadersServer()
+      : getAuthHeaders();
+
     const response = await fetch(url, {
+      headers,
       cache: "no-store", // No cache para que siempre obtenga precios actualizados
     });
     
