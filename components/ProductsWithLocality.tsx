@@ -5,6 +5,7 @@ import { useLocality } from "@/contexts/LocalityContext";
 import { fetchProducts, Product } from "@/lib/api";
 import { calculateProductPrice } from "@/utils/priceUtils";
 import ProductCard from "@/components/ProductCard";
+import { firstProductImageUrl } from "@/lib/productImagePlaceholder";
 
 interface ProductsWithLocalityProps {
   initialProducts: Product[];
@@ -53,10 +54,7 @@ export default function ProductsWithLocality({
 
   // Helper function to convert Product to ProductCard props
   const productToCardProps = (product: Product) => {
-    const image =
-      product.main_image ||
-      (product.images && product.images[0]?.image_url) ||
-      "/images/placeholder.png";
+    const image = firstProductImageUrl(product);
 
     // Calcular precio usando función centralizada
     const priceInfo = calculateProductPrice(product, 1);

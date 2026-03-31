@@ -77,7 +77,7 @@ export default function ProductCarousel({ children }: ProductCarouselProps) {
   };
 
   return (
-    <div className="md:hidden relative">
+    <div className="min-[1291px]:hidden relative">
       {/* Flecha izquierda */}
       {showLeftArrow && (
         <button
@@ -105,7 +105,7 @@ export default function ProductCarousel({ children }: ProductCarouselProps) {
         className="overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory"
         style={{ paddingLeft: '2rem', paddingRight: '1rem' }}
       >
-        <div className="flex gap-6" style={{ width: 'max-content' }}>
+        <div className="flex gap-6 [&>*]:min-w-0" style={{ width: "max-content" }}>
           {children}
         </div>
       </div>

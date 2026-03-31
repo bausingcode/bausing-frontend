@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Acceso administración",
+  title: "Favoritos",
   robots: { index: false, follow: false },
 };
 
-export default function LoginLayout({
+export default function FavoritosLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return children;
 }
-

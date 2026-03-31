@@ -827,7 +827,7 @@ export default function Navbar({ event }: NavbarProps = {}) {
     const { x, y } = mousePositionRef.current;
     
     // Verificar si está en el nav
-    const navElement = document.querySelector('nav.hidden.md\\:block');
+    const navElement = document.querySelector("nav[data-desktop-category-nav]");
     if (navElement) {
       const navRect = navElement.getBoundingClientRect();
       if (x >= navRect.left && x <= navRect.right && y >= navRect.top && y <= navRect.bottom) {
@@ -929,6 +929,16 @@ export default function Navbar({ event }: NavbarProps = {}) {
     }
   }, [pathname]);
 
+  useEffect(() => {
+    const onResize = () => {
+      if (typeof window !== "undefined" && window.innerWidth >= 1291) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault();
     const query = searchQuery.trim();
@@ -957,13 +967,13 @@ export default function Navbar({ event }: NavbarProps = {}) {
         {/* Main Header - White Bar */}
         <header className="bg-white border-b border-gray-200">
           <div className="container mx-auto px-4 py-3 md:py-4">
-            <div className="flex items-center justify-between gap-4 md:gap-8">
-              {/* Hamburger Menu Button - Mobile Only */}
+            <div className="relative flex items-center justify-between gap-3 min-[1291px]:gap-8 min-h-[40px] min-[1291px]:min-h-0">
               <button
                 type="button"
-                className="md:hidden p-2 -ml-2 text-gray-700"
+                className="min-[1291px]:hidden p-2 -ml-2 text-gray-700 shrink-0 z-10"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                aria-label="Abrir menú"
+                aria-label={isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
+                aria-expanded={isMobileMenuOpen}
               >
                 {isMobileMenuOpen ? (
                   <X className="w-6 h-6" />
@@ -972,17 +982,18 @@ export default function Navbar({ event }: NavbarProps = {}) {
                 )}
               </button>
 
-              {/* Logo */}
-              <a href="/" className="flex items-center flex-shrink-0 cursor-pointer">
+              <a
+                href="/"
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 min-[1291px]:static min-[1291px]:translate-x-0 min-[1291px]:translate-y-0 flex items-center shrink-0 cursor-pointer z-10"
+              >
                 <img
                   src="/images/logo/logobausing1.svg"
                   alt="BAUSING Logo"
-                  className="h-8 md:h-10 w-auto"
+                  className="h-8 sm:h-9 min-[1291px]:h-10 w-auto"
                 />
               </a>
 
-              {/* Search Bar - Centered (hidden on mobile) */}
-              <div className="hidden md:flex flex-1 justify-center px-8">
+              <div className="hidden min-[1291px]:flex flex-1 justify-center px-4 xl:px-8">
                 <form onSubmit={handleSearch} className="relative w-full max-w-2xl">
                   <input
                     ref={searchInputRef}
@@ -1003,12 +1014,10 @@ export default function Navbar({ event }: NavbarProps = {}) {
                 </form>
               </div>
 
-              {/* User and Cart Icons */}
-              <div className="flex items-center justify-end gap-4 md:gap-6 flex-shrink-0">
-                {/* User Menu - Hidden on mobile */}
+              <div className="flex items-center justify-end gap-2 sm:gap-3 min-[1291px]:gap-6 flex-shrink-0 z-10">
                 <div 
                   ref={userMenuRef}
-                  className="relative z-[60] hidden md:block"
+                  className="relative z-[60] hidden min-[1291px]:block"
                 >
                   {isAuthenticated && user ? (
                     <div 
@@ -1120,8 +1129,7 @@ export default function Navbar({ event }: NavbarProps = {}) {
                   )}
                 </div>
                 
-                {/* Favorites - Hidden on mobile */}
-                <div className="group hidden md:block">
+                <div className="group hidden min-[1291px]:block">
                   <Heart 
                     className={`w-6 h-6 cursor-pointer transition-all duration-300 group-hover:animate-wiggle ${
                       isFavoritesPage
@@ -1151,7 +1159,7 @@ export default function Navbar({ event }: NavbarProps = {}) {
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden bg-white fixed inset-0 top-[56px] z-50 overflow-y-auto">
+          <div className="min-[1291px]:hidden bg-white fixed inset-0 top-[52px] sm:top-[56px] z-50 overflow-y-auto overscroll-contain">
             <div className="container mx-auto px-4 py-4">
               {/* Mobile Search */}
               <form onSubmit={(e) => { handleSearch(e); setIsMobileMenuOpen(false); }} className="relative mb-4">
@@ -1228,7 +1236,7 @@ export default function Navbar({ event }: NavbarProps = {}) {
               {/* Mobile Categories */}
               <div className="space-y-1">
                 <p className="px-2 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Categorías</p>
-                {mainCategories.map((categoryName) => {
+                {mainCategoriesToUse.map((categoryName) => {
                   const categorySlug = categoryName.toLowerCase()
                     .normalize("NFD")
                     .replace(/[\u0300-\u036f]/g, "")
@@ -1270,9 +1278,9 @@ export default function Navbar({ event }: NavbarProps = {}) {
           </div>
         )}
 
-        {/* Navigation Bar - Hidden on mobile */}
         <nav 
-          className="hidden md:block bg-white border-b border-gray-200 relative"
+          data-desktop-category-nav
+          className="hidden min-[1291px]:block bg-white border-b border-gray-200 relative"
           onMouseLeave={() => {
             if (!hoveredCategory) return;
             

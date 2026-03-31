@@ -11,6 +11,10 @@ import { useCart } from "@/contexts/CartContext";
 import { useLocality } from "@/contexts/LocalityContext";
 import { fetchProductById, Product as ApiProduct, fetchProducts, fetchProductCombos, ProductCombo, fetchHeroImages, HeroImage } from "@/lib/api";
 import wsrvLoader from "@/lib/wsrvLoader";
+import {
+  firstProductImageUrl,
+  PRODUCT_IMAGE_PLACEHOLDER,
+} from "@/lib/productImagePlaceholder";
 import { calculateProductPrice, formatPrice, getVariantPriceByLocality, initializeCatalogCache } from "@/utils/priceUtils";
 import { getPromoLabel } from "@/utils/promoUtils";
 
@@ -136,6 +140,16 @@ export default function ProductDetailPage() {
   }, [productId, favorites]);
 
   useEffect(() => {
+    if (!product?.images?.length) {
+      setCurrentImageIndex(0);
+      return;
+    }
+    setCurrentImageIndex((i) =>
+      Math.min(Math.max(0, i), product.images.length - 1),
+    );
+  }, [product?.id, product?.images?.length]);
+
+  useEffect(() => {
     if (locality?.id) {
       initializeCatalogCache(locality.id).catch(() => {});
     }
@@ -221,7 +235,7 @@ export default function ProductDetailPage() {
                 currentPrice: priceInfo.currentPrice,
                 originalPrice: priceInfo.originalPrice,
                 discount: priceInfo.discount,
-                image: p.main_image || (p.images && p.images.length > 0 ? p.images[0].image_url : "") || "",
+                image: firstProductImageUrl(p),
               };
             });
             
@@ -243,16 +257,25 @@ export default function ProductDetailPage() {
         // Calcular precio usando función centralizada
         const priceInfo = calculateProductPrice(apiProduct, 1);
 
-        // Transformar imágenes
-        const images: ProductImage[] = apiProduct.images?.map((img) => ({
-          id: img.id,
-          url: img.image_url,
-          alt: img.alt_text || apiProduct.name,
-        })) || (apiProduct.main_image ? [{
-          id: "main",
-          url: apiProduct.main_image,
-          alt: apiProduct.name,
-        }] : []);
+        const sortedGallery = [...(apiProduct.images ?? [])].sort(
+          (a, b) => (a.position ?? 0) - (b.position ?? 0),
+        );
+        let images: ProductImage[] = sortedGallery
+          .filter((img) => img.image_url?.trim())
+          .map((img) => ({
+            id: img.id,
+            url: img.image_url!.trim(),
+            alt: img.alt_text || apiProduct.name,
+          }));
+        if (images.length === 0 && apiProduct.main_image?.trim()) {
+          images = [
+            {
+              id: "main",
+              url: apiProduct.main_image.trim(),
+              alt: apiProduct.name,
+            },
+          ];
+        }
 
         // Transformar variantes - mantener estructura completa del API
         // El backend ahora incluye las options cuando se solicitan variants
@@ -443,14 +466,16 @@ export default function ProductDetailPage() {
   };
 
   const nextImage = () => {
-    if (product) {
+    if (product && product.images.length > 1) {
       setCurrentImageIndex((prev) => (prev + 1) % product.images.length);
     }
   };
 
   const prevImage = () => {
-    if (product) {
-      setCurrentImageIndex((prev) => (prev - 1 + product.images.length) % product.images.length);
+    if (product && product.images.length > 1) {
+      setCurrentImageIndex(
+        (prev) => (prev - 1 + product.images.length) % product.images.length,
+      );
     }
   };
 
@@ -460,7 +485,7 @@ export default function ProductDetailPage() {
       addToCart({
         id: product.id,
         name: product.name,
-        image: product.images[0]?.url || "",
+        image: product.images[0]?.url?.trim() || PRODUCT_IMAGE_PLACEHOLDER,
         price: currentPrice.formattedPrice,
       });
     } else if (currentPrice.price === 0) {
@@ -493,7 +518,7 @@ export default function ProductDetailPage() {
         addToFavorites({
           id: product.id,
           name: product.name,
-          image: product.images[0]?.url || "",
+          image: product.images[0]?.url?.trim() || PRODUCT_IMAGE_PLACEHOLDER,
           price: product.currentPrice,
         });
         setIsFavorite(true);
@@ -670,6 +695,11 @@ export default function ProductDetailPage() {
   const priceInfoForTaxes = calculateProductPrice(tempProductForTaxes, 1);
   const priceWithoutTaxes = hasPrice ? priceInfoForTaxes.currentPriceValue * 0.79 : 0;
 
+  const heroUrl = product.images[currentImageIndex]?.url?.trim();
+  const heroSrc = heroUrl
+    ? wsrvLoader({ src: heroUrl, width: 800 })
+    : PRODUCT_IMAGE_PLACEHOLDER;
+
   // Función helper para verificar si una variante es del tipo "Atributo" con opción "Default"
   const isDefaultAttributeVariant = (variant: any): boolean => {
     const variantName = variant.name || variant.sku || '';
@@ -766,66 +796,74 @@ export default function ProductDetailPage() {
           {/* Left: Image Carousel */}
           <div className="relative flex lg:col-span-4">
             <div className="relative w-full h-[300px] sm:h-[400px] lg:h-[520px] rounded-[10px] overflow-hidden bg-gray-100">
-              {product.images.length > 0 && (
-                <>
-                  <img
-                    src={wsrvLoader({ src: product.images[currentImageIndex].url, width: 800 })}
-                    alt={product.images[currentImageIndex].alt || product.name}
-                    className="w-full h-full object-cover"
-                    style={{ objectFit: 'cover' }}
+              <>
+                <img
+                  src={heroSrc}
+                  alt={
+                    product.images[currentImageIndex]?.alt || product.name
+                  }
+                  className="w-full h-full object-cover"
+                  style={{ objectFit: "cover" }}
+                  onError={(e) => {
+                    const el = e.currentTarget;
+                    el.onerror = null;
+                    el.src = PRODUCT_IMAGE_PLACEHOLDER;
+                  }}
+                />
+
+                {product.images.length > 1 && (
+                  <>
+                    <button
+                      onClick={prevImage}
+                      className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-all z-10"
+                      aria-label="Imagen anterior"
+                    >
+                      <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 text-gray-700" />
+                    </button>
+                    <button
+                      onClick={nextImage}
+                      className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-all z-10"
+                      aria-label="Imagen siguiente"
+                    >
+                      <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-gray-700" />
+                    </button>
+                  </>
+                )}
+
+                {product.images.length > 1 && (
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                    {product.images.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentImageIndex(index)}
+                        className={`w-2 h-2 rounded-full transition-all ${
+                          index === currentImageIndex
+                            ? "bg-white"
+                            : "bg-white/50"
+                        }`}
+                        aria-label={`Ir a imagen ${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleToggleFavorite}
+                  className={`absolute top-2 right-2 md:top-4 md:right-4 w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center shadow-lg transition-all z-10 ${
+                    isFavorite
+                      ? "bg-red-500 text-white hover:bg-red-600"
+                      : "bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                  aria-label={
+                    isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"
+                  }
+                >
+                  <Heart
+                    className={`w-4 h-4 md:w-5 md:h-5 ${isFavorite ? "fill-current" : ""}`}
                   />
-                  
-                  {/* Navigation Arrows */}
-                  {product.images.length > 1 && (
-                    <>
-                      <button
-                        onClick={prevImage}
-                        className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-all z-10"
-                        aria-label="Imagen anterior"
-                      >
-                        <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 text-gray-700" />
-                      </button>
-                      <button
-                        onClick={nextImage}
-                        className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-all z-10"
-                        aria-label="Imagen siguiente"
-                      >
-                        <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-gray-700" />
-                      </button>
-                    </>
-                  )}
-
-                  {/* Image Dots */}
-                  {product.images.length > 1 && (
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-                      {product.images.map((_, index) => (
-                        <button
-                          key={index}
-                          onClick={() => setCurrentImageIndex(index)}
-                          className={`w-2 h-2 rounded-full transition-all ${
-                            index === currentImageIndex ? "bg-white" : "bg-white/50"
-                          }`}
-                          aria-label={`Ir a imagen ${index + 1}`}
-                        />
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Favorite Button */}
-                  <button
-                    type="button"
-                    onClick={handleToggleFavorite}
-                    className={`absolute top-2 right-2 md:top-4 md:right-4 w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center shadow-lg transition-all z-10 ${
-                      isFavorite
-                        ? "bg-red-500 text-white hover:bg-red-600"
-                        : "bg-white text-gray-700 hover:bg-gray-50"
-                    }`}
-                    aria-label={isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}
-                  >
-                    <Heart className={`w-4 h-4 md:w-5 md:h-5 ${isFavorite ? "fill-current" : ""}`} />
-                  </button>
-                </>
-              )}
+                </button>
+              </>
             </div>
           </div>
 
@@ -970,7 +1008,7 @@ export default function ProductDetailPage() {
                             {hasOptions ? (
                               variant.options.map((option: any) => {
                                 const isSelected = selectedVariantOptions[variantKey] === option.id;
-                                const isOutOfStock = option.stock !== undefined && option.stock <= 0;
+                                const isOutOfStock = false
                                 return (
                                   <button
                                     key={option.id}
@@ -1397,21 +1435,28 @@ export default function ProductDetailPage() {
                 {/* Category products for special categories, shown as combo-style cards */}
                 {isSpecialCategory && catProductsToShow.map((catProduct) => {
                   const priceInfo = calculateProductPrice(catProduct, 1);
-                  const catProductImage = catProduct.main_image || (catProduct.images && catProduct.images.length > 0 ? catProduct.images[0].image_url : "") || "";
+                  const catProductImage = firstProductImageUrl(catProduct);
                   return (
                     <div
                       key={catProduct.id}
                       className="bg-white border border-gray-200 rounded-[10px] p-3 md:p-4 flex items-center gap-3 md:gap-4"
                     >
-                      {catProductImage && (
-                        <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-100 rounded-[4px] flex-shrink-0 overflow-hidden">
-                          <img
-                            src={wsrvLoader({ src: catProductImage, width: 200 })}
-                            alt={catProduct.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      )}
+                      <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-100 rounded-[4px] flex-shrink-0 overflow-hidden">
+                        <img
+                          src={
+                            catProductImage === PRODUCT_IMAGE_PLACEHOLDER
+                              ? catProductImage
+                              : wsrvLoader({ src: catProductImage, width: 200 })
+                          }
+                          alt={catProduct.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const el = e.currentTarget;
+                            el.onerror = null;
+                            el.src = PRODUCT_IMAGE_PLACEHOLDER;
+                          }}
+                        />
+                      </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-medium text-gray-900 mb-0.5 md:mb-1 text-sm md:text-base line-clamp-2">{catProduct.name}</h3>
                         {priceInfo.currentPrice && (
@@ -1463,27 +1508,31 @@ export default function ProductDetailPage() {
                     .map(item => `${item.quantity}x ${item.item_name || `Producto ${item.crm_product_id}`}`)
                     .join(", ");
                   
-                  const comboImage = combo.product?.main_image || 
-                                    (combo.product?.images && combo.product.images.length > 0 
-                                      ? combo.product.images[0].image_url 
-                                      : "") || 
-                                    product?.images[0]?.url || 
-                                    "";
-                  
+                  const comboImage = combo.product
+                    ? firstProductImageUrl(combo.product)
+                    : product?.images[0]?.url?.trim() || PRODUCT_IMAGE_PLACEHOLDER;
+
                   return (
                     <div
                       key={combo.id}
                       className="bg-white border border-gray-200 rounded-[10px] p-3 md:p-4 flex items-center gap-3 md:gap-4"
                     >
-                      {comboImage && (
-                        <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-100 rounded-[4px] flex-shrink-0 overflow-hidden">
-                          <img
-                            src={wsrvLoader({ src: comboImage, width: 200 })}
-                            alt={comboName}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      )}
+                      <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-100 rounded-[4px] flex-shrink-0 overflow-hidden">
+                        <img
+                          src={
+                            comboImage === PRODUCT_IMAGE_PLACEHOLDER
+                              ? comboImage
+                              : wsrvLoader({ src: comboImage, width: 200 })
+                          }
+                          alt={comboName}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const el = e.currentTarget;
+                            el.onerror = null;
+                            el.src = PRODUCT_IMAGE_PLACEHOLDER;
+                          }}
+                        />
+                      </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-medium text-gray-900 mb-0.5 md:mb-1 text-sm md:text-base line-clamp-2">{comboName}</h3>
                         {itemsDescription && (
@@ -1522,9 +1571,9 @@ export default function ProductDetailPage() {
                 <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
               </a>
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 [&>*]:min-w-0">
               {similarProducts.map((similarProduct, index) => (
-                <div key={similarProduct.id} className={index >= 2 ? "hidden md:block" : ""}>
+                <div key={similarProduct.id} className={`min-w-0 ${index >= 2 ? "hidden md:block" : ""}`}>
                   <ProductCard
                     id={similarProduct.id}
                     image={similarProduct.image}

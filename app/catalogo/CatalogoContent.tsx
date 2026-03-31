@@ -9,6 +9,7 @@ import { fetchProducts, Product } from "@/lib/api";
 import { ChevronDown } from "lucide-react";
 import { calculateProductPrice } from "@/utils/priceUtils";
 import { useLocality } from "@/contexts/LocalityContext";
+import { firstProductImageUrl } from "@/lib/productImagePlaceholder";
 
 interface CatalogoContentProps {
   initialProducts: Product[];
@@ -134,10 +135,7 @@ export default function CatalogoContent({ initialProducts, initialTotalPages }: 
   ];
 
   const getProductCardProps = (product: Product) => {
-    const image =
-      product.main_image ||
-      (product.images && product.images[0]?.image_url) ||
-      "/images/placeholder.png";
+    const image = firstProductImageUrl(product);
 
     const priceInfo = calculateProductPrice(product, 1);
 
@@ -328,7 +326,7 @@ export default function CatalogoContent({ initialProducts, initialTotalPages }: 
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 [&>*]:min-w-0">
                   {products.map((product) => (
                     <ProductCard
                       key={product.id}

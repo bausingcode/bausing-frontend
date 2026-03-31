@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Heart, ShoppingCart } from "lucide-react";
 import wsrvLoader from "@/lib/wsrvLoader";
+import { PRODUCT_IMAGE_PLACEHOLDER } from "@/lib/productImagePlaceholder";
 import { useCart } from "@/contexts/CartContext";
 
 interface ProductCardProps {
@@ -47,28 +48,29 @@ export default function ProductCard({
   // Generar URL optimizada con wsrv (usando ancho de 400px para productos)
   // Validar que la imagen sea válida antes de procesarla
   const getOptimizedUrl = () => {
-    // Si no hay imagen o está vacía, usar placeholder
-    if (!image || image.trim() === '' || image === '/images/placeholder.png') {
-      return '/images/placeholder.png';
+    const trimmed = (image || "").trim();
+    if (!trimmed || trimmed === "/images/placeholder.png") {
+      return PRODUCT_IMAGE_PLACEHOLDER;
     }
-    
-    // Si la imagen ya es una URL de wsrv, no la optimizamos de nuevo
-    if (image.includes('wsrv.nl')) {
-      return image;
+    if (trimmed === PRODUCT_IMAGE_PLACEHOLDER || trimmed.startsWith("data:")) {
+      return trimmed;
     }
-    
-    // Si la imagen es una URL válida (http/https), procesarla con wsrv
-    if (image.startsWith('http://') || image.startsWith('https://') || image.startsWith('/')) {
+    if (trimmed.includes("wsrv.nl")) {
+      return trimmed;
+    }
+    if (
+      trimmed.startsWith("http://") ||
+      trimmed.startsWith("https://") ||
+      trimmed.startsWith("/")
+    ) {
       try {
-        return wsrvLoader({ src: image, width: 400 });
+        return wsrvLoader({ src: trimmed, width: 400 });
       } catch (error) {
-        console.error('[ProductCard] Error processing image:', image, error);
-        return '/images/placeholder.png';
+        console.error("[ProductCard] Error processing image:", image, error);
+        return PRODUCT_IMAGE_PLACEHOLDER;
       }
     }
-    
-    // Si no es una URL válida, usar placeholder
-    return '/images/placeholder.png';
+    return PRODUCT_IMAGE_PLACEHOLDER;
   };
   
   const optimizedUrl = getOptimizedUrl();
@@ -125,18 +127,20 @@ export default function ProductCard({
   };
 
   return (
-    <Link href={`/productos/${productId}`} className="relative group block min-w-0 cursor-pointer" style={{ fontFamily: 'DM Sans, sans-serif' }}>
+    <Link
+      href={`/productos/${productId}`}
+      className="relative group block w-full min-w-0 cursor-pointer"
+      style={{ fontFamily: "DM Sans, sans-serif" }}
+    >
       <div className={`relative w-full rounded-[10px] overflow-hidden ${useNormalHeight ? 'h-80' : 'h-48 md:h-80'}`}>
         <img
           src={optimizedUrl}
           alt={alt}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           onError={(e) => {
-            // Si la imagen falla al cargar, usar placeholder
-            const target = e.target as HTMLImageElement;
-            if (target.src !== '/images/placeholder.png') {
-              target.src = '/images/placeholder.png';
-            }
+            const target = e.currentTarget;
+            target.onerror = null;
+            target.src = PRODUCT_IMAGE_PLACEHOLDER;
           }}
           loading="lazy"
         />
@@ -185,11 +189,13 @@ export default function ProductCard({
           </button>
         </div>
       </div>
-      <div className={useNormalHeight ? "pt-3" : "pt-2 md:pt-3"}>
-        <div className="mb-1 min-w-0">
+      <div
+        className={`w-full min-w-0 overflow-hidden ${useNormalHeight ? "pt-3" : "pt-2 md:pt-3"}`}
+      >
+        <div className="mb-1 min-w-0 w-full">
           <h4
             title={name}
-            className={`truncate ${
+            className={`line-clamp-2 min-w-0 max-w-full break-words ${
               useNormalHeight
                 ? "text-sm font-normal text-gray-900 leading-tight"
                 : "text-xs md:text-sm font-normal text-gray-900 leading-tight"

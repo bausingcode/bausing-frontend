@@ -1,4 +1,5 @@
-import { 
+import type { Metadata } from "next";
+import {
   Bed,
   Sofa,
   Microwave,
@@ -10,7 +11,7 @@ import {
   BookOpen,
   MessageCircle,
   HelpCircle,
-  MapPin
+  MapPin,
 } from "lucide-react";
 import ProductCard from "@/components/ProductCard";
 import BannerCarousel from "@/components/BannerCarousel";
@@ -26,11 +27,31 @@ import WhatsAppLink from "@/components/WhatsAppLink";
 import InfoBannerCarousel from "@/components/InfoBannerCarousel";
 import ProductCarousel from "@/components/ProductCarousel";
 import VideoSection from "@/components/VideoSection";
+import {
+  getSiteUrl,
+  SITE_TAGLINE,
+  titleWithBrand,
+} from "@/lib/seo/site";
 
 const Footer = dynamic(() => import("@/components/Footer"), {
   loading: () => null,
   ssr: true,
 });
+
+export const metadata: Metadata = {
+  title: "Inicio",
+  description: SITE_TAGLINE,
+  alternates: { canonical: `${getSiteUrl()}/` },
+  openGraph: {
+    title: titleWithBrand("Inicio"),
+    description: SITE_TAGLINE,
+    url: getSiteUrl(),
+  },
+  twitter: {
+    title: titleWithBrand("Inicio"),
+    description: SITE_TAGLINE,
+  },
+};
 
 export default async function Home() {
   let heroImages: HeroImage[] = [];
@@ -104,7 +125,7 @@ export default async function Home() {
 
       {/* Tres columnas informativas — debajo del hero; borde solo abajo, ancho pantalla */}
       <section className="bg-white">
-        <div className="container mx-auto px-4 py-6">
+        <div className="container mx-auto px-4 py-6 md:py-8 lg:py-6">
           {/* Mobile: carrusel horizontal */}
           <div className="mt-4 md:hidden max-w-5xl lg:max-w-6xl mx-auto">
             <div
@@ -130,14 +151,14 @@ export default async function Home() {
             </div>
           </div>
 
-          {/* Desktop: grid 3 columnas */}
-          <div className="hidden md:grid grid-cols-3 gap-8 md:gap-6 lg:gap-8 max-w-5xl lg:max-w-6xl mx-auto">
+          {/* Tablet y desktop: grid 3 columnas */}
+          <div className="hidden md:grid grid-cols-3 gap-6 md:gap-8 lg:gap-8 max-w-5xl lg:max-w-6xl mx-auto">
             {infoCards.map((item) => (
-              <div key={item.title} className="flex flex-col items-center text-center px-2">
-                <h4 className="text-[#101828] font-bold text-sm md:text-base mb-2">
+              <div key={item.title} className="flex flex-col items-center text-center px-2 md:px-3">
+                <h4 className="text-[#101828] font-bold text-base md:text-[15px] lg:text-base mb-2">
                   {item.title}
                 </h4>
-                <p className="text-[#64748B] text-xs md:text-sm leading-relaxed mb-4 flex-1 max-w-xs">
+                <p className="text-[#64748B] text-sm md:text-[13px] lg:text-sm leading-relaxed mb-4 flex-1 max-w-[14rem] md:max-w-none lg:max-w-xs">
                   {item.description}
                 </p>
               </div>
@@ -210,55 +231,86 @@ export default async function Home() {
 
       {/* Hero Text Section */}
       <section className="bg-white py-8 md:py-10 lg:py-12">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-4 md:mb-6 lg:mb-8">
-            <h2 className="text-sm md:text-2xl font-semibold text-gray-800">Encontrá el colchón ideal para vos</h2>
-            <a href="/catalogo/colchones" className="flex items-center gap-1 md:gap-2 text-gray-700 hover:text-gray-900 transition-colors">
-              <span className="font-medium text-xs md:text-base">Ver todos</span>
-              <ArrowRight className="w-3 h-3 md:w-5 md:h-5" />
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="flex items-center justify-between mb-4 md:mb-6 lg:mb-8 gap-3">
+            <h2 className="text-sm md:text-xl lg:text-2xl font-semibold text-gray-800 leading-snug">
+              Encontrá el colchón ideal para vos
+            </h2>
+            <a href="/catalogo/colchones" className="flex items-center gap-1 md:gap-2 text-gray-700 hover:text-gray-900 transition-colors shrink-0">
+              <span className="font-medium text-xs md:text-sm lg:text-base">Ver todos</span>
+              <ArrowRight className="w-3 h-3 md:w-4 lg:w-5 md:h-4 lg:h-5" />
             </a>
           </div>
 
-          {/* Mobile: Carrusel si hay más de 2 productos */}
+          {/* Carrusel hasta 1290px inclusive */}
           <ProductCarousel>
             <HomeProducts section="featured" count={4} />
           </ProductCarousel>
 
-          {/* Desktop: Grid normal */}
-          <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-5 lg:gap-6">
+          {/* Grid desde 1291px; 4 columnas solo en pantallas más anchas */}
+          <div className="hidden min-[1291px]:grid min-[1291px]:grid-cols-3 min-[1440px]:grid-cols-4 gap-5 min-[1440px]:gap-6">
             <HomeProducts section="featured" count={4} />
           </div>
         </div>
       </section>
 
-      {/* Info Banner (position 2) - Hidden on mobile */}
+      {/* Info Banner (position 2) — solo desktop; oculto mobile y tablet */}
       {infoBannerImages.length > 0 && (
         <InfoBannerCarousel images={infoBannerImages} autoPlayInterval={5000} />
       )}
 
-      <section className="bg-[#fafafa] mt-0 md:mt-14 lg:mt-20 py-8 md:py-10 lg:py-12">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-4 md:mb-6">
-            <h3 className="text-sm md:text-xl lg:text-2xl font-semibold text-gray-800">Mirá los más vendidos</h3>
-            <a href="/catalogo" className="flex items-center gap-1 md:gap-2 text-gray-700 hover:text-gray-900 transition-colors">
-              <span className="font-medium text-xs md:text-base">Ver todos</span>
-              <ArrowRight className="w-3 h-3 md:w-5 md:h-5" />
+      <section className="bg-[#fafafa] mt-0 md:mt-10 lg:mt-20 py-8 md:py-10 lg:py-12">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
+            <h3 className="text-sm md:text-xl lg:text-2xl font-semibold text-gray-800 leading-snug">
+              Mirá los más vendidos
+            </h3>
+            <a href="/catalogo" className="flex items-center gap-1 md:gap-2 text-gray-700 hover:text-gray-900 transition-colors shrink-0">
+              <span className="font-medium text-xs md:text-sm lg:text-base">Ver todos</span>
+              <ArrowRight className="w-3 h-3 md:w-4 lg:w-5 md:h-4 lg:h-5" />
             </a>
           </div>
           
-          {/* Mobile: Grid normal (sin carrusel) */}
+          {/* Mobile: grid 2 columnas */}
           <div className="grid grid-cols-2 md:hidden gap-5">
             <HomeProducts section="discounts" count={3} />
           </div>
 
-          {/* Desktop: Grid normal — primera columna fija 300px para el banner 300×400 */}
-          <div className="hidden md:grid md:grid-cols-[300px_minmax(0,1fr)_minmax(0,1fr)] lg:grid-cols-[300px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
-            <div className="w-[300px] h-[400px] shrink-0 rounded-[10px] md:rounded-xl overflow-hidden">
+          {/* Tablet y “desktop angosto” hasta 1290px: banner arriba + grilla */}
+          <div className="hidden md:max-[1290px]:flex md:flex-col md:gap-6">
+            <div className="w-full flex justify-center">
+              <div className="w-full max-w-[360px] aspect-[300/400] shrink-0 overflow-hidden rounded-xl bg-neutral-100">
+                {descuentazosBanner ? (
+                  <img
+                    src={wsrvLoader({ src: descuentazosBanner.image_url, width: 600 })}
+                    alt={descuentazosBanner.title || descuentazosBanner.subtitle || "Foto"}
+                    className="h-full w-full object-cover"
+                    loading="eager"
+                  />
+                ) : (
+                  <div className="bg-black w-full h-full flex items-center justify-center min-h-[200px]">
+                    <div className="text-white font-bold text-3xl md:text-4xl leading-tight text-center" style={{ fontFamily: 'DM Sans, sans-serif' }}>
+                      <div>DES</div>
+                      <div>CUEN</div>
+                      <div>TAZOS</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3 md:gap-4">
+              <HomeProducts section="discounts" count={3} />
+            </div>
+          </div>
+
+          {/* Desktop ancho (1291px+): columna 300px + tres productos */}
+          <div className="hidden min-[1291px]:grid min-[1291px]:grid-cols-[300px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-4 xl:gap-6 items-start">
+            <div className="w-[300px] h-[400px] shrink-0 overflow-hidden rounded-xl bg-neutral-100">
               {descuentazosBanner ? (
                 <img
                   src={wsrvLoader({ src: descuentazosBanner.image_url, width: 600 })}
                   alt={descuentazosBanner.title || descuentazosBanner.subtitle || "Foto"}
-                  className="w-full h-full object-cover"
+                  className="h-full w-full max-xl:object-contain xl:object-cover"
                   loading="eager"
                 />
               ) : (
@@ -279,11 +331,10 @@ export default async function Home() {
 
       {/* Promotional Offers Section */}
       <section className="bg-white py-8 md:py-10 lg:py-12">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 md:px-6">
           {/* Mobile Carousel */}
           <InfoCarousel />
           
-          {/* Desktop Grid */}
           <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
             <div className="flex flex-col items-center text-center p-2 md:p-4">
               <div className="w-14 h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 aspect-square">
@@ -345,26 +396,24 @@ export default async function Home() {
 
       {/* Nuestros Sommiers Section */}
       <section className="bg-white py-8 md:py-10 lg:py-12">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 md:px-6">
           {/* Section Header */}
-          <div className="flex items-center justify-between mb-4 md:mb-6 lg:mb-8">
-            <h3 className="text-sm md:text-xl lg:text-2xl font-semibold text-gray-800">
+          <div className="flex items-center justify-between mb-4 md:mb-6 lg:mb-8 gap-3">
+            <h3 className="text-sm md:text-xl lg:text-2xl font-semibold text-gray-800 leading-snug">
               <span className="md:hidden">Completa tu descanso</span>
               <span className="hidden md:inline">Accesorios que completan tu descanso</span>
             </h3>
-            <a href="/catalogo/accesorios" className="flex items-center gap-1 md:gap-2 text-gray-700 hover:text-gray-900 transition-colors">
-              <span className="font-medium text-xs md:text-base">Ver todos</span>
-              <ArrowRight className="w-3 h-3 md:w-5 md:h-5" />
+            <a href="/catalogo/accesorios" className="flex items-center gap-1 md:gap-2 text-gray-700 hover:text-gray-900 transition-colors shrink-0">
+              <span className="font-medium text-xs md:text-sm lg:text-base">Ver todos</span>
+              <ArrowRight className="w-3 h-3 md:w-4 lg:w-5 md:h-4 lg:h-5" />
             </a>
           </div>
 
-          {/* Mobile: Carrusel si hay más de 2 productos */}
           <ProductCarousel>
             <HomeProducts section="complete_purchase" count={4} />
           </ProductCarousel>
 
-          {/* Desktop: Grid normal */}
-          <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
+          <div className="hidden min-[1291px]:grid min-[1291px]:grid-cols-3 min-[1440px]:grid-cols-4 gap-4 min-[1440px]:gap-6">
             <HomeProducts section="complete_purchase" count={4} />
           </div>
         </div>
@@ -372,8 +421,8 @@ export default async function Home() {
 
       {/* Information Section */}
       <section className="bg-white py-8 md:py-10 lg:py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-8">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5 lg:gap-8">
             {/* Blog */}
             <a 
               href="/blog" 

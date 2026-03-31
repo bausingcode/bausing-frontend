@@ -8,6 +8,8 @@ import { LocalityProvider } from "@/contexts/LocalityContext";
 import { HomepageDistributionProvider } from "@/contexts/HomepageDistributionContext";
 import LocalityDebugBar from "@/components/LocalityDebugBar";
 import LocalityAddressSelector from "@/components/LocalityAddressSelector";
+import SeoJsonLd from "@/components/SeoJsonLd";
+import { rootMetadata } from "@/lib/seo/site";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -16,10 +18,7 @@ const dmSans = DM_Sans({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "Bausing",
-  description: "Bausing",
-};
+export const metadata: Metadata = rootMetadata();
 
 export default function RootLayout({
   children,
@@ -27,8 +26,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${dmSans.variable} bg-white`}>
+    <html lang="es-AR" className={`${dmSans.variable} bg-white`}>
       <body className={`${dmSans.className} bg-white`}>
+        <SeoJsonLd />
         <AuthProvider>
           <LocalityProvider>
             <HomepageDistributionProvider>

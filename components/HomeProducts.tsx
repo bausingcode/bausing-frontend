@@ -6,6 +6,7 @@ import { useLocality } from "@/contexts/LocalityContext";
 import { useHomepageDistribution } from "@/contexts/HomepageDistributionContext";
 import { fetchProducts, Product } from "@/lib/api";
 import { calculateProductPrice } from "@/utils/priceUtils";
+import { firstProductImageUrl } from "@/lib/productImagePlaceholder";
 
 // Helper function to repeat products if not enough
 function repeatProducts<T>(products: T[], count: number): T[] {
@@ -19,21 +20,8 @@ function repeatProducts<T>(products: T[], count: number): T[] {
 
 // Helper function to convert Product to ProductCard props
 function productToCardProps(product: Product, isPriceLoading: boolean = false) {
-  // Obtener imagen con validación
-  let image = "/images/placeholder.png";
-  
-  if (product.main_image && product.main_image.trim() !== '') {
-    image = product.main_image;
-  } else if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-    // Buscar la primera imagen válida
-    const validImage = product.images.find(
-      (img: any) => img?.image_url && img.image_url.trim() !== ''
-    );
-    if (validImage?.image_url) {
-      image = validImage.image_url;
-    }
-  }
-  
+  const image = firstProductImageUrl(product);
+
   // Si el precio está cargando, usar skeleton
   // Si no hay precio después de cargar, mostrar "Sin Precio"
   // Si hay precio, calcular con promociones
@@ -138,7 +126,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
         {[...Array(skeletonCount)].map((_, index) => (
           <div 
             key={index} 
-            className={`relative group block animate-pulse flex-shrink-0 snap-start w-[calc((100vw-1rem-1.5rem-0.75rem)/2)] md:w-auto ${section === "discounts" && index >= 2 ? 'hidden md:block' : ''}`}
+            className={`relative group block animate-pulse flex-shrink-0 snap-start w-[calc((100vw-1rem-1.5rem-0.75rem)/2)] md:w-auto min-w-0 ${section === "discounts" && index >= 2 ? 'hidden md:block' : ''}`}
           >
             <div className={`relative w-full rounded-[10px] overflow-hidden bg-gray-200 ${section === "discounts" ? 'h-48 md:h-80' : 'h-48 md:h-80'}`}></div>
             <div className="pt-3">
@@ -172,9 +160,9 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
         {products.map((product, index) => (
           <div 
             key={`${product.id}-${index}-${locality?.id || 'no-locality'}`} 
-            className={`bg-white p-2 md:p-4 rounded-lg md:rounded-[20px] h-full cursor-pointer flex-shrink-0 snap-start w-[calc((100vw-1rem-1.5rem-0.75rem)/2)] md:w-auto md:block ${index >= 2 ? 'hidden md:block' : ''}`}
+            className={`bg-white p-2 md:p-4 rounded-lg md:rounded-[20px] h-full cursor-pointer flex-shrink-0 snap-start w-[calc((100vw-1rem-1.5rem-0.75rem)/2)] md:w-auto md:block min-w-0 ${index >= 2 ? 'hidden md:block' : ''}`}
           >
-            <div className="h-full flex flex-col">
+            <div className="h-full flex flex-col min-w-0 w-full">
               <ProductCard
                 id={product.id}
                 image={product.image}
@@ -198,7 +186,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
       {products.map((product, index) => (
         <div
           key={`${product.id}-${index}-${locality?.id || 'no-locality'}`}
-          className="flex-shrink-0 snap-start w-[calc((100vw-2rem-1rem-0.75rem)/2)] md:w-auto"
+          className="flex-shrink-0 snap-start w-[calc((100vw-2rem-1rem-0.75rem)/2)] md:w-auto min-w-0"
         >
           <ProductCard
             id={product.id}

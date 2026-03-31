@@ -16,6 +16,10 @@ import {
 } from "@/lib/api";
 import { calculateProductPrice } from "@/utils/priceUtils";
 import wsrvLoader from "@/lib/wsrvLoader";
+import {
+  firstProductImageUrl,
+  PRODUCT_IMAGE_PLACEHOLDER,
+} from "@/lib/productImagePlaceholder";
 
 /** Filtrá la consola por: Distribución inicio */
 const DBG = "[Distribución inicio página]";
@@ -131,9 +135,14 @@ function ProductCardSlot({
     );
   }
 
-  const image = product.main_image || (product.images && product.images[0]?.image_url) || "/images/placeholder.png";
+  const image = firstProductImageUrl(product);
   const priceInfo = calculateProductPrice(product, 1);
-  const optimizedImage = image.includes('wsrv.nl') ? image : wsrvLoader({ src: image, width: 400 });
+  const optimizedImage =
+    image === PRODUCT_IMAGE_PLACEHOLDER || image.startsWith("data:")
+      ? image
+      : image.includes("wsrv.nl")
+        ? image
+        : wsrvLoader({ src: image, width: 400 });
 
   return (
     <div className={`relative group bg-white border border-gray-200 rounded-[10px] overflow-hidden ${readOnly ? "" : "hover:shadow-lg"} transition-all`}>

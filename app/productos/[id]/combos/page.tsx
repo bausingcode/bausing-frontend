@@ -9,6 +9,10 @@ import ProductCard from "@/components/ProductCard";
 import { fetchProductCombos, ProductCombo, fetchProductById } from "@/lib/api";
 import { Package2, ArrowLeft } from "lucide-react";
 import wsrvLoader from "@/lib/wsrvLoader";
+import {
+  firstProductImageUrl,
+  PRODUCT_IMAGE_PLACEHOLDER,
+} from "@/lib/productImagePlaceholder";
 import { calculateProductPrice, formatPrice } from "@/utils/priceUtils";
 
 export default function ProductCombosPage() {
@@ -112,7 +116,7 @@ export default function ProductCombosPage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 [&>*]:min-w-0">
             {productCombos.filter(combo => combo.is_completed).map((combo) => {
               // Construir nombre del combo
               const comboName = combo.product_name || 
@@ -139,12 +143,9 @@ export default function ProductCombosPage() {
                 currentPrice = formatPrice(combo.price_sale);
               }
               
-              // Obtener imagen
-              const comboImage = combo.product?.main_image || 
-                                (combo.product?.images && combo.product.images.length > 0 
-                                  ? combo.product.images[0].image_url 
-                                  : "") || 
-                                "";
+              const comboImage = combo.product
+                ? firstProductImageUrl(combo.product)
+                : PRODUCT_IMAGE_PLACEHOLDER;
               
               // Si el combo tiene un producto completado, usar ProductCard
               if (combo.product_id && combo.product) {
@@ -183,15 +184,22 @@ export default function ProductCombosPage() {
                   key={combo.id}
                   className="bg-white border border-gray-200 rounded-[10px] overflow-hidden hover:shadow-lg transition-shadow"
                 >
-                  {comboImage && (
-                    <div className="w-full h-64 bg-gray-100 overflow-hidden">
-                      <img
-                        src={wsrvLoader({ src: comboImage, width: 400 })}
-                        alt={comboName}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
+                  <div className="w-full h-64 bg-gray-100 overflow-hidden">
+                    <img
+                      src={
+                        comboImage === PRODUCT_IMAGE_PLACEHOLDER
+                          ? comboImage
+                          : wsrvLoader({ src: comboImage, width: 400 })
+                      }
+                      alt={comboName}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const el = e.currentTarget;
+                        el.onerror = null;
+                        el.src = PRODUCT_IMAGE_PLACEHOLDER;
+                      }}
+                    />
+                  </div>
                   <div className="p-4">
                     <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">{comboName}</h3>
                     {itemsDescription && (

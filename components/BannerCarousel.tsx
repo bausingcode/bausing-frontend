@@ -109,8 +109,8 @@ export default function BannerCarousel({
   );
 
   return (
-    <section className="relative bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0f0f0f] min-h-[200px] sm:min-h-[300px] md:min-h-[400px] lg:min-h-[max(450px,calc(100vw*450/1440))] flex items-center overflow-hidden">
-      <div className="absolute inset-0 opacity-10 z-0">
+    <section className="relative w-full overflow-hidden bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0f0f0f] max-md:h-[clamp(92px,14svh,136px)] md:aspect-[1440/450] md:h-auto">
+      <div className="absolute inset-0 opacity-10 z-0 pointer-events-none">
         <div
           className="absolute inset-0"
           style={{
@@ -121,13 +121,13 @@ export default function BannerCarousel({
         />
       </div>
 
-      <div className="relative w-full h-full min-h-[200px] sm:min-h-[300px] md:min-h-[400px] lg:min-h-[max(450px,calc(100vw*450/1440))]">
+      <div className="absolute inset-0 min-w-0 z-[1]">
         {slides.map((slide, index) => {
           const video = isHeroVideoUrl(slide.url);
           return (
             <div
               key={`${slide.id}-${index}`}
-              className={`absolute inset-0 transition-opacity duration-1000 ${
+              className={`absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0f0f0f] transition-opacity duration-1000 ${
                 index === currentIndex ? "opacity-100 z-10" : "opacity-0 z-0"
               }`}
             >
@@ -137,7 +137,7 @@ export default function BannerCarousel({
                     videoRefs.current[index] = el;
                   }}
                   src={slide.url}
-                  className="w-full h-full object-cover"
+                  className="h-full w-full min-h-0 object-cover object-[center_20%] md:object-center"
                   muted
                   playsInline
                   loop
@@ -148,7 +148,7 @@ export default function BannerCarousel({
                 <img
                   src={wsrvLoader({ src: slide.url, width: 1920 })}
                   alt={slide.alt}
-                  className="w-full h-full object-cover"
+                  className="h-full w-full min-h-0 object-cover object-[center_20%] md:object-center"
                   loading={index === 0 ? "eager" : "lazy"}
                 />
               )}
@@ -160,26 +160,26 @@ export default function BannerCarousel({
       {showOverlay && (
         <div className="absolute inset-0 z-[15] pointer-events-none flex flex-col justify-end">
           {/* Banda inferior con gradiente (altura fija para que el degradado sea visible) */}
-          <div className="w-full min-h-[34%] sm:min-h-[38%] max-h-[52%] flex flex-col justify-end bg-gradient-to-t from-black/20 via-black/10 to-transparent pointer-events-auto">
-            <div className="pl-8 sm:pl-14 md:pl-24 lg:pl-28 xl:pl-32 pr-6 sm:pr-10 pb-4 sm:pb-5 pt-8 sm:pt-10 mb-5 sm:mb-7 md:mb-8">
+          <div className="w-full min-h-[34%] max-md:min-h-0 max-md:max-h-[60%] sm:min-h-[38%] max-h-[52%] flex flex-col justify-end bg-gradient-to-t from-black/20 via-black/10 to-transparent pointer-events-auto">
+            <div className="pl-3 pr-3 pt-2 pb-1 mb-1 sm:pl-14 sm:pr-10 sm:pb-5 sm:pt-10 sm:mb-7 md:pl-24 lg:pl-28 xl:pl-32 md:mb-8">
             <div
               key={slides[currentIndex]?.heroId ?? String(currentIndex)}
-              className="animate-in fade-in duration-500 max-w-2xl lg:max-w-3xl text-left"
+              className="animate-in fade-in duration-500 max-w-2xl lg:max-w-3xl text-left max-md:space-y-0.5"
             >
               {(overlay!.title || "").trim() ? (
-                <h1 className="text-white text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-2 md:mb-3">
+                <h1 className="text-white text-[15px] leading-tight sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-0 sm:mb-2 md:mb-3 max-md:line-clamp-2">
                   {(overlay!.title || "").trim()}
                 </h1>
               ) : null}
               {(overlay!.subtitle || "").trim() ? (
-                <p className="text-white/90 text-sm sm:text-base md:text-lg lg:text-xl max-w-xl leading-relaxed mb-4 md:mb-6">
+                <p className="text-white/90 text-[11px] sm:text-base md:text-lg lg:text-xl max-w-xl leading-tight sm:leading-relaxed mb-1 sm:mb-4 md:mb-6 line-clamp-1 sm:line-clamp-none">
                   {(overlay!.subtitle || "").trim()}
                 </p>
               ) : null}
               {(overlay!.cta_text || "").trim() && (overlay!.cta_link || "").trim() ? (
                 <a
                   href={(overlay!.cta_link || "").trim()}
-                  className="inline-flex items-center justify-center rounded-full bg-[#00C1A7] hover:bg-[#00A892] text-white font-semibold text-sm md:text-base px-6 py-3 md:px-8 md:py-3.5 transition-colors"
+                  className="inline-flex items-center justify-center rounded-full bg-[#00C1A7] hover:bg-[#00A892] text-white font-semibold text-[11px] sm:text-base px-3 py-1.5 sm:px-8 sm:py-3.5 transition-colors max-md:mt-0.5"
                 >
                   {(overlay!.cta_text || "").trim()}
                 </a>
@@ -210,7 +210,7 @@ export default function BannerCarousel({
       )}
 
       {slides.length > 1 && (
-        <div className="absolute bottom-2 md:bottom-4 left-1/2 transform -translate-x-1/2 z-20 flex gap-1.5 md:gap-2">
+        <div className="absolute bottom-1 md:bottom-4 left-1/2 transform -translate-x-1/2 z-20 flex gap-1.5 md:gap-2">
           {slides.map((_, index) => (
             <button
               key={index}

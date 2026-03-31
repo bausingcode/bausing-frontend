@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import ProductCard from "@/components/ProductCard";
+import { firstProductImageUrl } from "@/lib/productImagePlaceholder";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { fetchProducts, fetchCategories, Product, Category } from "@/lib/api";
@@ -1625,8 +1626,8 @@ export default function CatalogoContent({
   };
   
   const getProductCardProps = (product: Product) => {
-    const image = product.main_image || (product.images && product.images[0]?.image_url) || "/images/placeholder.png";
-    
+    const image = firstProductImageUrl(product);
+
     // Calcular precio usando función centralizada
     const priceInfo = calculateProductPrice(product, 1);
     
@@ -2190,7 +2191,7 @@ export default function CatalogoContent({
               </div>
             ) : (
               <>
-                <div className={`grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6 mb-8 transition-all duration-300 ease-in-out ${filtersExpanded ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
+                <div className={`grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6 mb-8 transition-all duration-300 ease-in-out [&>*]:min-w-0 ${filtersExpanded ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
                   {products.map((product) => (
                     <ProductCard key={product.id} {...getProductCardProps(product)} />
                   ))}

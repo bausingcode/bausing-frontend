@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Acceso administración",
+  title: "Checkout",
   robots: { index: false, follow: false },
 };
 
-export default function LoginLayout({
+export default function CheckoutLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return children;
 }
-

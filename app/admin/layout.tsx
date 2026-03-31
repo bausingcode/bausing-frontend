@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import ScrollableContainer from "@/components/ScrollableContainer";
 import Sidebar from "@/components/Sidebar";
+
+export const metadata: Metadata = {
+  title: "Administración",
+  robots: { index: false, follow: false },
+};
 
 export default function AdminLayout({
   children,
