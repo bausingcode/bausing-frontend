@@ -943,7 +943,7 @@ export async function uploadProductImageFile(file: File, productId: string): Pro
   // Compress image
   const compressedFile = await compressToWebp(file, {
     maxSide: 2048,
-    quality: 0.86,
+    quality: 0.9,
   });
 
   // Upload to Supabase Storage using client
@@ -1145,7 +1145,7 @@ export async function uploadCategoryNavbarImageFile(
   const { compressToWebp } = await import("@/lib/image");
   const compressedFile = await compressToWebp(file, {
     maxSide: 2048,
-    quality: 0.86,
+    quality: 0.9,
   });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -2170,7 +2170,7 @@ export async function uploadHeroImageFile(file: File, position: number): Promise
   // Compress image
   const compressedFile = await compressToWebp(file, {
     maxSide: 2048,
-    quality: 0.86,
+    quality: 0.9,
   });
 
   // Upload to Supabase Storage using client
@@ -3958,7 +3958,7 @@ export async function uploadBlogPostImageFile(file: File, postId: string): Promi
   // Compress image
   const compressedFile = await compressToWebp(file, {
     maxSide: 2048,
-    quality: 0.86,
+    quality: 0.9,
   });
 
   // Upload to Supabase Storage using client
@@ -5461,7 +5461,7 @@ export interface SendPromotionalEmailsResponse {
  */
 export async function uploadEmailImageFile(file: File): Promise<string> {
   const { compressToWebp } = await import("@/lib/image");
-  const compressedFile = await compressToWebp(file, { maxSide: 2048, quality: 0.86 });
+  const compressedFile = await compressToWebp(file, { maxSide: 2048, quality: 0.9 });
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!supabaseUrl || !supabaseKey) {

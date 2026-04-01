@@ -75,23 +75,6 @@ export default function ProductCard({
   
   const optimizedUrl = getOptimizedUrl();
 
-  // Función para calcular el precio sin impuestos nacionales
-  const calculatePriceWithoutTaxes = (priceStr: string): string => {
-    if (!priceStr) return '';
-    
-    // Parsear el precio desde formato string argentino (remover $, puntos de miles, comas decimales)
-    const cleaned = priceStr.replace(/[$\s]/g, '').replace(/\./g, '').replace(',', '.');
-    const numericPrice = parseFloat(cleaned);
-    
-    if (isNaN(numericPrice) || numericPrice === 0) return '';
-    
-    // Calcular precio sin impuestos nacionales (restar el 21%)
-    const priceWithoutTaxes = numericPrice * 0.79;
-    
-    // Formatear el resultado en formato argentino
-    return `$${priceWithoutTaxes.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`;
-  };
-
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -195,7 +178,7 @@ export default function ProductCard({
         <div className="mb-1 min-w-0 w-full">
           <h4
             title={name}
-            className={`line-clamp-2 min-w-0 max-w-full break-words ${
+            className={`truncate min-w-0 max-w-full ${
               useNormalHeight
                 ? "text-sm font-normal text-gray-900 leading-tight"
                 : "text-xs md:text-sm font-normal text-gray-900 leading-tight"
@@ -220,11 +203,6 @@ export default function ProductCard({
             <span className={useNormalHeight ? "text-xl font-semibold text-gray-500" : "text-lg md:text-xl font-semibold text-gray-500"}>Sin Precio</span>
           )}
         </div>
-        {!isPriceLoading && currentPrice && (
-          <div className={useNormalHeight ? "text-xs text-gray-500 mt-1" : "text-[10px] md:text-xs text-gray-500 mt-0.5 md:mt-1"}>
-            Precio sin impuestos nacionales {calculatePriceWithoutTaxes(currentPrice)}
-          </div>
-        )}
       </div>
     </Link>
   );
