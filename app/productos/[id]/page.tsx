@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, ShoppingCart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight, Layers, Bed, BedDouble, Scale, Package, Maximize, CheckCircle2, Package2, ChevronDown, ChevronUp, Ruler, Shirt, Wind, GripHorizontal } from "lucide-react";
+import { Heart, ShoppingCart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight, Layers, Bed, BedDouble, Scale, Package, Maximize, CheckCircle2, Package2, ChevronDown, ChevronUp, Ruler, Shirt, Wind, GripHorizontal, FileText } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
@@ -56,9 +56,7 @@ interface Product {
   // Características principales
   firmness?: string; // "Medio", "Blando", "Firme", etc.
   firmnessLevel?: number; // 1-5 para la barra visual
-  withPillow?: string;
   maxWeight?: string;
-  boxed?: string;
   size?: string;
   fillingType?: string;
   // Información técnica
@@ -105,6 +103,21 @@ function firmnessLabelToBarLevel(label: string | undefined | null): number {
   if (key === "MEDIO" || key === "MEDIUM" || key === "MEDIA") return 3;
   if (key === "FIRME" || key === "FIRM" || key === "HARD") return 5;
   return 3;
+}
+
+function productHasMainCharacteristics(p: Product): boolean {
+  if (p.fillingType?.trim()) return true;
+  if (p.firmness?.trim()) return true;
+  if (p.has_pillow_top === true) return true;
+  if (p.maxWeight?.trim()) return true;
+  if (p.is_bed_in_box === true) return true;
+  if (p.size_label?.trim()) return true;
+  if (p.mattress_height_cm != null && p.mattress_height_cm > 0) return true;
+  if (p.mattress_fabric_type?.trim()) return true;
+  if (p.has_double_pillow) return true;
+  if (p.has_moisture_breathers) return true;
+  if (p.has_side_handles) return true;
+  return false;
 }
 
 export default function ProductDetailPage() {
@@ -321,9 +334,7 @@ export default function ProductDetailPage() {
           // Características principales (transformadas desde campos técnicos)
           firmness: apiProductWithTech.mattress_firmness || "",
           firmnessLevel: firmnessLabelToBarLevel(apiProductWithTech.mattress_firmness),
-          withPillow: apiProductWithTech.has_pillow_top ? "Sí" : "No",
           maxWeight: apiProductWithTech.max_supported_weight_kg ? `${apiProductWithTech.max_supported_weight_kg} kg` : undefined,
-          boxed: apiProductWithTech.is_bed_in_box ? "Sí" : "No",
           size: variants.length > 0 ? variants[0].size || variants[0].name : apiProductWithTech.size_label || "Tamaño...",
           fillingType: apiProductWithTech.filling_type || "",
           warranty: apiProductWithTech.warranty_description || 
@@ -1164,8 +1175,15 @@ export default function ProductDetailPage() {
                     expandedSections.description ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
                   }`}
                 >
-                  <div className="pb-4 text-sm text-gray-600">
-                    {product.description}
+                  <div className="pb-4">
+                    {product.description?.trim() ? (
+                      <div className="text-sm text-gray-600 whitespace-pre-wrap">{product.description}</div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-10 px-4 text-center rounded-lg bg-gray-50 border border-dashed border-gray-200">
+                        <FileText className="w-9 h-9 text-gray-300 mb-2" strokeWidth={1.25} aria-hidden />
+                        <p className="text-sm text-gray-500">No hay descripción disponible para este producto.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1189,6 +1207,12 @@ export default function ProductDetailPage() {
                   }`}
                 >
                   <div className="pb-4">
+                    {!productHasMainCharacteristics(product) ? (
+                      <div className="flex flex-col items-center justify-center py-10 px-4 text-center rounded-lg bg-gray-50 border border-dashed border-gray-200">
+                        <Layers className="w-9 h-9 text-gray-300 mb-2" strokeWidth={1.25} aria-hidden />
+                        <p className="text-sm text-gray-500">No hay características registradas para este producto.</p>
+                      </div>
+                    ) : (
                     <div className="space-y-4">
                       {/* Tipo de relleno */}
                       {product.fillingType && (
@@ -1239,15 +1263,14 @@ export default function ProductDetailPage() {
                         </div>
                       )}
 
-                      {/* Con pillow */}
-                      {product.withPillow && (
+                      {/* Pillow superior — solo si aplica */}
+                      {product.has_pillow_top === true && (
                         <div className="flex items-center gap-4">
                           <div className="flex-shrink-0">
                             <Bed className="w-5 h-5 text-gray-600" />
                           </div>
                           <div className="flex-1">
-                            <div className="text-sm font-medium text-gray-700 mb-1">Con pillow</div>
-                            <div className="text-sm text-gray-900">{product.withPillow}</div>
+                            <div className="text-sm font-medium text-gray-900">Pillow superior</div>
                           </div>
                         </div>
                       )}
@@ -1265,15 +1288,14 @@ export default function ProductDetailPage() {
                         </div>
                       )}
 
-                      {/* Colchón en caja */}
-                      {product.boxed && (
+                      {/* Colchón en caja — solo si aplica */}
+                      {product.is_bed_in_box === true && (
                         <div className="flex items-center gap-4">
                           <div className="flex-shrink-0">
                             <Package className="w-5 h-5 text-gray-600" />
                           </div>
                           <div className="flex-1">
-                            <div className="text-sm font-medium text-gray-700 mb-1">Colchón en caja</div>
-                            <div className="text-sm text-gray-900">{product.boxed}</div>
+                            <div className="text-sm font-medium text-gray-900">Colchón en caja</div>
                           </div>
                         </div>
                       )}
@@ -1321,8 +1343,7 @@ export default function ProductDetailPage() {
                             <BedDouble className="w-5 h-5 text-gray-600" />
                           </div>
                           <div className="flex-1">
-                            <div className="text-sm font-medium text-gray-700 mb-1">Doble pillow</div>
-                            <div className="text-sm text-gray-900">Sí</div>
+                            <div className="text-sm font-medium text-gray-900">Doble pillow</div>
                           </div>
                         </div>
                       )}
@@ -1333,8 +1354,7 @@ export default function ProductDetailPage() {
                             <Wind className="w-5 h-5 text-gray-600" />
                           </div>
                           <div className="flex-1">
-                            <div className="text-sm font-medium text-gray-700 mb-1">Respiradores anti humedad</div>
-                            <div className="text-sm text-gray-900">Sí</div>
+                            <div className="text-sm font-medium text-gray-900">Respiradores anti humedad</div>
                           </div>
                         </div>
                       )}
@@ -1345,12 +1365,12 @@ export default function ProductDetailPage() {
                             <GripHorizontal className="w-5 h-5 text-gray-600" />
                           </div>
                           <div className="flex-1">
-                            <div className="text-sm font-medium text-gray-700 mb-1">Agarraderas laterales</div>
-                            <div className="text-sm text-gray-900">Sí</div>
+                            <div className="text-sm font-medium text-gray-900">Agarraderas laterales</div>
                           </div>
                         </div>
                       )}
                     </div>
+                    )}
                   </div>
                 </div>
               </div>
