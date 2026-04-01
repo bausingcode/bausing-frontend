@@ -89,6 +89,7 @@ export interface Category {
   parent_id?: string;
   parent_name?: string;
   order?: number;
+  navbar_image_url?: string | null;
   created_at?: string;
   options?: CategoryOption[];
 }
@@ -126,7 +127,7 @@ export async function fetchCategories(includeOptions = false, cookieHeader?: str
   
   const fetchOptions: RequestInit = typeof window === "undefined"
     ? { headers, next: { revalidate: 3600 } } // cache 1h server-side
-    : { headers };
+    : { headers, cache: "no-store" as RequestCache }; // evitar caché del navegador (el backend envía max-age=60)
 
   const response = await fetch(url, fetchOptions);
   
@@ -1101,6 +1102,92 @@ export async function createCategory(categoryData: {
     throw new Error("Failed to create category: Invalid response");
   }
   return data.data;
+}
+
+/**
+ * Update a category (admin)
+ */
+export async function updateCategory(
+  categoryId: string,
+  categoryData: Partial<{
+    name: string;
+    description: string | null;
+    parent_id: string | null;
+    navbar_image_url: string | null;
+  }>
+): Promise<Category> {
+  const url = `/api/categories/${categoryId}`;
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(categoryData),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to update category: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to update category: Invalid response");
+  }
+  return data.data;
+}
+
+/**
+ * Subir imagen del mega menú (navbar) para una categoría: Supabase + guardar URL en la categoría.
+ */
+export async function uploadCategoryNavbarImageFile(
+  file: File,
+  categoryId: string
+): Promise<Category> {
+  const { compressToWebp } = await import("@/lib/image");
+  const compressedFile = await compressToWebp(file, {
+    maxSide: 2048,
+    quality: 0.86,
+  });
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error(
+      "Supabase configuration is missing. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY"
+    );
+  }
+
+  const fileExt = compressedFile.name.split(".").pop();
+  const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+  const filePath = `navbar-categories/${categoryId}/${fileName}`;
+
+  const uploadResponse = await fetch(
+    `${supabaseUrl}/storage/v1/object/hero-images/${filePath}`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${supabaseKey}`,
+        "Content-Type": compressedFile.type,
+        "x-upsert": "true",
+      },
+      body: compressedFile,
+    }
+  );
+
+  if (!uploadResponse.ok) {
+    const errorText = await uploadResponse.text();
+    let errorMessage = `Failed to upload to Supabase: ${uploadResponse.statusText}`;
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.message || errorJson.error || errorMessage;
+    } catch {
+      errorMessage = errorText || errorMessage;
+    }
+    throw new Error(errorMessage);
+  }
+
+  const publicUrl = `${supabaseUrl}/storage/v1/object/public/hero-images/${filePath}`;
+  return updateCategory(categoryId, { navbar_image_url: publicUrl });
 }
 
 /**
@@ -4615,6 +4702,161 @@ export async function fetchActiveEvent(): Promise<Event | null> {
     console.error("Error fetching active event:", error);
     return null;
   }
+}
+
+/** FAQ público (sitio) */
+export interface FaqItemPublic {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+/** FAQ admin (incluye metadatos) */
+export interface FaqItemAdmin extends FaqItemPublic {
+  sort_order: number;
+  is_published: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export async function fetchPublicFaqItems(): Promise<FaqItemPublic[]> {
+  try {
+    const url =
+      typeof window === "undefined"
+        ? `${BACKEND_URL}/public/faq-items`
+        : `/api/public/faq-items`;
+    const fetchOptions: RequestInit =
+      typeof window === "undefined"
+        ? { next: { revalidate: 120 } }
+        : { cache: "no-store" };
+    const response = await fetch(url, fetchOptions);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch FAQ: ${response.statusText}`);
+    }
+    const data = await response.json();
+    if (!data.success || !Array.isArray(data.data)) {
+      return [];
+    }
+    return data.data;
+  } catch (e) {
+    console.error("fetchPublicFaqItems:", e);
+    return [];
+  }
+}
+
+export async function fetchAdminFaqItems(): Promise<FaqItemAdmin[]> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/faq-items`
+      : `/api/admin/faq-items`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, { headers, cache: "no-store" });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Error al cargar FAQ: ${response.statusText}`);
+  }
+  const data = await response.json();
+  if (!data.success) {
+    throw new Error(data.error || "Respuesta inválida");
+  }
+  return data.data || [];
+}
+
+export async function createAdminFaqItem(payload: {
+  question: string;
+  answer: string;
+  sort_order?: number;
+  is_published?: boolean;
+}): Promise<FaqItemAdmin> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/faq-items`
+      : `/api/admin/faq-items`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudo crear la pregunta");
+  }
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error(data.error || "Respuesta inválida");
+  }
+  return data.data;
+}
+
+export async function updateAdminFaqItem(
+  id: string,
+  payload: Partial<{
+    question: string;
+    answer: string;
+    sort_order: number;
+    is_published: boolean;
+  }>
+): Promise<FaqItemAdmin> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/faq-items/${id}`
+      : `/api/admin/faq-items/${id}`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudo actualizar");
+  }
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error(data.error || "Respuesta inválida");
+  }
+  return data.data;
+}
+
+export async function deleteAdminFaqItem(id: string): Promise<void> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/faq-items/${id}`
+      : `/api/admin/faq-items/${id}`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, { method: "DELETE", headers });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudo eliminar");
+  }
+}
+
+export async function reorderAdminFaqItems(orderedIds: string[]): Promise<FaqItemAdmin[]> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/faq-items/reorder`
+      : `/api/admin/faq-items/reorder`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ ordered_ids: orderedIds }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudo reordenar");
+  }
+  const data = await response.json();
+  if (!data.success) {
+    throw new Error(data.error || "Respuesta inválida");
+  }
+  return data.data || [];
 }
 
 /**

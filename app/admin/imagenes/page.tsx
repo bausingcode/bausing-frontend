@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import PageHeader from "@/components/PageHeader";
 import Loader from "@/components/Loader";
 import Spinner from "@/components/Spinner";
+import ConfirmModal from "@/components/ConfirmModal";
 import { 
   fetchHeroImages, 
   uploadHeroImageFile,
@@ -11,7 +12,11 @@ import {
   deleteHeroImage,
   updateHeroImage,
   HeroImage,
-  getAuthHeaders
+  getAuthHeaders,
+  fetchCategories,
+  uploadCategoryNavbarImageFile,
+  updateCategory,
+  type Category,
 } from "@/lib/api";
 import wsrvLoader from "@/lib/wsrvLoader";
 import { isHeroVideoUrl } from "@/lib/heroMedia";
@@ -25,7 +30,9 @@ import {
   AlertCircle,
   Info,
   Maximize2,
-  Film
+  Film,
+  ImageUp,
+  LayoutGrid
 } from "lucide-react";
 
 const MAX_HERO_IMAGES = 5;
@@ -88,6 +95,22 @@ export default function ImagenesPage() {
   >({});
   const [heroTextSavingId, setHeroTextSavingId] = useState<string | null>(null);
 
+  /** Categorías principales: imagen del panel del mega menú */
+  const [mainNavCategories, setMainNavCategories] = useState<Category[]>([]);
+  const [uploadingNavCategoryId, setUploadingNavCategoryId] = useState<string | null>(null);
+  const [navRemoveTarget, setNavRemoveTarget] = useState<{ id: string; name: string } | null>(null);
+  const [navImageFeedback, setNavImageFeedback] = useState<{
+    variant: "success" | "error";
+    title: string;
+    message: string;
+  } | null>(null);
+
+  const patchMainNavCategory = (updated: Category) => {
+    setMainNavCategories((prev) =>
+      prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c))
+    );
+  };
+
   useEffect(() => {
     const m: Record<string, { title: string; subtitle: string; cta_text: string; cta_link: string }> =
       {};
@@ -105,6 +128,24 @@ export default function ImagenesPage() {
   useEffect(() => {
     loadImages();
   }, []);
+
+  const refreshMainNavCategories = async () => {
+    try {
+      const allCats = await fetchCategories(true);
+      setMainNavCategories(
+        allCats
+          .filter((c) => !c.parent_id)
+          .sort((a, b) => {
+            const oa = a.order ?? 0;
+            const ob = b.order ?? 0;
+            if (oa !== ob) return oa - ob;
+            return a.name.localeCompare(b.name);
+          })
+      );
+    } catch {
+      setMainNavCategories([]);
+    }
+  };
 
   const loadImages = async () => {
     try {
@@ -138,6 +179,8 @@ export default function ImagenesPage() {
         setVideoButtonText("");
         setVideoButtonLink("");
       }
+
+      await refreshMainNavCategories();
     } catch (err: any) {
       setError(err.message || "Error al cargar las imágenes");
     } finally {
@@ -360,7 +403,7 @@ export default function ImagenesPage() {
       <div>
         <PageHeader 
           title="Gestión de Imágenes" 
-          description="Administra las imágenes del encabezado, informativas, de descuentos y banner de productos"
+          description="Encabezado, menú de categorías, informativas, descuentos y banners"
         />
         <Loader message="Cargando imágenes..." fullScreen={false} />
       </div>
@@ -371,7 +414,7 @@ export default function ImagenesPage() {
     <div className="min-h-screen bg-gray-50">
       <PageHeader 
         title="Gestión de Imágenes" 
-        description="Administra las imágenes del encabezado, informativas, de descuentos y banner de productos"
+        description="Encabezado, menú de categorías, informativas, descuentos y banners"
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -397,6 +440,127 @@ export default function ImagenesPage() {
         )}
 
         <div className="space-y-6">
+        {/* Imágenes del mega menú (categorías principales) */}
+        <section className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="bg-gradient-to-r from-teal-50 to-cyan-50 px-6 py-4 border-b border-gray-200">
+            <div className="flex items-start gap-3">
+              <LayoutGrid className="w-6 h-6 text-teal-700 shrink-0 mt-0.5" />
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-1">
+                  Menú de categorías (navbar)
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Imagen del panel derecho al abrir cada categoría principal. Si no subís una imagen, en el sitio se muestra el placeholder por defecto.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="p-6">
+            {mainNavCategories.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-8">
+                No hay categorías principales en el catálogo. Crealas en Productos → Categorías.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {mainNavCategories.map((cat) => (
+                  <div
+                    key={cat.id}
+                    className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50/50 flex flex-col"
+                  >
+                    <div className="px-4 py-3 border-b border-gray-100 bg-white">
+                      <h3 className="text-sm font-semibold text-gray-900 truncate" title={cat.name}>
+                        {cat.name}
+                      </h3>
+                    </div>
+                    <div className="p-4 flex-1 flex flex-col gap-3">
+                      <div
+                        className="relative w-full rounded-lg overflow-hidden bg-gray-100 border border-gray-200"
+                        style={{ aspectRatio: "4 / 3", maxHeight: "160px" }}
+                      >
+                        {cat.navbar_image_url ? (
+                          <img
+                            key={`${cat.id}-${cat.navbar_image_url}`}
+                            src={cat.navbar_image_url}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              if (target.src !== wsrvLoader({ src: cat.navbar_image_url!, width: 400 })) {
+                                target.src = wsrvLoader({ src: cat.navbar_image_url!, width: 400 });
+                              }
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center px-3 text-center text-xs text-gray-500">
+                            Sin imagen personalizada
+                            <br />
+                            <span className="text-gray-400">(placeholder en la tienda)</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <label
+                          className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white rounded-lg cursor-pointer ${
+                            uploadingNavCategoryId === cat.id ? "opacity-60 pointer-events-none" : "bg-teal-600 hover:bg-teal-700"
+                          }`}
+                        >
+                          <ImageUp className="w-4 h-4" />
+                          {uploadingNavCategoryId === cat.id ? "Subiendo…" : "Subir imagen"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={uploadingNavCategoryId !== null}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              e.target.value = "";
+                              if (!file) return;
+                              try {
+                                setNavImageFeedback(null);
+                                setUploadingNavCategoryId(cat.id);
+                                const updated = await uploadCategoryNavbarImageFile(file, cat.id);
+                                patchMainNavCategory(updated);
+                                void refreshMainNavCategories();
+                                setNavImageFeedback({
+                                  variant: "success",
+                                  title: "Imagen guardada",
+                                  message: `La imagen del menú para «${updated.name}» se actualizó correctamente.`,
+                                });
+                              } catch (err) {
+                                console.error(err);
+                                setNavImageFeedback({
+                                  variant: "error",
+                                  title: "Error al subir",
+                                  message:
+                                    err instanceof Error ? err.message : "No se pudo subir la imagen. Intentá de nuevo.",
+                                });
+                              } finally {
+                                setUploadingNavCategoryId(null);
+                              }
+                            }}
+                          />
+                        </label>
+                        {cat.navbar_image_url ? (
+                          <button
+                            type="button"
+                            className="px-3 py-2 text-sm font-medium text-gray-700 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 cursor-pointer"
+                            onClick={() => {
+                              setNavImageFeedback(null);
+                              setNavRemoveTarget({ id: cat.id, name: cat.name });
+                            }}
+                          >
+                            Quitar
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* Sección: Imágenes de Encabezado */}
         <section className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
@@ -1527,6 +1691,94 @@ export default function ImagenesPage() {
           </div>
         )}
         </div>
+
+        <ConfirmModal
+          isOpen={navRemoveTarget !== null}
+          onClose={() => setNavRemoveTarget(null)}
+          onConfirm={() => {
+            const target = navRemoveTarget;
+            if (!target) return;
+            void (async () => {
+              try {
+                setNavImageFeedback(null);
+                const updated = await updateCategory(target.id, { navbar_image_url: null });
+                patchMainNavCategory(updated);
+                void refreshMainNavCategories();
+                setNavImageFeedback({
+                  variant: "success",
+                  title: "Imagen quitada",
+                  message: `La imagen del menú para «${target.name}» se eliminó. En la tienda se verá el placeholder por defecto.`,
+                });
+              } catch (err) {
+                console.error(err);
+                setNavImageFeedback({
+                  variant: "error",
+                  title: "Error al quitar",
+                  message:
+                    err instanceof Error ? err.message : "No se pudo quitar la imagen. Intentá de nuevo.",
+                });
+              }
+            })();
+          }}
+          title="Quitar imagen del menú"
+          message={
+            navRemoveTarget
+              ? `¿Quitar la imagen del menú para «${navRemoveTarget.name}»? En la tienda volverá a verse el placeholder por defecto.`
+              : ""
+          }
+          confirmText="Quitar imagen"
+          cancelText="Cancelar"
+          variant="warning"
+        />
+
+        {navImageFeedback && (
+          <div
+            className="fixed inset-0 z-[210] flex items-center justify-center p-4 backdrop-blur-sm bg-black/40"
+            onClick={() => setNavImageFeedback(null)}
+            role="presentation"
+          >
+            <div
+              className="bg-white rounded-[14px] max-w-md w-full p-6 shadow-xl border border-gray-100"
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="nav-image-feedback-title"
+            >
+              <div className="flex items-start gap-3 mb-4">
+                {navImageFeedback.variant === "success" ? (
+                  <div className="rounded-full bg-green-100 p-2 shrink-0">
+                    <Check className="w-6 h-6 text-green-700" />
+                  </div>
+                ) : (
+                  <div className="rounded-full bg-red-100 p-2 shrink-0">
+                    <AlertCircle className="w-6 h-6 text-red-700" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <h2 id="nav-image-feedback-title" className="text-lg font-semibold text-gray-900">
+                    {navImageFeedback.title}
+                  </h2>
+                  <p className="text-sm text-gray-600 mt-2">{navImageFeedback.message}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setNavImageFeedback(null)}
+                  className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 cursor-pointer shrink-0"
+                  aria-label="Cerrar"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNavImageFeedback(null)}
+                className="w-full py-2.5 rounded-lg font-medium text-white bg-teal-600 hover:bg-teal-700 cursor-pointer transition-colors"
+              >
+                Aceptar
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Modal de preview ampliado */}
         {previewImage && (

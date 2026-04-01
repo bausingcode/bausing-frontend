@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { 
   Truck, 
@@ -748,6 +748,9 @@ const categoriesData: Record<string, CategoryData> = {
 // Lista de categorías principales para el menú
 const mainCategories = Object.keys(categoriesData);
 
+/** Imagen por defecto del panel del mega menú si no hay URL en API ni en datos estáticos */
+const NAVBAR_CATEGORY_IMAGE_FALLBACK = "/images/home/4.png";
+
 interface NavbarProps {
   event?: Event | null;
 }
@@ -879,6 +882,25 @@ export default function Navbar({ event }: NavbarProps = {}) {
         })
         .map(cat => cat.name)
     : mainCategories;
+
+  const resolveNavbarCategoryImageUrl = useCallback(
+    (categoryName: string) => {
+      const apiCat = apiCategories.find((c) => c.name === categoryName);
+      const apiUrl = apiCat?.navbar_image_url?.trim();
+      if (apiUrl) return apiUrl;
+      const staticData = categoriesData[categoryName];
+      if (staticData?.imageUrl) return staticData.imageUrl;
+      return NAVBAR_CATEGORY_IMAGE_FALLBACK;
+    },
+    [apiCategories]
+  );
+
+  const resolveNavbarCategoryImageAlt = useCallback(
+    (categoryName: string, data: CategoryData) => {
+      return data.imageAlt || data.name || categoryName;
+    },
+    []
+  );
 
   // Escuchar evento para abrir el carrito cuando se agrega un item
   useEffect(() => {
@@ -1420,8 +1442,10 @@ export default function Navbar({ event }: NavbarProps = {}) {
             </div>
           </div>
 
-          {/* Dropdown Menus - Generated from data */}
-          {mainCategories.map((categoryName) => {
+          {/* Dropdown Menus - Generated from data (orden del sitio; solo categorías con layout en categoriesData) */}
+          {mainCategoriesToUse
+            .filter((categoryName) => categoriesData[categoryName])
+            .map((categoryName) => {
             const categoryData = categoriesData[categoryName];
             if (!categoryData) return null;
             
@@ -2458,16 +2482,15 @@ export default function Navbar({ event }: NavbarProps = {}) {
                             </div>
                           </div>
                         ) : null
-                      ) : categoryData.imageUrl ? (
-                        // Mostrar imagen
+                      ) : (
                         <div className="relative w-full h-80 rounded-lg overflow-hidden">
                           <img
-                            src={categoryData.imageUrl}
-                            alt={categoryData.imageAlt || categoryData.name}
+                            src={resolveNavbarCategoryImageUrl(categoryName)}
+                            alt={resolveNavbarCategoryImageAlt(categoryName, categoryData)}
                             className="w-full h-full object-cover"
                           />
                         </div>
-                      ) : null}
+                      )}
                     </div>
                   </div>
                 </div>

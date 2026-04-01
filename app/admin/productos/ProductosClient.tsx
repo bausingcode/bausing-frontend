@@ -1421,7 +1421,7 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                               <div className="space-y-1">
                                 {(viewingProductData as any).filling_type && (
                                   <div className="flex justify-between">
-                                    <span className="text-sm text-gray-600">Tipo de Relleno:</span>
+                                    <span className="text-sm text-gray-600">Estructura de Relleno:</span>
                                     <span className="text-sm text-gray-900">{(viewingProductData as any).filling_type}</span>
                                   </div>
                                 )}

@@ -1221,7 +1221,7 @@ export default function ProductDetailPage() {
                             <CheckCircle2 className="w-5 h-5 text-gray-600" />
                           </div>
                           <div className="flex-1">
-                            <div className="text-sm font-medium text-gray-700 mb-1">Tipo de relleno</div>
+                            <div className="text-sm font-medium text-gray-700 mb-1">Estructura de relleno</div>
                             <div className="text-sm text-gray-900">{product.fillingType}</div>
                           </div>
                         </div>

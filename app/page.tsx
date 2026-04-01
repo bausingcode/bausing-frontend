@@ -448,8 +448,8 @@ export default async function Home() {
             </WhatsAppLink>
 
             {/* Preguntas Frecuentes */}
-            <WhatsAppLink 
-              message="Hola, tengo algunas preguntas frecuentes que me gustaría consultar."
+            <a
+              href="/preguntas-frecuentes"
               className="bg-white border border-gray-200 rounded-lg md:rounded-xl p-4 md:p-6 lg:p-8 flex flex-col items-center text-center cursor-pointer hover:border-[#00C1A7] transition-all duration-300 group"
             >
               <div className="w-12 h-12 md:w-16 md:h-16 lg:w-20 lg:h-20 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-2 md:mb-3 group-hover:bg-[#00C1A7] transition-colors duration-300 aspect-square">
@@ -457,7 +457,7 @@ export default async function Home() {
               </div>
               <p className="text-[#101828] mb-1 font-semibold text-sm md:text-base">Preguntas Frecuentes</p>
               <p className="text-xs md:text-sm text-[#4A5565] hidden md:block">Resolvemos todas tus dudas</p>
-            </WhatsAppLink>
+            </a>
 
             {/* Nuestro Local */}
             <a 
