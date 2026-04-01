@@ -48,15 +48,15 @@ export default function InfoBannerCarousel({
   if (images.length === 0) return null;
 
   return (
-    <section className="hidden lg:block bg-white py-4 lg:py-0">
+    <section className="hidden lg:block bg-white py-6 lg:py-8">
       <div className="container mx-auto px-4">
         <div className="relative flex justify-center">
           <div
-            className="relative rounded-[10px] md:rounded-xl overflow-hidden w-full max-w-[1650px] aspect-[1650/350] min-h-[220px] lg:max-[1290px]:min-h-[260px] min-[1291px]:min-h-[350px]"
+            className="relative rounded-[10px] md:rounded-xl overflow-hidden w-full max-w-[1290px] aspect-[1290/350]"
           >
             {/* Carousel Images */}
             {images.map((image, index) => {
-              const optimizedUrl = wsrvLoader({ src: image.url, width: 1650 });
+              const optimizedUrl = wsrvLoader({ src: image.url, width: 1290 });
               const isActive = index === currentIndex;
               return (
                 <div
