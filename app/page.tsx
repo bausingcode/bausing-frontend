@@ -125,11 +125,11 @@ export default async function Home() {
 
       {/* Tres columnas informativas — debajo del hero; borde solo abajo, ancho pantalla */}
       <section className="bg-white">
-        <div className="container mx-auto px-4 py-6 md:py-8 lg:py-6">
+        <div className="container mx-auto px-4 py-2 md:py-8 lg:py-6">
           {/* Mobile: carrusel horizontal */}
           <div className="mt-4 md:hidden max-w-5xl lg:max-w-6xl mx-auto">
             <div
-              className="overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory"
+              className="overflow-x-auto scrollbar-hide snap-x snap-mandatory"
               role="region"
               aria-label="Beneficios"
             >

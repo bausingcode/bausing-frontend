@@ -37,18 +37,18 @@ export default function VideoSection({ videoData }: VideoSectionProps) {
 
             {/* Overlay con título, descripción y botón a la izquierda */}
             {(videoData.title || videoData.subtitle || videoData.cta_text) && (
-              <div className="absolute inset-0 z-10 flex items-center pointer-events-none">
-                <div className="ml-4 md:ml-8 lg:ml-12 max-w-[40%] md:max-w-[45%] lg:max-w-[50%] pointer-events-auto">
+              <div className="absolute inset-0 z-10 flex items-center justify-start pointer-events-none pt-16 md:pt-24 lg:pt-32">
+                <div className="ml-6 md:ml-12 lg:ml-16 xl:ml-20 max-w-[42%] md:max-w-[48%] lg:max-w-[52%] pointer-events-auto">
                   {/* Título */}
                   {videoData.title && (
-                    <h2 className="text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-white mb-2 md:mb-3 lg:mb-4 drop-shadow-lg">
+                    <h2 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-white mb-2 md:mb-3.5 lg:mb-5 drop-shadow-lg leading-tight">
                       {videoData.title}
                     </h2>
                   )}
                   
                   {/* Descripción */}
                   {videoData.subtitle && (
-                    <p className="text-xs md:text-sm lg:text-base xl:text-lg text-white mb-3 md:mb-4 lg:mb-6 drop-shadow-md">
+                    <p className="text-sm md:text-base lg:text-lg xl:text-xl text-white mb-3 md:mb-5 lg:mb-7 drop-shadow-md leading-relaxed">
                       {videoData.subtitle}
                     </p>
                   )}
@@ -57,7 +57,7 @@ export default function VideoSection({ videoData }: VideoSectionProps) {
                   {videoData.cta_text && videoData.cta_link && (
                     <a
                       href={videoData.cta_link}
-                      className="inline-block bg-[#00C1A7] hover:bg-[#00A892] text-white font-semibold px-4 md:px-6 lg:px-8 py-2 md:py-3 rounded-full transition-colors duration-300 shadow-lg hover:shadow-xl text-xs md:text-sm lg:text-base"
+                      className="inline-block bg-[#00C1A7] hover:bg-[#00A892] text-white font-semibold px-5 md:px-7 lg:px-9 py-2.5 md:py-3.5 rounded-full transition-colors duration-300 shadow-lg hover:shadow-xl text-sm md:text-base lg:text-lg"
                     >
                       {videoData.cta_text}
                     </a>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { 
   Truck, 
@@ -763,6 +763,9 @@ export default function Navbar({ event }: NavbarProps = {}) {
   const [searchQuery, setSearchQuery] = useState("");
   const [apiCategories, setApiCategories] = useState<Category[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  /** Altura real (px) del bloque superior móvil: topbars + header; el menú full-screen debe empezar debajo */
+  const [mobileMenuOverlayTopPx, setMobileMenuOverlayTopPx] = useState(88);
+  const mobileNavStackRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -939,6 +942,18 @@ export default function Navbar({ event }: NavbarProps = {}) {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  useLayoutEffect(() => {
+    const el = mobileNavStackRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+
+    const update = () => setMobileMenuOverlayTopPx(el.offsetHeight);
+    update();
+
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault();
     const query = searchQuery.trim();
@@ -961,11 +976,12 @@ export default function Navbar({ event }: NavbarProps = {}) {
   return (
     <>
       <div className="sticky top-0 z-50 bg-white">
-        <TopbarUpper initialEvent={event} />
-        <TopbarServices />
+        <div ref={mobileNavStackRef}>
+          <TopbarUpper initialEvent={event} />
+          <TopbarServices />
 
-        {/* Main Header - White Bar */}
-        <header className="bg-white border-b border-gray-200">
+          {/* Main Header - White Bar */}
+          <header className="bg-white border-b border-gray-200">
           <div className="container mx-auto px-4 py-3 md:py-4">
             <div className="relative flex items-center justify-between gap-3 min-[1291px]:gap-8 min-h-[40px] min-[1291px]:min-h-0">
               <button
@@ -1156,10 +1172,14 @@ export default function Navbar({ event }: NavbarProps = {}) {
 
           </div>
         </header>
+        </div>
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="min-[1291px]:hidden bg-white fixed inset-0 top-[52px] sm:top-[56px] z-50 overflow-y-auto overscroll-contain">
+          <div
+            className="min-[1291px]:hidden bg-white fixed left-0 right-0 bottom-0 z-50 overflow-y-auto overscroll-contain"
+            style={{ top: mobileMenuOverlayTopPx }}
+          >
             <div className="container mx-auto px-4 py-4">
               {/* Mobile Search */}
               <form onSubmit={(e) => { handleSearch(e); setIsMobileMenuOpen(false); }} className="relative mb-4">
