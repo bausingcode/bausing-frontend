@@ -49,10 +49,10 @@ export default function InfoBannerCarousel({
 
   return (
     <section className="hidden lg:block bg-white py-6 lg:py-8">
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-4 md:px-6">
         <div className="relative flex justify-center">
           <div
-            className="relative rounded-[10px] md:rounded-xl overflow-hidden w-full max-w-[1290px] aspect-[1290/350]"
+            className="relative rounded-[10px] md:rounded-xl overflow-hidden w-full max-w-[1290px] min-[1920px]:max-w-none aspect-[1290/350]"
           >
             {/* Carousel Images */}
             {images.map((image, index) => {

@@ -165,10 +165,7 @@ export default async function Home() {
             ))}
           </div>
         </div>
-        <div
-          className="w-screen max-w-[100vw] relative left-1/2 -translate-x-1/2 border-b border-gray-200/90"
-          aria-hidden
-        />
+        <div className="w-full border-b border-gray-200/90" aria-hidden />
       </section>
 
       {/* <section className="bg-white py-16">
