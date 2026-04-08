@@ -80,6 +80,8 @@ interface Product {
   warranty?: string;
   // Stock de CRM
   has_crm_stock?: boolean;
+  /** false cuando el producto está desactivado en tienda (p. ej. vista como admin) */
+  is_active?: boolean;
 }
 
 interface SimilarProduct {
@@ -341,6 +343,7 @@ export default function ProductDetailPage() {
                    (apiProductWithTech.warranty_months ? `Garantía de ${apiProductWithTech.warranty_months} meses` : ""),
           // Stock de CRM
           has_crm_stock: apiProductWithTech.has_crm_stock !== undefined ? apiProductWithTech.has_crm_stock : true,
+          is_active: apiProduct.is_active,
         };
 
         setProduct(transformedProduct);
@@ -491,8 +494,13 @@ export default function ProductDetailPage() {
   };
 
   const handleAddToCart = () => {
+    if (!product) return;
+    if (product.is_active === false) {
+      alert("Este producto no está disponible para la venta.");
+      return;
+    }
     const currentPrice = getCurrentProductPrice();
-    if (product && product.has_crm_stock !== false && currentPrice.price > 0) {
+    if (product.has_crm_stock !== false && currentPrice.price > 0) {
       addToCart({
         id: product.id,
         name: product.name,
@@ -507,8 +515,13 @@ export default function ProductDetailPage() {
   };
 
   const handleBuyNow = () => {
+    if (!product) return;
+    if (product.is_active === false) {
+      alert("Este producto no está disponible para la venta.");
+      return;
+    }
     const currentPrice = getCurrentProductPrice();
-    if (product && product.has_crm_stock !== false && currentPrice.price > 0) {
+    if (product.has_crm_stock !== false && currentPrice.price > 0) {
       handleAddToCart();
       router.push("/checkout");
     } else if (currentPrice.price === 0) {
@@ -701,7 +714,7 @@ export default function ProductDetailPage() {
     min_price: currentPriceInfo.price, 
     max_price: currentPriceInfo.price,
     promos: (product as any).promos || [],
-    is_active: true // Required by Product type from @/lib/api
+    is_active: product.is_active !== false,
   } as unknown as ApiProduct;
   const priceInfoForTaxes = calculateProductPrice(tempProductForTaxes, 1);
   const priceWithoutTaxes = hasPrice ? priceInfoForTaxes.currentPriceValue * 0.79 : 0;
@@ -927,7 +940,7 @@ export default function ProductDetailPage() {
                         min_price: basePriceWithoutPromos, 
                         max_price: basePriceWithoutPromos,
                         promos: productPromos,
-                        is_active: true // Required by Product type from @/lib/api
+                        is_active: product.is_active !== false,
                       } as unknown as ApiProduct;
                       const priceInfo = calculateProductPrice(tempProduct, 1);
                       const hasDiscount = priceInfo.hasDiscount;
@@ -1123,7 +1136,11 @@ export default function ProductDetailPage() {
 
             {/* Action Buttons - Alineados con el fondo de la imagen */}
             <div className="flex flex-col gap-3 md:gap-4 mt-4 lg:mt-0">
-              {product?.has_crm_stock === false ? (
+              {product.is_active === false ? (
+                <div className="w-full bg-gray-300 text-gray-600 py-2.5 md:py-3 px-4 md:px-6 rounded-[4px] text-center font-medium text-sm md:text-base">
+                  Producto no disponible
+                </div>
+              ) : product?.has_crm_stock === false ? (
                 <div className="w-full bg-gray-300 text-gray-600 py-2.5 md:py-3 px-4 md:px-6 rounded-[4px] text-center font-medium text-sm md:text-base">
                   Sin Stock
                 </div>
