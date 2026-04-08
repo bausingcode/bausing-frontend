@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import PageHeader from "@/components/PageHeader";
-import { Plus, Edit, Trash2, FolderTree, Package, PackageSearch, FolderX, Sparkles, ChevronDown, ChevronRight, Search, RefreshCw, Eye, X, ExternalLink, Loader2 } from "lucide-react";
+import { Plus, Edit, Trash2, FolderTree, Package, PackageSearch, FolderX, Sparkles, ChevronDown, ChevronRight, Search, RefreshCw, Eye, EyeOff, X, ExternalLink, Loader2 } from "lucide-react";
 import CreateCategoryModal from "@/components/CreateCategoryModal";
 import CreateProductModal from "@/components/CreateProductModal";
-import { Category, CategoryOption, fetchCrmProducts, fetchCrmCombos, CrmProduct, CrmCombo, fetchProductById, Product, deleteCategory } from "@/lib/api";
+import { Category, CategoryOption, fetchCrmProducts, fetchCrmCombos, CrmProduct, CrmCombo, fetchProductById, Product, deleteCategory, setCrmProductNotCompletedHidden } from "@/lib/api";
 import { fetchCategories as fetchCategoriesClient } from "@/lib/api";
 
 interface CategoryFromBackend extends Category {
@@ -124,7 +124,11 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
   // Búsqueda
   const [searchCompleted, setSearchCompleted] = useState("");
   const [searchNotCompleted, setSearchNotCompleted] = useState("");
+  const [showHiddenNotCompleted, setShowHiddenNotCompleted] = useState(false);
+  const [notCompletedHideBusyId, setNotCompletedHideBusyId] = useState<string | null>(null);
   const [searchCombos, setSearchCombos] = useState("");
+  const [showHiddenCombos, setShowHiddenCombos] = useState(false);
+  const [combosHideBusyId, setCombosHideBusyId] = useState<string | null>(null);
   const [searchCombosCompleted, setSearchCombosCompleted] = useState("");
 
   // Obtener solo categorías principales (sin parent_id)
@@ -194,7 +198,8 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
         combo: false, 
         search: searchNotCompleted,
         page, 
-        per_page: 10 
+        per_page: 10,
+        hidden_only: showHiddenNotCompleted,
       });
       setCrmProductsNotCompleted(result.products);
       setNotCompletedPagination(result.pagination);
@@ -206,15 +211,27 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
       setIsLoadingCrmProducts(false);
     }
   };
+
+  const handleNotCompletedVisibility = async (crm: CrmProduct, hidden: boolean) => {
+    setNotCompletedHideBusyId(crm.id);
+    const res = await setCrmProductNotCompletedHidden(crm.id, hidden);
+    setNotCompletedHideBusyId(null);
+    if (!res.success) {
+      window.alert(res.error || "No se pudo actualizar la visibilidad");
+      return;
+    }
+    await refreshCrmProductsNotCompleted(1);
+  };
   
-  // Función para refrescar combos (no completados)
+  // Combos no completados (misma API; completados solo en pestaña Combos completados)
   const refreshCrmCombos = async (page: number = 1) => {
     try {
       setIsLoadingCrmProducts(true);
       const result = await fetchCrmCombos({ 
         search: searchCombos,
         page, 
-        per_page: 10 
+        per_page: 10,
+        hidden_only: showHiddenCombos,
       });
       setCrmCombos(result.combos);
       setCombosPagination(result.pagination);
@@ -225,6 +242,17 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
     } finally {
       setIsLoadingCrmProducts(false);
     }
+  };
+
+  const handleComboPendingVisibility = async (combo: CrmCombo, hidden: boolean) => {
+    setCombosHideBusyId(combo.id);
+    const res = await setCrmProductNotCompletedHidden(combo.id, hidden);
+    setCombosHideBusyId(null);
+    if (!res.success) {
+      window.alert(res.error || "No se pudo actualizar la visibilidad");
+      return;
+    }
+    await refreshCrmCombos(1);
   };
 
   // Función para refrescar combos completados
@@ -292,14 +320,14 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
       refreshCrmProductsNotCompleted(1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchNotCompleted]);
+  }, [searchNotCompleted, showHiddenNotCompleted]);
 
   useEffect(() => {
     if (activeTab === "combos") {
       refreshCrmCombos(1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchCombos]);
+  }, [searchCombos, showHiddenCombos]);
 
   useEffect(() => {
     if (activeTab === "combos-completados") {
@@ -453,7 +481,7 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
               : "border-transparent text-gray-600 hover:text-gray-900"
           }`}
         >
-          Combos
+          Combos no completados
         </button>
         <button
           onClick={() => {
@@ -601,8 +629,31 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
       {/* CRM No Completados Tab */}
       {activeTab === "crm-no-completados" && (
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-normal" style={{ color: '#484848' }}>Productos No Completados</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-lg font-normal" style={{ color: '#484848' }}>Productos No Completados</h2>
+              {showHiddenNotCompleted && (
+                <p className="text-sm text-gray-500 mt-1">Mostrando solo los ocultos de esta lista</p>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowHiddenNotCompleted((v) => !v)}
+                className="px-4 py-2 text-sm font-medium rounded-[6px] border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 transition-colors cursor-pointer flex items-center gap-2"
+              >
+                {showHiddenNotCompleted ? (
+                  <>
+                    <Eye className="w-4 h-4" />
+                    Ver pendientes
+                  </>
+                ) : (
+                  <>
+                    <EyeOff className="w-4 h-4" />
+                    Ver ocultos
+                  </>
+                )}
+              </button>
                 <button
               onClick={() => refreshCrmProductsNotCompleted(notCompletedPage)}
               className="px-4 py-2 text-sm font-medium text-white rounded-[6px] hover:opacity-90 transition-opacity cursor-pointer flex items-center gap-2"
@@ -611,6 +662,7 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
               <RefreshCw className="w-4 h-4" />
               Refrescar
                 </button>
+            </div>
           </div>
           
           {/* Búsqueda */}
@@ -639,7 +691,11 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
             ) : crmProductsNotCompleted.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 px-6">
                 <PackageSearch className="w-20 h-20 text-gray-400 mb-6" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No hay productos sin completar</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  {showHiddenNotCompleted
+                    ? "No hay productos ocultos"
+                    : "No hay productos sin completar"}
+                </h3>
               </div>
             ) : (
               <>
@@ -662,15 +718,35 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                             <span className="px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-800">Pendiente</span>
                         </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button
-                              onClick={() => {
-                                setEditingCrmProduct(crmProduct);
-                                setIsProductModalOpen(true);
-                              }}
-                              className="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
-                            >
-                              <Edit className="w-5 h-5" />
-                            </button>
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                title={showHiddenNotCompleted ? "Volver a mostrar en la lista de pendientes" : "Ocultar de la lista de pendientes"}
+                                disabled={notCompletedHideBusyId === crmProduct.id}
+                                onClick={() =>
+                                  handleNotCompletedVisibility(crmProduct, !showHiddenNotCompleted)
+                                }
+                                className="text-gray-600 hover:text-gray-900 transition-colors cursor-pointer disabled:opacity-50"
+                              >
+                                {notCompletedHideBusyId === crmProduct.id ? (
+                                  <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : showHiddenNotCompleted ? (
+                                  <Eye className="w-5 h-5" />
+                                ) : (
+                                  <EyeOff className="w-5 h-5" />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingCrmProduct(crmProduct);
+                                  setIsProductModalOpen(true);
+                                }}
+                                className="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+                              >
+                                <Edit className="w-5 h-5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -829,8 +905,31 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
       {/* Combos Tab */}
       {activeTab === "combos" && (
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-normal" style={{ color: '#484848' }}>Combos</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-lg font-normal" style={{ color: '#484848' }}>Combos no completados</h2>
+              {showHiddenCombos && (
+                <p className="text-sm text-gray-500 mt-1">Mostrando solo combos pendientes ocultos de la lista</p>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowHiddenCombos((v) => !v)}
+                className="px-4 py-2 text-sm font-medium rounded-[6px] border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 transition-colors cursor-pointer flex items-center gap-2"
+              >
+                {showHiddenCombos ? (
+                  <>
+                    <Eye className="w-4 h-4" />
+                    Ver no completados
+                  </>
+                ) : (
+                  <>
+                    <EyeOff className="w-4 h-4" />
+                    Ver ocultos
+                  </>
+                )}
+              </button>
             <button
               onClick={() => refreshCrmCombos(combosPage)}
               className="px-4 py-2 text-sm font-medium text-white rounded-[6px] hover:opacity-90 transition-opacity cursor-pointer flex items-center gap-2"
@@ -839,6 +938,7 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
               <RefreshCw className="w-4 h-4" />
               Refrescar
             </button>
+            </div>
           </div>
           
           {/* Búsqueda */}
@@ -847,7 +947,7 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Buscar por ID CRM, descripción o nombre del producto..."
+                placeholder="Buscar combos no completados por ID CRM, descripción..."
                 value={searchCombos}
                 onChange={(e) => setSearchCombos(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
@@ -862,12 +962,14 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                   <div className="absolute inset-0 bg-blue-100 rounded-full opacity-20 blur-2xl animate-pulse"></div>
                   <div className="w-20 h-20 border-4 border-blue-600 border-t-transparent rounded-full animate-spin relative"></div>
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Cargando combos...</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Cargando combos no completados...</h3>
               </div>
             ) : crmCombos.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 px-6">
                 <PackageSearch className="w-20 h-20 text-gray-400 mb-6" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No hay combos</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  {showHiddenCombos ? "No hay combos pendientes ocultos" : "No hay combos sin completar"}
+                </h3>
               </div>
             ) : (
               <>
@@ -878,7 +980,6 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">ID CRM</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Descripción</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Items</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Estado</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Acciones</th>
                       </tr>
                     </thead>
@@ -899,28 +1000,45 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                                   {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                                 </button>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                {combo.is_completed ? (
-                                  <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">Completado</span>
-                                ) : (
-                                  <span className="px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-800">Pendiente</span>
-                                )}
-                              </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <button
-                                  onClick={() => {
-                                    setEditingCrmProduct(combo);
-                                    setIsProductModalOpen(true);
-                                  }}
-                                  className="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
-                                >
-                                  <Edit className="w-5 h-5" />
-                                </button>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                      type="button"
+                                      title={
+                                        showHiddenCombos
+                                          ? "Volver a mostrar en la lista de combos no completados"
+                                          : "Ocultar de la lista de combos no completados"
+                                      }
+                                      disabled={combosHideBusyId === combo.id}
+                                      onClick={() =>
+                                        handleComboPendingVisibility(combo, !showHiddenCombos)
+                                      }
+                                      className="text-gray-600 hover:text-gray-900 transition-colors cursor-pointer disabled:opacity-50"
+                                    >
+                                      {combosHideBusyId === combo.id ? (
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                      ) : showHiddenCombos ? (
+                                        <Eye className="w-5 h-5" />
+                                      ) : (
+                                        <EyeOff className="w-5 h-5" />
+                                      )}
+                                    </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingCrmProduct(combo);
+                                      setIsProductModalOpen(true);
+                                    }}
+                                    className="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+                                  >
+                                    <Edit className="w-5 h-5" />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                             {isExpanded && combo.items && combo.items.length > 0 && (
                               <tr>
-                                <td colSpan={5} className="px-6 py-4 bg-gray-50">
+                                <td colSpan={4} className="px-6 py-4 bg-gray-50">
                                   <div className="ml-8 space-y-2">
                                     <h4 className="text-sm font-medium text-gray-700 mb-2">Items del combo:</h4>
                                     <div className="space-y-1">

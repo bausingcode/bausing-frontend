@@ -682,6 +682,8 @@ export interface CrmProduct {
   product_id?: string;
   product_name?: string;
   is_completed: boolean;
+  /** Solo listado admin no completados: oculto de la vista normal */
+  hidden_from_not_completed_list?: boolean;
   raw?: any;
 }
 
@@ -703,6 +705,8 @@ export async function fetchCrmProducts(params?: {
   search?: string;
   page?: number;
   per_page?: number;
+  /** Solo con status=not_completed: true = solo filas ocultas, false = excluir ocultas */
+  hidden_only?: boolean;
 }): Promise<{
   products: CrmProduct[];
   pagination: {
@@ -721,6 +725,7 @@ export async function fetchCrmProducts(params?: {
     if (params?.search) queryParams.append('search', params.search);
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+    if (params?.hidden_only === true) queryParams.append('hidden_only', 'true');
 
     const url = `/api/admin/crm-products?${queryParams.toString()}`;
     const response = await fetch(url, {
@@ -757,6 +762,34 @@ export async function fetchCrmProducts(params?: {
         has_prev: false,
       }
     };
+  }
+}
+
+/**
+ * Ocultar o restaurar un CRM en el listado "No completados" (persistente en BD).
+ */
+export async function setCrmProductNotCompletedHidden(
+  productId: string,
+  hidden: boolean
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const url = `/api/admin/crm-products/${productId}/not-completed-visibility`;
+    const response = await fetch(url, {
+      method: "PATCH",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ hidden }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        error: (data as { error?: string }).error || response.statusText,
+      };
+    }
+    return { success: true };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { success: false, error: message };
   }
 }
 
@@ -841,12 +874,14 @@ export async function completeCrmProduct(
 }
 
 /**
- * Fetch CRM combos
+ * Combos CRM sin producto vinculado (no completados). Los completados van con fetchCrmProducts(combo:true, status:'completed').
  */
 export async function fetchCrmCombos(params?: {
   search?: string;
   page?: number;
   per_page?: number;
+  /** true = solo combos pendientes ocultos en el listado admin */
+  hidden_only?: boolean;
 }): Promise<{
   combos: CrmCombo[];
   pagination: {
@@ -863,6 +898,7 @@ export async function fetchCrmCombos(params?: {
     if (params?.search) queryParams.append('search', params.search);
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+    if (params?.hidden_only === true) queryParams.append('hidden_only', 'true');
 
     const url = `/api/admin/crm-combos?${queryParams.toString()}`;
     const response = await fetch(url, {
