@@ -1639,6 +1639,7 @@ export default function CatalogoContent({
       currentPrice: priceInfo.currentPrice,
       originalPrice: priceInfo.originalPrice,
       discount: priceInfo.discount,
+      priceNote: priceInfo.priceNote,
     };
   };
   

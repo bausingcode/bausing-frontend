@@ -83,8 +83,9 @@ export default function FavoritosPage() {
                 alt={favorite.name}
                 name={favorite.name}
                 currentPrice={favorite.price}
-                originalPrice=""
+                originalPrice={favorite.originalPrice || ""}
                 discount={undefined}
+                priceNote={favorite.priceNote}
               />
             ))}
           </div>

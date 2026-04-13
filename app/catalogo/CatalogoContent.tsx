@@ -147,6 +147,7 @@ export default function CatalogoContent({ initialProducts, initialTotalPages }: 
       currentPrice: priceInfo.currentPrice,
       originalPrice: priceInfo.originalPrice,
       discount: priceInfo.discount,
+      priceNote: priceInfo.priceNote,
     };
   };
 

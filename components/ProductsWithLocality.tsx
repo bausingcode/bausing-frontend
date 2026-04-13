@@ -67,6 +67,7 @@ export default function ProductsWithLocality({
       currentPrice: priceInfo.currentPrice,
       originalPrice: priceInfo.originalPrice,
       discount: priceInfo.discount,
+      priceNote: priceInfo.priceNote,
     };
   };
 
@@ -113,6 +114,7 @@ export default function ProductsWithLocality({
             currentPrice={props.currentPrice}
             originalPrice={props.originalPrice}
             discount={props.discount}
+            priceNote={props.priceNote}
           />
         );
       })}

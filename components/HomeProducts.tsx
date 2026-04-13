@@ -34,6 +34,7 @@ function productToCardProps(product: Product, isPriceLoading: boolean = false) {
       currentPrice: "",
       originalPrice: undefined,
       discount: undefined,
+      priceNote: undefined,
     };
   } else if (!hasPrice) {
     // Si no hay precio después de cargar, mostrar "Sin Precio"
@@ -41,6 +42,7 @@ function productToCardProps(product: Product, isPriceLoading: boolean = false) {
       currentPrice: "",
       originalPrice: undefined,
       discount: undefined,
+      priceNote: undefined,
     };
   } else {
     // Calcular precio usando función centralizada (esto incluye promociones)
@@ -62,6 +64,7 @@ function productToCardProps(product: Product, isPriceLoading: boolean = false) {
     currentPrice: priceInfo.currentPrice || "",
     originalPrice: priceInfo.originalPrice || "",
     discount: priceInfo.discount,
+    priceNote: priceInfo.priceNote,
     // Solo mostrar skeleton si está cargando, no si no hay precio
     isPriceLoading: isPriceLoading,
   };
@@ -171,6 +174,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
                 currentPrice={product.currentPrice}
                 originalPrice={product.originalPrice}
                 discount={product.discount}
+                priceNote={product.priceNote}
                 isPriceLoading={product.isPriceLoading}
                 useNormalHeight={false}
               />
@@ -196,6 +200,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
             currentPrice={product.currentPrice}
             originalPrice={product.originalPrice}
             discount={product.discount}
+            priceNote={product.priceNote}
             isPriceLoading={product.isPriceLoading}
           />
         </div>

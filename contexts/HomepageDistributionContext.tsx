@@ -24,6 +24,9 @@ interface PricesMap {
   [productId: string]: {
     min_price: number;
     max_price: number;
+    min_card_price?: number;
+    max_card_price?: number;
+    show_transfer_price_highlight?: boolean;
     price_range: string;
     promos: any[];
   };
@@ -52,6 +55,9 @@ function mergePricesIntoDistribution(
         ...p,
         min_price: priceInfo.min_price,
         max_price: priceInfo.max_price,
+        min_card_price: priceInfo.min_card_price,
+        max_card_price: priceInfo.max_card_price,
+        show_transfer_price_highlight: priceInfo.show_transfer_price_highlight,
         price_range: priceInfo.price_range,
         promos: Array.isArray(priceInfo.promos)
           ? priceInfo.promos

@@ -82,6 +82,8 @@ export interface ProductPriceInfo {
   currentPrice: string;
   originalPrice?: string;
   discount?: string;
+  /** Texto bajo el precio (ej. precio efectivo / transferencia) */
+  priceNote?: string;
   
   // Valores numéricos
   currentPriceValue: number;
@@ -91,6 +93,13 @@ export interface ProductPriceInfo {
   // Info adicional
   hasDiscount: boolean;
   promoCalculation?: PromoCalculationResult;
+}
+
+export type PaymentPriceKind = "transfer" | "card";
+
+export interface CalculateProductPriceOptions {
+  /** Base numérica antes de promo: transfer (default) o tarjeta */
+  paymentPriceKind?: PaymentPriceKind;
 }
 
 /**
@@ -120,12 +129,26 @@ export function formatPrice(price: number): string {
  */
 export function calculateProductPrice(
   product: Product,
-  quantity: number = 1
+  quantity: number = 1,
+  options?: CalculateProductPriceOptions
 ): ProductPriceInfo {
-  // Precio base del producto
-  // Si no hay precio (undefined/null), usar 0
-  const basePrice = product.min_price !== undefined && product.min_price !== null ? product.min_price : 0;
-  const maxPrice = product.max_price !== undefined && product.max_price !== null ? product.max_price : basePrice;
+  const paymentKind: PaymentPriceKind = options?.paymentPriceKind ?? "transfer";
+  const transferMin =
+    product.min_price !== undefined && product.min_price !== null ? product.min_price : 0;
+  const transferMax =
+    product.max_price !== undefined && product.max_price !== null ? product.max_price : transferMin;
+  const cardMin =
+    product.min_card_price !== undefined && product.min_card_price !== null
+      ? product.min_card_price
+      : transferMin;
+  const cardMax =
+    product.max_card_price !== undefined && product.max_card_price !== null
+      ? product.max_card_price
+      : cardMin;
+
+  // Precio base según método (checkout: tarjeta vs transferencia/efectivo)
+  const basePrice = paymentKind === "card" ? cardMin : transferMin;
+  const maxPrice = paymentKind === "card" ? cardMax : transferMax;
   
   // ============================================
   // APLICAR CONDICIONES DE PRECIO
@@ -154,27 +177,44 @@ export function calculateProductPrice(
   const originalPriceValue = promoCalculation.originalPrice;
   
   // Determinar si hay descuento
-  const hasDiscount = promoCalculation.discountAmount > 0;
-  
+  const hasPromoDiscount = promoCalculation.discountAmount > 0;
+
+  const showDual =
+    !hasPromoDiscount &&
+    paymentKind === "transfer" &&
+    product.show_transfer_price_highlight === true &&
+    cardMin > transferMin;
+
   // Formatear precios para mostrar
   const currentPrice = formatPrice(finalPrice);
-  // Solo mostrar precio original (tachado) si hay un descuento real de promoción
-  // No mostrar precio tachado solo por tener múltiples variantes con diferentes precios
-  const originalPrice = hasDiscount
-    ? formatPrice(originalPriceValue)
-    : undefined;
-  
-  // Label de descuento/promo
-  // Usar el contexto detectado para obtener el label correcto
-  const discount = promoCalculation.promoLabel || 
-                   (product.promos && product.promos.length > 0 ? getPromoLabel(product.promos as any, context) : undefined);
+  let originalPrice: string | undefined;
+  let discount: string | undefined;
+  let priceNote: string | undefined;
+
+  let outOriginalPriceValue = originalPriceValue;
+
+  if (hasPromoDiscount) {
+    originalPrice = formatPrice(originalPriceValue);
+    discount =
+      promoCalculation.promoLabel ||
+      (product.promos && product.promos.length > 0
+        ? getPromoLabel(product.promos as any, context)
+        : undefined);
+  } else if (showDual) {
+    originalPrice = formatPrice(cardMin);
+    priceNote = "Precio efectivo / transferencia";
+    outOriginalPriceValue = cardMin;
+  }
+
+  const hasDiscount = hasPromoDiscount || Boolean(showDual);
   
   return {
     currentPrice,
     originalPrice,
     discount,
+    priceNote,
     currentPriceValue: finalPrice,
-    originalPriceValue,
+    originalPriceValue: outOriginalPriceValue,
     discountAmount: promoCalculation.discountAmount,
     hasDiscount,
     promoCalculation,
@@ -185,10 +225,11 @@ export function calculateProductPrice(
  * Calcula el precio para múltiples productos (para carritos, etc.)
  */
 export function calculateTotalPrice(
-  items: Array<{ product: Product; quantity: number }>
+  items: Array<{ product: Product; quantity: number }>,
+  options?: CalculateProductPriceOptions
 ): number {
   return items.reduce((total, item) => {
-    const priceInfo = calculateProductPrice(item.product, item.quantity);
+    const priceInfo = calculateProductPrice(item.product, item.quantity, options);
     return total + priceInfo.currentPriceValue;
   }, 0);
 }
@@ -208,7 +249,8 @@ export function getVariantPriceByLocality(
   variant: any,
   optionId?: string,
   localityId?: string,
-  catalogId?: string
+  catalogId?: string,
+  priceKind: PaymentPriceKind = "transfer"
 ): number {
   console.log('[getVariantPriceByLocality] Iniciando búsqueda de precio:', {
     variantId: variant?.id,
@@ -266,19 +308,27 @@ export function getVariantPriceByLocality(
           })) || []
         });
 
-        // El backend ya filtra los precios por catálogo cuando se pasa locality_id
-        // y devuelve option.price con el precio del catálogo correspondiente
-        // Priorizar este campo ya que el backend ya hizo el trabajo de filtrado
-        if (targetOption.price !== undefined && targetOption.price !== null && targetOption.price > 0) {
-          const finalPrice = typeof targetOption.price === 'number' 
-            ? targetOption.price 
-            : parseFloat(targetOption.price) || 0;
-          console.log('[getVariantPriceByLocality] Precio encontrado en option.price:', finalPrice);
+        // option.price suele ser el precio transfer filtrado por catálogo/localidad.
+        // Para price_kind "card" hay que leer la fila en prices[], no este atajo.
+        if (
+          priceKind === "transfer" &&
+          targetOption.price !== undefined &&
+          targetOption.price !== null &&
+          targetOption.price > 0
+        ) {
+          const finalPrice =
+            typeof targetOption.price === "number"
+              ? targetOption.price
+              : parseFloat(targetOption.price) || 0;
+          console.log("[getVariantPriceByLocality] Precio encontrado en option.price:", finalPrice);
           return finalPrice;
         }
         
         // Si no hay price directo, buscar en el array de precios
         if (targetOption.prices && Array.isArray(targetOption.prices)) {
+          const kindMatches = (p: any) =>
+            (p.price_kind || "transfer") === priceKind;
+
           let priceFound = null;
           
           // Priorizar búsqueda por catálogo si tenemos catalogId
@@ -286,8 +336,10 @@ export function getVariantPriceByLocality(
             console.log('[getVariantPriceByLocality] Buscando precio por catalog_id:', targetCatalogId);
             priceFound = targetOption.prices.find(
               (price: any) => {
-                const matches = price.catalog_id === targetCatalogId || 
-                             (price.catalog_id && String(price.catalog_id) === String(targetCatalogId));
+                const matches =
+                  kindMatches(price) &&
+                  (price.catalog_id === targetCatalogId ||
+                    (price.catalog_id && String(price.catalog_id) === String(targetCatalogId)));
                 if (matches) {
                   console.log('[getVariantPriceByLocality] Precio encontrado por catalog_id:', {
                     priceId: price.id,
@@ -298,6 +350,14 @@ export function getVariantPriceByLocality(
                 return matches;
               }
             );
+            if (!priceFound && priceKind === "card") {
+              priceFound = targetOption.prices.find(
+                (price: any) =>
+                  (price.catalog_id === targetCatalogId ||
+                    (price.catalog_id && String(price.catalog_id) === String(targetCatalogId))) &&
+                  (price.price_kind || "transfer") === "transfer",
+              );
+            }
           }
           
           // Si no se encontró por catálogo y hay localityId, buscar por localidad (compatibilidad hacia atrás)
@@ -305,8 +365,10 @@ export function getVariantPriceByLocality(
             console.log('[getVariantPriceByLocality] Buscando precio por locality_id:', localityId);
             priceFound = targetOption.prices.find(
               (price: any) => {
-                const matches = price.locality_id === localityId ||
-                             (price.locality_id && String(price.locality_id) === String(localityId));
+                const matches =
+                  kindMatches(price) &&
+                  (price.locality_id === localityId ||
+                    (price.locality_id && String(price.locality_id) === String(localityId)));
                 if (matches) {
                   console.log('[getVariantPriceByLocality] Precio encontrado por locality_id:', {
                     priceId: price.id,
@@ -321,13 +383,15 @@ export function getVariantPriceByLocality(
           
           // Si aún no se encontró, usar el primer precio con catálogo (el backend ya filtró por catálogo)
           if (!priceFound && targetOption.prices.length > 0) {
+            const byKind = targetOption.prices.filter(kindMatches);
+            const pool = byKind.length > 0 ? byKind : targetOption.prices;
             console.log('[getVariantPriceByLocality] Usando primer precio disponible (backend ya filtró):', {
-              priceId: targetOption.prices[0].id,
-              catalog_id: targetOption.prices[0].catalog_id,
-              locality_id: targetOption.prices[0].locality_id,
-              price: targetOption.prices[0].price
+              priceId: pool[0].id,
+              catalog_id: pool[0].catalog_id,
+              locality_id: pool[0].locality_id,
+              price: pool[0].price
             });
-            priceFound = targetOption.prices[0];
+            priceFound = pool[0];
           }
           
           if (priceFound) {
@@ -357,30 +421,46 @@ export function getVariantPriceByLocality(
         }))
       });
       
+      const kindMatchesV = (p: any) => (p.price_kind || "transfer") === priceKind;
+
       let priceFound = null;
       
       // Priorizar búsqueda por catálogo si tenemos catalogId
       if (targetCatalogId) {
         console.log('[getVariantPriceByLocality] Buscando precio en variant.prices por catalog_id:', targetCatalogId);
         priceFound = variant.prices.find(
-          (price: any) => price.catalog_id === targetCatalogId ||
-                         (price.catalog_id && String(price.catalog_id) === String(targetCatalogId))
+          (price: any) =>
+            kindMatchesV(price) &&
+            (price.catalog_id === targetCatalogId ||
+              (price.catalog_id && String(price.catalog_id) === String(targetCatalogId))),
         );
+        if (!priceFound && priceKind === "card") {
+          priceFound = variant.prices.find(
+            (price: any) =>
+              (price.catalog_id === targetCatalogId ||
+                (price.catalog_id && String(price.catalog_id) === String(targetCatalogId))) &&
+              (price.price_kind || "transfer") === "transfer",
+          );
+        }
       }
       
       // Si no se encontró por catálogo y hay localityId, buscar por localidad (compatibilidad hacia atrás)
       if (!priceFound && localityId) {
         console.log('[getVariantPriceByLocality] Buscando precio en variant.prices por locality_id:', localityId);
         priceFound = variant.prices.find(
-          (price: any) => price.locality_id === localityId ||
-                         (price.locality_id && String(price.locality_id) === String(localityId))
+          (price: any) =>
+            kindMatchesV(price) &&
+            (price.locality_id === localityId ||
+              (price.locality_id && String(price.locality_id) === String(localityId))),
         );
       }
       
       // Si aún no se encontró y hay precios con catálogo, usar el primero (el backend ya filtró)
       if (!priceFound && variant.prices.length > 0) {
-        console.log('[getVariantPriceByLocality] Usando primer precio de variant.prices:', variant.prices[0]);
-        priceFound = variant.prices[0];
+        const pool = variant.prices.filter(kindMatchesV);
+        const pick = pool.length > 0 ? pool : variant.prices;
+        console.log('[getVariantPriceByLocality] Usando primer precio de variant.prices:', pick[0]);
+        priceFound = pick[0];
       }
       
       if (priceFound) {

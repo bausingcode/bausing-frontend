@@ -51,10 +51,6 @@ export default function ProductCombosPage() {
     }
   }, [productId]);
 
-  const formatPrice = (price: number): string => {
-    return `$${Math.round(price).toLocaleString('es-AR')}`;
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
@@ -174,6 +170,7 @@ export default function ProductCombosPage() {
                     currentPrice={currentPrice}
                     originalPrice={originalPrice || ""}
                     discount={discount}
+                    priceNote={priceInfo.priceNote}
                   />
                 );
               }

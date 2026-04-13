@@ -173,6 +173,8 @@ export default function CheckoutPage() {
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [walletIsBlocked, setWalletIsBlocked] = useState<boolean>(false);
   const [walletLoading, setWalletLoading] = useState(false);
+  /** Saldo como descuento (switch); no es un “método de pago” combinable */
+  const [useWalletCredit, setUseWalletCredit] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isPaisCatalog, setIsPaisCatalog] = useState<boolean>(false);
   const PAIS_CATALOG_ID = "8335e521-f25a-4f92-8f59-c4439671ef26";
@@ -502,11 +504,16 @@ export default function CheckoutPage() {
         cart.forEach(item => {
           const priceData = pricesData[item.id];
           if (priceData) {
+            const tmin = priceData.min_price;
+            const tmax = priceData.max_price;
             productsMap[item.id] = {
               id: item.id,
               name: item.name,
-              min_price: priceData.min_price,
-              max_price: priceData.max_price,
+              min_price: tmin,
+              max_price: tmax,
+              min_card_price: priceData.min_card_price ?? tmin,
+              max_card_price: priceData.max_card_price ?? tmax,
+              show_transfer_price_highlight: priceData.show_transfer_price_highlight,
               promos: priceData.promos || [],
             } as Product;
           }
@@ -634,12 +641,7 @@ export default function CheckoutPage() {
       setWalletIsBlocked(balanceData.is_blocked || false);
       // Si la wallet está bloqueada, desactivar el uso de billetera
       if (balanceData.is_blocked) {
-        // Remover wallet de los métodos seleccionados
-        setSelectedMethods(prev => prev.filter(m => m !== "wallet"));
-        setMethodAmounts(prev => {
-          const { wallet: _, ...rest } = prev;
-          return rest;
-        });
+        setUseWalletCredit(false);
       }
     } catch (error) {
       console.error("Error loading wallet balance:", error);
@@ -782,32 +784,37 @@ export default function CheckoutPage() {
         newErrors.address_province = "La provincia es obligatoria";
       }
     }
-    // Debe haber al menos un método de pago seleccionado
-    if (selectedMethods.length === 0) {
-      newErrors.payment_method = "Debes seleccionar al menos un método de pago";
-    }
-    // Si multi-payment está desactivado, solo permitir un método
-    if (!enableMultiPayment && selectedMethods.length > 1) {
-      newErrors.payment_method = "Solo puedes seleccionar un método de pago. Activa 'Combinar métodos' para usar múltiples métodos.";
-    }
-    // Validar que los montos sumen el total cuando hay múltiples métodos
-    if (enableMultiPayment && selectedMethods.length > 1) {
-      const totalPago = selectedMethods.reduce((sum, m) => sum + (methodAmounts[m] || 0), 0);
-      const diff = Math.abs(totalPago - subtotal);
-      if (diff > 0.01) {
-        newErrors.payment_method = `La suma de los montos ($${totalPago.toFixed(2)}) no coincide con el total ($${subtotal.toFixed(2)})`;
+    const subtotalVal = calculateTotal();
+    const walletCreditAppliedVal =
+      useWalletCredit &&
+      !isThirdPartyTransport &&
+      !walletIsBlocked &&
+      walletBalance > 0
+        ? Math.min(walletBalance, subtotalVal)
+        : 0;
+    const payableSubtotalVal = Math.max(0, subtotalVal - walletCreditAppliedVal);
+
+    if (payableSubtotalVal > 0.01) {
+      if (selectedMethods.length === 0) {
+        newErrors.payment_method = "Debes seleccionar al menos un método de pago para el monto a abonar";
       }
-      // Validar que cada método tenga un monto >= $1
-      for (const m of selectedMethods) {
-        if (!methodAmounts[m] || methodAmounts[m] < 1) {
-          newErrors.payment_method = `Cada método de pago debe tener al menos $1 asignado`;
-          break;
+      if (!enableMultiPayment && selectedMethods.length > 1) {
+        newErrors.payment_method =
+          "Solo puedes seleccionar un método de pago. Activa 'Combinar métodos' para usar múltiples métodos.";
+      }
+      if (enableMultiPayment && selectedMethods.length > 1) {
+        const totalPago = selectedMethods.reduce((sum, m) => sum + (methodAmounts[m] || 0), 0);
+        const diff = Math.abs(totalPago - payableSubtotalVal);
+        if (diff > 0.01) {
+          newErrors.payment_method = `La suma de los montos ($${totalPago.toFixed(2)}) no coincide con lo que falta pagar ($${payableSubtotalVal.toFixed(2)})`;
+        }
+        for (const m of selectedMethods) {
+          if (!methodAmounts[m] || methodAmounts[m] < 1) {
+            newErrors.payment_method = `Cada método de pago debe tener al menos $1 asignado`;
+            break;
+          }
         }
       }
-    }
-    // Validar wallet no exceda saldo
-    if (selectedMethods.includes("wallet") && (methodAmounts["wallet"] || 0) > walletBalance) {
-      newErrors.payment_method = "El monto de billetera excede tu saldo disponible";
     }
 
     // Los campos de tarjeta ya no se validan porque siempre se abona al recibir
@@ -1176,26 +1183,30 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
               const totalWithShipping = subtotal + shippingCost;
 
               let paymentInfo = "";
-              if (selectedMethods.length > 0) {
-                const paymentMethodsText = selectedMethods
-                  .map((method) => {
-                    const methodName =
-                      method === "card"
-                        ? "Tarjeta"
-                        : method === "wallet"
-                          ? "Billetera Bausing"
-                          : method === "transfer"
-                            ? "Transferencia (completar por WhatsApp)"
-                            : "Efectivo";
-                    const amount = isMultiPayment
-                      ? methodAmounts[method] || 0
-                      : method === "wallet"
-                        ? Math.min(methodAmounts[method] || 0, walletBalance)
-                        : subtotal;
-                    return `  - ${methodName}: $${amount.toLocaleString("es-AR")}`;
-                  })
-                  .join("\n");
-                paymentInfo = `\n\n*Métodos de pago:*\n${paymentMethodsText}`;
+              const payLines: string[] = [];
+              if (walletCreditApplied > 0.01) {
+                payLines.push(
+                  `  - Billetera Bausing (descuento): $${walletCreditApplied.toLocaleString("es-AR")}`,
+                );
+              }
+              if (payableSubtotal > 0.01 && selectedMethods.length > 0) {
+                selectedMethods.forEach((method) => {
+                  const methodName =
+                    method === "card"
+                      ? "Tarjeta"
+                      : method === "transfer"
+                        ? "Transferencia (completar por WhatsApp)"
+                        : "Efectivo";
+                  const amount = isMultiPayment
+                    ? methodAmounts[method] || 0
+                    : payableSubtotal;
+                  payLines.push(
+                    `  - ${methodName}: $${amount.toLocaleString("es-AR")}`,
+                  );
+                });
+              }
+              if (payLines.length > 0) {
+                paymentInfo = `\n\n*Métodos de pago:*\n${payLines.join("\n")}`;
               }
 
               const addressText = addressData.additional_info
@@ -1273,17 +1284,31 @@ ${addressText}${provinceName ? `, ${provinceName}` : ""}`;
               
               const totalWithShipping = subtotal + shippingCost;
               
-              // Información de métodos de pago
               let paymentInfo = "";
-              if (selectedMethods.length > 0) {
-                const paymentMethodsText = selectedMethods.map(method => {
-                  const methodName = method === "card" ? "Tarjeta" : 
-                                   method === "wallet" ? "Billetera Bausing" : 
-                                   method === "transfer" ? "Transferencia" : "Efectivo";
-                  const amount = isMultiPayment ? (methodAmounts[method] || 0) : (method === "wallet" ? Math.min(methodAmounts[method] || 0, walletBalance) : subtotal);
-                  return `  - ${methodName}: $${amount.toLocaleString('es-AR')}`;
-                }).join('\n');
-                paymentInfo = `\n\n*Métodos de pago seleccionados:*\n${paymentMethodsText}`;
+              const payLinesPais: string[] = [];
+              if (walletCreditApplied > 0.01) {
+                payLinesPais.push(
+                  `  - Billetera Bausing (descuento): $${walletCreditApplied.toLocaleString("es-AR")}`,
+                );
+              }
+              if (payableSubtotal > 0.01 && selectedMethods.length > 0) {
+                selectedMethods.forEach((method) => {
+                  const methodName =
+                    method === "card"
+                      ? "Tarjeta"
+                      : method === "transfer"
+                        ? "Transferencia"
+                        : "Efectivo";
+                  const amount = isMultiPayment
+                    ? methodAmounts[method] || 0
+                    : payableSubtotal;
+                  payLinesPais.push(
+                    `  - ${methodName}: $${amount.toLocaleString("es-AR")}`,
+                  );
+                });
+              }
+              if (payLinesPais.length > 0) {
+                paymentInfo = `\n\n*Métodos de pago seleccionados:*\n${payLinesPais.join("\n")}`;
               } else {
                 paymentInfo = "\n\n*Método de pago:* Abonar al recibir";
               }
@@ -1342,32 +1367,47 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
         console.warn("[Checkout] ⚠️ No se pudo obtener crm_zone_id. El backend debería usar el fallback automáticamente.");
       }
 
-      // Build payment_methods array for multi-payment support
-      // Siempre se abona al recibir, por lo que processed siempre es false (excepto wallet)
-      const paymentMethodsArray = selectedMethods.map(method => {
-        const amount = isMultiPayment ? (methodAmounts[method] || 0) : subtotal;
-        let processed = false;
-        // Solo wallet se procesa inmediatamente, el resto se abona al recibir
-        if (method === "wallet") processed = true;
-        
-        // Map to CRM medios_pago_id
-        let mediosPagoId = 1;
-        if (method === "card") mediosPagoId = 2;
-        else if (method === "wallet") mediosPagoId = 3;
-        else if (method === "transfer") mediosPagoId = 4;
-        // cash = 1
+      // Billetera = descuento (primero); el resto se paga con tarjeta / efectivo / transferencia
+      const paymentMethodsArray: Array<{
+        method: PaymentMethodType;
+        amount: number;
+        processed: boolean;
+        medios_pago_id: number;
+      }> = [];
 
-        return {
-          method,
-          amount,
-          processed,
-          medios_pago_id: mediosPagoId,
-        };
-      });
+      if (walletCreditApplied > 0.01) {
+        paymentMethodsArray.push({
+          method: "wallet",
+          amount: walletCreditApplied,
+          processed: true,
+          medios_pago_id: 3,
+        });
+      }
 
-      // Determine primary payment method (for backward compat)
-      const primaryMethod = selectedMethods[0] || "card";
-      const walletAmount = paymentMethodsArray.find(p => p.method === "wallet")?.amount || 0;
+      if (payableSubtotal > 0.01) {
+        for (const method of selectedMethods) {
+          let amount: number;
+          if (isMultiPayment) {
+            amount = methodAmounts[method] || 0;
+          } else {
+            amount = payableSubtotal;
+          }
+          let processed = false;
+          let mediosPagoId = 1;
+          if (method === "card") mediosPagoId = 2;
+          else if (method === "transfer") mediosPagoId = 4;
+          paymentMethodsArray.push({
+            method,
+            amount,
+            processed,
+            medios_pago_id: mediosPagoId,
+          });
+        }
+      }
+
+      const primaryMethod =
+        payableSubtotal > 0.01 ? selectedMethods[0] || "card" : "wallet";
+      const walletAmount = walletCreditApplied;
 
       // Prepare order data
       const orderData = {
@@ -1498,8 +1538,10 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
   const getItemPrice = (item: typeof cart[0]): number => {
     const product = productsWithPrices[item.id];
     if (product) {
-      // Calcular precio usando calculateProductPrice con la cantidad
-      const priceInfo = calculateProductPrice(product, item.quantity);
+      const paymentUsesCard = selectedMethods.includes("card");
+      const priceInfo = calculateProductPrice(product, item.quantity, {
+        paymentPriceKind: paymentUsesCard ? "card" : "transfer",
+      });
       return priceInfo.currentPriceValue;
     }
     // Fallback: parsear el precio guardado
@@ -1514,8 +1556,10 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
   const getItemUnitPrice = (item: typeof cart[0]): number => {
     const product = productsWithPrices[item.id];
     if (product) {
-      // Calcular precio unitario (cantidad 1)
-      const priceInfo = calculateProductPrice(product, 1);
+      const paymentUsesCard = selectedMethods.includes("card");
+      const priceInfo = calculateProductPrice(product, 1, {
+        paymentPriceKind: paymentUsesCard ? "card" : "transfer",
+      });
       return priceInfo.currentPriceValue;
     }
     // Fallback: parsear el precio guardado
@@ -1533,7 +1577,23 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
   const totalAmount = calculateTotal();
   const canPayWithWallet = walletBalance >= totalAmount && !walletIsBlocked;
   const subtotal = calculateTotal();
-  
+  const walletCreditApplied =
+    useWalletCredit &&
+    !isThirdPartyTransport &&
+    !walletIsBlocked &&
+    walletBalance > 0
+      ? Math.min(walletBalance, subtotal)
+      : 0;
+  const payableSubtotal = Math.max(0, subtotal - walletCreditApplied);
+
+  useEffect(() => {
+    if (payableSubtotal <= 0.01 && subtotal > 0.01) {
+      setSelectedMethods([]);
+      setMethodAmounts({});
+      setEnableMultiPayment(false);
+    }
+  }, [payableSubtotal, subtotal]);
+
   /**
    * Calcula el costo de envío basado en la distancia
    */
@@ -1583,6 +1643,20 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
     });
   }
 
+  useEffect(() => {
+    setSelectedMethods((prev) => prev.filter((m) => m !== "wallet"));
+    setMethodAmounts((prev) => {
+      const { wallet: _w, ...rest } = prev;
+      return rest;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (isThirdPartyTransport) {
+      setUseWalletCredit(false);
+    }
+  }, [isThirdPartyTransport]);
+
   // Limpiar métodos de pago no permitidos cuando cambia el transporte tercerizado
   useEffect(() => {
     if (isThirdPartyTransport) {
@@ -1614,147 +1688,135 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
     }
   }, [isThirdPartyTransport, enableMultiPayment, selectedMethods, methodAmounts, subtotal]);
 
-  // Multi-payment derived values
+  // Multi-payment derived values (métodos = solo tarjeta / efectivo / transferencia; billetera va aparte)
   const isMultiPayment = enableMultiPayment && selectedMethods.length > 1;
   const hasCardPayment = selectedMethods.includes("card");
-  const hasWalletPayment = selectedMethods.includes("wallet");
+  const hasWalletPayment = walletCreditApplied > 0.01;
   const getMethodAmount = (method: PaymentMethodType): number => methodAmounts[method] || 0;
   const cardPaymentAmount = getMethodAmount("card");
-  const walletPaymentAmount = hasWalletPayment ? Math.min(getMethodAmount("wallet"), walletBalance) : 0;
+  const walletPaymentAmount = walletCreditApplied;
   const totalAssigned = selectedMethods.reduce((sum, m) => sum + getMethodAmount(m), 0);
-  const remainingToAssign = Math.max(0, subtotal - totalAssigned);
-  // Backward compat aliases
-  const walletDiscount = walletPaymentAmount;
-  const remainingAfterWallet = Math.max(0, subtotal - walletPaymentAmount);
-  const finalTotal = Math.max(0, subtotal - walletDiscount + shippingCost);
+  const remainingToAssign = Math.max(0, payableSubtotal - totalAssigned);
+  const walletDiscount = walletCreditApplied;
+  const remainingAfterWallet = payableSubtotal;
+  const finalTotal = Math.max(0, payableSubtotal + shippingCost);
 
-  // Auto-fill amount when single method or when multi-payment is disabled
+  // Auto-fill montos respecto a lo que falta pagar (subtotal − billetera)
   useEffect(() => {
+    if (payableSubtotal <= 0.01) {
+      return;
+    }
     if (!enableMultiPayment && selectedMethods.length === 1) {
       const method = selectedMethods[0];
-      const maxAmount = method === "wallet" ? Math.min(walletBalance, subtotal) : subtotal;
-      setMethodAmounts({ [method]: maxAmount });
+      setMethodAmounts({ [method]: payableSubtotal });
     } else if (enableMultiPayment && selectedMethods.length > 1) {
-      // Auto-distribute when enabling multi-payment
       const currentTotal = selectedMethods.reduce((sum, m) => sum + (methodAmounts[m] || 0), 0);
-      if (currentTotal === 0 || Math.abs(currentTotal - subtotal) > 0.01) {
-        // Distribuir proporcionalmente, asegurando mínimo $1 por método
+      if (currentTotal === 0 || Math.abs(currentTotal - payableSubtotal) > 0.01) {
         const minPerMethod = 1;
         const totalMin = selectedMethods.length * minPerMethod;
-        
-        // Si el subtotal es menor que el mínimo total, ajustar
-        if (subtotal < totalMin) {
-          // Si no alcanza para $1 por método, distribuir equitativamente
-          selectedMethods.forEach(m => {
-            setMethodAmounts(prev => ({ ...prev, [m]: subtotal / selectedMethods.length }));
+
+        if (payableSubtotal < totalMin) {
+          selectedMethods.forEach((m) => {
+            setMethodAmounts((prev) => ({
+              ...prev,
+              [m]: payableSubtotal / selectedMethods.length,
+            }));
           });
         } else {
-          // Distribuir con mínimo $1 por método
           const distribution: Record<string, number> = {};
-          const availableForDistribution = subtotal - totalMin;
-          
-          selectedMethods.forEach(m => {
-            // Asignar mínimo $1
+          const availableForDistribution = payableSubtotal - totalMin;
+
+          selectedMethods.forEach((m) => {
             distribution[m] = minPerMethod;
           });
-          
-          // Distribuir el resto proporcionalmente
+
           if (availableForDistribution > 0) {
-            selectedMethods.forEach(m => {
-              const maxForMethod = m === "wallet" ? walletBalance : subtotal;
+            selectedMethods.forEach((m) => {
               const additional = availableForDistribution / selectedMethods.length;
-              distribution[m] = Math.min(distribution[m] + additional, maxForMethod);
+              distribution[m] = Math.min(distribution[m] + additional, payableSubtotal);
             });
-            
-            // Ajustar para que sume exactamente el subtotal
+
             const total = Object.values(distribution).reduce((sum, v) => sum + v, 0);
-            if (total > 0 && Math.abs(total - subtotal) > 0.01) {
-              const factor = subtotal / total;
-              Object.keys(distribution).forEach(m => {
+            if (total > 0 && Math.abs(total - payableSubtotal) > 0.01) {
+              const factor = payableSubtotal / total;
+              Object.keys(distribution).forEach((m) => {
                 distribution[m] = Math.max(minPerMethod, distribution[m] * factor);
-                if (m === "wallet") {
-                  distribution[m] = Math.min(distribution[m], walletBalance);
-                }
               });
             }
           }
-          
+
           setMethodAmounts(distribution);
         }
       }
     }
-  }, [enableMultiPayment, selectedMethods.length, subtotal, walletBalance]);
+  }, [
+    enableMultiPayment,
+    selectedMethods.length,
+    payableSubtotal,
+    useWalletCredit,
+    walletBalance,
+    isThirdPartyTransport,
+    walletIsBlocked,
+  ]);
 
-  // Helper: toggle a payment method
+  // Helper: toggle tarjeta / efectivo / transferencia (billetera es otro control)
   const togglePaymentMethod = (method: PaymentMethodType) => {
-    setSelectedMethods(prev => {
+    if (method === "wallet") return;
+    setSelectedMethods((prev) => {
       if (prev.includes(method)) {
-        // Remove method
-        const next = prev.filter(m => m !== method);
-        setMethodAmounts(a => {
+        const next = prev.filter((m) => m !== method);
+        setMethodAmounts((a) => {
           const { [method]: _, ...rest } = a;
-          // Si queda solo un método, asignarle el total completo
-          if (next.length === 1 && !enableMultiPayment) {
+          if (next.length === 1 && !enableMultiPayment && payableSubtotal > 0.01) {
             const remainingMethod = next[0];
-            const maxAmount = remainingMethod === "wallet" ? Math.min(walletBalance, subtotal) : subtotal;
-            return { [remainingMethod]: maxAmount };
+            return { [remainingMethod]: payableSubtotal };
           }
           return rest;
         });
         return next;
-      } else {
-        // Add method
-        if (!enableMultiPayment && prev.length > 0) {
-          // Si multi-payment está desactivado, reemplazar el método anterior
-          const oldMethod = prev[0];
-          setMethodAmounts({});
-          const maxAmount = method === "wallet" ? Math.min(walletBalance, subtotal) : subtotal;
-          setMethodAmounts({ [method]: maxAmount });
-          return [method];
-        }
-        const next = [...prev, method];
-        const minPerMethod = enableMultiPayment && next.length > 1 ? 1 : 0;
-        // Pre-fill wallet with min(walletBalance, remaining)
-        if (method === "wallet") {
-          const otherTotal = next.filter(m => m !== "wallet").reduce((s, m) => s + (methodAmounts[m] || 0), 0);
-          const walletDefault = Math.max(minPerMethod, Math.min(walletBalance, Math.max(0, subtotal - otherTotal)));
-          setMethodAmounts(a => ({ ...a, wallet: walletDefault }));
-        } else if (enableMultiPayment) {
-          // Auto-distribute when adding a new method in multi-payment mode
-          const currentTotal = next.reduce((sum, m) => sum + (methodAmounts[m] || 0), 0);
-          const remaining = subtotal - currentTotal;
-          
-          // Asegurar que el nuevo método tenga al menos $1
-          const newMethodAmount = Math.max(minPerMethod, remaining);
-          setMethodAmounts(prev => {
-            const updated = { ...prev, [method]: newMethodAmount };
-            // Ajustar otros métodos si es necesario para mantener mínimo $1
-            if (remaining < minPerMethod) {
-              const excess = minPerMethod - remaining;
-              const otherMethods = next.filter(m => m !== method);
-              const otherTotal = otherMethods.reduce((sum, m) => sum + Math.max(0, (updated[m] || 0) - minPerMethod), 0);
-              if (otherTotal > 0) {
-                otherMethods.forEach(m => {
-                  const current = updated[m] || 0;
-                  const reducible = current - minPerMethod;
-                  if (reducible > 0) {
-                    const proportion = reducible / otherTotal;
-                    updated[m] = Math.max(minPerMethod, current - excess * proportion);
-                  }
-                });
-              }
-            }
-            // Asegurar que todos tengan al menos $1
-            next.forEach(m => {
-              if ((updated[m] || 0) < minPerMethod) {
-                updated[m] = minPerMethod;
-              }
-            });
-            return updated;
-          });
-        }
-        return next;
       }
+      if (!enableMultiPayment && prev.length > 0) {
+        setMethodAmounts({});
+        if (payableSubtotal > 0.01) {
+          setMethodAmounts({ [method]: payableSubtotal });
+        }
+        return [method];
+      }
+      const next = [...prev, method];
+      const minPerMethod = enableMultiPayment && next.length > 1 ? 1 : 0;
+      if (enableMultiPayment) {
+        const currentTotal = next.reduce((sum, m) => sum + (methodAmounts[m] || 0), 0);
+        const remaining = payableSubtotal - currentTotal;
+        const newMethodAmount = Math.max(minPerMethod, remaining);
+        setMethodAmounts((prevAmt) => {
+          const updated = { ...prevAmt, [method]: newMethodAmount };
+          if (remaining < minPerMethod) {
+            const excess = minPerMethod - remaining;
+            const otherMethods = next.filter((m) => m !== method);
+            const otherTotal = otherMethods.reduce(
+              (sum, m) => sum + Math.max(0, (updated[m] || 0) - minPerMethod),
+              0,
+            );
+            if (otherTotal > 0) {
+              otherMethods.forEach((m) => {
+                const current = updated[m] || 0;
+                const reducible = current - minPerMethod;
+                if (reducible > 0) {
+                  const proportion = reducible / otherTotal;
+                  updated[m] = Math.max(minPerMethod, current - excess * proportion);
+                }
+              });
+            }
+          }
+          next.forEach((m) => {
+            if ((updated[m] || 0) < minPerMethod) {
+              updated[m] = minPerMethod;
+            }
+          });
+          return updated;
+        });
+      }
+      return next;
     });
     // Clear payment method errors
     setErrors(prev => {
@@ -1766,42 +1828,43 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
 
   // Helper: update amount for a method with auto-completion
   const updateMethodAmount = (method: PaymentMethodType, value: string) => {
+    if (method === "wallet") return;
     const numValue = parseFloat(value) || 0;
     const minPerMethod = enableMultiPayment && selectedMethods.length > 1 ? 1 : 0;
-    const maxValue = method === "wallet" ? Math.min(numValue, walletBalance) : numValue;
-    
-    setMethodAmounts(prev => {
+    const maxValue = Math.min(numValue, payableSubtotal);
+
+    setMethodAmounts((prev) => {
       const updated = { ...prev, [method]: maxValue };
-      
-      // Auto-complete: distribuir el resto entre los otros métodos
+
       if (enableMultiPayment && selectedMethods.length > 1) {
-        const otherMethods = selectedMethods.filter(m => m !== method);
-        const currentTotal = otherMethods.reduce((sum, m) => sum + (updated[m] || 0), 0) + maxValue;
-        const remaining = subtotal - currentTotal;
-        
-        // Asegurar que el método actual tenga al menos $1 si hay otros métodos
+        const otherMethods = selectedMethods.filter((m) => m !== method);
+        const currentTotal =
+          otherMethods.reduce((sum, m) => sum + (updated[m] || 0), 0) + maxValue;
+        const remaining = payableSubtotal - currentTotal;
+
         if (maxValue < minPerMethod && otherMethods.length > 0) {
           updated[method] = minPerMethod;
-          const newRemaining = subtotal - (otherMethods.reduce((sum, m) => sum + (updated[m] || 0), 0) + minPerMethod);
-          // Redistribuir el resto
+          const newRemaining =
+            payableSubtotal -
+            (otherMethods.reduce((sum, m) => sum + (updated[m] || 0), 0) + minPerMethod);
           if (newRemaining > 0.01 && otherMethods.length > 0) {
             const otherTotal = otherMethods.reduce((sum, m) => {
-              const maxForMethod = m === "wallet" ? walletBalance : subtotal;
-              return sum + Math.max(0, maxForMethod - Math.max(minPerMethod, updated[m] || 0));
+              return sum + Math.max(0, payableSubtotal - Math.max(minPerMethod, updated[m] || 0));
             }, 0);
-            
+
             if (otherTotal > 0) {
-              otherMethods.forEach(m => {
-                const maxForMethod = m === "wallet" ? walletBalance : subtotal;
-                const available = Math.max(0, maxForMethod - Math.max(minPerMethod, updated[m] || 0));
+              otherMethods.forEach((m) => {
+                const available = Math.max(
+                  0,
+                  payableSubtotal - Math.max(minPerMethod, updated[m] || 0),
+                );
                 if (available > 0) {
                   const proportion = available / otherTotal;
-                  updated[m] = Math.max(minPerMethod, (updated[m] || 0) + newRemaining * proportion);
-                  if (m === "wallet") {
-                    updated[m] = Math.min(updated[m], walletBalance);
-                  } else {
-                    updated[m] = Math.min(updated[m], subtotal);
-                  }
+                  updated[m] = Math.max(
+                    minPerMethod,
+                    (updated[m] || 0) + newRemaining * proportion,
+                  );
+                  updated[m] = Math.min(updated[m], payableSubtotal);
                 } else {
                   updated[m] = Math.max(minPerMethod, updated[m] || 0);
                 }
@@ -1809,25 +1872,20 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
             }
           }
         } else if (remaining > 0.01 && otherMethods.length > 0) {
-          // Distribuir el resto proporcionalmente entre los otros métodos
           const otherTotal = otherMethods.reduce((sum, m) => {
-            const maxForMethod = m === "wallet" ? walletBalance : subtotal;
-            return sum + Math.max(0, maxForMethod - Math.max(minPerMethod, updated[m] || 0));
+            return sum + Math.max(0, payableSubtotal - Math.max(minPerMethod, updated[m] || 0));
           }, 0);
-          
+
           if (otherTotal > 0) {
-            otherMethods.forEach(m => {
-              const maxForMethod = m === "wallet" ? walletBalance : subtotal;
-              const available = Math.max(0, maxForMethod - Math.max(minPerMethod, updated[m] || 0));
+            otherMethods.forEach((m) => {
+              const available = Math.max(
+                0,
+                payableSubtotal - Math.max(minPerMethod, updated[m] || 0),
+              );
               if (available > 0) {
                 const proportion = available / otherTotal;
                 updated[m] = Math.max(minPerMethod, (updated[m] || 0) + remaining * proportion);
-                // Asegurar que no exceda el máximo
-                if (m === "wallet") {
-                  updated[m] = Math.min(updated[m], walletBalance);
-                } else {
-                  updated[m] = Math.min(updated[m], subtotal);
-                }
+                updated[m] = Math.min(updated[m], payableSubtotal);
               } else {
                 updated[m] = Math.max(minPerMethod, updated[m] || 0);
               }
@@ -2888,6 +2946,46 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                     Medios de pago
                   </h2>
                 </div>
+
+                {!isThirdPartyTransport && walletBalance > 0.01 && !walletIsBlocked && (
+                  <div className="bg-emerald-50/80 border border-emerald-200 rounded-lg p-3 md:p-4 mb-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Wallet className="w-4 h-4 text-emerald-700 shrink-0" />
+                          <span className="text-sm font-medium text-gray-900">
+                            Usar saldo de billetera como descuento
+                          </span>
+                        </div>
+                        {walletLoading ? (
+                          <p className="text-xs text-gray-500 mt-1">Cargando saldo...</p>
+                        ) : (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Saldo disponible: {formatPrice(walletBalance)}
+                          </p>
+                        )}
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                        <input
+                          type="checkbox"
+                          role="switch"
+                          checked={useWalletCredit}
+                          onChange={(e) => {
+                            setUseWalletCredit(e.target.checked);
+                            setErrors((prev) => {
+                              const next = { ...prev };
+                              delete next.payment_method;
+                              return next;
+                            });
+                          }}
+                          disabled={walletLoading}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#00C1A7] peer-focus:ring-offset-2 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#00C1A7]" />
+                      </label>
+                    </div>
+                  </div>
+                )}
                 
                 {/* Switch para combinar métodos */}
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 md:p-4 mb-4">
@@ -2914,11 +3012,13 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                         onChange={(e) => {
                           setEnableMultiPayment(e.target.checked);
                           if (!e.target.checked && selectedMethods.length > 1) {
-                            // Si se desactiva, dejar solo el primer método
                             const firstMethod = selectedMethods[0];
                             setSelectedMethods([firstMethod]);
-                            const maxAmount = firstMethod === "wallet" ? Math.min(walletBalance, subtotal) : subtotal;
-                            setMethodAmounts({ [firstMethod]: maxAmount });
+                            if (payableSubtotal > 0.01) {
+                              setMethodAmounts({ [firstMethod]: payableSubtotal });
+                            } else {
+                              setMethodAmounts({});
+                            }
                           }
                         }}
                         className="sr-only peer"
@@ -2929,9 +3029,13 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                 </div>
                 
                 <p className="text-xs text-gray-500 mb-4 md:mb-6">
-                  {enableMultiPayment 
-                    ? "Seleccioná los métodos que querés usar y especificá el monto para cada uno"
-                    : "Seleccioná un método de pago"}
+                  {payableSubtotal <= 0.01 && walletCreditApplied > 0.01 ? (
+                    <>El saldo de billetera cubre el subtotal de productos. Solo pagás el envío al finalizar.</>
+                  ) : enableMultiPayment ? (
+                    "Seleccioná los métodos para el monto a abonar y distribuí los importes"
+                  ) : (
+                    "Seleccioná cómo vas a abonar el monto pendiente (después del descuento de billetera, si lo usás)"
+                  )}
                 </p>
                 {errors.payment_method && (
                   <p className="text-red-500 text-sm mb-4">{errors.payment_method}</p>
@@ -2945,12 +3049,15 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
-                    <label className="flex items-center gap-3 md:gap-4 p-3 md:p-4 cursor-pointer">
+                    <label
+                      className={`flex items-center gap-3 md:gap-4 p-3 md:p-4 ${payableSubtotal <= 0.01 ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                    >
                       <input
                         type="checkbox"
+                        disabled={payableSubtotal <= 0.01}
                         checked={selectedMethods.includes("card")}
                         onChange={() => togglePaymentMethod("card")}
-                        className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7]"
+                        className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7] disabled:opacity-50"
                       />
                       <CreditCard className="w-5 h-5 text-gray-600" />
                       <div className="flex-1">
@@ -2976,7 +3083,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                             type="number"
                             min={isMultiPayment ? 1 : 0}
                             step="0.01"
-                            max={subtotal}
+                            max={payableSubtotal}
                             value={methodAmounts["card"] || ""}
                             onChange={(e) => updateMethodAmount("card", e.target.value)}
                             className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-[#00C1A7] focus:border-[#00C1A7] placeholder:text-gray-400"
@@ -3016,12 +3123,15 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
-                    <label className="flex items-center gap-3 md:gap-4 p-3 md:p-4 cursor-pointer">
+                    <label
+                      className={`flex items-center gap-3 md:gap-4 p-3 md:p-4 ${payableSubtotal <= 0.01 ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                    >
                       <input
                         type="checkbox"
+                        disabled={payableSubtotal <= 0.01}
                         checked={selectedMethods.includes("cash")}
                         onChange={() => togglePaymentMethod("cash")}
-                        className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7]"
+                        className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7] disabled:opacity-50"
                       />
                       <Wallet className="w-5 h-5 text-gray-600" />
                       <div className="flex-1">
@@ -3047,7 +3157,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                             type="number"
                             min={isMultiPayment ? 1 : 0}
                             step="0.01"
-                            max={subtotal}
+                            max={payableSubtotal}
                             value={methodAmounts["cash"] || ""}
                             onChange={(e) => updateMethodAmount("cash", e.target.value)}
                             className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-[#00C1A7] focus:border-[#00C1A7] placeholder:text-gray-400"
@@ -3089,12 +3199,15 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
-                    <label className="flex items-center gap-3 md:gap-4 p-3 md:p-4 cursor-pointer">
+                    <label
+                      className={`flex items-center gap-3 md:gap-4 p-3 md:p-4 ${payableSubtotal <= 0.01 ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                    >
                       <input
                         type="checkbox"
+                        disabled={payableSubtotal <= 0.01}
                         checked={selectedMethods.includes("transfer")}
                         onChange={() => togglePaymentMethod("transfer")}
-                        className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7]"
+                        className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7] disabled:opacity-50"
                       />
                       <ArrowRightLeft className="w-5 h-5 text-gray-600" />
                       <div className="flex-1">
@@ -3118,7 +3231,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                             type="number"
                             min={isMultiPayment ? 1 : 0}
                             step="0.01"
-                            max={subtotal}
+                            max={payableSubtotal}
                             value={methodAmounts["transfer"] || ""}
                             onChange={(e) => updateMethodAmount("transfer", e.target.value)}
                             className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-[#00C1A7] focus:border-[#00C1A7] placeholder:text-gray-400"
@@ -3149,57 +3262,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                     )}
                   </div>
 
-                  {/* Billetera Bausing - Oculto si es transporte tercerizado */}
-                  {!isThirdPartyTransport && walletBalance > 0 && !walletIsBlocked && (
-                    <div
-                      className={`border rounded-lg transition-colors ${
-                        selectedMethods.includes("wallet")
-                          ? "border-[#00C1A7] bg-[#00C1A7]/5"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <label className="flex items-center gap-3 md:gap-4 p-3 md:p-4 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedMethods.includes("wallet")}
-                          onChange={() => togglePaymentMethod("wallet")}
-                          className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7]"
-                        />
-                        <Wallet className="w-5 h-5 text-gray-600" />
-                        <div className="flex-1 min-w-0">
-                          <span className="font-medium text-gray-900 text-sm md:text-base">Billetera Bausing</span>
-                          {walletLoading ? (
-                            <p className="text-xs text-gray-500 mt-0.5">Cargando saldo...</p>
-                          ) : (
-                            <p className="text-xs text-gray-500 mt-0.5 truncate">
-                              Saldo disponible: {formatPrice(walletBalance)}
-                            </p>
-                          )}
-                        </div>
-                        {selectedMethods.includes("wallet") && (
-                          <Check className="w-5 h-5 text-[#00C1A7] flex-shrink-0" />
-                        )}
-                      </label>
-                      {selectedMethods.includes("wallet") && isMultiPayment && (
-                        <div className="px-3 md:px-4 pb-3 md:pb-4">
-                          <label className="text-xs text-gray-500 mb-1 block">Monto desde billetera (máx: {formatPrice(walletBalance)})</label>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                            <input
-                              type="number"
-                            min={isMultiPayment ? 1 : 0}
-                            step="0.01"
-                            max={walletBalance}
-                              value={methodAmounts["wallet"] || ""}
-                              onChange={(e) => updateMethodAmount("wallet", e.target.value)}
-                              className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#00C1A7] focus:border-[#00C1A7] placeholder:text-gray-400"
-                              placeholder="0.00"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
 
                 {/* Multi-payment summary */}
@@ -3207,23 +3269,23 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                   <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-gray-600">Total asignado:</span>
-                      <span className={`font-semibold ${Math.abs(totalAssigned - subtotal) < 0.01 ? 'text-green-600' : 'text-amber-600'}`}>
-                        {formatPrice(totalAssigned)} / {formatPrice(subtotal)}
+                      <span className={`font-semibold ${Math.abs(totalAssigned - payableSubtotal) < 0.01 ? 'text-green-600' : 'text-amber-600'}`}>
+                        {formatPrice(totalAssigned)} / {formatPrice(payableSubtotal)}
                       </span>
                     </div>
                     {remainingToAssign > 0.01 && (
                       <p className="text-xs text-amber-600 mt-1">
-                        Falta asignar {formatPrice(remainingToAssign)} para cubrir el total
+                        Falta asignar {formatPrice(remainingToAssign)} para cubrir lo pendiente
                       </p>
                     )}
-                    {totalAssigned > subtotal + 0.01 && (
+                    {totalAssigned > payableSubtotal + 0.01 && (
                       <p className="text-xs text-red-600 mt-1">
-                        El monto asignado excede el total en {formatPrice(totalAssigned - subtotal)}
+                        El monto asignado excede lo pendiente en {formatPrice(totalAssigned - payableSubtotal)}
                       </p>
                     )}
-                    {Math.abs(totalAssigned - subtotal) <= 0.01 && (
+                    {Math.abs(totalAssigned - payableSubtotal) <= 0.01 && (
                       <p className="text-xs text-green-600 mt-1">
-                        ✓ El total está cubierto correctamente
+                        ✓ El monto a abonar está cubierto correctamente
                       </p>
                     )}
                   </div>
@@ -3262,7 +3324,9 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                       const installments = getInstallments(selectedCardType, selectedBank);
                       
                       // Calcular el monto base (subtotal o monto de tarjeta si es multi-pago)
-                      const baseAmount = isMultiPayment ? (methodAmounts["card"] || 0) : subtotal;
+                      const baseAmount = isMultiPayment
+                        ? methodAmounts["card"] || 0
+                        : payableSubtotal;
 
                       return (
                         <div className="space-y-4">
@@ -3496,9 +3560,9 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                   )}
 
                   {/* Multi-payment breakdown */}
-                  {isMultiPayment && selectedMethods.filter(m => m !== "wallet").length > 0 && (
+                  {isMultiPayment && selectedMethods.length > 0 && (
                     <div className="space-y-1 pt-1">
-                      {selectedMethods.filter(m => m !== "wallet").map(method => (
+                      {selectedMethods.map((method) => (
                         <div key={method} className="flex justify-between items-center">
                           <span className="text-xs font-medium text-gray-500">
                             {method === "card" ? "Tarjeta" : method === "cash" ? "Efectivo" : "Transferencia"}

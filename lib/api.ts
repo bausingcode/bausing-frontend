@@ -446,6 +446,9 @@ export interface Product {
   is_active: boolean;
   min_price?: number;
   max_price?: number;
+  min_card_price?: number;
+  max_card_price?: number;
+  show_transfer_price_highlight?: boolean;
   price_range?: string;
   main_image?: string;
   images?: Array<{
@@ -468,8 +471,10 @@ export interface Product {
     prices?: Array<{
       id: string;
       price: number;
-      locality_id: string;
+      locality_id?: string;
       locality_name?: string;
+      catalog_id?: string;
+      price_kind?: string;
     }>;
   }>;
   promos?: Array<{
@@ -826,6 +831,7 @@ export async function completeCrmProduct(
   crmProductId: string,
   productData: {
     product_id?: string;
+    show_transfer_price_highlight?: boolean;
     name: string;
     description?: string;
     technical_description?: string;
@@ -846,11 +852,30 @@ export async function completeCrmProduct(
     sku?: string;
     category_id?: string;
     category_option_id?: string;
+    subcategory_ids?: string[];
+    subcategory_options?: Record<string, string[]>;
     is_active?: boolean;
     images?: Array<{
       image_url: string;
       alt_text?: string;
       position?: number;
+    }>;
+    variants?: Array<{
+      sku?: string;
+      stock: number;
+      attributes?: Record<string, string>;
+      prices: Array<{
+        catalog_id?: string;
+        locality_id?: string;
+        price: number;
+        price_kind?: string;
+      }>;
+      card_prices?: Array<{
+        catalog_id?: string;
+        locality_id?: string;
+        price: number;
+        price_kind?: string;
+      }>;
     }>;
   }
 ): Promise<Product> {
@@ -1073,13 +1098,22 @@ export async function createCompleteProduct(productData: {
   has_moisture_breathers?: boolean;
   has_side_handles?: boolean;
   size_label?: string;
+  show_transfer_price_highlight?: boolean;
   variants: Array<{
     sku?: string;
     stock: number;
+    attributes?: Record<string, string>;
     prices: Array<{
       catalog_id?: string;
       locality_id?: string;
       price: number;
+      price_kind?: string;
+    }>;
+    card_prices?: Array<{
+      catalog_id?: string;
+      locality_id?: string;
+      price: number;
+      price_kind?: string;
     }>;
   }>;
 }): Promise<Product> {
@@ -5385,6 +5419,9 @@ export async function fetchPublicHomepageDistributionQuick(): Promise<{
 export async function fetchProductsPrices(productIds: string[], localityId?: string): Promise<Record<string, {
   min_price: number;
   max_price: number;
+  min_card_price?: number;
+  max_card_price?: number;
+  show_transfer_price_highlight?: boolean;
   price_range: string;
   promos: any[];
 }>> {

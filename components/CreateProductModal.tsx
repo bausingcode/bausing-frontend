@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Plus, ChevronRight, ChevronLeft, Trash2, ChevronDown, ChevronUp, ImagePlus } from "lucide-react";
 import AutoResizeTextarea from "@/components/AutoResizeTextarea";
-import { CrmProduct, CrmCombo, completeCrmProduct, uploadProductImageFile, fetchCatalogs, Catalog, createCompleteProduct, fetchProductById, Product } from "@/lib/api";
+import { CrmProduct, CrmCombo, completeCrmProduct, uploadProductImageFile, fetchCatalogs, Catalog, createCompleteProduct, fetchProductById } from "@/lib/api";
 
 interface Category {
   id: string;
@@ -35,7 +35,30 @@ interface Attribute {
 interface Variant {
   attributes: Record<string, string>;
   stock: number;
-  prices: Record<string, number>; // catalog_id -> price
+  prices: Record<string, number>; // catalog_id -> precio transferencia/efectivo
+  cardPrices: Record<string, number>; // catalog_id -> precio tarjeta (opcional)
+}
+
+function splitCatalogPricesByKind(
+  rows: any[] | undefined
+): { transfer: Record<string, number>; card: Record<string, number> } {
+  const transfer: Record<string, number> = {};
+  const card: Record<string, number> = {};
+  if (!rows || !Array.isArray(rows)) return { transfer, card };
+  rows.forEach((price: any) => {
+    const rawKey = price.catalog_id ?? price.locality_id;
+    if (rawKey == null || rawKey === "") return;
+    const priceKey = String(rawKey);
+    const kind = price.price_kind === "card" ? "card" : "transfer";
+    const n = Number(price.price);
+    if (!Number.isFinite(n) || n <= 0) return;
+    if (kind === "card") {
+      card[priceKey] = n;
+    } else {
+      transfer[priceKey] = n;
+    }
+  });
+  return { transfer, card };
 }
 
 interface CreateProductModalProps {
@@ -91,6 +114,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   const [variants, setVariants] = useState<Variant[]>([]);
   const [catalogs, setCatalogs] = useState<Catalog[]>([]);
   const [expandedVariant, setExpandedVariant] = useState<number | null>(null);
+  const [showTransferPriceHighlight, setShowTransferPriceHighlight] = useState(false);
   
   // Otros estados
   const [loading, setLoading] = useState(false);
@@ -307,6 +331,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setDescription("");
         setIsActive(crmProduct.is_active ?? true);
         setImages([]);
+        setShowTransferPriceHighlight(false);
       } else {
         // New product
         setName("");
@@ -327,6 +352,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setMattressFirmness("");
         setSizeLabel("");
         setImages([]);
+        setShowTransferPriceHighlight(false);
       }
       
       // Solo resetear estos campos si NO estamos editando un producto completo
@@ -336,6 +362,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setSelectedOptions({});
         setAttributes([]);
         setVariants([]);
+        setShowTransferPriceHighlight(false);
       }
       setNewAttributeName("");
       setIsAddingAttribute(false);
@@ -386,6 +413,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setHasMoistureBreathers(fullProduct.has_moisture_breathers || false);
         setHasSideHandles(fullProduct.has_side_handles || false);
         setSizeLabel(fullProduct.size_label || "");
+        setShowTransferPriceHighlight(fullProduct.show_transfer_price_highlight === true);
         
         // Imágenes
         if (fullProduct.images && fullProduct.images.length > 0) {
@@ -539,17 +567,11 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                   const attrKey = JSON.stringify(attributes);
                   
                   // Cargar precios desde esta opción específica
-                  const optionPrices: Record<string, number> = {};
-                  if (option.prices && Array.isArray(option.prices)) {
-                    console.log(`[PRICES] Option "${option.name}" - Precios encontrados:`, option.prices);
-                    option.prices.forEach((price: any) => {
-                      // Preferir catalog_id, pero mantener compatibilidad con locality_id
-                      const priceKey = price.catalog_id || price.locality_id;
-                      if (priceKey) {
-                        optionPrices[priceKey] = price.price;
-                        console.log(`[PRICES] Precio cargado: option="${option.name}", catalog_id=${price.catalog_id || 'N/A'}, locality_id=${price.locality_id || 'N/A'}, price=${price.price}`);
-                      }
-                    });
+                  const { transfer: optionPrices, card: optionCardPrices } = splitCatalogPricesByKind(
+                    option.prices
+                  );
+                  if (Object.keys(optionPrices).length > 0 || Object.keys(optionCardPrices).length > 0) {
+                    console.log(`[PRICES] Option "${option.name}"`, { optionPrices, optionCardPrices });
                   }
                   
                   // Si ya existe esta combinación, actualizar precios (merge)
@@ -557,20 +579,23 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                     const existing = variantMap.get(attrKey)!;
                     variantMap.set(attrKey, {
                       ...existing,
-                      prices: { ...existing.prices, ...optionPrices }, // Merge de precios
+                      prices: { ...existing.prices, ...optionPrices },
+                      cardPrices: { ...existing.cardPrices, ...optionCardPrices },
                     });
                   } else {
                     variantMap.set(attrKey, {
                       attributes,
                       stock: 0, // No guardamos stock
-                      prices: { ...optionPrices }, // Precios de esta opción específica
+                      prices: { ...optionPrices },
+                      cardPrices: { ...optionCardPrices },
                     });
                     
-                    if (Object.keys(optionPrices).length > 0) {
+                    if (Object.keys(optionPrices).length > 0 || Object.keys(optionCardPrices).length > 0) {
                       console.log(`[PRICES] Variante creada con precios:`, {
                         attributes,
                         optionName: option.name,
                         prices: optionPrices,
+                        cardPrices: optionCardPrices,
                       });
                     }
                   }
@@ -587,21 +612,15 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                 const attrKey = JSON.stringify(attributes);
                 
                 // Intentar cargar precios desde variant.prices (por compatibilidad)
-                const variantPrices: Record<string, number> = {};
-                if (variant.prices && Array.isArray(variant.prices)) {
-                  variant.prices.forEach((price: any) => {
-                    // Preferir catalog_id, pero mantener compatibilidad con locality_id
-                    const priceKey = price.catalog_id || price.locality_id;
-                    if (priceKey) {
-                      variantPrices[priceKey] = price.price;
-                    }
-                  });
-                }
+                const { transfer: variantPrices, card: variantCardPrices } = splitCatalogPricesByKind(
+                  variant.prices
+                );
                 
                 variantMap.set(attrKey, {
                   attributes,
                   stock: 0, // No guardamos stock
                   prices: variantPrices,
+                  cardPrices: variantCardPrices,
                 });
               }
             });
@@ -610,31 +629,24 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
             // Los precios pueden estar en variant.prices o en option.prices
             fullProduct.variants.forEach((variant: any) => {
               const prices: Record<string, number> = {};
+              const cardPrices: Record<string, number> = {};
               
-              // Primero intentar cargar desde las opciones (nueva estructura)
+              const mergeRows = (rows: any[]) => {
+                const { transfer, card } = splitCatalogPricesByKind(rows);
+                Object.assign(prices, transfer);
+                Object.assign(cardPrices, card);
+              };
+              
               if (variant.options && variant.options.length > 0) {
                 variant.options.forEach((option: any) => {
                   if (option.prices && Array.isArray(option.prices)) {
-                    option.prices.forEach((price: any) => {
-                      // Preferir catalog_id, pero mantener compatibilidad con locality_id
-                      const priceKey = price.catalog_id || price.locality_id;
-                      if (priceKey) {
-                        prices[priceKey] = price.price;
-                      }
-                    });
+                    mergeRows(option.prices);
                   }
                 });
               }
               
-              // Si no hay precios en las opciones, intentar desde variant.prices (compatibilidad)
-              if (Object.keys(prices).length === 0 && variant.prices && Array.isArray(variant.prices)) {
-                variant.prices.forEach((price: any) => {
-                  // Preferir catalog_id, pero mantener compatibilidad con locality_id
-                  const priceKey = price.catalog_id || price.locality_id;
-                  if (priceKey) {
-                    prices[priceKey] = price.price;
-                  }
-                });
+              if (Object.keys(prices).length === 0 && Object.keys(cardPrices).length === 0 && variant.prices && Array.isArray(variant.prices)) {
+                mergeRows(variant.prices);
               }
               
               const attributes: Record<string, string> = variant.attributes || {};
@@ -645,6 +657,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                   attributes,
                   stock: 0, // No guardamos stock
                   prices,
+                  cardPrices,
                 });
               }
             });
@@ -796,6 +809,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
               attributes: {},
               stock: 99999,
               prices: {},
+              cardPrices: {},
             }];
           }
           return prev; // Preservar variantes existentes
@@ -890,7 +904,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         return {
           attributes: combo,
           stock: 99999,
-          prices: existingVariant?.prices || {}, // Preservar precios existentes
+          prices: existingVariant?.prices || {},
+          cardPrices: existingVariant?.cardPrices || {},
         };
       });
 
@@ -933,6 +948,53 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         return variant;
       })
     );
+  };
+
+  const handleCardPriceChange = (variantIndex: number, catalogId: string, value: string | number) => {
+    setVariants((prev) =>
+      prev.map((variant, i) => {
+        if (i === variantIndex) {
+          const next = { ...variant.cardPrices };
+          const numValue = Number(value);
+          if (numValue > 0) {
+            next[catalogId] = numValue;
+          } else {
+            delete next[catalogId];
+          }
+          return {
+            ...variant,
+            cardPrices: next,
+          };
+        }
+        return variant;
+      })
+    );
+  };
+
+  const variantToApiPayload = (variant: Variant) => {
+    const variantName = Object.entries(variant.attributes)
+      .map(([attrName, attrValue]) => `${attrName}: ${attrValue}`)
+      .join(", ");
+    const cardEntries = Object.entries(variant.cardPrices).filter(([, p]) => p > 0);
+    return {
+      sku: variantName || undefined,
+      stock: variant.stock,
+      attributes: variant.attributes,
+      prices: Object.entries(variant.prices)
+        .filter(([, price]) => price > 0)
+        .map(([catalog_id, price]) => ({
+          catalog_id,
+          price,
+        })),
+      ...(cardEntries.length > 0
+        ? {
+            card_prices: cardEntries.map(([catalog_id, price]) => ({
+              catalog_id,
+              price,
+            })),
+          }
+        : {}),
+    };
   };
 
   const handleNext = () => {
@@ -1067,22 +1129,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           })(),
           is_active: isActive,
           images: images,
-          variants: variants.map((variant) => {
-            // Generar nombre descriptivo de la variant basado en atributos
-            const variantName = Object.entries(variant.attributes)
-              .map(([attrName, attrValue]) => `${attrName}: ${attrValue}`)
-              .join(', ');
-            
-            return {
-              sku: variantName || undefined,
-              stock: variant.stock,
-              attributes: variant.attributes,
-              prices: Object.entries(variant.prices).map(([catalog_id, price]) => ({
-                catalog_id,
-                price,
-              })),
-            };
-          }),
+          show_transfer_price_highlight: showTransferPriceHighlight,
+          variants: variants.map(variantToApiPayload),
         };
 
         console.log("📦 [CRM] Creando producto CRM con datos:", JSON.stringify(productData, null, 2));
@@ -1120,21 +1168,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           has_moisture_breathers: showMattressFields ? hasMoistureBreathers : undefined,
           has_side_handles: showMattressFields ? hasSideHandles : undefined,
           size_label: showMattressFields && sizeLabel ? sizeLabel : undefined,
-          variants: variants.map((variant) => {
-            // Generar nombre descriptivo de la variant basado en atributos
-            const variantName = Object.entries(variant.attributes)
-              .map(([attrName, attrValue]) => `${attrName}: ${attrValue}`)
-              .join(', ');
-            
-            return {
-              sku: variantName || undefined,
-              stock: variant.stock,
-              prices: Object.entries(variant.prices).map(([catalog_id, price]) => ({
-                catalog_id,
-                price,
-              })),
-            };
-          }),
+          show_transfer_price_highlight: showTransferPriceHighlight,
+          variants: variants.map(variantToApiPayload),
         };
 
         console.log("📦 Creando producto con datos:", JSON.stringify(productData, null, 2));
@@ -1185,6 +1220,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       setSizeLabel("");
       setImages([]);
       setImageFiles([]);
+      setShowTransferPriceHighlight(false);
       setCurrentStep(1);
       onSuccess();
       onClose();
@@ -1980,6 +2016,22 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                 </span>
               </div>
 
+              <label className="flex items-start gap-3 p-4 rounded-lg border border-gray-200 bg-gray-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showTransferPriceHighlight}
+                  onChange={(e) => setShowTransferPriceHighlight(e.target.checked)}
+                  className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">
+                  <span className="font-medium text-gray-900 block mb-1">
+                    Mostrar precio efectivo / transferencia en la tienda
+                  </span>
+                  Tacha el precio de lista (tarjeta) y destaca el precio con transferencia o efectivo. Si el
+                  producto tiene una promoción activa, se prioriza la promo y no este esquema.
+                </span>
+              </label>
+
               {variants.length === 0 ? (
                 <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
                   <p className="font-medium">Generando variantes...</p>
@@ -1988,17 +2040,6 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                 <div className="space-y-3">
                   {variants.map((variant, index) => {
                     const isExpanded = expandedVariant === index;
-                    
-                    // Log detallado del estado de la variante
-                    console.log(`[PRICES] Variante ${index} en render:`, {
-                      attributes: variant.attributes,
-                      pricesObject: variant.prices,
-                      pricesType: typeof variant.prices,
-                      pricesIsObject: variant.prices instanceof Object,
-                      pricesKeys: variant.prices ? Object.keys(variant.prices) : [],
-                      hasPrices: variant.prices && Object.keys(variant.prices).length > 0,
-                      variantObject: variant,
-                    });
                     
                     return (
                       <div key={index} className="border border-gray-200 rounded-lg shadow-sm overflow-hidden">
@@ -2039,51 +2080,89 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 
                         {/* Expanded content - prices by catalog */}
                         {isExpanded && (
-                          <div className="border-t border-gray-200 bg-gray-50 p-4">
-                            <h4 className="text-sm font-medium text-gray-900 mb-3">
-                              Precios por Catálogo
-                            </h4>
-                            {catalogs.length === 0 ? (
-                              <p className="text-sm text-gray-500">Cargando catálogos...</p>
-                            ) : (
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                {catalogs.map((catalog) => {
-                                  const currentPrice = variant.prices[catalog.id] || "";
-                                  console.log(`[PRICES] Renderizando precio para variante ${index}, catálogo ${catalog.id} (${catalog.name}):`, {
-                                    catalogId: catalog.id,
-                                    catalogIdType: typeof catalog.id,
-                                    variantPrices: variant.prices,
-                                    variantPricesKeys: Object.keys(variant.prices),
-                                    currentPrice,
-                                    priceFound: variant.prices[catalog.id],
-                                  });
-                                  return (
-                                    <div key={catalog.id} className="bg-white rounded-lg border border-gray-200 p-3">
-                                      <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                                        {catalog.name}
-                                      </label>
-                                      {catalog.description && (
-                                        <p className="text-xs text-gray-500 mb-1.5">{catalog.description}</p>
-                                      )}
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-sm text-gray-500">$</span>
-                                        <input
-                                          type="number"
-                                          value={currentPrice}
-                                          onChange={(e) =>
-                                            handlePriceChange(index, catalog.id, e.target.value)
-                                          }
-                                          min="0"
-                                          step="0.01"
-                                          placeholder="0.00"
-                                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 text-sm transition-colors"
-                                        />
+                          <div className="border-t border-gray-200 bg-gray-50 p-4 space-y-6">
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-900 mb-1">
+                                Efectivo / transferencia
+                              </h4>
+                              <p className="text-xs text-gray-500 mb-3">
+                                Precio principal para transferencia o efectivo (por catálogo).
+                              </p>
+                              {catalogs.length === 0 ? (
+                                <p className="text-sm text-gray-500">Cargando catálogos...</p>
+                              ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                  {catalogs.map((catalog) => {
+                                    const currentPrice = variant.prices[catalog.id] || "";
+                                    return (
+                                      <div key={`t-${catalog.id}`} className="bg-white rounded-lg border border-gray-200 p-3">
+                                        <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                                          {catalog.name}
+                                        </label>
+                                        {catalog.description && (
+                                          <p className="text-xs text-gray-500 mb-1.5">{catalog.description}</p>
+                                        )}
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-sm text-gray-500">$</span>
+                                          <input
+                                            type="number"
+                                            value={currentPrice}
+                                            onChange={(e) =>
+                                              handlePriceChange(index, catalog.id, e.target.value)
+                                            }
+                                            min="0"
+                                            step="0.01"
+                                            placeholder="0.00"
+                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 text-sm transition-colors"
+                                          />
+                                        </div>
                                       </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-900 mb-1">Tarjeta (opcional)</h4>
+                              <p className="text-xs text-gray-500 mb-3">
+                                Precio con tarjeta por el mismo catálogo. Si lo dejás vacío, se usa el precio
+                                transferencia para checkout con tarjeta.
+                              </p>
+                              {catalogs.length === 0 ? (
+                                <p className="text-sm text-gray-500">Cargando catálogos...</p>
+                              ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                  {catalogs.map((catalog) => {
+                                    const cardVal = variant.cardPrices[catalog.id] || "";
+                                    return (
+                                      <div key={`c-${catalog.id}`} className="bg-white rounded-lg border border-gray-200 p-3">
+                                        <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                                          {catalog.name}
+                                        </label>
+                                        {catalog.description && (
+                                          <p className="text-xs text-gray-500 mb-1.5">{catalog.description}</p>
+                                        )}
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-sm text-gray-500">$</span>
+                                          <input
+                                            type="number"
+                                            value={cardVal}
+                                            onChange={(e) =>
+                                              handleCardPriceChange(index, catalog.id, e.target.value)
+                                            }
+                                            min="0"
+                                            step="0.01"
+                                            placeholder="Opcional"
+                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 text-sm transition-colors"
+                                          />
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>

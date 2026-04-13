@@ -15,6 +15,8 @@ interface ProductCardProps {
   currentPrice: string;
   originalPrice?: string;
   discount?: string;
+  /** Leyenda bajo el precio (ej. precio efectivo / transferencia) */
+  priceNote?: string;
   isPriceLoading?: boolean;
   useNormalHeight?: boolean;
 }
@@ -27,6 +29,7 @@ export default function ProductCard({
   currentPrice,
   originalPrice,
   discount,
+  priceNote,
   isPriceLoading = false,
   useNormalHeight = false,
 }: ProductCardProps) {
@@ -102,6 +105,13 @@ export default function ProductCard({
         name,
         image: image,
         price: currentPrice,
+        originalPrice:
+          originalPrice &&
+          originalPrice.trim() !== "" &&
+          originalPrice !== currentPrice
+            ? originalPrice
+            : undefined,
+        priceNote: priceNote?.trim() ? priceNote : undefined,
       });
       setIsFavorite(true);
       setShowFavoriteAnimation(true);
@@ -193,12 +203,17 @@ export default function ProductCard({
               <div className={useNormalHeight ? "h-6 bg-gray-200 rounded w-24" : "h-5 md:h-6 bg-gray-200 rounded w-20 md:w-24"}></div>
             </div>
           ) : currentPrice ? (
-            <>
-              <span className={useNormalHeight ? "text-xl font-semibold text-gray-900" : "text-lg md:text-xl font-semibold text-gray-900"}>{currentPrice}</span>
-              {originalPrice && (
-                <span className={useNormalHeight ? "text-sm text-gray-400 line-through" : "text-xs md:text-sm text-gray-400 line-through"}>{originalPrice}</span>
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <div className="flex items-baseline gap-2 flex-wrap">
+                {originalPrice && (
+                  <span className={useNormalHeight ? "text-sm text-gray-400 line-through" : "text-xs md:text-sm text-gray-400 line-through"}>{originalPrice}</span>
+                )}
+                <span className={useNormalHeight ? "text-xl font-semibold text-gray-900" : "text-lg md:text-xl font-semibold text-gray-900"}>{currentPrice}</span>
+              </div>
+              {priceNote && (
+                <span className={useNormalHeight ? "text-xs text-gray-600" : "text-[10px] md:text-xs text-gray-600"}>{priceNote}</span>
               )}
-            </>
+            </div>
           ) : (
             <span className={useNormalHeight ? "text-xl font-semibold text-gray-500" : "text-lg md:text-xl font-semibold text-gray-500"}>Sin Precio</span>
           )}

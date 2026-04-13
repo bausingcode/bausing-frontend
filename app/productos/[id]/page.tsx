@@ -82,6 +82,9 @@ interface Product {
   has_crm_stock?: boolean;
   /** false cuando el producto está desactivado en tienda (p. ej. vista como admin) */
   is_active?: boolean;
+  min_card_price?: number;
+  max_card_price?: number;
+  show_transfer_price_highlight?: boolean;
 }
 
 interface SimilarProduct {
@@ -90,6 +93,7 @@ interface SimilarProduct {
   currentPrice: string;
   originalPrice?: string;
   discount?: string;
+  priceNote?: string;
   image: string;
 }
 
@@ -120,6 +124,67 @@ function productHasMainCharacteristics(p: Product): boolean {
   if (p.has_moisture_breathers) return true;
   if (p.has_side_handles) return true;
   return false;
+}
+
+function buildPdpTempApiProductForPrice(
+  product: Product,
+  locality: { id: string } | null | undefined,
+  selectedVariantOptions: Record<string, string>,
+  selectedVariant: string,
+): ApiProduct {
+  let basePriceWithoutPromos = 0;
+  let baseCardWithoutPromos = 0;
+  if (product.variants && product.variants.length > 0 && locality?.id) {
+    for (const variant of product.variants) {
+      const variantKey = variant.id || variant.name || variant.sku || "default";
+      const selectedOptionId = selectedVariantOptions[variantKey];
+      if (selectedOptionId) {
+        const price = getVariantPriceByLocality(variant, selectedOptionId, locality.id);
+        const cardPrice = getVariantPriceByLocality(
+          variant,
+          selectedOptionId,
+          locality.id,
+          undefined,
+          "card",
+        );
+        if (price > 0) {
+          basePriceWithoutPromos = price;
+          baseCardWithoutPromos = cardPrice > 0 ? cardPrice : price;
+          break;
+        }
+      } else if (selectedVariant === variant.id) {
+        const price = getVariantPriceByLocality(variant, undefined, locality.id);
+        const cardPrice = getVariantPriceByLocality(
+          variant,
+          undefined,
+          locality.id,
+          undefined,
+          "card",
+        );
+        if (price > 0) {
+          basePriceWithoutPromos = price;
+          baseCardWithoutPromos = cardPrice > 0 ? cardPrice : price;
+          break;
+        }
+      }
+    }
+  }
+  if (basePriceWithoutPromos === 0) {
+    const numericPrice = parseFloat(product.currentPrice.replace(/[$.]/g, "").replace(/\./g, "")) || 0;
+    basePriceWithoutPromos = numericPrice;
+    baseCardWithoutPromos =
+      product.min_card_price != null ? Number(product.min_card_price) : numericPrice;
+  }
+  return {
+    ...product,
+    min_price: basePriceWithoutPromos,
+    max_price: basePriceWithoutPromos,
+    min_card_price: baseCardWithoutPromos,
+    max_card_price: baseCardWithoutPromos,
+    show_transfer_price_highlight: product.show_transfer_price_highlight === true,
+    promos: product.promos ?? [],
+    is_active: product.is_active !== false,
+  } as unknown as ApiProduct;
 }
 
 export default function ProductDetailPage() {
@@ -250,6 +315,7 @@ export default function ProductDetailPage() {
                 currentPrice: priceInfo.currentPrice,
                 originalPrice: priceInfo.originalPrice,
                 discount: priceInfo.discount,
+                priceNote: priceInfo.priceNote,
                 image: firstProductImageUrl(p),
               };
             });
@@ -344,6 +410,9 @@ export default function ProductDetailPage() {
           // Stock de CRM
           has_crm_stock: apiProductWithTech.has_crm_stock !== undefined ? apiProductWithTech.has_crm_stock : true,
           is_active: apiProduct.is_active,
+          min_card_price: apiProduct.min_card_price,
+          max_card_price: apiProduct.max_card_price,
+          show_transfer_price_highlight: apiProduct.show_transfer_price_highlight === true,
         };
 
         setProduct(transformedProduct);
@@ -539,11 +608,25 @@ export default function ProductDetailPage() {
         removeFromFavorites(product.id);
         setIsFavorite(false);
       } else {
+        const tempApi = buildPdpTempApiProductForPrice(
+          product,
+          locality,
+          selectedVariantOptions,
+          selectedVariant,
+        );
+        const pi = calculateProductPrice(tempApi, 1);
         addToFavorites({
           id: product.id,
           name: product.name,
           image: product.images[0]?.url?.trim() || PRODUCT_IMAGE_PLACEHOLDER,
-          price: product.currentPrice,
+          price: pi.currentPrice,
+          originalPrice:
+            pi.hasDiscount &&
+            pi.originalPrice &&
+            pi.originalPriceValue > pi.currentPriceValue
+              ? pi.originalPrice
+              : undefined,
+          priceNote: pi.priceNote,
         });
         setIsFavorite(true);
       }
@@ -901,47 +984,12 @@ export default function ProductDetailPage() {
                 {hasPrice ? (
                   <>
                     {(() => {
-                      // Obtener el precio base SIN promociones aplicadas
-                      // Necesitamos el precio original antes de aplicar promociones
-                      let basePriceWithoutPromos = 0;
-                      
-                      // Buscar precio de la variante/opción seleccionada sin promociones
-                      if (product.variants && product.variants.length > 0 && locality?.id) {
-                        for (const variant of product.variants) {
-                          const variantKey = variant.id || variant.name || variant.sku || 'default';
-                          const selectedOptionId = selectedVariantOptions[variantKey];
-                          
-                          if (selectedOptionId) {
-                            const price = getVariantPriceByLocality(variant, selectedOptionId, locality.id);
-                            if (price > 0) {
-                              basePriceWithoutPromos = price;
-                              break;
-                            }
-                          } else if (selectedVariant === variant.id) {
-                            const price = getVariantPriceByLocality(variant, undefined, locality.id);
-                            if (price > 0) {
-                              basePriceWithoutPromos = price;
-                              break;
-                            }
-                          }
-                        }
-                      }
-                      
-                      // Si no se encontró precio de variante, usar el precio del producto
-                      if (basePriceWithoutPromos === 0) {
-                        const numericPrice = parseFloat(product.currentPrice.replace(/[$.]/g, '').replace(/\./g, '')) || 0;
-                        basePriceWithoutPromos = numericPrice;
-                      }
-                      
-                      const productPromos = (product as any).promos || [];
-                      
-                      const tempProduct = { 
-                        ...product, 
-                        min_price: basePriceWithoutPromos, 
-                        max_price: basePriceWithoutPromos,
-                        promos: productPromos,
-                        is_active: product.is_active !== false,
-                      } as unknown as ApiProduct;
+                      const tempProduct = buildPdpTempApiProductForPrice(
+                        product,
+                        locality,
+                        selectedVariantOptions,
+                        selectedVariant,
+                      );
                       const priceInfo = calculateProductPrice(tempProduct, 1);
                       const hasDiscount = priceInfo.hasDiscount;
                       
@@ -983,6 +1031,9 @@ export default function ProductDetailPage() {
                                 )}
                               </div>
                               <div className="text-xl md:text-2xl font-semibold text-gray-900 mb-1 md:mb-2">{finalPrice}</div>
+                              {priceInfo.priceNote && (
+                                <div className="text-xs text-gray-600 mb-1">{priceInfo.priceNote}</div>
+                              )}
                             </>
                           )}
                           {!shouldShowOriginalPrice && shouldShowDiscount && (
@@ -993,10 +1044,18 @@ export default function ProductDetailPage() {
                                   {discountLabel}
                                 </span>
                               </div>
+                              {priceInfo.priceNote && (
+                                <div className="text-xs text-gray-600 mb-1">{priceInfo.priceNote}</div>
+                              )}
                             </>
                           )}
-                          {!shouldShowDiscount && (
-                            <div className="text-xl md:text-2xl font-semibold text-gray-900 mb-1 md:mb-2">{finalPrice}</div>
+                          {!shouldShowOriginalPrice && !shouldShowDiscount && (
+                            <>
+                              <div className="text-xl md:text-2xl font-semibold text-gray-900 mb-1 md:mb-2">{finalPrice}</div>
+                              {priceInfo.priceNote && (
+                                <div className="text-xs text-gray-600 mb-1">{priceInfo.priceNote}</div>
+                              )}
+                            </>
                           )}
                           <div className="text-xs text-gray-500">
                             Precio sin impuestos nacionales ${priceWithoutTaxes.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
@@ -1619,6 +1678,7 @@ export default function ProductDetailPage() {
                     currentPrice={similarProduct.currentPrice}
                     originalPrice={similarProduct.originalPrice || ""}
                     discount={similarProduct.discount}
+                    priceNote={similarProduct.priceNote}
                   />
                 </div>
               ))}

@@ -18,6 +18,8 @@ interface FavoritesItem {
   name: string;
   image: string;
   price: string;
+  originalPrice?: string;
+  priceNote?: string;
 }
 
 interface CartContextType {
