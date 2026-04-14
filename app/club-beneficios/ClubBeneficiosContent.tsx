@@ -171,8 +171,8 @@ export default function ClubBeneficiosContent({ initialProducts }: Props) {
       <Navbar />
 
       <div className="container mx-auto px-4 py-8">
-        <nav className="mb-6">
-          <ol className="flex items-center gap-2 text-sm text-gray-600">
+        <nav className="mb-4 md:mb-6 overflow-x-auto">
+          <ol className="flex items-center gap-1 md:gap-2 text-xs md:text-sm text-gray-600 whitespace-nowrap">
             <li>
               <a href="/" className="hover:text-gray-900 transition-colors">
                 Inicio
@@ -193,26 +193,27 @@ export default function ClubBeneficiosContent({ initialProducts }: Props) {
           </ol>
         </nav>
 
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <div className="mb-4 md:mb-6">
+          <h1 className="text-xl md:text-3xl font-bold text-gray-900 mb-1 md:mb-2">
             {searchQuery ? "Resultados de búsqueda" : "Club Beneficios"}
           </h1>
           {searchQuery ? (
-            <p className="text-gray-600 mb-2">
+            <p className="text-sm md:text-base text-gray-600 mb-1 md:mb-2">
               Buscando:{" "}
               <span className="font-semibold text-gray-900">
                 &quot;{searchQuery}&quot;
               </span>
             </p>
           ) : null}
-          <p className="text-gray-600">
-            {filtered.length} {filtered.length === 1 ? "producto" : "productos"}
+          <p className="text-sm md:text-base text-gray-600">
+            {filtered.length}{" "}
+            {filtered.length === 1 ? "producto encontrado" : "productos encontrados"}
           </p>
         </div>
 
-        <div className="sticky top-[150px] z-30 bg-white -mx-4 px-4 pb-3 pt-4 mb-6">
-          <div className="container mx-auto flex items-center justify-between">
-            <div className="relative">
+        <div className="sticky top-[56px] md:top-[150px] z-30 bg-white -mx-4 px-4 pb-3 pt-3 md:pt-4 mb-4 md:mb-6 border-b border-gray-100 md:border-b-0">
+          <div className="container mx-auto flex items-center justify-end md:justify-between">
+            <div className="relative hidden md:block">
               <button
                 onClick={() => setShowPerPageMenu(!showPerPageMenu)}
                 className="flex items-center gap-2 text-sm text-black hover:text-gray-900 transition-colors"
@@ -252,9 +253,12 @@ export default function ClubBeneficiosContent({ initialProducts }: Props) {
             <div className="relative">
               <button
                 onClick={() => setShowSortMenu(!showSortMenu)}
-                className="flex items-center gap-2 text-sm text-black hover:text-gray-900 transition-colors"
+                className="flex items-center gap-1 md:gap-2 text-xs md:text-sm text-black hover:text-gray-900 transition-colors"
               >
-                <span>Ordenar por: {sortOptions.find((o) => o.value === sortBy)?.label}</span>
+                <span className="hidden md:inline">
+                  Ordenar por: {sortOptions.find((o) => o.value === sortBy)?.label}
+                </span>
+                <span className="md:hidden">{sortOptions.find((o) => o.value === sortBy)?.label}</span>
                 <ChevronDown
                   className={`w-4 h-4 text-gray-600 transition-transform ${
                     showSortMenu ? "rotate-180" : ""
@@ -288,12 +292,12 @@ export default function ClubBeneficiosContent({ initialProducts }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-12 gap-6">
+        <div className="grid grid-cols-12 gap-4 md:gap-6">
           <div className="col-span-12">
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20">
-                <p className="text-gray-600 text-lg mb-2">No se encontraron productos</p>
-                <p className="text-gray-500 text-sm">
+                <p className="text-gray-600 text-base md:text-lg mb-2">No se encontraron productos</p>
+                <p className="text-gray-500 text-xs md:text-sm text-center px-2">
                   {searchQuery
                     ? `No hay resultados para "${searchQuery}". Intenta con otros términos.`
                     : "Todavía no hay productos seleccionados para Club Beneficios."}
@@ -301,7 +305,7 @@ export default function ClubBeneficiosContent({ initialProducts }: Props) {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 [&>*]:min-w-0">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 mb-8 [&>*]:min-w-0">
                   {pageProducts.map((product) => (
                     <ProductCard
                       key={product.id}
