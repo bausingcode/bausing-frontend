@@ -444,10 +444,13 @@ export interface Product {
   has_moisture_breathers?: boolean;
   has_side_handles?: boolean;
   is_active: boolean;
+  created_at?: string;
   min_price?: number;
   max_price?: number;
   min_card_price?: number;
   max_card_price?: number;
+  /** Solo vitrina: precio tachado si no hay descuento real por promo */
+  display_reference_price?: number | null;
   show_transfer_price_highlight?: boolean;
   price_range?: string;
   main_image?: string;
@@ -849,6 +852,8 @@ export async function completeCrmProduct(
     has_moisture_breathers?: boolean;
     has_side_handles?: boolean;
     size_label?: string;
+    /** Solo vitrina (precio tachado de referencia). null para borrar. */
+    display_reference_price?: number | null;
     sku?: string;
     category_id?: string;
     category_option_id?: string;
@@ -1099,6 +1104,8 @@ export async function createCompleteProduct(productData: {
   has_side_handles?: boolean;
   size_label?: string;
   show_transfer_price_highlight?: boolean;
+  /** Solo vitrina (tachado). null para borrar. */
+  display_reference_price?: number | null;
   variants: Array<{
     sku?: string;
     stock: number;
@@ -5460,6 +5467,97 @@ export async function fetchProductsPrices(productIds: string[], localityId?: str
   }
 }
 
+/**
+ * Club Beneficios (selección admin + listado público)
+ */
+export interface ClubBeneficiosAdminResponse {
+  items: HomepageDistributionItem[];
+  total: number;
+}
+
+function _isClubBeneficiosAdminShape(x: unknown): x is ClubBeneficiosAdminResponse {
+  if (!x || typeof x !== "object") return false;
+  const o = x as Record<string, unknown>;
+  return Array.isArray(o.items) && typeof o.total === "number";
+}
+
+export async function fetchClubBeneficiosAdmin(): Promise<ClubBeneficiosAdminResponse> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/club-beneficios`
+      : `/api/admin/club-beneficios`;
+
+    const headers =
+      typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+
+    const response = await fetch(url, { headers, cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch club beneficios admin: ${response.statusText}`);
+    }
+    const json = await response.json();
+    if (!json.success) {
+      throw new Error(json.error || "Failed to fetch club beneficios admin");
+    }
+    const data = json.data as unknown;
+    if (!_isClubBeneficiosAdminShape(data)) {
+      throw new Error("Respuesta de club beneficios inválida");
+    }
+    return data;
+  } catch (error) {
+    console.error("Error fetching club beneficios admin:", error);
+    return {
+      items: [],
+      total: 0,
+    };
+  }
+}
+
+export async function saveClubBeneficios(productIds: string[]): Promise<ClubBeneficiosAdminResponse> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/club-beneficios`
+    : `/api/admin/club-beneficios`;
+
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+
+  const response = await fetch(url, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ product_ids: productIds }),
+    cache: "no-store",
+  });
+
+  const json = await response.json().catch(() => null);
+  if (!response.ok || !json?.success) {
+    const msg = json?.error || json?.message || response.statusText;
+    throw new Error(msg || "Failed to save club beneficios");
+  }
+
+  const data = json.data as unknown;
+  if (!_isClubBeneficiosAdminShape(data)) {
+    return { items: [], total: 0 };
+  }
+  return data;
+}
+
+export async function fetchClubBeneficiosQuick(): Promise<Product[]> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/club-beneficios/quick`
+      : `/api/club-beneficios/quick`;
+
+    const response = await fetch(url, { cache: "default" });
+    if (!response.ok) {
+      return [];
+    }
+    const json = await response.json();
+    if (!json.success) return [];
+    return (json.data as Product[]) || [];
+  } catch (error) {
+    console.error("Error fetching club beneficios quick:", error);
+    return [];
+  }
+}
 /**
  * Fetch public homepage product distribution (no auth)
  * @deprecated Use fetchPublicHomepageDistributionQuick + fetchProductsPrices for better performance

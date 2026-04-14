@@ -61,6 +61,14 @@ function splitCatalogPricesByKind(
   return { transfer, card };
 }
 
+function parseDisplayReferencePriceForPayload(raw: string): number | null {
+  const t = String(raw).trim();
+  if (!t) return null;
+  const n = parseFloat(t.replace(",", "."));
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
+
 interface CreateProductModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -114,7 +122,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   const [variants, setVariants] = useState<Variant[]>([]);
   const [catalogs, setCatalogs] = useState<Catalog[]>([]);
   const [expandedVariant, setExpandedVariant] = useState<number | null>(null);
-  const [showTransferPriceHighlight, setShowTransferPriceHighlight] = useState(false);
+  /** Precio tachado solo marketing (no afecta totales). Si hay promo con descuento, prevalece el tachado de la promo. */
+  const [displayReferencePrice, setDisplayReferencePrice] = useState("");
   
   // Otros estados
   const [loading, setLoading] = useState(false);
@@ -176,24 +185,47 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
     return getSelectedOptionsForSubcategory(subcatId).includes(option);
   };
   
+  const findCategoryOptionIdByValue = (category: any, optionValue: string): string | undefined => {
+    if (!category || !optionValue) return undefined;
+    const conIds = category.opcionesConIds;
+    if (Array.isArray(conIds)) {
+      const found = conIds.find((opt: any) => String(opt?.value) === String(optionValue));
+      if (found?.id) return String(found.id);
+    }
+    const raw = category.opciones;
+    if (Array.isArray(raw)) {
+      for (const opt of raw) {
+        if (typeof opt === "string") continue;
+        if (
+          opt &&
+          typeof opt === "object" &&
+          String((opt as any).value) === String(optionValue) &&
+          (opt as any).id
+        ) {
+          return String((opt as any).id);
+        }
+      }
+    }
+    return undefined;
+  };
+
   // Toggle opción para una subcategoría
   const toggleOption = (subcatId: string, option: string) => {
-    const currentOptions = getSelectedOptionsForSubcategory(subcatId);
-    const isSelected = currentOptions.includes(option);
-    
-    if (isSelected) {
-      // Remover opción
-      setSelectedOptions({
-        ...selectedOptions,
-        [subcatId]: currentOptions.filter(opt => opt !== option)
-      });
-    } else {
-      // Agregar opción
-      setSelectedOptions({
-        ...selectedOptions,
-        [subcatId]: [...currentOptions, option]
-      });
-    }
+    setSelectedOptions((prev) => {
+      const currentOptions = Array.isArray(prev[subcatId]) ? prev[subcatId] : [];
+      const isSelected = currentOptions.includes(option);
+      const nextOptions = isSelected
+        ? currentOptions.filter((opt) => opt !== option)
+        : [...currentOptions, option];
+
+      const next = { ...prev };
+      if (nextOptions.length === 0) {
+        delete next[subcatId];
+      } else {
+        next[subcatId] = nextOptions;
+      }
+      return next;
+    });
   };
 
   // Función para generar atributos según la categoría seleccionada
@@ -331,7 +363,6 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setDescription("");
         setIsActive(crmProduct.is_active ?? true);
         setImages([]);
-        setShowTransferPriceHighlight(false);
       } else {
         // New product
         setName("");
@@ -352,7 +383,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setMattressFirmness("");
         setSizeLabel("");
         setImages([]);
-        setShowTransferPriceHighlight(false);
+        setDisplayReferencePrice("");
       }
       
       // Solo resetear estos campos si NO estamos editando un producto completo
@@ -362,7 +393,6 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setSelectedOptions({});
         setAttributes([]);
         setVariants([]);
-        setShowTransferPriceHighlight(false);
       }
       setNewAttributeName("");
       setIsAddingAttribute(false);
@@ -410,12 +440,16 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setMattressHeightCm(fullProduct.mattress_height_cm);
         setMattressFabricType(fullProduct.mattress_fabric_type || "");
         setHasDoublePillow(fullProduct.has_double_pillow || false);
-        setHasMoistureBreathers(fullProduct.has_moisture_breathers || false);
-        setHasSideHandles(fullProduct.has_side_handles || false);
-        setSizeLabel(fullProduct.size_label || "");
-        setShowTransferPriceHighlight(fullProduct.show_transfer_price_highlight === true);
-        
-        // Imágenes
+	        setHasMoistureBreathers(fullProduct.has_moisture_breathers || false);
+	        setHasSideHandles(fullProduct.has_side_handles || false);
+	        setSizeLabel(fullProduct.size_label || "");
+	        setDisplayReferencePrice(
+	          fullProduct.display_reference_price != null && fullProduct.display_reference_price !== ""
+	            ? String(fullProduct.display_reference_price)
+	            : "",
+	        );
+	        
+	        // Imágenes
         if (fullProduct.images && fullProduct.images.length > 0) {
           setImages(fullProduct.images.map((img: any) => ({
             image_url: img.image_url,
@@ -510,6 +544,9 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         } else if (loadedCategoryId) {
           // Solo hay categoría, sin subcategorías
           setCategoryId(loadedCategoryId);
+          if (fullProduct.category_option_value) {
+            setSelectedOptions({ direct: [String(fullProduct.category_option_value)] });
+          }
         }
 
         // Cargar variantes y atributos desde el producto completo
@@ -1072,8 +1109,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         return;
       }
 
-      // Si es un producto CRM, usar completeCrmProduct
-      if (crmProduct) {
+	      // Si es un producto CRM, usar completeCrmProduct
+	      if (crmProduct) {
         // Determinar category_id (categoría padre)
         let finalCategoryId = categoryId;
         if (subcategoryIds.length > 0) {
@@ -1085,10 +1122,17 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           }
         }
         
-        const productData = {
-          product_id: crmProduct.product_id || undefined, // Permitir que el backend lo busque automáticamente
-          name,
-          description: description || undefined,
+	        const normalizedSubcategoryOptions = Object.fromEntries(
+	          Object.entries(selectedOptions)
+	            .filter(([k]) => k !== "direct")
+	            .filter(([k]) => subcategoryIds.includes(k))
+	            .filter(([, v]) => Array.isArray(v) && v.length > 0),
+	        ) as Record<string, string[]>;
+
+	        const productData = {
+	          product_id: crmProduct.product_id || undefined, // Permitir que el backend lo busque automáticamente
+	          name,
+	          description: description || undefined,
           technical_description: technicalDescription || undefined,
           warranty_months: warrantyMonths || undefined,
           warranty_description: warrantyDescription || undefined,
@@ -1103,35 +1147,36 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           has_double_pillow: hasDoublePillow,
           has_moisture_breathers: hasMoistureBreathers,
           has_side_handles: hasSideHandles,
-          size_label: sizeLabel || undefined,
-          category_id: finalCategoryId || undefined, // Categoría padre
-          subcategory_ids: subcategoryIds.length > 0 ? subcategoryIds : undefined, // Múltiples subcategorías
-          subcategory_options: Object.keys(selectedOptions).length > 0 ? selectedOptions : undefined, // Opciones por subcategoría
-          category_option_id: (() => {
+	          size_label: sizeLabel || undefined,
+	          category_id: finalCategoryId || undefined, // Categoría padre
+	          subcategory_ids: subcategoryIds.length > 0 ? subcategoryIds : undefined, // Múltiples subcategorías
+	          subcategory_options:
+	            Object.keys(normalizedSubcategoryOptions).length > 0
+	              ? normalizedSubcategoryOptions
+	              : undefined, // Opciones por subcategoría
+	          category_option_id: (() => {
             // Obtener el ID de la primera opción seleccionada (para compatibilidad)
             // Si hay subcategorías seleccionadas, usar la primera subcategoría
             if (subcategoryIds.length > 0) {
               const subcatId = subcategoryIds[0];
-              const selectedOpts = selectedOptions[subcatId] || [];
-              if (selectedOpts.length > 0) {
-                const subcat = propCategories.find(c => c.id === subcatId);
-                const optionObj = subcat?.opcionesConIds?.find(opt => opt.value === selectedOpts[0]);
-                return optionObj?.id;
-              }
-            }
-            // Si no hay subcategorías, usar opciones directas
-            const directOpts = selectedOptions["direct"] || [];
-            if (directOpts.length > 0) {
-              const optionObj = selectedCategory?.opcionesConIds?.find(opt => opt.value === directOpts[0]);
-              return optionObj?.id;
-            }
-            return undefined;
-          })(),
-          is_active: isActive,
-          images: images,
-          show_transfer_price_highlight: showTransferPriceHighlight,
-          variants: variants.map(variantToApiPayload),
-        };
+	              const selectedOpts = selectedOptions[subcatId] || [];
+	              if (selectedOpts.length > 0) {
+	                const subcat = propCategories.find(c => c.id === subcatId);
+	                return findCategoryOptionIdByValue(subcat, selectedOpts[0]);
+	              }
+	            }
+	            // Si no hay subcategorías, usar opciones directas
+	            const directOpts = selectedOptions["direct"] || [];
+	            if (directOpts.length > 0) {
+	              return findCategoryOptionIdByValue(selectedCategory, directOpts[0]);
+	            }
+	            return undefined;
+	          })(),
+	          is_active: isActive,
+	          images: images,
+	          variants: variants.map(variantToApiPayload),
+	          display_reference_price: parseDisplayReferencePriceForPayload(displayReferencePrice),
+	        };
 
         console.log("📦 [CRM] Creando producto CRM con datos:", JSON.stringify(productData, null, 2));
         console.log("📦 [CRM] Variants:", variants);
@@ -1147,7 +1192,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         }
       } else {
         // Crear producto nuevo
-        const productData = {
+	        const productData = {
           name,
           description: description || undefined,
           category_id: subcategoryIds.length > 0 ? undefined : categoryId,
@@ -1165,12 +1210,12 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           mattress_height_cm: showMattressFields ? mattressHeightCm || undefined : undefined,
           mattress_fabric_type: showMattressFields && mattressFabricType ? mattressFabricType : undefined,
           has_double_pillow: showMattressFields ? hasDoublePillow : undefined,
-          has_moisture_breathers: showMattressFields ? hasMoistureBreathers : undefined,
-          has_side_handles: showMattressFields ? hasSideHandles : undefined,
-          size_label: showMattressFields && sizeLabel ? sizeLabel : undefined,
-          show_transfer_price_highlight: showTransferPriceHighlight,
-          variants: variants.map(variantToApiPayload),
-        };
+	          has_moisture_breathers: showMattressFields ? hasMoistureBreathers : undefined,
+	          has_side_handles: showMattressFields ? hasSideHandles : undefined,
+	          size_label: showMattressFields && sizeLabel ? sizeLabel : undefined,
+	          variants: variants.map(variantToApiPayload),
+	          display_reference_price: parseDisplayReferencePriceForPayload(displayReferencePrice),
+	        };
 
         console.log("📦 Creando producto con datos:", JSON.stringify(productData, null, 2));
         console.log("📦 Variants:", variants);
@@ -1218,9 +1263,9 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       setHasMoistureBreathers(false);
       setHasSideHandles(false);
       setSizeLabel("");
+      setDisplayReferencePrice("");
       setImages([]);
       setImageFiles([]);
-      setShowTransferPriceHighlight(false);
       setCurrentStep(1);
       onSuccess();
       onClose();
@@ -1538,17 +1583,21 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                             <input
                               type="checkbox"
                               checked={isSelected}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSubcategoryIds([...subcategoryIds, subcat.id]);
-                                } else {
-                                  setSubcategoryIds(subcategoryIds.filter(id => id !== subcat.id));
-                                  // Limpiar opción de esta subcategoría si se deselecciona
-                                  const newOptions = { ...selectedOptions };
-                                  delete newOptions[subcat.id];
-                                  setSelectedOptions(newOptions);
-                                }
-                              }}
+	                              onChange={(e) => {
+	                                if (e.target.checked) {
+	                                  setSubcategoryIds((prev) =>
+	                                    prev.includes(subcat.id) ? prev : [...prev, subcat.id],
+	                                  );
+	                                } else {
+	                                  setSubcategoryIds((prev) => prev.filter((id) => id !== subcat.id));
+	                                  // Limpiar opción de esta subcategoría si se deselecciona
+	                                  setSelectedOptions((prev) => {
+	                                    const next = { ...prev };
+	                                    delete next[subcat.id];
+	                                    return next;
+	                                  });
+	                                }
+	                              }}
                               className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
                             />
                             <span className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
@@ -2006,6 +2055,27 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           {/* Step 3: Variantes */}
           {currentStep === 3 && (
             <div className="space-y-5">
+              <div className="rounded-lg border border-gray-200 bg-amber-50/60 p-4 space-y-2">
+                <label className="block text-sm font-medium text-gray-900">
+                  Precio de referencia (solo vitrina)
+                </label>
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  Opcional. Se muestra tachado como precio anterior para resaltar el precio actual. No entra en el carrito ni en cálculos.
+                  Si el producto tiene una promo con descuento real, el tachado será el de la promo.
+                </p>
+                <div className="flex items-center gap-2 max-w-xs">
+                  <span className="text-sm text-gray-500 shrink-0">$</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={displayReferencePrice}
+                    onChange={(e) => setDisplayReferencePrice(e.target.value)}
+                    placeholder="Ej. 150000"
+                    className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
+                  />
+                </div>
+              </div>
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">
                   Variantes del Producto
@@ -2015,22 +2085,6 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                   {variants.length !== 1 ? "s" : ""}
                 </span>
               </div>
-
-              <label className="flex items-start gap-3 p-4 rounded-lg border border-gray-200 bg-gray-50 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showTransferPriceHighlight}
-                  onChange={(e) => setShowTransferPriceHighlight(e.target.checked)}
-                  className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-700">
-                  <span className="font-medium text-gray-900 block mb-1">
-                    Mostrar precio efectivo / transferencia en la tienda
-                  </span>
-                  Tacha el precio de lista (tarjeta) y destaca el precio con transferencia o efectivo. Si el
-                  producto tiene una promoción activa, se prioriza la promo y no este esquema.
-                </span>
-              </label>
 
               {variants.length === 0 ? (
                 <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
@@ -2222,4 +2276,3 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
     </div>
   );
 }
-

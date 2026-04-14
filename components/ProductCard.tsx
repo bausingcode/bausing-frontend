@@ -17,6 +17,9 @@ interface ProductCardProps {
   discount?: string;
   /** Leyenda bajo el precio (ej. precio efectivo / transferencia) */
   priceNote?: string;
+  /** Precio secundario (ej. tarjeta) en texto pequeño */
+  secondaryPrice?: string;
+  secondaryPriceLabel?: string;
   isPriceLoading?: boolean;
   useNormalHeight?: boolean;
 }
@@ -30,6 +33,8 @@ export default function ProductCard({
   originalPrice,
   discount,
   priceNote,
+  secondaryPrice,
+  secondaryPriceLabel,
   isPriceLoading = false,
   useNormalHeight = false,
 }: ProductCardProps) {
@@ -138,7 +143,7 @@ export default function ProductCard({
           loading="lazy"
         />
         {discount && (
-          <div className="absolute top-2 left-2 md:top-2 md:right-2 bg-[#00C1A7] text-white px-2 py-1 rounded-[4px] font-semibold text-xs z-10">
+          <div className="absolute top-2 left-2 z-10 w-fit max-w-[calc(100%-1rem)] bg-[#00C1A7] px-2 py-1 text-left text-xs font-semibold leading-snug text-white rounded-[4px] md:left-auto md:right-2">
             {discount}
           </div>
         )}
@@ -203,15 +208,63 @@ export default function ProductCard({
               <div className={useNormalHeight ? "h-6 bg-gray-200 rounded w-24" : "h-5 md:h-6 bg-gray-200 rounded w-20 md:w-24"}></div>
             </div>
           ) : currentPrice ? (
-            <div className="flex flex-col gap-0.5 min-w-0">
-              <div className="flex items-baseline gap-2 flex-wrap">
-                {originalPrice && (
-                  <span className={useNormalHeight ? "text-sm text-gray-400 line-through" : "text-xs md:text-sm text-gray-400 line-through"}>{originalPrice}</span>
-                )}
-                <span className={useNormalHeight ? "text-xl font-semibold text-gray-900" : "text-lg md:text-xl font-semibold text-gray-900"}>{currentPrice}</span>
-              </div>
-              {priceNote && (
-                <span className={useNormalHeight ? "text-xs text-gray-600" : "text-[10px] md:text-xs text-gray-600"}>{priceNote}</span>
+            <div className="flex flex-col gap-1 min-w-0 w-full text-gray-900">
+              {secondaryPrice ? (
+                <>
+                  <p
+                    className={
+                      useNormalHeight
+                        ? "text-xs font-medium text-[#00A890] leading-snug"
+                        : "text-[10px] md:text-xs font-medium text-[#00A890] leading-snug"
+                    }
+                  >
+                    {priceNote || "Efectivo o transferencia"}
+                  </p>
+                  <div className="flex flex-col items-start gap-0.5 min-w-0">
+                    {originalPrice ? (
+                      <span
+                        className={
+                          useNormalHeight
+                            ? "text-[13px] leading-tight text-gray-400 line-through decoration-gray-300 tabular-nums"
+                            : "text-[11px] md:text-[13px] leading-tight text-gray-400 line-through decoration-gray-300 tabular-nums"
+                        }
+                      >
+                        {originalPrice}
+                      </span>
+                    ) : null}
+                    <span className={useNormalHeight ? "text-xl font-semibold tabular-nums leading-tight" : "text-lg md:text-xl font-semibold tabular-nums leading-tight"}>{currentPrice}</span>
+                  </div>
+                  <p
+                    className={
+                      useNormalHeight
+                        ? "text-xs text-gray-600 leading-snug pt-0.5"
+                        : "text-[10px] md:text-xs text-gray-600 leading-snug pt-0.5"
+                    }
+                  >
+                    <span>{secondaryPriceLabel || "Precio con tarjeta"}: </span>
+                    <span className="font-medium text-gray-900 tabular-nums">{secondaryPrice}</span>
+                  </p>
+                </>
+              ) : (
+                <div className="min-w-0">
+                  <div className="flex flex-col items-start gap-0.5 min-w-0">
+                    {originalPrice ? (
+                      <span
+                        className={
+                          useNormalHeight
+                            ? "text-[13px] leading-tight text-gray-400 line-through decoration-gray-300 tabular-nums"
+                            : "text-[11px] md:text-[13px] leading-tight text-gray-400 line-through decoration-gray-300 tabular-nums"
+                        }
+                      >
+                        {originalPrice}
+                      </span>
+                    ) : null}
+                    <span className={useNormalHeight ? "text-xl font-semibold tabular-nums leading-tight" : "text-lg md:text-xl font-semibold tabular-nums leading-tight"}>{currentPrice}</span>
+                  </div>
+                  {priceNote ? (
+                    <span className={useNormalHeight ? "text-xs text-gray-600 mt-0.5 block" : "text-[10px] md:text-xs text-gray-600 mt-0.5 block"}>{priceNote}</span>
+                  ) : null}
+                </div>
               )}
             </div>
           ) : (
@@ -222,4 +275,3 @@ export default function ProductCard({
     </Link>
   );
 }
-

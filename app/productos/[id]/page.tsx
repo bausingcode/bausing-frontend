@@ -15,7 +15,14 @@ import {
   firstProductImageUrl,
   PRODUCT_IMAGE_PLACEHOLDER,
 } from "@/lib/productImagePlaceholder";
-import { calculateProductPrice, formatPrice, getVariantPriceByLocality, initializeCatalogCache } from "@/utils/priceUtils";
+import {
+  calculateProductPrice,
+  formatPrice,
+  getVariantPriceByLocality,
+  initializeCatalogCache,
+  PRICE_UI_TRANSFER_CAPTION,
+  PRICE_UI_CARD_CAPTION,
+} from "@/utils/priceUtils";
 import { getPromoLabel } from "@/utils/promoUtils";
 
 interface ProductImage {
@@ -84,6 +91,7 @@ interface Product {
   is_active?: boolean;
   min_card_price?: number;
   max_card_price?: number;
+  display_reference_price?: number | null;
   show_transfer_price_highlight?: boolean;
 }
 
@@ -94,6 +102,8 @@ interface SimilarProduct {
   originalPrice?: string;
   discount?: string;
   priceNote?: string;
+  secondaryPrice?: string;
+  secondaryPriceLabel?: string;
   image: string;
 }
 
@@ -312,10 +322,12 @@ export default function ProductDetailPage() {
               return {
                 id: p.id,
                 name: p.name,
-                currentPrice: priceInfo.currentPrice,
+                currentPrice: priceInfo.transferPrice,
                 originalPrice: priceInfo.originalPrice,
                 discount: priceInfo.discount,
-                priceNote: priceInfo.priceNote,
+                priceNote: priceInfo.hasCardPrice ? PRICE_UI_TRANSFER_CAPTION : undefined,
+                secondaryPrice: priceInfo.hasCardPrice ? priceInfo.cardPrice : undefined,
+                secondaryPriceLabel: priceInfo.hasCardPrice ? PRICE_UI_CARD_CAPTION : undefined,
                 image: firstProductImageUrl(p),
               };
             });
@@ -412,6 +424,10 @@ export default function ProductDetailPage() {
           is_active: apiProduct.is_active,
           min_card_price: apiProduct.min_card_price,
           max_card_price: apiProduct.max_card_price,
+          display_reference_price:
+            apiProduct.display_reference_price != null
+              ? Number(apiProduct.display_reference_price)
+              : undefined,
           show_transfer_price_highlight: apiProduct.show_transfer_price_highlight === true,
         };
 
@@ -992,73 +1008,73 @@ export default function ProductDetailPage() {
                       );
                       const priceInfo = calculateProductPrice(tempProduct, 1);
                       const hasDiscount = priceInfo.hasDiscount;
-                      
-                      // Obtener el label de descuento directamente de priceInfo, o usar getPromoLabel como fallback
-                      // Para promotional_message, siempre obtener el label aunque no haya descuento real
+
                       let discountLabel = priceInfo.discount;
                       if (!discountLabel && tempProduct.promos && tempProduct.promos.length > 0) {
-                        discountLabel = getPromoLabel(tempProduct.promos as any, 'product_view');
+                        discountLabel = getPromoLabel(tempProduct.promos as any, "product_view");
                       }
-                      
-                      // Usar el precio con descuento de priceInfo, no de currentPriceInfo
-                      const finalPrice = priceInfo.currentPrice;
+
                       const originalPrice = priceInfo.originalPrice;
-                      
-                      // Verificar si hay promos de tipo promotional_message que deben mostrarse aunque no haya descuento
-                      const hasPromotionalMessage = tempProduct.promos && tempProduct.promos.length > 0 && 
-                        tempProduct.promos.some((p: any) => p.type === 'promotional_message');
-                      
-                      // Para promos de tipo "fixed", siempre mostrar el badge si hay descuento
-                      // Para promotional_message, mostrar el badge aunque no haya descuento real
-                      // Incluso si no hay precio original tachado (porque el descuento es un monto fijo o es solo mensaje)
-                      const shouldShowDiscount = (hasDiscount && discountLabel) || (hasPromotionalMessage && discountLabel);
-                      const shouldShowOriginalPrice = hasDiscount && originalPrice && 
+
+                      const hasPromotionalMessage =
+                        tempProduct.promos &&
+                        tempProduct.promos.length > 0 &&
+                        tempProduct.promos.some((p: any) => p.type === "promotional_message");
+
+                      const shouldShowDiscount =
+                        (hasDiscount && discountLabel) || (hasPromotionalMessage && discountLabel);
+                      const shouldShowOriginalPrice =
+                        hasDiscount &&
+                        originalPrice &&
                         priceInfo.originalPriceValue > priceInfo.currentPriceValue;
-                      
-                      // Calcular precio sin impuestos usando el precio final con descuento
+                      const showMarketingReferenceStrike =
+                        !hasDiscount && Boolean(originalPrice);
+
                       const priceWithoutTaxes = priceInfo.currentPriceValue * 0.79;
-                      
+                      const showDualPrice = Boolean(priceInfo.hasCardPrice && priceInfo.cardPrice);
+                      const promoBadge = shouldShowDiscount && discountLabel && (
+                        <span className="bg-[#00C1A7] text-white px-2 py-0.5 md:py-1 rounded-[4px] font-semibold text-xs md:text-sm shrink-0">
+                          {discountLabel}
+                        </span>
+                      );
+
+                      const displayStrikethrough =
+                        (shouldShowOriginalPrice || showMarketingReferenceStrike) && originalPrice;
+
+                      const priceRow = (
+                        <div className="flex items-baseline gap-2 md:gap-3 flex-wrap">
+                          <span className="text-xl md:text-2xl font-semibold text-gray-900 tabular-nums">
+                            {priceInfo.transferPrice}
+                          </span>
+                          {displayStrikethrough ? (
+                            <span className="text-base md:text-lg text-gray-400 line-through tabular-nums">
+                              {originalPrice}
+                            </span>
+                          ) : null}
+                          {promoBadge}
+                        </div>
+                      );
+
                       return (
                         <>
-                          {shouldShowOriginalPrice && (
-                            <>
-                              <div className="flex items-center gap-2 md:gap-3 mb-1 md:mb-2">
-                                <span className="text-base md:text-lg text-gray-400 line-through">{originalPrice}</span>
-                                {shouldShowDiscount && (
-                                  <span className="bg-[#00C1A7] text-white px-2 py-0.5 md:py-1 rounded-[4px] font-semibold text-xs md:text-sm">
-                                    {discountLabel}
-                                  </span>
-                                )}
+                          {showDualPrice ? (
+                            <div className="space-y-3 text-gray-900">
+                              <div>
+                                <p className="text-sm font-medium text-[#00A890] mb-1">{PRICE_UI_TRANSFER_CAPTION}</p>
+                                {priceRow}
                               </div>
-                              <div className="text-xl md:text-2xl font-semibold text-gray-900 mb-1 md:mb-2">{finalPrice}</div>
-                              {priceInfo.priceNote && (
-                                <div className="text-xs text-gray-600 mb-1">{priceInfo.priceNote}</div>
-                              )}
-                            </>
+                              <p className="text-sm text-gray-600">
+                                <span>{PRICE_UI_CARD_CAPTION}: </span>
+                                <span className="font-semibold text-gray-900 tabular-nums">{priceInfo.cardPrice}</span>
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="mb-1">{priceRow}</div>
                           )}
-                          {!shouldShowOriginalPrice && shouldShowDiscount && (
-                            <>
-                              <div className="flex items-center gap-2 md:gap-3 mb-1 md:mb-2">
-                                <span className="text-xl md:text-2xl font-semibold text-gray-900">{finalPrice}</span>
-                                <span className="bg-[#00C1A7] text-white px-2 py-0.5 md:py-1 rounded-[4px] font-semibold text-xs md:text-sm">
-                                  {discountLabel}
-                                </span>
-                              </div>
-                              {priceInfo.priceNote && (
-                                <div className="text-xs text-gray-600 mb-1">{priceInfo.priceNote}</div>
-                              )}
-                            </>
-                          )}
-                          {!shouldShowOriginalPrice && !shouldShowDiscount && (
-                            <>
-                              <div className="text-xl md:text-2xl font-semibold text-gray-900 mb-1 md:mb-2">{finalPrice}</div>
-                              {priceInfo.priceNote && (
-                                <div className="text-xs text-gray-600 mb-1">{priceInfo.priceNote}</div>
-                              )}
-                            </>
-                          )}
-                          <div className="text-xs text-gray-500">
-                            Precio sin impuestos nacionales ${priceWithoutTaxes.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+
+                          <div className="text-xs text-gray-500 mt-3">
+                            Precio sin impuestos nacionales $
+                            {priceWithoutTaxes.toLocaleString("es-AR", { maximumFractionDigits: 0 })}
                           </div>
                         </>
                       );
@@ -1679,6 +1695,8 @@ export default function ProductDetailPage() {
                     originalPrice={similarProduct.originalPrice || ""}
                     discount={similarProduct.discount}
                     priceNote={similarProduct.priceNote}
+                    secondaryPrice={similarProduct.secondaryPrice}
+                    secondaryPriceLabel={similarProduct.secondaryPriceLabel}
                   />
                 </div>
               ))}
@@ -1692,4 +1710,3 @@ export default function ProductDetailPage() {
     </>
   );
 }
-

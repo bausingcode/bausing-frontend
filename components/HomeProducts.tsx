@@ -5,7 +5,11 @@ import ProductCard from "@/components/ProductCard";
 import { useLocality } from "@/contexts/LocalityContext";
 import { useHomepageDistribution } from "@/contexts/HomepageDistributionContext";
 import { fetchProducts, Product } from "@/lib/api";
-import { calculateProductPrice } from "@/utils/priceUtils";
+import {
+  calculateProductPrice,
+  PRICE_UI_TRANSFER_CAPTION,
+  PRICE_UI_CARD_CAPTION,
+} from "@/utils/priceUtils";
 import { firstProductImageUrl } from "@/lib/productImagePlaceholder";
 
 // Helper function to repeat products if not enough
@@ -26,47 +30,44 @@ function productToCardProps(product: Product, isPriceLoading: boolean = false) {
   // Si no hay precio después de cargar, mostrar "Sin Precio"
   // Si hay precio, calcular con promociones
   const hasPrice = product.min_price !== null && product.min_price !== undefined && product.min_price > 0;
-  
-  let priceInfo;
-  if (isPriceLoading) {
-    // Mientras carga, usar skeleton
-    priceInfo = {
+
+  if (isPriceLoading || !hasPrice) {
+    return {
+      id: product.id,
+      image,
+      alt: product.name,
+      name: product.name,
       currentPrice: "",
-      originalPrice: undefined,
+      originalPrice: "",
       discount: undefined,
       priceNote: undefined,
+      secondaryPrice: undefined,
+      secondaryPriceLabel: undefined,
+      isPriceLoading,
     };
-  } else if (!hasPrice) {
-    // Si no hay precio después de cargar, mostrar "Sin Precio"
-    priceInfo = {
-      currentPrice: "",
-      originalPrice: undefined,
-      discount: undefined,
-      priceNote: undefined,
-    };
-  } else {
-    // Calcular precio usando función centralizada (esto incluye promociones)
-    // Asegurarse de que las promociones estén disponibles
-    const productWithPromos = {
-      ...product,
-      promos: product.promos && Array.isArray(product.promos) ? product.promos : []
-    };
-    
-    priceInfo = calculateProductPrice(productWithPromos, 1);
-    
   }
-  
+
+  // Calcular precio usando función centralizada (esto incluye promociones)
+  const productWithPromos = {
+    ...product,
+    promos: product.promos && Array.isArray(product.promos) ? product.promos : [],
+  };
+
+  const priceInfo = calculateProductPrice(productWithPromos, 1);
+
   return {
     id: product.id,
     image,
     alt: product.name,
     name: product.name,
-    currentPrice: priceInfo.currentPrice || "",
+    currentPrice: priceInfo.transferPrice || "",
     originalPrice: priceInfo.originalPrice || "",
     discount: priceInfo.discount,
-    priceNote: priceInfo.priceNote,
+    priceNote: priceInfo.hasCardPrice ? PRICE_UI_TRANSFER_CAPTION : undefined,
+    secondaryPrice: priceInfo.hasCardPrice ? priceInfo.cardPrice : undefined,
+    secondaryPriceLabel: priceInfo.hasCardPrice ? PRICE_UI_CARD_CAPTION : undefined,
     // Solo mostrar skeleton si está cargando, no si no hay precio
-    isPriceLoading: isPriceLoading,
+    isPriceLoading: false,
   };
 }
 

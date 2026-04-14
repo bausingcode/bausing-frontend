@@ -9,7 +9,11 @@ import Footer from "@/components/Footer";
 import { fetchProducts, fetchCategories, Product, Category } from "@/lib/api";
 import { useLocality } from "@/contexts/LocalityContext";
 import { ChevronDown, Minus, Plus, SlidersHorizontal, X } from "lucide-react";
-import { calculateProductPrice } from "@/utils/priceUtils";
+import {
+  calculateProductPrice,
+  PRICE_UI_TRANSFER_CAPTION,
+  PRICE_UI_CARD_CAPTION,
+} from "@/utils/priceUtils";
 
 // ============================================
 // MODULE-LEVEL CATEGORY CACHE
@@ -1636,10 +1640,12 @@ export default function CatalogoContent({
       image,
       alt: product.name,
       name: product.name,
-      currentPrice: priceInfo.currentPrice,
+      currentPrice: priceInfo.transferPrice,
       originalPrice: priceInfo.originalPrice,
       discount: priceInfo.discount,
-      priceNote: priceInfo.priceNote,
+      priceNote: priceInfo.hasCardPrice ? PRICE_UI_TRANSFER_CAPTION : undefined,
+      secondaryPrice: priceInfo.hasCardPrice ? priceInfo.cardPrice : undefined,
+      secondaryPriceLabel: priceInfo.hasCardPrice ? PRICE_UI_CARD_CAPTION : undefined,
     };
   };
   

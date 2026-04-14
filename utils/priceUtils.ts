@@ -84,11 +84,20 @@ export interface ProductPriceInfo {
   discount?: string;
   /** Texto bajo el precio (ej. precio efectivo / transferencia) */
   priceNote?: string;
+
+  /** Precio efectivo/transferencia (formateado) */
+  transferPrice: string;
+  /** Precio tarjeta (formateado). Presente si el producto tiene precio de tarjeta. */
+  cardPrice?: string;
+  hasCardPrice: boolean;
   
   // Valores numéricos
   currentPriceValue: number;
   originalPriceValue: number;
   discountAmount: number;
+
+  transferPriceValue: number;
+  cardPriceValue?: number;
   
   // Info adicional
   hasDiscount: boolean;
@@ -101,6 +110,10 @@ export interface CalculateProductPriceOptions {
   /** Base numérica antes de promo: transfer (default) o tarjeta */
   paymentPriceKind?: PaymentPriceKind;
 }
+
+/** Textos para mostrar precio transferencia vs tarjeta (UI) */
+export const PRICE_UI_TRANSFER_CAPTION = "Efectivo o transferencia";
+export const PRICE_UI_CARD_CAPTION = "Precio con tarjeta";
 
 /**
  * Formatea un precio numérico a string en formato argentino
@@ -171,6 +184,22 @@ export function calculateProductPrice(
     product.promos as any,
     context
   );
+
+  // También calcular precios para la otra forma de pago, para poder mostrar ambos en cards/product view.
+  const hasCardPrice =
+    product.min_card_price !== undefined &&
+    product.min_card_price !== null &&
+    product.min_card_price > 0;
+
+  const promoTransfer = paymentKind === "transfer"
+    ? promoCalculation
+    : calculatePriceWithPromo(transferMin, quantity, product.promos as any, context);
+
+  const promoCard = hasCardPrice
+    ? (paymentKind === "card"
+        ? promoCalculation
+        : calculatePriceWithPromo(cardMin, quantity, product.promos as any, context))
+    : null;
   
   // Precio final después de aplicar todas las condiciones
   const finalPrice = promoCalculation.discountedPrice;
@@ -179,35 +208,50 @@ export function calculateProductPrice(
   // Determinar si hay descuento
   const hasPromoDiscount = promoCalculation.discountAmount > 0;
 
-  const showDual =
-    !hasPromoDiscount &&
-    paymentKind === "transfer" &&
-    product.show_transfer_price_highlight === true &&
-    cardMin > transferMin;
-
   // Formatear precios para mostrar
   const currentPrice = formatPrice(finalPrice);
   let originalPrice: string | undefined;
   let discount: string | undefined;
   let priceNote: string | undefined;
 
+  const refRaw = (product as Product & { display_reference_price?: number | null }).display_reference_price;
+  const refNum = refRaw != null ? Number(refRaw) : NaN;
+  const refTotal =
+    Number.isFinite(refNum) && refNum > 0 ? refNum * quantity : null;
+
   let outOriginalPriceValue = originalPriceValue;
 
   if (hasPromoDiscount) {
-    originalPrice = formatPrice(originalPriceValue);
+    /** Con promo: tachado = precio vitrina si existe y es mayor al final; si no, precio previo a la promo. */
+    if (refTotal != null && refTotal > finalPrice + 0.005) {
+      originalPrice = formatPrice(refTotal);
+      outOriginalPriceValue = refTotal;
+    } else {
+      originalPrice = formatPrice(originalPriceValue);
+    }
     discount =
       promoCalculation.promoLabel ||
       (product.promos && product.promos.length > 0
         ? getPromoLabel(product.promos as any, context)
         : undefined);
-  } else if (showDual) {
-    originalPrice = formatPrice(cardMin);
-    priceNote = "Precio efectivo / transferencia";
-    outOriginalPriceValue = cardMin;
+  } else if (refTotal != null) {
+    originalPrice = formatPrice(refTotal);
+    outOriginalPriceValue = refTotal;
   }
 
-  const hasDiscount = hasPromoDiscount || Boolean(showDual);
-  
+  const hasDiscount = hasPromoDiscount;
+
+  const transferPriceValue = promoTransfer.discountedPrice;
+  const transferPrice = formatPrice(transferPriceValue);
+
+  const cardDiscounted = promoCard ? promoCard.discountedPrice : undefined;
+  /** Solo mostrar tarjeta en UI si hay monto distinto al de transferencia (evita duplicar cuando no hay precio tarjeta real). */
+  const hasDistinctCardPrice =
+    cardDiscounted != null &&
+    Math.abs(cardDiscounted - transferPriceValue) > 0.005;
+  const cardPriceValue = hasDistinctCardPrice ? cardDiscounted : undefined;
+  const cardPrice = cardPriceValue != null ? formatPrice(cardPriceValue) : undefined;
+
   return {
     currentPrice,
     originalPrice,
@@ -216,6 +260,11 @@ export function calculateProductPrice(
     currentPriceValue: finalPrice,
     originalPriceValue: outOriginalPriceValue,
     discountAmount: promoCalculation.discountAmount,
+    transferPrice,
+    transferPriceValue,
+    cardPrice,
+    cardPriceValue,
+    hasCardPrice: hasDistinctCardPrice,
     hasDiscount,
     promoCalculation,
   };

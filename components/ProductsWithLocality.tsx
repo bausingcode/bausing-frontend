@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import { useLocality } from "@/contexts/LocalityContext";
 import { fetchProducts, Product } from "@/lib/api";
-import { calculateProductPrice } from "@/utils/priceUtils";
+import {
+  calculateProductPrice,
+  PRICE_UI_TRANSFER_CAPTION,
+  PRICE_UI_CARD_CAPTION,
+} from "@/utils/priceUtils";
 import ProductCard from "@/components/ProductCard";
 import { firstProductImageUrl } from "@/lib/productImagePlaceholder";
 
@@ -64,10 +68,12 @@ export default function ProductsWithLocality({
       image,
       alt: product.name,
       name: product.name,
-      currentPrice: priceInfo.currentPrice,
+      currentPrice: priceInfo.transferPrice,
       originalPrice: priceInfo.originalPrice,
       discount: priceInfo.discount,
-      priceNote: priceInfo.priceNote,
+      priceNote: priceInfo.hasCardPrice ? PRICE_UI_TRANSFER_CAPTION : undefined,
+      secondaryPrice: priceInfo.hasCardPrice ? priceInfo.cardPrice : undefined,
+      secondaryPriceLabel: priceInfo.hasCardPrice ? PRICE_UI_CARD_CAPTION : undefined,
     };
   };
 
@@ -115,6 +121,8 @@ export default function ProductsWithLocality({
             originalPrice={props.originalPrice}
             discount={props.discount}
             priceNote={props.priceNote}
+            secondaryPrice={props.secondaryPrice}
+            secondaryPriceLabel={props.secondaryPriceLabel}
           />
         );
       })}
