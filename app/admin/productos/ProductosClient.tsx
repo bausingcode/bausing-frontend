@@ -6,7 +6,7 @@ import { Plus, Edit, Trash2, FolderTree, Package, PackageSearch, FolderX, Sparkl
 import CreateCategoryModal from "@/components/CreateCategoryModal";
 import CreateProductModal from "@/components/CreateProductModal";
 import ConfirmModal from "@/components/ConfirmModal";
-import { Category, CategoryOption, fetchCrmProducts, fetchCrmCombos, CrmProduct, CrmCombo, fetchProductById, Product, deleteCategory, setCrmProductNotCompletedHidden } from "@/lib/api";
+import { Category, CategoryOption, fetchCrmProducts, fetchCrmCombos, CrmProduct, CrmCombo, fetchProductById, Product, deleteCategory, setCrmProductNotCompletedHidden, updateCategory } from "@/lib/api";
 import { fetchCategories as fetchCategoriesClient } from "@/lib/api";
 
 interface CategoryFromBackend extends Category {
@@ -146,6 +146,16 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
     variant: "success" | "error";
     message: string;
   } | null>(null);
+  const [editingCategory, setEditingCategory] = useState<{
+    id: string;
+    name: string;
+    description: string;
+    isSubcategory: boolean;
+  } | null>(null);
+  const [categoryEditName, setCategoryEditName] = useState("");
+  const [categoryEditDescription, setCategoryEditDescription] = useState("");
+  const [categoryEditError, setCategoryEditError] = useState("");
+  const [isSavingCategoryEdit, setIsSavingCategoryEdit] = useState(false);
 
   // Obtener solo categorías principales (sin parent_id)
   const mainCategories = categories.filter(cat => !cat.parent_id);
@@ -398,6 +408,58 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
 
     setCategorySectionBanner(null);
     setCategoryDeleteConfirm({ id: categoryId, name: categoryName, isSubcategory });
+  };
+
+  const handleEditCategoryClick = (category: CategoryFromBackend, isSubcategory: boolean) => {
+    setCategorySectionBanner(null);
+    setCategoryEditError("");
+    setCategoryEditName(category.nombre || category.name || "");
+    setCategoryEditDescription(category.description || "");
+    setEditingCategory({
+      id: category.id,
+      name: category.nombre || category.name || "",
+      description: category.description || "",
+      isSubcategory,
+    });
+  };
+
+  const handleCloseCategoryEditModal = () => {
+    if (isSavingCategoryEdit) return;
+    setEditingCategory(null);
+    setCategoryEditName("");
+    setCategoryEditDescription("");
+    setCategoryEditError("");
+  };
+
+  const handleSaveCategoryEdit = async () => {
+    if (!editingCategory) return;
+    const trimmedName = categoryEditName.trim();
+    const trimmedDescription = categoryEditDescription.trim();
+    if (!trimmedName) {
+      setCategoryEditError("El nombre es obligatorio.");
+      return;
+    }
+
+    try {
+      setIsSavingCategoryEdit(true);
+      setCategoryEditError("");
+      await updateCategory(editingCategory.id, {
+        name: trimmedName,
+        description: trimmedDescription || null,
+      });
+      await refreshCategories();
+      setRefreshKey((prev) => prev + 1);
+      setCategorySectionBanner({
+        variant: "success",
+        message: `Se actualizó ${editingCategory.isSubcategory ? "la subcategoría" : "la categoría"} «${trimmedName}».`,
+      });
+      handleCloseCategoryEditModal();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "No se pudo actualizar la categoría.";
+      setCategoryEditError(message);
+    } finally {
+      setIsSavingCategoryEdit(false);
+    }
   };
 
   // Función para manejar la visualización de producto
@@ -1242,7 +1304,11 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
                             <div className="flex items-center gap-3 justify-center">
-                              <button className="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer">
+                              <button
+                                onClick={() => handleEditCategoryClick(category, false)}
+                                className="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+                                title="Editar categoría"
+                              >
                                 <Edit className="w-5 h-5" />
                               </button>
                               <button 
@@ -1281,7 +1347,11 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
                               <div className="flex items-center gap-3 justify-center">
-                                <button className="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer">
+                                <button
+                                  onClick={() => handleEditCategoryClick(subcategory, true)}
+                                  className="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+                                  title="Editar subcategoría"
+                                >
                                   <Edit className="w-5 h-5" />
                                 </button>
                                 <button 
@@ -1386,6 +1456,76 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
           opcionesConIds: cat.opcionesConIds || [],
         }))}
       />
+      {editingCategory && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-xl rounded-[14px] bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Editar {editingCategory.isSubcategory ? "subcategoría" : "categoría"}
+              </h3>
+              <button
+                type="button"
+                onClick={handleCloseCategoryEditModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                disabled={isSavingCategoryEdit}
+                aria-label="Cerrar modal de edición"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Nombre <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={categoryEditName}
+                  onChange={(e) => setCategoryEditName(e.target.value)}
+                  className="w-full rounded-[6px] border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Nombre de la categoría"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Descripción
+                </label>
+                <textarea
+                  value={categoryEditDescription}
+                  onChange={(e) => setCategoryEditDescription(e.target.value)}
+                  rows={4}
+                  className="w-full rounded-[6px] border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Descripción (opcional)"
+                />
+              </div>
+              {categoryEditError && (
+                <div className="rounded-[8px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {categoryEditError}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-3 border-t border-gray-200 px-6 py-4">
+              <button
+                type="button"
+                onClick={handleCloseCategoryEditModal}
+                className="rounded-[6px] bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors cursor-pointer"
+                disabled={isSavingCategoryEdit}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveCategoryEdit}
+                className="rounded-[6px] px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: "#155DFC" }}
+                disabled={isSavingCategoryEdit}
+              >
+                {isSavingCategoryEdit ? "Guardando..." : "Guardar cambios"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Product View Overlay */}
       {shouldRenderOverlay && (
