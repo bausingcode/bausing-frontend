@@ -1191,6 +1191,7 @@ export async function updateCategory(
     description: string | null;
     parent_id: string | null;
     navbar_image_url: string | null;
+    order: number | null;
   }>
 ): Promise<Category> {
   const url = `/api/categories/${categoryId}`;

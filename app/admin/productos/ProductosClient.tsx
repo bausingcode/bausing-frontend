@@ -150,10 +150,12 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
     id: string;
     name: string;
     description: string;
+    order: number | null;
     isSubcategory: boolean;
   } | null>(null);
   const [categoryEditName, setCategoryEditName] = useState("");
   const [categoryEditDescription, setCategoryEditDescription] = useState("");
+  const [categoryEditOrder, setCategoryEditOrder] = useState("");
   const [categoryEditError, setCategoryEditError] = useState("");
   const [isSavingCategoryEdit, setIsSavingCategoryEdit] = useState(false);
 
@@ -415,10 +417,16 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
     setCategoryEditError("");
     setCategoryEditName(category.nombre || category.name || "");
     setCategoryEditDescription(category.description || "");
+    setCategoryEditOrder(
+      typeof category.order === "number" && Number.isFinite(category.order)
+        ? String(category.order)
+        : ""
+    );
     setEditingCategory({
       id: category.id,
       name: category.nombre || category.name || "",
       description: category.description || "",
+      order: typeof category.order === "number" ? category.order : null,
       isSubcategory,
     });
   };
@@ -428,6 +436,7 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
     setEditingCategory(null);
     setCategoryEditName("");
     setCategoryEditDescription("");
+    setCategoryEditOrder("");
     setCategoryEditError("");
   };
 
@@ -440,12 +449,24 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
       return;
     }
 
+    const trimmedOrder = categoryEditOrder.trim();
+    let parsedOrder: number | null = null;
+    if (trimmedOrder !== "") {
+      const asNumber = Number(trimmedOrder);
+      if (!Number.isInteger(asNumber) || asNumber < 0) {
+        setCategoryEditError("El orden debe ser un numero entero mayor o igual a 0.");
+        return;
+      }
+      parsedOrder = asNumber;
+    }
+
     try {
       setIsSavingCategoryEdit(true);
       setCategoryEditError("");
       await updateCategory(editingCategory.id, {
         name: trimmedName,
         description: trimmedDescription || null,
+        order: parsedOrder,
       });
       await refreshCategories();
       setRefreshKey((prev) => prev + 1);
@@ -1496,6 +1517,20 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                   rows={4}
                   className="w-full rounded-[6px] border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Descripción (opcional)"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Orden
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={categoryEditOrder}
+                  onChange={(e) => setCategoryEditOrder(e.target.value)}
+                  className="w-full rounded-[6px] border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ej: 0"
                 />
               </div>
               {categoryEditError && (
