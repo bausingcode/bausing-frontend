@@ -5,6 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import { Plus, Edit, Trash2, FolderTree, Package, PackageSearch, FolderX, Sparkles, ChevronDown, ChevronRight, Search, RefreshCw, Eye, EyeOff, X, ExternalLink, Loader2 } from "lucide-react";
 import CreateCategoryModal from "@/components/CreateCategoryModal";
 import CreateProductModal from "@/components/CreateProductModal";
+import ConfirmModal from "@/components/ConfirmModal";
 import { Category, CategoryOption, fetchCrmProducts, fetchCrmCombos, CrmProduct, CrmCombo, fetchProductById, Product, deleteCategory, setCrmProductNotCompletedHidden } from "@/lib/api";
 import { fetchCategories as fetchCategoriesClient } from "@/lib/api";
 
@@ -130,6 +131,21 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
   const [showHiddenCombos, setShowHiddenCombos] = useState(false);
   const [combosHideBusyId, setCombosHideBusyId] = useState<string | null>(null);
   const [searchCombosCompleted, setSearchCombosCompleted] = useState("");
+
+  const [categoryDeleteConfirm, setCategoryDeleteConfirm] = useState<{
+    id: string;
+    name: string;
+    isSubcategory: boolean;
+  } | null>(null);
+  const [categoryInfoModal, setCategoryInfoModal] = useState<{
+    title: string;
+    message: string;
+    variant: "info" | "warning";
+  } | null>(null);
+  const [categorySectionBanner, setCategorySectionBanner] = useState<{
+    variant: "success" | "error";
+    message: string;
+  } | null>(null);
 
   // Obtener solo categorías principales (sin parent_id)
   const mainCategories = categories.filter(cat => !cat.parent_id);
@@ -336,6 +352,12 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchCombosCompleted]);
 
+  useEffect(() => {
+    if (activeTab !== "categorias") {
+      setCategorySectionBanner(null);
+    }
+  }, [activeTab]);
+
   // Función para manejar la creación de categorías
   const handleCategoryCreated = async (newCategory: {
     id: string;
@@ -350,40 +372,32 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
     setRefreshKey(prev => prev + 1);
   };
 
-  // Función para manejar la eliminación de categorías
-  const handleDeleteCategory = async (categoryId: string, categoryName: string, isSubcategory: boolean = false) => {
-    // Verificar si la categoría tiene productos o subcategorías
+  const handleDeleteCategoryClick = (categoryId: string, categoryName: string, isSubcategory: boolean = false) => {
     const category = categories.find(c => c.id === categoryId);
-    const hasProducts = category?.productos && category.productos > 0;
-    const hasSubcategories = isSubcategory ? false : (category?.subcategorias && category.subcategorias > 0);
-    
-    // Construir mensaje de confirmación
-    let confirmMessage = `¿Estás seguro de que deseas eliminar ${isSubcategory ? 'la subcategoría' : 'la categoría'} "${categoryName}"?`;
-    
-    if (hasProducts || hasSubcategories) {
-      confirmMessage += '\n\n';
-      if (hasProducts) {
-        confirmMessage += `⚠️ Esta categoría tiene ${category?.productos || 0} producto(s) asociado(s). `;
-      }
-      if (hasSubcategories) {
-        confirmMessage += `⚠️ Esta categoría tiene ${category?.subcategorias || 0} subcategoría(s). `;
-      }
-      confirmMessage += '\n\nNo se puede eliminar una categoría que tiene productos o subcategorías asociadas.';
-    }
-    
-    if (!confirm(confirmMessage)) {
+    const hasProducts = !!(category?.productos && category.productos > 0);
+    const childSubcategories = !isSubcategory ? getSubcategories(categoryId) : [];
+
+    if (!isSubcategory && childSubcategories.length > 0) {
+      setCategoryInfoModal({
+        title: "No se puede eliminar",
+        message:
+          "Esta categoría tiene subcategorías. Eliminá primero las subcategorías o mové los productos antes de borrarla.",
+        variant: "info",
+      });
       return;
     }
-    
-    try {
-      await deleteCategory(categoryId);
-      // Refrescar las categorías después de eliminar
-      await refreshCategories();
-      setRefreshKey(prev => prev + 1);
-    } catch (error: any) {
-      alert(`Error al eliminar la categoría: ${error.message || 'Error desconocido'}`);
-      console.error("Error deleting category:", error);
+
+    if (hasProducts) {
+      setCategoryInfoModal({
+        title: "No se puede eliminar",
+        message: `Esta categoría tiene ${category?.productos ?? 0} producto(s) asociado(s). Reasigná o eliminá esos productos antes de borrar la categoría.`,
+        variant: "info",
+      });
+      return;
     }
+
+    setCategorySectionBanner(null);
+    setCategoryDeleteConfirm({ id: categoryId, name: categoryName, isSubcategory });
   };
 
   // Función para manejar la visualización de producto
@@ -1103,6 +1117,27 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
             </button>
           </div>
 
+          {categorySectionBanner && (
+            <div
+              className={`mb-4 flex items-start justify-between gap-3 rounded-[10px] border px-4 py-3 ${
+                categorySectionBanner.variant === "success"
+                  ? "border-green-200 bg-green-50 text-green-900"
+                  : "border-red-200 bg-red-50 text-red-900"
+              }`}
+              role="status"
+            >
+              <p className="text-sm leading-relaxed pr-2">{categorySectionBanner.message}</p>
+              <button
+                type="button"
+                onClick={() => setCategorySectionBanner(null)}
+                className="shrink-0 rounded-[6px] p-1 text-current opacity-70 hover:opacity-100 cursor-pointer"
+                aria-label="Cerrar aviso"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
           <div className="bg-white rounded-[14px] border border-gray-200 overflow-hidden">
             {isLoadingCategories ? (
               <div className="flex flex-col items-center justify-center py-16 px-6">
@@ -1211,7 +1246,7 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                                 <Edit className="w-5 h-5" />
                               </button>
                               <button 
-                                onClick={() => handleDeleteCategory(category.id, category.nombre || category.name, false)}
+                                onClick={() => handleDeleteCategoryClick(category.id, category.nombre || category.name, false)}
                                 className="text-red-600 hover:text-red-800 transition-colors cursor-pointer"
                                 title="Eliminar categoría"
                               >
@@ -1250,7 +1285,7 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                                   <Edit className="w-5 h-5" />
                                 </button>
                                 <button 
-                                  onClick={() => handleDeleteCategory(subcategory.id, subcategory.nombre || subcategory.name, true)}
+                                  onClick={() => handleDeleteCategoryClick(subcategory.id, subcategory.nombre || subcategory.name, true)}
                                   className="text-red-600 hover:text-red-800 transition-colors cursor-pointer"
                                   title="Eliminar subcategoría"
                                 >
@@ -1271,6 +1306,51 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
       )}
 
       {/* Modals */}
+      <ConfirmModal
+        isOpen={categoryDeleteConfirm !== null}
+        onClose={() => setCategoryDeleteConfirm(null)}
+        onConfirm={() => {
+          const pending = categoryDeleteConfirm;
+          if (!pending) return;
+          void (async () => {
+            try {
+              await deleteCategory(pending.id);
+              await refreshCategories();
+              setRefreshKey((prev) => prev + 1);
+              setCategorySectionBanner({
+                variant: "success",
+                message: `Se eliminó ${pending.isSubcategory ? "la subcategoría" : "la categoría"} «${pending.name}».`,
+              });
+            } catch (error: unknown) {
+              const message = error instanceof Error ? error.message : "Error desconocido";
+              setCategoryInfoModal({
+                title: "No se pudo eliminar",
+                message,
+                variant: "warning",
+              });
+              console.error("Error deleting category:", error);
+            }
+          })();
+        }}
+        title="Eliminar categoría"
+        message={
+          categoryDeleteConfirm
+            ? `¿Eliminar ${categoryDeleteConfirm.isSubcategory ? "la subcategoría" : "la categoría"} «${categoryDeleteConfirm.name}»? Esta acción no se puede deshacer.`
+            : ""
+        }
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="danger"
+      />
+      <ConfirmModal
+        isOpen={categoryInfoModal !== null}
+        onClose={() => setCategoryInfoModal(null)}
+        title={categoryInfoModal?.title ?? ""}
+        message={categoryInfoModal?.message ?? ""}
+        informativeOnly
+        confirmText="Cerrar"
+        variant={categoryInfoModal?.variant ?? "info"}
+      />
       <CreateCategoryModal
         isOpen={isCategoryModalOpen}
         onClose={() => setIsCategoryModalOpen(false)}

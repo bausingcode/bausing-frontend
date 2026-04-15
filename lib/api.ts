@@ -1296,22 +1296,37 @@ export async function createCategoryOption(
   return data.data;
 }
 
+async function readApiErrorMessage(response: Response, fallback: string): Promise<string> {
+  const text = await response.text();
+  if (!text) return fallback;
+  try {
+    const parsed = JSON.parse(text) as { error?: string };
+    return parsed.error || fallback;
+  } catch {
+    return text.length > 280 ? `${text.slice(0, 280)}…` : text;
+  }
+}
+
 /**
  * Delete a category
  */
 export async function deleteCategory(categoryId: string): Promise<void> {
-  const url = `/api/categories/${categoryId}`;
+  const id = encodeURIComponent(categoryId.trim());
+  const url = `/api/categories/${id}`;
   const response = await fetch(url, {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
-  
+
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || `Failed to delete category: ${response.statusText}`);
+    const msg = await readApiErrorMessage(
+      response,
+      `Error al eliminar categoría (${response.status})`
+    );
+    throw new Error(msg);
   }
-  
-  const data = await response.json();
+
+  const data = (await response.json()) as { success?: boolean; error?: string };
   if (!data.success) {
     throw new Error(data.error || "Failed to delete category");
   }

@@ -5,12 +5,15 @@ import { X, AlertTriangle } from "lucide-react";
 interface ConfirmModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  /** En modo informativo no se usa. */
+  onConfirm?: () => void;
   title: string;
   message: string;
   confirmText?: string;
   cancelText?: string;
   variant?: "danger" | "warning" | "info";
+  /** Solo un botón de cierre (aviso, sin acción destructiva). */
+  informativeOnly?: boolean;
 }
 
 export default function ConfirmModal({
@@ -22,11 +25,12 @@ export default function ConfirmModal({
   confirmText = "Confirmar",
   cancelText = "Cancelar",
   variant = "warning",
+  informativeOnly = false,
 }: ConfirmModalProps) {
   if (!isOpen) return null;
 
   const handleConfirm = () => {
-    onConfirm();
+    onConfirm?.();
     onClose();
   };
 
@@ -64,22 +68,34 @@ export default function ConfirmModal({
             </button>
           </div>
 
-          <p className="text-gray-700 mb-6">{message}</p>
+          <p className="text-gray-700 mb-6 whitespace-pre-line">{message}</p>
 
-          <div className="flex gap-3">
+          {informativeOnly ? (
             <button
+              type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-[6px] font-medium hover:bg-gray-200 transition-colors cursor-pointer"
+              className={`w-full px-4 py-2 text-white rounded-[6px] font-medium transition-colors cursor-pointer ${styles.button}`}
             >
-              {cancelText}
+              {confirmText || "Cerrar"}
             </button>
-            <button
-              onClick={handleConfirm}
-              className={`flex-1 px-4 py-2 text-white rounded-[6px] font-medium transition-colors cursor-pointer ${styles.button}`}
-            >
-              {confirmText}
-            </button>
-          </div>
+          ) : (
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-[6px] font-medium hover:bg-gray-200 transition-colors cursor-pointer"
+              >
+                {cancelText}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirm}
+                className={`flex-1 px-4 py-2 text-white rounded-[6px] font-medium transition-colors cursor-pointer ${styles.button}`}
+              >
+                {confirmText}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
