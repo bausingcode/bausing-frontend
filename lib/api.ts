@@ -5574,6 +5574,151 @@ export async function fetchClubBeneficiosQuick(): Promise<Product[]> {
     return [];
   }
 }
+
+/** Cupones admin (generales y/o solo Club Beneficios) */
+export interface AdminCoupon {
+  id: string;
+  code: string;
+  discount_type: "percentage" | "fixed";
+  discount_value: number;
+  max_uses: number | null;
+  uses_count: number;
+  valid_from: string | null;
+  valid_until: string | null;
+  is_active: boolean;
+  club_beneficios_only: boolean;
+  created_at: string | null;
+}
+
+export interface AdminCouponsListResponse {
+  coupons: AdminCoupon[];
+}
+
+function _isAdminCouponsList(x: unknown): x is AdminCouponsListResponse {
+  if (!x || typeof x !== "object") return false;
+  const o = x as Record<string, unknown>;
+  return Array.isArray(o.coupons);
+}
+
+export type AdminCouponsScope = "all" | "club" | "general";
+
+export async function fetchAdminCoupons(
+  scope: AdminCouponsScope = "all",
+): Promise<AdminCoupon[]> {
+  let qs = "";
+  if (scope === "club") qs = "?club_beneficios_only=true";
+  if (scope === "general") qs = "?club_beneficios_only=false";
+
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/coupons${qs}`
+      : `/api/admin/coupons${qs}`;
+
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+
+  const response = await fetch(url, { headers, cache: "no-store" });
+  const json = await response.json().catch(() => null);
+  if (!response.ok || !json?.success) {
+    const msg = json?.error || response.statusText;
+    throw new Error(msg || "Error al cargar cupones");
+  }
+  const data = json.data as unknown;
+  if (!_isAdminCouponsList(data)) {
+    return [];
+  }
+  return data.coupons as AdminCoupon[];
+}
+
+export type CreateAdminCouponInput = {
+  code: string;
+  discount_type: "percentage" | "fixed";
+  discount_value: number;
+  max_uses?: number | null;
+  valid_from?: string | null;
+  valid_until?: string | null;
+  is_active?: boolean;
+  /** false = cupón general; true = solo productos Club Beneficios */
+  club_beneficios_only?: boolean;
+};
+
+export type UpdateAdminCouponInput = CreateAdminCouponInput;
+
+export async function createAdminCoupon(
+  body: CreateAdminCouponInput,
+): Promise<AdminCoupon> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/coupons`
+      : `/api/admin/coupons`;
+
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+
+  const json = await response.json().catch(() => null);
+  if (!response.ok || !json?.success) {
+    const msg = json?.error || response.statusText;
+    throw new Error(msg || "Error al crear cupón");
+  }
+  return json.data as AdminCoupon;
+}
+
+export async function updateAdminCoupon(
+  couponId: string,
+  body: UpdateAdminCouponInput,
+): Promise<AdminCoupon> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/coupons/${couponId}`
+      : `/api/admin/coupons/${couponId}`;
+
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+
+  const response = await fetch(url, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+
+  const json = await response.json().catch(() => null);
+  if (!response.ok || !json?.success) {
+    const msg = json?.error || response.statusText;
+    throw new Error(msg || "Error al actualizar cupón");
+  }
+  return json.data as AdminCoupon;
+}
+
+export async function deleteAdminCoupon(couponId: string): Promise<void> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/coupons/${couponId}`
+      : `/api/admin/coupons/${couponId}`;
+
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers,
+    cache: "no-store",
+  });
+
+  const json = await response.json().catch(() => null);
+  if (!response.ok || !json?.success) {
+    const msg = json?.error || response.statusText;
+    throw new Error(msg || "Error al eliminar cupón");
+  }
+}
+
 /**
  * Fetch public homepage product distribution (no auth)
  * @deprecated Use fetchPublicHomepageDistributionQuick + fetchProductsPrices for better performance
