@@ -29,9 +29,17 @@ interface CreateCategoryModalProps {
     opciones?: string[];
   }) => void;
   categories?: Category[];
+  /** Solo crear una subcategoría bajo una categoría principal ya existente */
+  fixedParentCategory?: { id: string; name: string } | null;
 }
 
-export default function CreateCategoryModal({ isOpen, onClose, onSuccess, categories: propCategories = [] }: CreateCategoryModalProps) {
+export default function CreateCategoryModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  categories: propCategories = [],
+  fixedParentCategory = null,
+}: CreateCategoryModalProps) {
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   
   // Paso 1: Datos básicos
@@ -66,7 +74,7 @@ export default function CreateCategoryModal({ isOpen, onClose, onSuccess, catego
       setNewSubcategoryOptions({});
       setError("");
     }
-  }, [isOpen]);
+  }, [isOpen, fixedParentCategory?.id]);
 
   const handleAddSubcategory = () => {
     if (!newSubcategoryName.trim()) {
@@ -184,6 +192,51 @@ export default function CreateCategoryModal({ isOpen, onClose, onSuccess, catego
     setError("");
 
     try {
+      if (fixedParentCategory) {
+        if (!categoryName.trim()) {
+          setError("El nombre de la subcategoría es requerido");
+          setLoading(false);
+          return;
+        }
+        const sub = await createCategory({
+          name: categoryName.trim(),
+          description: description.trim() || undefined,
+          parent_id: fixedParentCategory.id,
+        });
+        if (directOptions.length > 0) {
+          const optionPromises = directOptions.map((option, index) =>
+            createCategoryOption(sub.id, {
+              value: option.trim(),
+              position: index,
+            })
+          );
+          await Promise.all(optionPromises);
+        }
+        onSuccess({
+          id: sub.id,
+          nombre: sub.name,
+          tipo: "Subcategoría",
+          parentId: fixedParentCategory.id,
+          categoriaPadre: fixedParentCategory.name,
+          opciones: directOptions,
+        });
+        setCurrentStep(1);
+        setCategoryName("");
+        setDescription("");
+        setDirectOptions([]);
+        setNewDirectOption("");
+        setError("");
+        onClose();
+        setLoading(false);
+        return;
+      }
+
+      if (hasSubcategories && subcategories.length === 0) {
+        setError("Agregá al menos una subcategoría o desmarcá «tendrá subcategorías».");
+        setLoading(false);
+        return;
+      }
+
       // Crear la categoría principal
       const mainCategory = await createCategory({
         name: categoryName.trim(),
@@ -269,29 +322,35 @@ export default function CreateCategoryModal({ isOpen, onClose, onSuccess, catego
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Nueva Categoría</h2>
+          <h2 className="text-xl font-semibold text-gray-900">
+            {fixedParentCategory ? "Nueva subcategoría" : "Nueva Categoría"}
+          </h2>
           <div className="flex items-center gap-4">
-            <span
-              className={`px-3 py-1 rounded-full text-xs font-medium ${
-                currentStep === 1
-                  ? "bg-blue-100 text-blue-700"
-                  : "bg-gray-100 text-gray-600"
-              }`}
-            >
-              1. Datos básicos
-            </span>
-            {(hasSubcategories || hasDirectOptions) && (
+            {!fixedParentCategory && (
               <>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
                 <span
                   className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    currentStep === 2
+                    currentStep === 1
                       ? "bg-blue-100 text-blue-700"
                       : "bg-gray-100 text-gray-600"
                   }`}
                 >
-                  2. Subcategorías y Opciones
+                  1. Datos básicos
                 </span>
+                {(hasSubcategories || hasDirectOptions) && (
+                  <>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        currentStep === 2
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      2. Subcategorías y Opciones
+                    </span>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -311,8 +370,87 @@ export default function CreateCategoryModal({ isOpen, onClose, onSuccess, catego
             </div>
           )}
 
+          {/* Subcategoría bajo categoría existente */}
+          {fixedParentCategory && (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Categoría principal:{" "}
+                <span className="font-medium text-gray-900">{fixedParentCategory.name}</span>
+              </p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre de la subcategoría <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={categoryName}
+                  onChange={(e) => setCategoryName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  placeholder="Ej: Por tamaño"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Descripción (opcional)
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  placeholder="Descripción opcional"
+                />
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-800 mb-2">Opciones (ej. valores de filtro)</h3>
+                {directOptions.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {directOptions.map((option) => (
+                      <span
+                        key={option}
+                        className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm flex items-center gap-2"
+                      >
+                        {option}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDirectOption(option)}
+                          className="hover:text-blue-900 cursor-pointer"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newDirectOption}
+                    onChange={(e) => setNewDirectOption(e.target.value)}
+                    placeholder="Nueva opción"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddDirectOption();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddDirectOption}
+                    className="px-4 py-2 text-white rounded-[6px] text-sm font-medium hover:opacity-90 transition-colors cursor-pointer"
+                    style={{ backgroundColor: "#155DFC" }}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Step 1: Datos básicos */}
-          {currentStep === 1 && (
+          {!fixedParentCategory && currentStep === 1 && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -390,23 +528,12 @@ export default function CreateCategoryModal({ isOpen, onClose, onSuccess, catego
           )}
 
           {/* Step 2: Subcategorías y Opciones */}
-          {currentStep === 2 && (
+          {!fixedParentCategory && currentStep === 2 && (
             <div className="space-y-6">
               {/* Subcategorías */}
               {hasSubcategories && (
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium text-gray-900">Subcategorías</h3>
-                    <button
-                      type="button"
-                      onClick={handleAddSubcategory}
-                      className="px-4 py-2 text-white rounded-[6px] text-sm font-medium hover:opacity-90 transition-colors flex items-center gap-2 cursor-pointer"
-                      style={{ backgroundColor: "#155DFC" }}
-                    >
-                      <Plus className="w-4 h-4" />
-                      Agregar Subcategoría
-                    </button>
-                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Subcategorías</h3>
 
                   <div className="space-y-4">
                     {subcategories.length === 0 && (
@@ -577,15 +704,25 @@ export default function CreateCategoryModal({ isOpen, onClose, onSuccess, catego
         <div className="flex justify-between p-6 border-t border-gray-200">
           <button
             type="button"
-            onClick={currentStep === 1 ? onClose : handlePrevious}
+            onClick={fixedParentCategory || currentStep === 1 ? onClose : handlePrevious}
             className="px-4 py-2 text-gray-700 bg-gray-100 rounded-[6px] hover:bg-gray-200 transition-colors flex items-center gap-2 cursor-pointer"
           >
-            {currentStep > 1 && <ChevronLeft className="w-4 h-4" />}
-            {currentStep === 1 ? "Cancelar" : "Anterior"}
+            {!fixedParentCategory && currentStep > 1 && <ChevronLeft className="w-4 h-4" />}
+            {fixedParentCategory || currentStep === 1 ? "Cancelar" : "Anterior"}
           </button>
 
           <div className="flex gap-3">
-            {currentStep < 2 || (!hasSubcategories && !hasDirectOptions) ? (
+            {fixedParentCategory ? (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={loading}
+                className="px-4 py-2 text-white rounded-[6px] font-medium hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+                style={{ backgroundColor: "#155DFC" }}
+              >
+                {loading ? "Creando..." : "Crear subcategoría"}
+              </button>
+            ) : currentStep < 2 || (!hasSubcategories && !hasDirectOptions) ? (
               <button
                 type="button"
                 onClick={handleNext}

@@ -16,7 +16,6 @@ interface CategoryFromPage {
   id: string;
   nombre: string;
   tipo: "Categoría" | "Subcategoría";
-  productos: number;
   subcategorias?: number;
   categoriaPadre?: string;
   parentId?: string;
@@ -1149,7 +1148,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           has_side_handles: hasSideHandles,
 	          size_label: sizeLabel || undefined,
 	          category_id: finalCategoryId || undefined, // Categoría padre
-	          subcategory_ids: subcategoryIds.length > 0 ? subcategoryIds : undefined, // Múltiples subcategorías
+	          subcategory_ids: subcategoryIds, // siempre enviar lista (vacía = quitar todas en el backend)
 	          subcategory_options:
 	            Object.keys(normalizedSubcategoryOptions).length > 0
 	              ? normalizedSubcategoryOptions

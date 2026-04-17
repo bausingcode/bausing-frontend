@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import PageHeader from "@/components/PageHeader";
-import { Plus, Edit, Trash2, FolderTree, Package, PackageSearch, FolderX, Sparkles, ChevronDown, ChevronRight, Search, RefreshCw, Eye, EyeOff, X, ExternalLink, Loader2 } from "lucide-react";
+import { Plus, Edit, Trash2, FolderTree, FolderPlus, Package, PackageSearch, FolderX, Sparkles, ChevronDown, ChevronRight, Search, RefreshCw, Eye, EyeOff, X, ExternalLink, Loader2 } from "lucide-react";
 import CreateCategoryModal from "@/components/CreateCategoryModal";
 import CreateProductModal from "@/components/CreateProductModal";
 import ConfirmModal from "@/components/ConfirmModal";
@@ -12,7 +12,6 @@ import { fetchCategories as fetchCategoriesClient } from "@/lib/api";
 interface CategoryFromBackend extends Category {
   nombre?: string;
   tipo?: "Categoría" | "Subcategoría";
-  productos?: number;
   subcategorias?: number;
   categoriaPadre?: string;
   parentId?: string;
@@ -33,7 +32,6 @@ function convertBackendCategoryToLocal(cat: Category, allCategories: Category[])
     ...cat,
     nombre: cat.name,
     tipo: isSubcategory ? "Subcategoría" : "Categoría",
-    productos: 0, // TODO: obtener del backend
     parentId: cat.parent_id,
     categoriaPadre: cat.parent_name,
     subcategorias: isSubcategory ? undefined : children.length || 0,
@@ -47,6 +45,7 @@ function convertBackendCategoryToLocal(cat: Category, allCategories: Category[])
 export default function ProductosClient({ initialCategories = [] }: ProductosClientProps) {
   const [activeTab, setActiveTab] = useState<"crm-completados" | "crm-no-completados" | "combos" | "combos-completados" | "categorias">("crm-no-completados");
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [subcategoryModalParent, setSubcategoryModalParent] = useState<{ id: string; name: string } | null>(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingCrmProduct, setEditingCrmProduct] = useState<CrmProduct | CrmCombo | null>(null);
   const [viewingCrmProduct, setViewingCrmProduct] = useState<CrmProduct | CrmCombo | null>(null);
@@ -124,6 +123,7 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
   
   // Búsqueda
   const [searchCompleted, setSearchCompleted] = useState("");
+  const [completedCategoryFilter, setCompletedCategoryFilter] = useState("");
   const [searchNotCompleted, setSearchNotCompleted] = useState("");
   const [showHiddenNotCompleted, setShowHiddenNotCompleted] = useState(false);
   const [notCompletedHideBusyId, setNotCompletedHideBusyId] = useState<string | null>(null);
@@ -167,6 +167,24 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
     return categories.filter(cat => cat.parent_id === categoryId);
   };
 
+  const completedCategorySelectOptions = useMemo(() => {
+    const mains = categories.filter((c) => !c.parent_id);
+    const opts: { id: string; label: string }[] = [];
+    for (const main of mains) {
+      opts.push({
+        id: main.id,
+        label: main.nombre || main.name || main.id,
+      });
+      for (const sub of categories.filter((c) => c.parent_id === main.id)) {
+        opts.push({
+          id: sub.id,
+          label: `${main.nombre || main.name} › ${sub.nombre || sub.name}`,
+        });
+      }
+    }
+    return opts;
+  }, [categories]);
+
   // Toggle expandir/colapsar categoría
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev => {
@@ -203,6 +221,7 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
         status: 'completed', 
         combo: false, 
         search: searchCompleted,
+        category_id: completedCategoryFilter || undefined,
         page, 
         per_page: 10 
       });
@@ -341,7 +360,7 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
       refreshCrmProductsCompleted(1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchCompleted]);
+  }, [searchCompleted, completedCategoryFilter]);
 
   useEffect(() => {
     if (activeTab === "crm-no-completados") {
@@ -385,8 +404,6 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
   };
 
   const handleDeleteCategoryClick = (categoryId: string, categoryName: string, isSubcategory: boolean = false) => {
-    const category = categories.find(c => c.id === categoryId);
-    const hasProducts = !!(category?.productos && category.productos > 0);
     const childSubcategories = !isSubcategory ? getSubcategories(categoryId) : [];
 
     if (!isSubcategory && childSubcategories.length > 0) {
@@ -394,15 +411,6 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
         title: "No se puede eliminar",
         message:
           "Esta categoría tiene subcategorías. Eliminá primero las subcategorías o mové los productos antes de borrarla.",
-        variant: "info",
-      });
-      return;
-    }
-
-    if (hasProducts) {
-      setCategoryInfoModal({
-        title: "No se puede eliminar",
-        message: `Esta categoría tiene ${category?.productos ?? 0} producto(s) asociado(s). Reasigná o eliminá esos productos antes de borrar la categoría.`,
         variant: "info",
       });
       return;
@@ -621,8 +629,8 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
           </div>
           
           {/* Búsqueda */}
-          <div className="bg-white rounded-[14px] border border-gray-200 p-4 mb-4">
-            <div className="relative">
+          <div className="bg-white rounded-[14px] border border-gray-200 p-4 mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
@@ -631,6 +639,24 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                 onChange={(e) => setSearchCompleted(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
               />
+            </div>
+            <div className="w-full sm:w-64 shrink-0">
+              <label htmlFor="completed-category-filter" className="sr-only">
+                Filtrar por categoría
+              </label>
+              <select
+                id="completed-category-filter"
+                value={completedCategoryFilter}
+                onChange={(e) => setCompletedCategoryFilter(e.target.value)}
+                className="w-full py-2.5 px-3 text-sm border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 bg-white cursor-pointer"
+              >
+                <option value="">Todas las categorías</option>
+                {completedCategorySelectOptions.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -1191,7 +1217,10 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-normal" style={{ color: '#484848' }}>Categorías y Subcategorías</h2>
             <button 
-              onClick={() => setIsCategoryModalOpen(true)}
+              onClick={() => {
+                setSubcategoryModalParent(null);
+                setIsCategoryModalOpen(true);
+              }}
               className="px-4 py-2 text-white rounded-[6px] text-sm font-medium hover:opacity-90 transition-colors flex items-center gap-2 cursor-pointer" 
               style={{ backgroundColor: '#155DFC' }}
             >
@@ -1248,7 +1277,10 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                   Organiza tu catálogo creando categorías y subcategorías. Esto te ayudará a estructurar mejor tus productos y facilitar su gestión.
                 </p>
                 <button
-                  onClick={() => setIsCategoryModalOpen(true)}
+                  onClick={() => {
+                    setSubcategoryModalParent(null);
+                    setIsCategoryModalOpen(true);
+                  }}
                   className="px-6 py-3 text-white rounded-[6px] text-sm font-medium hover:opacity-90 transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
                   style={{ backgroundColor: '#155DFC' }}
                 >
@@ -1269,9 +1301,6 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                       </th>
                       <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
                         Categoría Padre
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
-                        Productos
                       </th>
                       <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
                         Subcategorías
@@ -1318,13 +1347,24 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                             -
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-center">
-                            {category.productos || 0}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-center">
                             {category.subcategorias || subcategories.length || 0}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
                             <div className="flex items-center gap-3 justify-center">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSubcategoryModalParent({
+                                    id: category.id,
+                                    name: category.nombre || category.name || "",
+                                  });
+                                  setIsCategoryModalOpen(true);
+                                }}
+                                className="text-emerald-600 hover:text-emerald-800 transition-colors cursor-pointer"
+                                title="Agregar subcategoría"
+                              >
+                                <FolderPlus className="w-5 h-5" />
+                              </button>
                               <button
                                 onClick={() => handleEditCategoryClick(category, false)}
                                 className="text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
@@ -1359,9 +1399,6 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-center">
                               {category.nombre || category.name}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-center">
-                              {subcategory.productos || 0}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-center">
                               -
@@ -1444,8 +1481,12 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
       />
       <CreateCategoryModal
         isOpen={isCategoryModalOpen}
-        onClose={() => setIsCategoryModalOpen(false)}
+        onClose={() => {
+          setIsCategoryModalOpen(false);
+          setSubcategoryModalParent(null);
+        }}
         onSuccess={handleCategoryCreated}
+        fixedParentCategory={subcategoryModalParent}
         categories={categories.filter(cat => (cat.tipo || (cat.parent_id ? "Subcategoría" : "Categoría")) === "Categoría").map(cat => ({
           id: cat.id,
           name: cat.nombre || cat.name,
@@ -1469,7 +1510,6 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
           id: cat.id,
           nombre: cat.nombre || cat.name || "",
           tipo: (cat.tipo || (cat.parent_id ? "Subcategoría" : "Categoría")) as "Categoría" | "Subcategoría",
-          productos: cat.productos || 0,
           subcategorias: cat.subcategorias,
           categoriaPadre: cat.categoriaPadre || cat.parent_name,
           parentId: cat.parentId || cat.parent_id,

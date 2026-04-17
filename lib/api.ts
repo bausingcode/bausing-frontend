@@ -715,6 +715,8 @@ export async function fetchCrmProducts(params?: {
   per_page?: number;
   /** Solo con status=not_completed: true = solo filas ocultas, false = excluir ocultas */
   hidden_only?: boolean;
+  /** Solo con status=completed: UUID de categoría o subcategoría */
+  category_id?: string;
 }): Promise<{
   products: CrmProduct[];
   pagination: {
@@ -734,6 +736,7 @@ export async function fetchCrmProducts(params?: {
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
     if (params?.hidden_only === true) queryParams.append('hidden_only', 'true');
+    if (params?.category_id) queryParams.append('category_id', params.category_id);
 
     const url = `/api/admin/crm-products?${queryParams.toString()}`;
     const response = await fetch(url, {
