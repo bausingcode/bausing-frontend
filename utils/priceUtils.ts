@@ -147,9 +147,21 @@ export function calculateProductPrice(
 ): ProductPriceInfo {
   const paymentKind: PaymentPriceKind = options?.paymentPriceKind ?? "transfer";
   const transferMin =
-    product.min_price !== undefined && product.min_price !== null ? product.min_price : 0;
+    product.min_transfer_price !== undefined &&
+    product.min_transfer_price !== null &&
+    product.min_transfer_price > 0
+      ? product.min_transfer_price
+      : product.min_price !== undefined && product.min_price !== null
+        ? product.min_price
+        : 0;
   const transferMax =
-    product.max_price !== undefined && product.max_price !== null ? product.max_price : transferMin;
+    product.max_transfer_price !== undefined &&
+    product.max_transfer_price !== null &&
+    product.max_transfer_price > 0
+      ? product.max_transfer_price
+      : product.max_price !== undefined && product.max_price !== null && product.max_price > 0
+        ? product.max_price
+        : transferMin;
   const cardMin =
     product.min_card_price !== undefined && product.min_card_price !== null
       ? product.min_card_price

@@ -34,8 +34,8 @@ interface Attribute {
 interface Variant {
   attributes: Record<string, string>;
   stock: number;
-  prices: Record<string, number>; // catalog_id -> precio transferencia/efectivo
-  cardPrices: Record<string, number>; // catalog_id -> precio tarjeta (opcional)
+  prices: Record<string, number>; // catalog_id -> precio efectivo/transferencia (opcional)
+  cardPrices: Record<string, number>; // catalog_id -> precio tarjeta (al menos un catálogo > 0 por variante)
 }
 
 function splitCatalogPricesByKind(
@@ -55,6 +55,13 @@ function splitCatalogPricesByKind(
       card[priceKey] = n;
     } else {
       transfer[priceKey] = n;
+    }
+  });
+  // Legacy: lo guardado solo como transfer/efectivo pasa a precio tarjeta si no hay fila "card" para ese catálogo.
+  Object.keys(transfer).forEach((catalogId) => {
+    if (card[catalogId] === undefined) {
+      card[catalogId] = transfer[catalogId]!;
+      delete transfer[catalogId];
     }
   });
   return { transfer, card };
@@ -1086,24 +1093,35 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
     setLoading(true);
 
     try {
-      // Validar variantes (solo precios, sin stock)
-      const invalidVariants = variants.filter(
-        (v) => Object.values(v.prices).some(price => price <= 0)
-      );
-
-      if (invalidVariants.length > 0) {
-        setError("Por favor completa todos los campos de las variantes correctamente");
+      if (catalogs.length === 0) {
+        setError("Esperá a que carguen los catálogos o recargá la página.");
         setLoading(false);
         return;
       }
 
-      // Validar que al menos una variante tenga precios
-      const variantsWithPrices = variants.filter(
-        (v) => Object.keys(v.prices).length > 0
+      // Al menos un precio con tarjeta > 0 por variante; el resto de catálogos opcional
+      const invalidCardVariants = variants.filter((v) => {
+        const hasAnyCard = catalogs.some((c) => {
+          const p = v.cardPrices[c.id];
+          return typeof p === "number" && p > 0;
+        });
+        return !hasAnyCard;
+      });
+
+      if (invalidCardVariants.length > 0) {
+        setError(
+          "Completá al menos un precio con tarjeta (mayor a 0) en cada variante; los demás catálogos son opcionales"
+        );
+        setLoading(false);
+        return;
+      }
+
+      const invalidTransferPrices = variants.filter((v) =>
+        Object.values(v.prices).some((price) => price <= 0)
       );
 
-      if (variantsWithPrices.length === 0) {
-        setError("Por favor agrega al menos un precio por catálogo para las variantes");
+      if (invalidTransferPrices.length > 0) {
+        setError("Los precios de efectivo/transferencia deben ser mayores a 0 o dejá el campo vacío");
         setLoading(false);
         return;
       }
@@ -2135,52 +2153,9 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                         {isExpanded && (
                           <div className="border-t border-gray-200 bg-gray-50 p-4 space-y-6">
                             <div>
-                              <h4 className="text-sm font-medium text-gray-900 mb-1">
-                                Efectivo / transferencia
-                              </h4>
+                              <h4 className="text-sm font-medium text-gray-900 mb-1">Tarjeta</h4>
                               <p className="text-xs text-gray-500 mb-3">
-                                Precio principal para transferencia o efectivo (por catálogo).
-                              </p>
-                              {catalogs.length === 0 ? (
-                                <p className="text-sm text-gray-500">Cargando catálogos...</p>
-                              ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                  {catalogs.map((catalog) => {
-                                    const currentPrice = variant.prices[catalog.id] || "";
-                                    return (
-                                      <div key={`t-${catalog.id}`} className="bg-white rounded-lg border border-gray-200 p-3">
-                                        <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                                          {catalog.name}
-                                        </label>
-                                        {catalog.description && (
-                                          <p className="text-xs text-gray-500 mb-1.5">{catalog.description}</p>
-                                        )}
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-sm text-gray-500">$</span>
-                                          <input
-                                            type="number"
-                                            value={currentPrice}
-                                            onChange={(e) =>
-                                              handlePriceChange(index, catalog.id, e.target.value)
-                                            }
-                                            min="0"
-                                            step="0.01"
-                                            placeholder="0.00"
-                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 text-sm transition-colors"
-                                          />
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-900 mb-1">Tarjeta (opcional)</h4>
-                              <p className="text-xs text-gray-500 mb-3">
-                                Precio con tarjeta por el mismo catálogo. Si lo dejás vacío, se usa el precio
-                                transferencia para checkout con tarjeta.
+                                Indicá precio con tarjeta en al menos un catálogo por variante; el resto es opcional.
                               </p>
                               {catalogs.length === 0 ? (
                                 <p className="text-sm text-gray-500">Cargando catálogos...</p>
@@ -2203,6 +2178,49 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                                             value={cardVal}
                                             onChange={(e) =>
                                               handleCardPriceChange(index, catalog.id, e.target.value)
+                                            }
+                                            min="0"
+                                            step="0.01"
+                                            placeholder="0.00"
+                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 text-sm transition-colors"
+                                          />
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-900 mb-1">
+                                Efectivo / transferencia (opcional)
+                              </h4>
+                              <p className="text-xs text-gray-500 mb-3">
+                                Si lo completás, aplica a pago en efectivo o transferencia por catálogo. Podés
+                                dejarlo vacío.
+                              </p>
+                              {catalogs.length === 0 ? (
+                                <p className="text-sm text-gray-500">Cargando catálogos...</p>
+                              ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                  {catalogs.map((catalog) => {
+                                    const currentPrice = variant.prices[catalog.id] || "";
+                                    return (
+                                      <div key={`t-${catalog.id}`} className="bg-white rounded-lg border border-gray-200 p-3">
+                                        <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                                          {catalog.name}
+                                        </label>
+                                        {catalog.description && (
+                                          <p className="text-xs text-gray-500 mb-1.5">{catalog.description}</p>
+                                        )}
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-sm text-gray-500">$</span>
+                                          <input
+                                            type="number"
+                                            value={currentPrice}
+                                            onChange={(e) =>
+                                              handlePriceChange(index, catalog.id, e.target.value)
                                             }
                                             min="0"
                                             step="0.01"

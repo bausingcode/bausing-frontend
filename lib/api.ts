@@ -449,6 +449,9 @@ export interface Product {
   max_price?: number;
   min_card_price?: number;
   max_card_price?: number;
+  /** Mín/máx precio efectivo/transferencia (cuando existe fila transfer en catálogo/localidad) */
+  min_transfer_price?: number;
+  max_transfer_price?: number;
   /** Solo vitrina: precio tachado si no hay descuento real por promo */
   display_reference_price?: number | null;
   show_transfer_price_highlight?: boolean;

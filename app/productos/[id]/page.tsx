@@ -91,6 +91,8 @@ interface Product {
   is_active?: boolean;
   min_card_price?: number;
   max_card_price?: number;
+  min_transfer_price?: number;
+  max_transfer_price?: number;
   display_reference_price?: number | null;
   show_transfer_price_highlight?: boolean;
 }
@@ -111,6 +113,15 @@ interface SimilarProduct {
 const CATEGORY_COLCHONES_ID = "12788182-9221-4d8a-9bf5-1a00503dcd34";
 const CATEGORY_SOMMIERS_ID = "57e5e2e5-e054-4b18-84dc-be94a22e2994";
 const CATEGORY_OPTION_SOMMIER_FILTER = "04dbb0ef-d918-496e-ba9c-db61664f5d0";
+
+const DEBUG_PDP_PRICE =
+  process.env.NODE_ENV === "development" ||
+  process.env.NEXT_PUBLIC_DEBUG_PDP_PRICE === "1";
+
+function logPdpPriceDebug(label: string, data: Record<string, unknown>) {
+  if (!DEBUG_PDP_PRICE) return;
+  console.log(`[PDP price] ${label}`, data);
+}
 
 /** Barra 1–5: SOFT → 1, MEDIO → 3, FIRME → 5 (valores del admin: SOFT / MEDIO / FIRME). */
 function firmnessLabelToBarLevel(label: string | undefined | null): number {
@@ -142,8 +153,10 @@ function buildPdpTempApiProductForPrice(
   selectedVariantOptions: Record<string, string>,
   selectedVariant: string,
 ): ApiProduct {
+  const PRICE_TOL = 0.005;
   let basePriceWithoutPromos = 0;
   let baseCardWithoutPromos = 0;
+  let priceFromVariantSelection = false;
   if (product.variants && product.variants.length > 0 && locality?.id) {
     for (const variant of product.variants) {
       const variantKey = variant.id || variant.name || variant.sku || "default";
@@ -160,6 +173,7 @@ function buildPdpTempApiProductForPrice(
         if (price > 0) {
           basePriceWithoutPromos = price;
           baseCardWithoutPromos = cardPrice > 0 ? cardPrice : price;
+          priceFromVariantSelection = true;
           break;
         }
       } else if (selectedVariant === variant.id) {
@@ -174,6 +188,7 @@ function buildPdpTempApiProductForPrice(
         if (price > 0) {
           basePriceWithoutPromos = price;
           baseCardWithoutPromos = cardPrice > 0 ? cardPrice : price;
+          priceFromVariantSelection = true;
           break;
         }
       }
@@ -181,16 +196,86 @@ function buildPdpTempApiProductForPrice(
   }
   if (basePriceWithoutPromos === 0) {
     const numericPrice = parseFloat(product.currentPrice.replace(/[$.]/g, "").replace(/\./g, "")) || 0;
-    basePriceWithoutPromos = numericPrice;
-    baseCardWithoutPromos =
-      product.min_card_price != null ? Number(product.min_card_price) : numericPrice;
+    const apiT =
+      product.min_transfer_price != null && product.min_transfer_price > 0
+        ? Number(product.min_transfer_price)
+        : null;
+    const apiC =
+      product.min_card_price != null && product.min_card_price > 0
+        ? Number(product.min_card_price)
+        : null;
+    basePriceWithoutPromos = apiT ?? numericPrice;
+    baseCardWithoutPromos = apiC ?? numericPrice;
   }
+
+  let transferAmt = basePriceWithoutPromos;
+  let cardAmt = baseCardWithoutPromos;
+
+  const apiTransfer =
+    product.min_transfer_price != null && product.min_transfer_price > 0
+      ? Number(product.min_transfer_price)
+      : null;
+  const apiCard =
+    product.min_card_price != null && product.min_card_price > 0
+      ? Number(product.min_card_price)
+      : null;
+
+  /**
+   * En PDP, getVariantPriceByLocality(..., "card") a veces cae al mismo monto que transferencia
+   * (p. ej. sin fila card en prices[]). Además, option.price suele ser el de vitrina (tarjeta):
+   * si leemos eso como "transfer", transfer y tarjeta colapsan y solo se ve un monto de tarjeta.
+   * Si el API ya trae min_transfer / min_card distintos, completamos el par cuando el local
+   * está colapsado (sin pisar un par ya distinto que venga de la variante).
+   */
+  if (transferAmt > 0 && Math.abs(transferAmt - cardAmt) <= PRICE_TOL) {
+    if (priceFromVariantSelection) {
+      if (apiTransfer != null && Math.abs(apiTransfer - transferAmt) > PRICE_TOL) {
+        transferAmt = apiTransfer;
+      }
+      if (apiCard != null && Math.abs(apiCard - cardAmt) > PRICE_TOL) {
+        cardAmt = apiCard;
+      }
+    } else if (
+      apiTransfer != null &&
+      apiCard != null &&
+      Math.abs(apiTransfer - apiCard) > PRICE_TOL
+    ) {
+      transferAmt = apiTransfer;
+      cardAmt = apiCard;
+    } else if (apiCard != null && Math.abs(apiCard - transferAmt) > PRICE_TOL) {
+      cardAmt = apiCard;
+    }
+  }
+
+  const hasDistinctTransferCard =
+    transferAmt > 0 && cardAmt > 0 && Math.abs(transferAmt - cardAmt) > PRICE_TOL;
+  const primaryMin = cardAmt > 0 ? cardAmt : transferAmt;
+
+  logPdpPriceDebug("buildPdpTempApiProductForPrice", {
+    productId: product.id,
+    localityId: locality?.id ?? null,
+    priceFromVariantSelection,
+    baseTransfer: basePriceWithoutPromos,
+    baseCard: baseCardWithoutPromos,
+    apiTransfer,
+    apiCard,
+    finalTransfer: transferAmt,
+    finalCard: cardAmt,
+    hasDistinctTransferCard,
+    min_transfer_out: hasDistinctTransferCard ? transferAmt : undefined,
+    min_card_out: cardAmt,
+    selectedVariant,
+    selectedVariantOptions,
+  });
+
   return {
     ...product,
-    min_price: basePriceWithoutPromos,
-    max_price: basePriceWithoutPromos,
-    min_card_price: baseCardWithoutPromos,
-    max_card_price: baseCardWithoutPromos,
+    min_price: primaryMin,
+    max_price: primaryMin,
+    min_transfer_price: hasDistinctTransferCard ? transferAmt : undefined,
+    max_transfer_price: hasDistinctTransferCard ? transferAmt : undefined,
+    min_card_price: cardAmt,
+    max_card_price: cardAmt,
     show_transfer_price_highlight: product.show_transfer_price_highlight === true,
     promos: product.promos ?? [],
     is_active: product.is_active !== false,
@@ -424,6 +509,8 @@ export default function ProductDetailPage() {
           is_active: apiProduct.is_active,
           min_card_price: apiProduct.min_card_price,
           max_card_price: apiProduct.max_card_price,
+          min_transfer_price: apiProduct.min_transfer_price,
+          max_transfer_price: apiProduct.max_transfer_price,
           display_reference_price:
             apiProduct.display_reference_price != null
               ? Number(apiProduct.display_reference_price)
@@ -1032,6 +1119,19 @@ export default function ProductDetailPage() {
 
                       const priceWithoutTaxes = priceInfo.currentPriceValue * 0.79;
                       const showDualPrice = Boolean(priceInfo.hasCardPrice && priceInfo.cardPrice);
+                      logPdpPriceDebug("calculateProductPrice (PDP hero)", {
+                        productId: product.id,
+                        tempMinTransfer: tempProduct.min_transfer_price,
+                        tempMinCard: tempProduct.min_card_price,
+                        tempMinPrice: tempProduct.min_price,
+                        transferPrice: priceInfo.transferPrice,
+                        cardPrice: priceInfo.cardPrice,
+                        transferPriceValue: priceInfo.transferPriceValue,
+                        cardPriceValue: priceInfo.cardPriceValue,
+                        hasCardPrice: priceInfo.hasCardPrice,
+                        showDualPrice,
+                        currentPriceValue: priceInfo.currentPriceValue,
+                      });
                       const promoBadge = shouldShowDiscount && discountLabel && (
                         <span className="bg-[#00C1A7] text-white px-2 py-0.5 md:py-1 rounded-[4px] font-semibold text-xs md:text-sm shrink-0">
                           {discountLabel}
