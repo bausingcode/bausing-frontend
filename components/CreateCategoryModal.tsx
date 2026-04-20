@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Plus, Trash2, ChevronRight, ChevronLeft } from "lucide-react";
 import { createCategory, createCategoryOption } from "@/lib/api";
+import { NAVBAR_MENU_ICON_OPTIONS, NavbarMenuIconPreview } from "@/lib/navbarMenuIcons";
 
 interface Category {
   id: string;
@@ -15,6 +16,7 @@ interface Subcategory {
   id: string;
   name: string;
   options: string[];
+  navbar_icon_key?: string;
 }
 
 interface CreateCategoryModalProps {
@@ -54,6 +56,7 @@ export default function CreateCategoryModal({
   const [directOptions, setDirectOptions] = useState<string[]>([]);
   const [newDirectOption, setNewDirectOption] = useState("");
   const [newSubcategoryOptions, setNewSubcategoryOptions] = useState<Record<string, string>>({});
+  const [subcategoryNavbarIconKey, setSubcategoryNavbarIconKey] = useState<string>("");
   
   // Otros estados
   const [loading, setLoading] = useState(false);
@@ -72,6 +75,7 @@ export default function CreateCategoryModal({
       setDirectOptions([]);
       setNewDirectOption("");
       setNewSubcategoryOptions({});
+      setSubcategoryNavbarIconKey("");
       setError("");
     }
   }, [isOpen, fixedParentCategory?.id]);
@@ -88,6 +92,7 @@ export default function CreateCategoryModal({
         id: String(Date.now() + subcategories.length),
         name: newSubcategoryName.trim(),
         options: [],
+        navbar_icon_key: "",
       },
     ]);
     setNewSubcategoryName("");
@@ -202,6 +207,7 @@ export default function CreateCategoryModal({
           name: categoryName.trim(),
           description: description.trim() || undefined,
           parent_id: fixedParentCategory.id,
+          navbar_icon_key: subcategoryNavbarIconKey.trim() || null,
         });
         if (directOptions.length > 0) {
           const optionPromises = directOptions.map((option, index) =>
@@ -266,6 +272,7 @@ export default function CreateCategoryModal({
             name: subcat.name.trim(),
             description: undefined,
             parent_id: mainCategoryId,
+            navbar_icon_key: subcat.navbar_icon_key?.trim() || null,
           });
 
           // Crear las opciones de la subcategoría
@@ -400,6 +407,26 @@ export default function CreateCategoryModal({
                   className="w-full px-3 py-2 border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   placeholder="Descripción opcional"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Icono en el menú del sitio
+                </label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <select
+                    value={subcategoryNavbarIconKey}
+                    onChange={(e) => setSubcategoryNavbarIconKey(e.target.value)}
+                    className="flex-1 min-w-[200px] px-3 py-2 border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                  >
+                    <option value="">Predeterminado (paquete)</option>
+                    {NAVBAR_MENU_ICON_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <NavbarMenuIconPreview iconKey={subcategoryNavbarIconKey || null} />
+                </div>
               </div>
               <div>
                 <h3 className="text-sm font-medium text-gray-800 mb-2">Opciones (ej. valores de filtro)</h3>
@@ -557,6 +584,31 @@ export default function CreateCategoryModal({
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
+                        </div>
+
+                        <div className="mb-3 flex flex-wrap items-center gap-3">
+                          <label className="text-xs font-medium text-gray-600">Icono menú</label>
+                          <select
+                            value={subcat.navbar_icon_key ?? ""}
+                            onChange={(e) =>
+                              setSubcategories(
+                                subcategories.map((s) =>
+                                  s.id === subcat.id
+                                    ? { ...s, navbar_icon_key: e.target.value }
+                                    : s
+                                )
+                              )
+                            }
+                            className="flex-1 min-w-[180px] px-2 py-1.5 text-sm border border-gray-300 rounded-[6px] text-gray-900 bg-white"
+                          >
+                            <option value="">Predeterminado</option>
+                            {NAVBAR_MENU_ICON_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                          <NavbarMenuIconPreview iconKey={subcat.navbar_icon_key || null} className="h-5 w-5 text-[#00C1A7]" />
                         </div>
 
                         {/* Opciones de la subcategoría */}

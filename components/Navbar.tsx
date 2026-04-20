@@ -47,6 +47,7 @@ import TopbarServices from "./TopbarServices";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchCategories, Category, type Event } from "@/lib/api";
+import { buildNavbarCategoryDataFromApi } from "@/lib/buildNavbarCategoryDataFromApi";
 
 // Iconos personalizados
 const PillowIcon = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
@@ -721,27 +722,6 @@ const categoriesData: Record<string, CategoryData> = {
     },
     imageUrl: "/images/home/4.png",
     imageAlt: "Electrodomésticos"
-  },
-  "Otros": {
-    name: "Muebles de cocina",
-    columns: {
-      left: [
-        {
-          name: "Bajo mesada 120 cm",
-          icon: BajoMesadaIcon as LucideIcon,
-          iconSize: { width: '40px', height: '40px' },
-          href: "/catalogo/muebles-cocina/bajo-mesada-120"
-        },
-        {
-          name: "Bajo mesada 140 cm",
-          icon: BajoMesadaIcon as LucideIcon,
-          iconSize: { width: '40px', height: '40px' },
-          href: "/catalogo/muebles-cocina/bajo-mesada-140"
-        }
-      ]
-    },
-    imageUrl: "/images/home/4.png",
-    imageAlt: "Muebles de cocina"
   }
 };
 
@@ -882,6 +862,20 @@ export default function Navbar({ event }: NavbarProps = {}) {
         })
         .map(cat => cat.name)
     : mainCategories;
+
+  const resolveMenuCategoryData = useCallback(
+    (categoryName: string): CategoryData | undefined => {
+      if (apiCategories.length > 0) {
+        const root = apiCategories.find((c) => !c.parent_id && c.name === categoryName);
+        if (root) {
+          const built = buildNavbarCategoryDataFromApi(categoryName, apiCategories);
+          return (built ?? undefined) as CategoryData | undefined;
+        }
+      }
+      return categoriesData[categoryName];
+    },
+    [apiCategories]
+  );
 
   const resolveNavbarCategoryImageUrl = useCallback(
     (categoryName: string) => {
@@ -1345,7 +1339,7 @@ export default function Navbar({ event }: NavbarProps = {}) {
             <div className="flex items-center justify-between py-3">
               <div className="flex items-center justify-center gap-8 flex-1">
                 {mainCategoriesToUse.map((categoryName) => {
-                  const categoryData = categoriesData[categoryName];
+                  const categoryData = resolveMenuCategoryData(categoryName);
                   const CategoryIcon = categoryData?.icon;
                   
                   // Mapear nombre de categoría a slug
@@ -1361,9 +1355,6 @@ export default function Navbar({ event }: NavbarProps = {}) {
                     (categoryData.columns?.left && categoryData.columns.left.length > 0) ||
                     (categoryData.columns?.middle && categoryData.columns.middle.length > 0)
                   );
-                  
-                  // Buscar categoría en API para obtener ID real
-                  const apiCategory = apiCategories.find(c => c.name === categoryName);
                   
                   return (
                     <a 
@@ -1444,9 +1435,9 @@ export default function Navbar({ event }: NavbarProps = {}) {
 
           {/* Dropdown Menus - Generated from data (orden del sitio; solo categorías con layout en categoriesData) */}
           {mainCategoriesToUse
-            .filter((categoryName) => categoriesData[categoryName])
+            .filter((categoryName) => !!resolveMenuCategoryData(categoryName))
             .map((categoryName) => {
-            const categoryData = categoriesData[categoryName];
+            const categoryData = resolveMenuCategoryData(categoryName);
             if (!categoryData) return null;
             
             const isActive = hoveredCategory === categoryName || closingCategory === categoryName;
@@ -1827,9 +1818,12 @@ export default function Navbar({ event }: NavbarProps = {}) {
                                   const categoryOption = findCategoryOption();
                                   
                                   // Construir URL con filtro si hay opción encontrada - siempre a la categoría principal
-                                  const targetUrl = categoryOption 
-                                    ? `/catalogo/${mainCategorySlug}?filter=${encodeURIComponent(categoryOption.id)}`
-                                    : `/catalogo/${mainCategorySlug}`;
+                                  const targetUrl =
+                                    subcat.href && subcat.href.includes("filter=")
+                                      ? subcat.href
+                                      : categoryOption
+                                        ? `/catalogo/${mainCategorySlug}?filter=${encodeURIComponent(categoryOption.id)}`
+                                        : `/catalogo/${mainCategorySlug}`;
                                   
                                   return (
                                     <div 
@@ -2427,9 +2421,12 @@ export default function Navbar({ event }: NavbarProps = {}) {
                                 const categoryOption = findCategoryOption();
                                 
                                 // Construir URL con filtro si hay opción encontrada - siempre a la categoría principal
-                                const targetUrl = categoryOption 
-                                  ? `/catalogo/${mainCategorySlug}?filter=${encodeURIComponent(categoryOption.id)}`
-                                  : `/catalogo/${mainCategorySlug}`;
+                                const targetUrl =
+                                  subcat.href && subcat.href.includes("filter=")
+                                    ? subcat.href
+                                    : categoryOption
+                                      ? `/catalogo/${mainCategorySlug}?filter=${encodeURIComponent(categoryOption.id)}`
+                                      : `/catalogo/${mainCategorySlug}`;
                                 
                                 return (
                                   <div 

@@ -4,9 +4,25 @@ import React, { useState, useEffect, useMemo } from "react";
 import PageHeader from "@/components/PageHeader";
 import { Plus, Edit, Trash2, FolderTree, FolderPlus, Package, PackageSearch, FolderX, Sparkles, ChevronDown, ChevronRight, Search, RefreshCw, Eye, EyeOff, X, ExternalLink, Loader2 } from "lucide-react";
 import CreateCategoryModal from "@/components/CreateCategoryModal";
+import { NAVBAR_MENU_ICON_OPTIONS, NavbarMenuIconPreview } from "@/lib/navbarMenuIcons";
 import CreateProductModal from "@/components/CreateProductModal";
 import ConfirmModal from "@/components/ConfirmModal";
-import { Category, CategoryOption, fetchCrmProducts, fetchCrmCombos, CrmProduct, CrmCombo, fetchProductById, Product, deleteCategory, setCrmProductNotCompletedHidden, updateCategory } from "@/lib/api";
+import {
+  Category,
+  CategoryOption,
+  fetchCrmProducts,
+  fetchCrmCombos,
+  CrmProduct,
+  CrmCombo,
+  fetchProductById,
+  Product,
+  deleteCategory,
+  setCrmProductNotCompletedHidden,
+  updateCategory,
+  createCategoryOption,
+  updateCategoryOption,
+  deleteCategoryOption,
+} from "@/lib/api";
 import { fetchCategories as fetchCategoriesClient } from "@/lib/api";
 
 interface CategoryFromBackend extends Category {
@@ -17,6 +33,14 @@ interface CategoryFromBackend extends Category {
   parentId?: string;
   opciones?: string[];
   opcionesConIds?: CategoryOption[]; // Opciones completas con IDs
+}
+
+interface SubcategoryOptionDraft {
+  key: string;
+  id?: string;
+  value: string;
+  position: number;
+  navbar_icon_key: string;
 }
 
 interface ProductosClientProps {
@@ -156,6 +180,9 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
   const [categoryEditName, setCategoryEditName] = useState("");
   const [categoryEditDescription, setCategoryEditDescription] = useState("");
   const [categoryEditOrder, setCategoryEditOrder] = useState("");
+  const [categoryEditNavbarIconKey, setCategoryEditNavbarIconKey] = useState("");
+  const [subcategoryOptionDrafts, setSubcategoryOptionDrafts] = useState<SubcategoryOptionDraft[]>([]);
+  const [pendingDeletedOptionIds, setPendingDeletedOptionIds] = useState<string[]>([]);
   const [categoryEditError, setCategoryEditError] = useState("");
   const [isSavingCategoryEdit, setIsSavingCategoryEdit] = useState(false);
 
@@ -430,6 +457,9 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
         ? String(category.order)
         : ""
     );
+    setCategoryEditNavbarIconKey(
+      isSubcategory && category.navbar_icon_key ? String(category.navbar_icon_key) : ""
+    );
     setEditingCategory({
       id: category.id,
       name: category.nombre || category.name || "",
@@ -437,6 +467,23 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
       order: typeof category.order === "number" ? category.order : null,
       isSubcategory,
     });
+
+    if (isSubcategory) {
+      const opts = category.opcionesConIds || [];
+      setSubcategoryOptionDrafts(
+        opts.map((o, i) => ({
+          key: o.id,
+          id: o.id,
+          value: o.value,
+          position: typeof o.position === "number" ? o.position : i,
+          navbar_icon_key: o.navbar_icon_key ? String(o.navbar_icon_key) : "",
+        }))
+      );
+      setPendingDeletedOptionIds([]);
+    } else {
+      setSubcategoryOptionDrafts([]);
+      setPendingDeletedOptionIds([]);
+    }
   };
 
   const handleCloseCategoryEditModal = () => {
@@ -445,6 +492,9 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
     setCategoryEditName("");
     setCategoryEditDescription("");
     setCategoryEditOrder("");
+    setCategoryEditNavbarIconKey("");
+    setSubcategoryOptionDrafts([]);
+    setPendingDeletedOptionIds([]);
     setCategoryEditError("");
   };
 
@@ -468,6 +518,14 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
       parsedOrder = asNumber;
     }
 
+    if (editingCategory.isSubcategory) {
+      const emptyExisting = subcategoryOptionDrafts.some((r) => r.id && !r.value.trim());
+      if (emptyExisting) {
+        setCategoryEditError("Completá el texto de cada opción o eliminá la fila vacía.");
+        return;
+      }
+    }
+
     try {
       setIsSavingCategoryEdit(true);
       setCategoryEditError("");
@@ -475,7 +533,36 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
         name: trimmedName,
         description: trimmedDescription || null,
         order: parsedOrder,
+        ...(editingCategory.isSubcategory
+          ? { navbar_icon_key: categoryEditNavbarIconKey.trim() || null }
+          : {}),
       });
+
+      if (editingCategory.isSubcategory) {
+        for (const oid of pendingDeletedOptionIds) {
+          await deleteCategoryOption(editingCategory.id, oid);
+        }
+        for (const row of subcategoryOptionDrafts) {
+          const v = row.value.trim();
+          if (!v) continue;
+          const pos = Number.isFinite(Number(row.position)) ? Number(row.position) : 0;
+          const icon = row.navbar_icon_key.trim() || null;
+          if (row.id) {
+            await updateCategoryOption(editingCategory.id, row.id, {
+              value: v,
+              position: pos,
+              navbar_icon_key: icon,
+            });
+          } else {
+            await createCategoryOption(editingCategory.id, {
+              value: v,
+              position: pos,
+              navbar_icon_key: icon,
+            });
+          }
+        }
+      }
+
       await refreshCategories();
       setRefreshKey((prev) => prev + 1);
       setCategorySectionBanner({
@@ -1519,7 +1606,11 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
       />
       {editingCategory && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-xl rounded-[14px] bg-white shadow-2xl">
+          <div
+            className={`w-full rounded-[14px] bg-white shadow-2xl max-h-[90vh] overflow-y-auto ${
+              editingCategory.isSubcategory ? "max-w-3xl" : "max-w-xl"
+            }`}
+          >
             <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
               <h3 className="text-lg font-semibold text-gray-900">
                 Editar {editingCategory.isSubcategory ? "subcategoría" : "categoría"}
@@ -1573,6 +1664,140 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                   placeholder="Ej: 0"
                 />
               </div>
+              {editingCategory.isSubcategory && (
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Icono en el menú del sitio
+                  </label>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <select
+                      value={categoryEditNavbarIconKey}
+                      onChange={(e) => setCategoryEditNavbarIconKey(e.target.value)}
+                      className="min-w-[220px] flex-1 rounded-[6px] border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Predeterminado (paquete)</option>
+                      {NAVBAR_MENU_ICON_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    <NavbarMenuIconPreview iconKey={categoryEditNavbarIconKey || null} />
+                  </div>
+                </div>
+              )}
+              {editingCategory.isSubcategory && (
+                <div className="border-t border-gray-100 pt-4">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Opciones de filtro (navbar y catálogo)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSubcategoryOptionDrafts((d) => [
+                          ...d,
+                          {
+                            key: `new-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+                            value: "",
+                            position: d.length,
+                            navbar_icon_key: "",
+                          },
+                        ])
+                      }
+                      className="inline-flex items-center gap-1 rounded-[6px] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 cursor-pointer"
+                      style={{ backgroundColor: "#155DFC" }}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Agregar opción
+                    </button>
+                  </div>
+                  <p className="mb-3 text-xs text-gray-500">
+                    Cada opción es un valor de filtro bajo esta subcategoría. Podés asignar un icono distinto por fila para el menú.
+                  </p>
+                  <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
+                    {subcategoryOptionDrafts.length === 0 ? (
+                      <p className="text-sm text-gray-500 py-2">Sin opciones. Agregá una si esta subcategoría usa filtros.</p>
+                    ) : (
+                      subcategoryOptionDrafts.map((row) => (
+                        <div
+                          key={row.key}
+                          className="flex flex-wrap items-end gap-2 rounded-[8px] border border-gray-200 bg-gray-50/80 p-3"
+                        >
+                          <div className="min-w-[140px] flex-1">
+                            <span className="mb-1 block text-xs font-medium text-gray-600">Texto</span>
+                            <input
+                              type="text"
+                              value={row.value}
+                              onChange={(e) =>
+                                setSubcategoryOptionDrafts((d) =>
+                                  d.map((x) => (x.key === row.key ? { ...x, value: e.target.value } : x))
+                                )
+                              }
+                              className="w-full rounded-[6px] border border-gray-300 px-2 py-1.5 text-sm text-gray-900"
+                              placeholder="Ej: Espuma alta densidad"
+                            />
+                          </div>
+                          <div className="w-20">
+                            <span className="mb-1 block text-xs font-medium text-gray-600">Orden</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step={1}
+                              value={row.position}
+                              onChange={(e) =>
+                                setSubcategoryOptionDrafts((d) =>
+                                  d.map((x) =>
+                                    x.key === row.key ? { ...x, position: Number(e.target.value) || 0 } : x
+                                  )
+                                )
+                              }
+                              className="w-full rounded-[6px] border border-gray-300 px-2 py-1.5 text-sm text-gray-900"
+                            />
+                          </div>
+                          <div className="min-w-[160px] flex-1">
+                            <span className="mb-1 block text-xs font-medium text-gray-600">Icono menú</span>
+                            <select
+                              value={row.navbar_icon_key}
+                              onChange={(e) =>
+                                setSubcategoryOptionDrafts((d) =>
+                                  d.map((x) =>
+                                    x.key === row.key ? { ...x, navbar_icon_key: e.target.value } : x
+                                  )
+                                )
+                              }
+                              className="w-full rounded-[6px] border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
+                            >
+                              <option value="">Predeterminado</option>
+                              {NAVBAR_MENU_ICON_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex items-center gap-2 pb-0.5">
+                            <NavbarMenuIconPreview iconKey={row.navbar_icon_key || null} className="h-5 w-5 text-[#00C1A7]" />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (row.id) {
+                                  setPendingDeletedOptionIds((p) => [...p, row.id!]);
+                                }
+                                setSubcategoryOptionDrafts((d) => d.filter((x) => x.key !== row.key));
+                              }}
+                              className="rounded-[6px] p-2 text-red-600 hover:bg-red-50 cursor-pointer"
+                              title="Quitar opción"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
               {categoryEditError && (
                 <div className="rounded-[8px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                   {categoryEditError}

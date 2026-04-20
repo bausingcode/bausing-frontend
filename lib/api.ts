@@ -90,6 +90,8 @@ export interface Category {
   parent_name?: string;
   order?: number;
   navbar_image_url?: string | null;
+  /** Clave de icono del mega menú (ver NAVBAR_MENU_ICON_OPTIONS / getNavbarMenuIcon). */
+  navbar_icon_key?: string | null;
   created_at?: string;
   options?: CategoryOption[];
 }
@@ -99,6 +101,7 @@ export interface CategoryOption {
   category_id: string;
   value: string;
   position: number;
+  navbar_icon_key?: string | null;
   created_at?: string;
 }
 
@@ -1167,6 +1170,7 @@ export async function createCategory(categoryData: {
   name: string;
   description?: string;
   parent_id?: string;
+  navbar_icon_key?: string | null;
 }): Promise<Category> {
   const url = `/api/categories`;
   const response = await fetch(url, {
@@ -1197,6 +1201,7 @@ export async function updateCategory(
     description: string | null;
     parent_id: string | null;
     navbar_image_url: string | null;
+    navbar_icon_key: string | null;
     order: number | null;
   }>
 ): Promise<Category> {
@@ -1282,6 +1287,7 @@ export async function createCategoryOption(
   optionData: {
     value: string;
     position?: number;
+    navbar_icon_key?: string | null;
   }
 ): Promise<CategoryOption> {
   const url = `${API_BASE_URL}/categories/${categoryId}/options`;
@@ -1301,6 +1307,54 @@ export async function createCategoryOption(
     throw new Error("Failed to create category option: Invalid response");
   }
   return data.data;
+}
+
+export async function updateCategoryOption(
+  categoryId: string,
+  optionId: string,
+  optionData: Partial<{
+    value: string;
+    position: number;
+    navbar_icon_key: string | null;
+  }>
+): Promise<CategoryOption> {
+  const url = `${API_BASE_URL}/categories/${encodeURIComponent(categoryId)}/options/${encodeURIComponent(optionId)}`;
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(optionData),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      (error as { error?: string }).error || `Failed to update category option: ${response.statusText}`
+    );
+  }
+
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to update category option: Invalid response");
+  }
+  return data.data;
+}
+
+export async function deleteCategoryOption(categoryId: string, optionId: string): Promise<void> {
+  const url = `${API_BASE_URL}/categories/${encodeURIComponent(categoryId)}/options/${encodeURIComponent(optionId)}`;
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const msg = await readApiErrorMessage(response, `Error al eliminar opción (${response.status})`);
+    throw new Error(msg);
+  }
+
+  const data = (await response.json()) as { success?: boolean; error?: string };
+  if (!data.success) {
+    throw new Error(data.error || "Failed to delete category option");
+  }
 }
 
 async function readApiErrorMessage(response: Response, fallback: string): Promise<string> {
