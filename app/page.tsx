@@ -125,7 +125,7 @@ export default async function Home() {
 
       {/* Tres columnas informativas — debajo del hero; borde solo abajo, ancho pantalla */}
       <section className="bg-white">
-        <div className="container mx-auto px-4 py-2 md:py-8 lg:py-6">
+        <div className="container mx-auto px-4 py-4 md:py-10 lg:py-10">
           {/* Mobile: carrusel horizontal */}
           <div className="mt-4 md:hidden max-w-5xl lg:max-w-6xl mx-auto">
             <div
@@ -139,10 +139,10 @@ export default async function Home() {
                     key={item.title}
                     className="flex flex-col items-center text-center px-2 min-w-[calc(100vw-2rem)] flex-shrink-0 snap-start"
                   >
-                    <h4 className="text-[#101828] font-bold text-sm md:text-base mb-2">
+                    <h4 className="text-[#101828] font-semibold text-base mb-[3px]">
                       {item.title}
                     </h4>
-                    <p className="text-[#64748B] text-xs md:text-sm leading-relaxed mb-4 flex-1 max-w-xs">
+                    <p className="text-black/50 text-base leading-relaxed mb-4 flex-1 max-w-xs">
                       {item.description}
                     </p>
                   </div>
@@ -154,11 +154,11 @@ export default async function Home() {
           {/* Tablet y desktop: grid 3 columnas */}
           <div className="hidden md:grid grid-cols-3 gap-6 md:gap-8 lg:gap-8 max-w-5xl lg:max-w-6xl mx-auto">
             {infoCards.map((item) => (
-              <div key={item.title} className="flex flex-col items-center text-center px-2 md:px-3">
-                <h4 className="text-[#101828] font-bold text-base md:text-[15px] lg:text-base mb-2">
+              <div key={item.title} className="flex flex-col items-center text-center px-4 md:px-6">
+                <h4 className="text-[#101828] font-semibold text-base mb-[7px]">
                   {item.title}
                 </h4>
-                <p className="text-[#64748B] text-sm md:text-[13px] lg:text-sm leading-relaxed mb-4 flex-1 max-w-[14rem] md:max-w-none lg:max-w-xs">
+                <p className="text-black/50 text-base leading-relaxed mb-4 flex-1 max-w-[14rem] md:max-w-none lg:max-w-xs">
                   {item.description}
                 </p>
               </div>
@@ -230,7 +230,7 @@ export default async function Home() {
       <section className="bg-white py-8 md:py-10 lg:py-12">
         <div className="container mx-auto px-4 md:px-6">
           <div className="flex items-center justify-between mb-4 md:mb-6 lg:mb-8 gap-3">
-            <h2 className="text-sm md:text-xl lg:text-2xl font-semibold text-gray-800 leading-snug">
+            <h2 className="text-sm md:text-xl lg:text-2xl font-medium text-gray-800 leading-snug">
               Encontrá el colchón ideal para vos
             </h2>
             <a href="/catalogo/colchones" className="flex items-center gap-1 md:gap-2 text-gray-700 hover:text-gray-900 transition-colors shrink-0">
@@ -259,7 +259,7 @@ export default async function Home() {
       <section className="bg-[#fafafa] mt-0 md:mt-10 lg:mt-20 py-8 md:py-10 lg:py-12">
         <div className="container mx-auto px-4 md:px-6">
           <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
-            <h3 className="text-sm md:text-xl lg:text-2xl font-semibold text-gray-800 leading-snug">
+            <h3 className="text-sm md:text-xl lg:text-2xl font-medium text-gray-800 leading-snug">
               Mirá los más vendidos
             </h3>
             <a href="/catalogo" className="flex items-center gap-1 md:gap-2 text-gray-700 hover:text-gray-900 transition-colors shrink-0">
@@ -374,7 +374,7 @@ export default async function Home() {
       <section className="bg-white py-8 md:py-10 lg:py-12">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-4 md:mb-6 lg:mb-8">
-            <h3 className="text-sm md:text-xl lg:text-2xl font-semibold text-gray-800">Nuestros Colchones</h3>
+            <h3 className="text-sm md:text-xl lg:text-2xl font-medium text-gray-800">Nuestros Colchones</h3>
             <a href="/catalogo/colchones" className="flex items-center gap-1 md:gap-2 text-gray-700 hover:text-gray-900 transition-colors">
               <span className="font-medium text-xs md:text-base">Ver todos</span>
               <ArrowRight className="w-3 h-3 md:w-5 md:h-5" />
@@ -396,7 +396,7 @@ export default async function Home() {
         <div className="container mx-auto px-4 md:px-6">
           {/* Section Header */}
           <div className="flex items-center justify-between mb-4 md:mb-6 lg:mb-8 gap-3">
-            <h3 className="text-sm md:text-xl lg:text-2xl font-semibold text-gray-800 leading-snug">
+            <h3 className="text-sm md:text-xl lg:text-2xl font-medium text-gray-800 leading-snug">
               <span className="md:hidden">Completa tu descanso</span>
               <span className="hidden md:inline">Accesorios que completan tu descanso</span>
             </h3>
@@ -406,13 +406,9 @@ export default async function Home() {
             </a>
           </div>
 
-          <ProductCarousel>
-            <HomeProducts section="complete_purchase" count={4} />
+          <ProductCarousel alwaysShow itemsPerView={{ base: 2, md: 3, lg: 4 }} scrollStep={2}>
+            <HomeProducts section="complete_purchase" count={8} />
           </ProductCarousel>
-
-          <div className="hidden min-[1291px]:grid min-[1291px]:grid-cols-3 min-[1440px]:grid-cols-4 gap-4 min-[1440px]:gap-6">
-            <HomeProducts section="complete_purchase" count={4} />
-          </div>
         </div>
       </section>
 
@@ -474,36 +470,32 @@ export default async function Home() {
       <ReviewsSectionLazy />
 
       {/* Newsletter Section */}
-      <section className="bg-white py-10 md:py-12 lg:py-16">
+      <section className="bg-white py-20 md:py-28 lg:py-32">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-gray-50 rounded-[15px] md:rounded-xl lg:rounded-[20px] p-6 md:p-8 lg:p-12 border border-gray-200">
-              <div className="text-center mb-5 md:mb-6 lg:mb-8">
-                <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-[#101828] mb-2 md:mb-3">
-                  ¡No te pierdas nuestras ofertas!
-                </h2>
-                <p className="text-sm md:text-base lg:text-lg text-[#4A5565]">
-                  Suscríbete y recibe descuentos especiales
-                </p>
-              </div>
-              <form className="flex flex-col sm:flex-row gap-3 md:gap-4 max-w-2xl mx-auto">
-                <input
-                  type="email"
-                  placeholder="Ingresa tu email"
-                  className="flex-1 px-4 md:px-5 lg:px-6 py-3 md:py-4 rounded-full bg-white border border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-sm md:text-base"
-                  required
-                />
-                <button
-                  type="submit"
-                  className="bg-gray-900 text-white font-bold px-6 md:px-8 py-3 md:py-4 rounded-full hover:bg-gray-800 transition-colors duration-300 text-sm md:text-base whitespace-nowrap shadow-md hover:shadow-lg"
-                >
-                  Suscribirme
-                </button>
-              </form>
-              <p className="text-center text-xs md:text-sm text-[#4A5565] mt-3 md:mt-4">
-                Al suscribirte, aceptas recibir comunicaciones de marketing.
-              </p>
-            </div>
+          <div className="max-w-2xl mx-auto text-center">
+            <h2 className="text-xl md:text-2xl font-semibold text-[#101828] mb-2">
+              ¡No te pierdas nuestras ofertas!
+            </h2>
+            <p className="text-sm md:text-base text-black/50 mb-6 md:mb-8">
+              Suscribite y recibí descuentos especiales antes que nadie.
+            </p>
+            <form className="flex flex-col sm:flex-row gap-3 max-w-xl mx-auto">
+              <input
+                type="email"
+                placeholder="Tu email"
+                className="flex-1 px-5 py-3 rounded-full bg-gray-50 border border-gray-200 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00C1A7]/30 focus:border-[#00C1A7] text-sm md:text-base transition-colors"
+                required
+              />
+              <button
+                type="submit"
+                className="bg-[#101828] text-white font-medium px-7 py-3 rounded-full hover:bg-[#1d2939] transition-colors duration-200 text-sm md:text-base whitespace-nowrap"
+              >
+                Suscribirme
+              </button>
+            </form>
+            <p className="text-xs text-black/30 mt-4">
+              Al suscribirte aceptás recibir comunicaciones de marketing.
+            </p>
           </div>
         </div>
       </section>

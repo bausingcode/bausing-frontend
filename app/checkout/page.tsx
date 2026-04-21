@@ -3064,6 +3064,14 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                 )}
               </div>
 
+              {/* Cupón de descuento */}
+              <div className="bg-white border border-gray-200 rounded-[14px] p-4 md:p-6">
+                <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4">
+                  Cupón de descuento
+                </h2>
+                {couponFields}
+              </div>
+
               {/* Payment Method - Multi-payment support */}
               <div className="bg-white border border-gray-200 rounded-[14px] p-4 md:p-6">
                 <div className="flex items-center justify-between mb-4">
@@ -3551,9 +3559,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                     </div>
                   </div>
                 )}
-
-                {/* Cupón: encima del código de referido */}
-                <div className="mt-4 pt-4 border-t border-gray-200">{couponFields}</div>
 
                 {/* Código de Referido */}
                 <div className="mt-4 pt-4 border-t border-gray-200">

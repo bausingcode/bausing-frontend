@@ -473,8 +473,16 @@ export default function UsuarioPage() {
   };
 
   const currentTitle = useMemo(() => {
-    const current = menuItems.find((item) => item.key === activeSection);
-    return current?.label || "Perfil";
+    const titles: Record<MenuKey, string> = {
+      perfil: "Mi perfil",
+      direcciones: "Mis direcciones",
+      billetera: "Mi billetera",
+      pedidos: "Mis pedidos",
+      referidos: "Mis referidos",
+      seguridad: "Seguridad",
+      logout: "Cerrar sesión",
+    };
+    return titles[activeSection] || "Mi perfil";
   }, [activeSection]);
 
   return (
@@ -500,7 +508,7 @@ export default function UsuarioPage() {
               </div>
             </div>
 
-            <nav className="space-y-1">
+            <nav className="space-y-2">
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeSection === item.key;
@@ -540,131 +548,92 @@ export default function UsuarioPage() {
           {/* Content */}
           <section className={`space-y-4 min-w-0 ${activeSection === "billetera" ? "h-full" : ""}`}>
             <div className={`bg-white border border-gray-200 rounded-[14px] shadow-sm p-4 md:p-6 ${activeSection === "billetera" ? "h-full" : ""}`}>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 md:mb-6">
-                <div>
-                  <p className="text-xs md:text-sm text-gray-500">Sección</p>
-                  <h1 className="text-xl md:text-2xl font-bold text-gray-900">{currentTitle}</h1>
-                </div>
-                <div className="bg-[#00C1A7]/10 text-[#00C1A7] px-3 py-1.5 rounded-full text-sm font-semibold w-fit">
-                  {currentTitle}
-                </div>
+              <div className="mb-5 md:mb-6">
+                <h1 className="text-lg md:text-xl font-semibold text-gray-900">{currentTitle}</h1>
               </div>
 
               {activeSection === "perfil" && (
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Nombre</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <User className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <input
-                          type="text"
-                          value={formData.first_name}
-                          onChange={(e) => handleChange("first_name", e.target.value)}
-                          className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
-                          placeholder="Tu nombre"
-                          required
-                        />
-                      </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="block text-sm font-medium text-gray-700">Nombre</label>
+                      <input
+                        type="text"
+                        value={formData.first_name}
+                        onChange={(e) => handleChange("first_name", e.target.value)}
+                        className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#00C1A7]/20 focus:border-[#00C1A7] transition-all"
+                        placeholder="Tu nombre"
+                        required
+                      />
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Apellido</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <User className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <input
-                          type="text"
-                          value={formData.last_name}
-                          onChange={(e) => handleChange("last_name", e.target.value)}
-                          className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
-                          placeholder="Tu apellido"
-                          required
-                        />
-                      </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-sm font-medium text-gray-700">Apellido</label>
+                      <input
+                        type="text"
+                        value={formData.last_name}
+                        onChange={(e) => handleChange("last_name", e.target.value)}
+                        className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#00C1A7]/20 focus:border-[#00C1A7] transition-all"
+                        placeholder="Tu apellido"
+                        required
+                      />
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">DNI</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <FileText className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <input
-                          type="text"
-                          value={formData.dni}
-                          onChange={(e) => handleChange("dni", e.target.value)}
-                          className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
-                          placeholder="Documento"
-                        />
-                      </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-sm font-medium text-gray-700">DNI</label>
+                      <input
+                        type="text"
+                        value={formData.dni}
+                        onChange={(e) => handleChange("dni", e.target.value)}
+                        className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#00C1A7]/20 focus:border-[#00C1A7] transition-all"
+                        placeholder="Documento"
+                      />
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Género</label>
-                      <div className="relative">
-                        <select
-                          value={formData.gender}
-                          onChange={(e) => handleChange("gender", e.target.value)}
-                          className="block w-full pl-3 pr-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent bg-white"
-                        >
-                          {genderOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-sm font-medium text-gray-700">Género</label>
+                      <select
+                        value={formData.gender}
+                        onChange={(e) => handleChange("gender", e.target.value)}
+                        className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#00C1A7]/20 focus:border-[#00C1A7] transition-all"
+                      >
+                        {genderOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Fecha de nacimiento</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Calendar className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <input
-                          type="date"
-                          value={formData.birth_date}
-                          onChange={(e) => handleChange("birth_date", e.target.value)}
-                          className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
-                        />
-                      </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-sm font-medium text-gray-700">Fecha de nacimiento</label>
+                      <input
+                        type="date"
+                        value={formData.birth_date}
+                        onChange={(e) => handleChange("birth_date", e.target.value)}
+                        className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#00C1A7]/20 focus:border-[#00C1A7] transition-all"
+                      />
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Teléfono</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Phone className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <input
-                          type="tel"
-                          value={formData.phone}
-                          onChange={(e) => handleChange("phone", e.target.value)}
-                          className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
-                          placeholder="+54 9 11 1234-5678"
-                        />
-                      </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-sm font-medium text-gray-700">Teléfono</label>
+                      <input
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => handleChange("phone", e.target.value)}
+                        className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#00C1A7]/20 focus:border-[#00C1A7] transition-all"
+                        placeholder="+54 9 11 1234-5678"
+                      />
                     </div>
                   </div>
 
                   {status && (
-                    <div
-                      className={`px-4 py-3 rounded-lg border text-sm ${
-                        status.type === "success"
-                          ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                          : "bg-red-50 border-red-200 text-red-700"
-                      }`}
-                    >
+                    <p className={`text-sm ${status.type === "success" ? "text-emerald-600" : "text-red-500"}`}>
                       {status.message}
-                    </div>
+                    </p>
                   )}
 
-                  <div className="flex items-center justify-end gap-3">
+                  <div className="flex items-center justify-end gap-3 pt-1">
                     <button
                       type="button"
                       onClick={() => setFormData({
@@ -675,7 +644,7 @@ export default function UsuarioPage() {
                         birth_date: user?.birth_date ? user.birth_date.slice(0, 10) : "",
                         phone: user?.phone || "",
                       })}
-                      className="px-4 py-2 text-sm font-semibold text-gray-700 hover:text-gray-900"
+                      className="px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
                       disabled={saving}
                     >
                       Cancelar
@@ -683,7 +652,7 @@ export default function UsuarioPage() {
                     <button
                       type="submit"
                       disabled={saving}
-                      className="inline-flex items-center gap-2 bg-[#00C1A7] text-white py-3 px-5 rounded-[8px] font-semibold hover:bg-[#00a892] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-2 bg-[#00C1A7] text-white py-2.5 px-5 rounded-xl text-sm font-medium hover:bg-[#00a892] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {saving ? "Guardando..." : "Guardar cambios"}
                     </button>
@@ -1205,157 +1174,131 @@ export default function UsuarioPage() {
                   ) : (
                     <>
                       {/* Mi Código de Referido */}
-                      <div className="border border-gray-200 rounded-[14px] p-4 md:p-6 bg-gradient-to-br from-[#00C1A7]/5 to-[#00C1A7]/10">
-                        <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">Mi Código de Referido</h2>
+                      <div className="border border-gray-200 rounded-xl p-4 md:p-6">
+                        <h2 className="text-sm font-semibold text-gray-900 mb-3">Mi código de referido</h2>
                         {referralCode ? (
-                          <div className="space-y-4">
-                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                              <div className="flex-1 bg-white border-2 border-[#00C1A7] rounded-lg px-3 md:px-4 py-2.5 md:py-3">
-                                <p className="text-base md:text-lg font-mono font-semibold text-gray-900 break-all">{referralCode}</p>
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5">
+                                <p className="text-sm font-mono font-medium text-gray-900 tracking-widest">{referralCode}</p>
                               </div>
                               <button
                                 onClick={copyReferralCode}
-                                className="w-full sm:w-auto px-4 py-2.5 md:py-3 bg-[#00C1A7] text-white rounded-lg font-semibold hover:bg-[#00a892] transition-colors flex items-center justify-center gap-2"
+                                className="shrink-0 px-4 py-2.5 bg-[#00C1A7] text-white rounded-xl text-sm font-medium hover:bg-[#00a892] transition-colors flex items-center gap-2"
                               >
                                 {copiedCode ? (
-                                  <>
-                                    <Check className="w-4 h-4 md:w-5 md:h-5" />
-                                    Copiado
-                                  </>
+                                  <><Check className="w-4 h-4" />Copiado</>
                                 ) : (
-                                  <>
-                                    <Copy className="w-4 h-4 md:w-5 md:h-5" />
-                                    Copiar
-                                  </>
+                                  <><Copy className="w-4 h-4" />Copiar</>
                                 )}
                               </button>
                             </div>
-                            <p className="text-xs md:text-sm text-gray-600">
-                              Comparte este código con tus conocidos. Cuando usen tu código en una compra, ganarás Pesos Bausing.
+                            <p className="text-xs text-black/40">
+                              Compartí este código. Cuando alguien lo use en una compra, ganás Pesos Bausing.
                             </p>
                           </div>
                         ) : (
-                          <div className="text-center py-4">
-                            <p className="text-sm md:text-base text-gray-500">No tienes código de referido. Se generará automáticamente.</p>
-                          </div>
+                          <p className="text-sm text-black/40">No tenés código de referido. Se generará automáticamente.</p>
                         )}
                       </div>
 
                       {/* Estadísticas */}
                       {referralStats && (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-                          <div className="border border-gray-200 rounded-[12px] p-3 md:p-4 bg-white">
-                            <p className="text-xs text-gray-600 mb-1">Total Referidos</p>
-                            <p className="text-xl md:text-2xl font-bold text-gray-900">{referralStats.total_referrals}</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                            <p className="text-xs text-black/40 mb-1">Total referidos</p>
+                            <p className="text-2xl font-medium text-gray-900">{referralStats.total_referrals}</p>
                           </div>
-                          <div className="border border-gray-200 rounded-[12px] p-3 md:p-4 bg-white">
-                            <p className="text-xs text-gray-600 mb-1">Total Ganado</p>
-                            <p className="text-xl md:text-2xl font-bold text-[#00C1A7]">
-                              ${referralStats.total_credits.toLocaleString("es-AR", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
+                          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                            <p className="text-xs text-black/40 mb-1">Total ganado</p>
+                            <p className="text-2xl font-medium text-[#00C1A7]">
+                              ${referralStats.total_credits.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
                           </div>
-                          <div className="border border-gray-200 rounded-[12px] p-3 md:p-4 bg-white">
-                            <p className="text-xs text-gray-600 mb-1">Acreditados</p>
-                            <p className="text-xl md:text-2xl font-bold text-green-600">{referralStats.credited_referrals}</p>
+                          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                            <p className="text-xs text-black/40 mb-1">Acreditados</p>
+                            <p className="text-2xl font-medium text-green-600">{referralStats.credited_referrals}</p>
                           </div>
-                          <div className="border border-gray-200 rounded-[12px] p-3 md:p-4 bg-white">
-                            <p className="text-xs text-gray-600 mb-1">Pendientes</p>
-                            <p className="text-xl md:text-2xl font-bold text-amber-600">{referralStats.pending_referrals}</p>
+                          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                            <p className="text-xs text-black/40 mb-1">Pendientes</p>
+                            <p className="text-2xl font-medium text-amber-600">{referralStats.pending_referrals}</p>
                           </div>
                         </div>
                       )}
 
                       {/* Historial de Referidos */}
-                      <div className="border border-gray-200 rounded-[14px] p-4 md:p-6">
-                        <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-4">Historial de Referidos</h2>
+                      <div className="border border-gray-200 rounded-xl p-4 md:p-6">
+                        <h2 className="text-sm font-semibold text-gray-900 mb-4">Historial</h2>
                         {referralHistoryLoading ? (
                           <div className="text-center py-8">
-                            <p className="text-sm md:text-base text-gray-500">Cargando historial...</p>
+                            <p className="text-sm text-black/40">Cargando historial...</p>
                           </div>
                         ) : referralHistory.length === 0 ? (
-                          <div className="text-center py-8">
-                            <Users className="w-10 h-10 md:w-12 md:h-12 text-gray-300 mx-auto mb-4" />
-                            <p className="text-sm md:text-base text-gray-500">Aún no tienes referidos</p>
-                            <p className="text-xs md:text-sm text-gray-400 mt-2">Comparte tu código para empezar a ganar Pesos Bausing</p>
+                          <div className="text-center py-10">
+                            <Users className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                            <p className="text-sm text-gray-500">Aún no tenés referidos</p>
+                            <p className="text-xs text-black/30 mt-1">Compartí tu código para empezar a ganar Pesos Bausing</p>
                           </div>
                         ) : (
-                          <div className="space-y-3 md:space-y-4">
+                          <div className="space-y-2">
                             {referralHistory.map((referral) => (
                               <div
                                 key={referral.id}
-                                className="border border-gray-200 rounded-[12px] p-3 md:p-4 hover:border-[#00C1A7] transition-colors"
+                                className="flex items-center justify-between gap-3 py-3 border-b border-gray-100 last:border-0"
                               >
-                                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      {referral.credited ? (
-                                        <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-green-600 flex-shrink-0" />
-                                      ) : (
-                                        <RefreshCw className="w-4 h-4 md:w-5 md:h-5 text-amber-600 animate-spin flex-shrink-0" />
-                                      )}
-                                      <span className={`text-xs md:text-sm font-semibold ${referral.credited ? "text-green-700" : "text-amber-700"}`}>
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className={`w-2 h-2 rounded-full shrink-0 ${referral.credited ? "bg-green-500" : "bg-amber-400"}`} />
+                                  <div className="min-w-0">
+                                    {referral.referred && (
+                                      <p className="text-sm font-medium text-gray-900 truncate">
+                                        {referral.referred.first_name} {referral.referred.last_name}
+                                      </p>
+                                    )}
+                                    <p className="text-xs text-black/40">
+                                      {new Date(referral.created_at).toLocaleDateString("es-AR", {
+                                        day: "2-digit", month: "2-digit", year: "numeric",
+                                      })}
+                                      {" · "}
+                                      <span className={referral.credited ? "text-green-600" : "text-amber-600"}>
                                         {referral.credited ? "Acreditado" : "Pendiente"}
                                       </span>
-                                    </div>
-                                    {referral.referred && (
-                                      <p className="text-xs md:text-sm text-gray-700 mb-1 break-words">
-                                        Referido: {referral.referred.first_name} {referral.referred.last_name}
-                                      </p>
-                                    )}
-                                    <p className="text-xs text-gray-500">
-                                      {new Date(referral.created_at).toLocaleDateString("es-AR", {
-                                        day: "2-digit",
-                                        month: "2-digit",
-                                        year: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
                                     </p>
                                   </div>
-                                  <div className="text-left sm:text-right flex-shrink-0">
-                                    <p className="text-base md:text-lg font-bold text-[#00C1A7]">
-                                      +${referral.credit_amount.toLocaleString("es-AR", {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2,
-                                      })}
+                                </div>
+                                <div className="shrink-0 text-right">
+                                  <p className="text-sm font-semibold text-[#00C1A7]">
+                                    +${referral.credit_amount.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </p>
+                                  {referral.order && (
+                                    <p className="text-xs text-black/30">
+                                      Orden ${referral.order.total.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </p>
-                                    {referral.order && (
-                                      <p className="text-xs text-gray-500 mt-1">
-                                        Orden: ${referral.order.total.toLocaleString("es-AR", {
-                                          minimumFractionDigits: 2,
-                                          maximumFractionDigits: 2,
-                                        })}
-                                      </p>
-                                    )}
-                                  </div>
+                                  )}
                                 </div>
                               </div>
                             ))}
-                            
+
                             {/* Paginación */}
                             {referralHistoryPagination.pages > 1 && (
-                              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-gray-200">
+                              <div className="flex items-center justify-between gap-3 pt-4">
                                 <button
                                   onClick={() => loadReferralHistoryPage(referralHistoryPage - 1)}
                                   disabled={referralHistoryPage === 1 || referralHistoryLoading}
-                                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                 >
-                                  <ChevronLeft className="w-3 h-3 md:w-4 md:h-4" />
+                                  <ChevronLeft className="w-3.5 h-3.5" />
                                   Anterior
                                 </button>
-                                <span className="text-xs md:text-sm text-gray-600">
-                                  Página {referralHistoryPage} de {referralHistoryPagination.pages}
+                                <span className="text-xs text-black/40">
+                                  {referralHistoryPage} / {referralHistoryPagination.pages}
                                 </span>
                                 <button
                                   onClick={() => loadReferralHistoryPage(referralHistoryPage + 1)}
                                   disabled={referralHistoryPage === referralHistoryPagination.pages || referralHistoryLoading}
-                                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                 >
                                   Siguiente
-                                  <ChevronRight className="w-3 h-3 md:w-4 md:h-4" />
+                                  <ChevronRight className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             )}
@@ -1368,228 +1311,143 @@ export default function UsuarioPage() {
               )}
 
               {activeSection === "seguridad" && (
-                <div className="space-y-6 md:space-y-8">
-                  {/* Sección de Email y Verificación */}
-                  <div className="space-y-3 md:space-y-4">
-                    <div>
-                      <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Email y Verificación</h2>
-                      
-                      {/* Email del usuario */}
-                      <div className="border border-gray-200 rounded-[10px] md:rounded-[12px] p-3 md:p-4 bg-gray-50">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="p-2 bg-white rounded-lg border border-gray-200 shrink-0">
-                              <Mail className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-xs md:text-sm text-gray-500">Email</p>
-                              <p className="text-sm md:text-base font-semibold text-gray-900 truncate" title={user?.email}>{user?.email}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            {user?.email_verified ? (
-                              <>
-                                <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-emerald-600 shrink-0" />
-                                <span className="text-xs md:text-sm font-semibold text-emerald-600">Verificado</span>
-                              </>
-                            ) : (
-                              <>
-                                <XCircle className="w-4 h-4 md:w-5 md:h-5 text-red-600 shrink-0" />
-                                <span className="text-xs md:text-sm font-semibold text-red-600">No verificado</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Mensaje de estado de reenvío */}
-                      {resendMessage && (
-                        <div
-                          className={`px-3 md:px-4 py-2.5 md:py-3 rounded-lg border text-xs md:text-sm ${
-                            resendMessage.type === "success"
-                              ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                              : "bg-red-50 border-red-200 text-red-700"
-                          }`}
-                        >
-                          {resendMessage.message}
-                        </div>
-                      )}
-
-                      {/* Botón para reenviar email si no está verificado */}
-                      {!user?.email_verified && (
-                        <div className="border border-amber-200 rounded-[10px] md:rounded-[12px] p-3 md:p-4 mt-3 md:mt-4 bg-amber-50">
-                          <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-                            <div className="p-2 bg-amber-100 rounded-lg shrink-0">
-                              <Mail className="w-4 h-4 md:w-5 md:h-5 text-amber-600" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs md:text-sm font-semibold text-amber-900 mb-1">
-                                Tu email no está verificado
-                              </p>
-                              <p className="text-xs md:text-sm text-amber-700 mb-3">
-                                Por favor, verifica tu email para acceder a todas las funcionalidades de tu cuenta.
-                              </p>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  setResendMessage(null);
-                                  setResendLoading(true);
-                                  try {
-                                    const token = localStorage.getItem("user_token");
-                                    if (!token) {
-                                      throw new Error("Debes iniciar sesión para reenviar el email");
-                                    }
-
-                                    const response = await fetch(`/api/auth/resend-verification`, {
-                                      method: "POST",
-                                      headers: {
-                                        "Content-Type": "application/json",
-                                        Authorization: `Bearer ${token}`,
-                                      },
-                                    });
-
-                                    const data = await response.json();
-
-                                    if (!response.ok || !data.success) {
-                                      throw new Error(data.error || "Error al reenviar el email");
-                                    }
-
-                                    setResendMessage({
-                                      type: "success",
-                                      message: "Email de verificación reenviado. Revisa tu bandeja de entrada.",
-                                    });
-                                  } catch (error: any) {
-                                    setResendMessage({
-                                      type: "error",
-                                      message: error?.message || "Error al reenviar el email de verificación",
-                                    });
-                                  } finally {
-                                    setResendLoading(false);
-                                  }
-                                }}
-                                disabled={resendLoading}
-                                className="w-full sm:w-auto inline-flex items-center justify-center cursor-pointer gap-2 bg-amber-600 text-white px-4 py-2.5 rounded-[8px] text-xs md:text-sm font-semibold hover:bg-amber-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                              >
-                                <RefreshCw className={`w-4 h-4 shrink-0 ${resendLoading ? "animate-spin" : ""}`} />
-                                {resendLoading ? "Enviando..." : "Reenviar email de verificación"}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
+                <div className="space-y-6">
+                  {/* Email */}
+                  <div className="space-y-3">
+                    <h2 className="text-sm font-semibold text-gray-900">Email</h2>
+                    <div className="flex items-center justify-between gap-3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl">
+                      <p className="text-sm text-gray-900 truncate" title={user?.email}>{user?.email}</p>
+                      {user?.email_verified ? (
+                        <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 shrink-0">
+                          <CheckCircle className="w-4 h-4" />
+                          Verificado
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1.5 text-xs font-medium text-red-500 shrink-0">
+                          <XCircle className="w-4 h-4" />
+                          No verificado
+                        </span>
                       )}
                     </div>
+
+                    {resendMessage && (
+                      <p className={`text-xs ${resendMessage.type === "success" ? "text-emerald-600" : "text-red-500"}`}>
+                        {resendMessage.message}
+                      </p>
+                    )}
+
+                    {!user?.email_verified && (
+                      <div className="flex items-start gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-amber-800 mb-1">Tu email no está verificado</p>
+                          <p className="text-xs text-amber-700 mb-3">Verificá tu email para acceder a todas las funcionalidades.</p>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setResendMessage(null);
+                              setResendLoading(true);
+                              try {
+                                const token = localStorage.getItem("user_token");
+                                if (!token) throw new Error("Debes iniciar sesión para reenviar el email");
+                                const response = await fetch(`/api/auth/resend-verification`, {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                });
+                                const data = await response.json();
+                                if (!response.ok || !data.success) throw new Error(data.error || "Error al reenviar el email");
+                                setResendMessage({ type: "success", message: "Email reenviado. Revisá tu bandeja de entrada." });
+                              } catch (error: any) {
+                                setResendMessage({ type: "error", message: error?.message || "Error al reenviar el email" });
+                              } finally {
+                                setResendLoading(false);
+                              }
+                            }}
+                            disabled={resendLoading}
+                            className="inline-flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg text-xs font-medium hover:bg-amber-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${resendLoading ? "animate-spin" : ""}`} />
+                            {resendLoading ? "Enviando..." : "Reenviar verificación"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Sección de Cambio de Contraseña */}
-                  <div className="border-t border-gray-200 pt-4 md:pt-6">
-                    <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Cambiar Contraseña</h2>
+                  {/* Cambiar contraseña */}
+                  <div className="border-t border-gray-100 pt-6">
+                    <h2 className="text-sm font-semibold text-gray-900 mb-4">Cambiar contraseña</h2>
                     <form
-                      className="space-y-4 md:space-y-6"
+                      className="space-y-4"
                       onSubmit={async (e) => {
                         e.preventDefault();
                         setPasswordStatus(null);
                         if (!passwordForm.newPassword || passwordForm.newPassword.length < 8) {
-                          setPasswordStatus({
-                            type: "error",
-                            message: "La nueva contraseña debe tener al menos 8 caracteres.",
-                          });
+                          setPasswordStatus({ type: "error", message: "La nueva contraseña debe tener al menos 8 caracteres." });
                           return;
                         }
                         if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-                          setPasswordStatus({
-                            type: "error",
-                            message: "Las contraseñas no coinciden.",
-                          });
+                          setPasswordStatus({ type: "error", message: "Las contraseñas no coinciden." });
                           return;
                         }
                         setPasswordSaving(true);
                         try {
-                          await changePassword({
-                            current_password: passwordForm.currentPassword,
-                            new_password: passwordForm.newPassword,
-                          });
+                          await changePassword({ current_password: passwordForm.currentPassword, new_password: passwordForm.newPassword });
                           setPasswordStatus({ type: "success", message: "Contraseña actualizada." });
-                          setPasswordForm({
-                            currentPassword: "",
-                            newPassword: "",
-                            confirmPassword: "",
-                          });
+                          setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
                         } catch (error: any) {
-                          setPasswordStatus({
-                            type: "error",
-                            message: error?.message || "No pudimos actualizar tu contraseña.",
-                          });
+                          setPasswordStatus({ type: "error", message: error?.message || "No pudimos actualizar tu contraseña." });
                         } finally {
                           setPasswordSaving(false);
                         }
                       }}
                     >
-                      {passwordStatus && (
-                        <div
-                          className={`px-3 md:px-4 py-2.5 md:py-3 rounded-lg border text-xs md:text-sm ${
-                            passwordStatus.type === "success"
-                              ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                              : "bg-red-50 border-red-200 text-red-700"
-                          }`}
-                        >
-                          {passwordStatus.message}
-                        </div>
-                      )}
-
-                      <div className="space-y-2">
-                        <label className="text-xs md:text-sm font-medium text-gray-700">Contraseña actual</label>
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium text-gray-700">Contraseña actual</label>
                         <input
                           type="password"
                           value={passwordForm.currentPassword}
-                          onChange={(e) =>
-                            setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))
-                          }
-                          className="block w-full px-3 py-2.5 md:py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent text-sm md:text-base"
+                          onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
+                          className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#00C1A7]/20 focus:border-[#00C1A7] transition-all"
                           placeholder="••••••••"
                           required
                         />
                       </div>
 
-                      <div className="space-y-2">
-                        <label className="text-xs md:text-sm font-medium text-gray-700">Nueva contraseña</label>
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium text-gray-700">Nueva contraseña</label>
                         <input
                           type="password"
                           value={passwordForm.newPassword}
-                          onChange={(e) =>
-                            setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))
-                          }
-                          className="block w-full px-3 py-2.5 md:py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent text-sm md:text-base"
+                          onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+                          className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#00C1A7]/20 focus:border-[#00C1A7] transition-all"
                           placeholder="Mínimo 8 caracteres"
                           required
                         />
                       </div>
 
-                      <div className="space-y-2">
-                        <label className="text-xs md:text-sm font-medium text-gray-700">Confirmar nueva contraseña</label>
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium text-gray-700">Confirmar nueva contraseña</label>
                         <input
                           type="password"
                           value={passwordForm.confirmPassword}
-                          onChange={(e) =>
-                            setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))
-                          }
-                          className="block w-full px-3 py-2.5 md:py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent text-sm md:text-base"
-                          placeholder="Repite la nueva contraseña"
+                          onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                          className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#00C1A7]/20 focus:border-[#00C1A7] transition-all"
+                          placeholder="Repetí la nueva contraseña"
                           required
                         />
                       </div>
 
-                      <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3">
+                      {passwordStatus && (
+                        <p className={`text-xs ${passwordStatus.type === "success" ? "text-emerald-600" : "text-red-500"}`}>
+                          {passwordStatus.message}
+                        </p>
+                      )}
+
+                      <div className="flex items-center justify-end gap-3 pt-1">
                         <button
                           type="button"
-                          onClick={() => {
-                            setPasswordForm({
-                              currentPassword: "",
-                              newPassword: "",
-                              confirmPassword: "",
-                            });
-                            setPasswordStatus(null);
-                          }}
-                          className="w-full sm:w-auto px-4 py-2.5 md:py-2 text-xs md:text-sm font-semibold text-gray-700 hover:text-gray-900"
+                          onClick={() => { setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" }); setPasswordStatus(null); }}
+                          className="px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
                           disabled={passwordSaving}
                         >
                           Cancelar
@@ -1597,7 +1455,7 @@ export default function UsuarioPage() {
                         <button
                           type="submit"
                           disabled={passwordSaving}
-                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#00C1A7] text-white py-2.5 md:py-3 px-4 md:px-5 rounded-[8px] font-semibold hover:bg-[#00a892] transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-sm md:text-base"
+                          className="inline-flex items-center gap-2 bg-[#00C1A7] text-white py-2.5 px-5 rounded-xl text-sm font-medium hover:bg-[#00a892] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                           {passwordSaving ? "Guardando..." : "Actualizar contraseña"}
                         </button>

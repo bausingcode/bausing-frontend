@@ -233,7 +233,7 @@ export default function ProductCard({
                         {originalPrice}
                       </span>
                     ) : null}
-                    <span className={useNormalHeight ? "text-xl font-semibold tabular-nums leading-tight" : "text-lg md:text-xl font-semibold tabular-nums leading-tight"}>{currentPrice}</span>
+                    <span className={useNormalHeight ? "text-xl font-medium tabular-nums leading-tight" : "text-lg md:text-xl font-medium tabular-nums leading-tight"}>{currentPrice}</span>
                   </div>
                   <p
                     className={
@@ -260,7 +260,7 @@ export default function ProductCard({
                         {originalPrice}
                       </span>
                     ) : null}
-                    <span className={useNormalHeight ? "text-xl font-semibold tabular-nums leading-tight" : "text-lg md:text-xl font-semibold tabular-nums leading-tight"}>{currentPrice}</span>
+                    <span className={useNormalHeight ? "text-xl font-medium tabular-nums leading-tight" : "text-lg md:text-xl font-medium tabular-nums leading-tight"}>{currentPrice}</span>
                   </div>
                   {priceNote ? (
                     <span className={useNormalHeight ? "text-xs text-gray-600 mt-0.5 block" : "text-[10px] md:text-xs text-gray-600 mt-0.5 block"}>{priceNote}</span>
