@@ -575,6 +575,21 @@ interface FilterGroup {
 
 type CategoryFilters = Record<string, FilterGroup[]>;
 
+/** Misma lógica de atributos de colchón (firmeza, etc.) que en /catalogo/colchones */
+function normalizeCategoryCatalogName(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function isColchonStyleCatalogCategory(name: string | null | undefined): boolean {
+  if (!name) return false;
+  const n = normalizeCategoryCatalogName(name);
+  if (n === "colchones") return true;
+  return n.includes("sommier") && n.includes("colchon");
+}
+
 const categoryFilters: CategoryFilters = {
   "Colchones": [
     {
@@ -881,6 +896,7 @@ const categoryFilters: CategoryFilters = {
 interface CatalogoContentProps {
   initialProducts?: Product[];
   initialTotalPages?: number;
+  initialTotal?: number;
   initialCategories?: Category[];
   initialCategoryIdMap?: Record<string, string>;
 }
@@ -888,6 +904,7 @@ interface CatalogoContentProps {
 export default function CatalogoContent({
   initialProducts = [],
   initialTotalPages = 1,
+  initialTotal = 0,
   initialCategories = [],
   initialCategoryIdMap = {},
 }: CatalogoContentProps) {
@@ -900,6 +917,7 @@ export default function CatalogoContent({
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(initialTotalPages);
+  const [productsTotalCount, setProductsTotalCount] = useState(initialTotal);
   const [sortBy, setSortBy] = useState("created_at_desc");
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [perPage, setPerPage] = useState(20);
@@ -926,6 +944,7 @@ export default function CatalogoContent({
       setProducts([]);
       setPage(1);
       setTotalPages(1);
+      setProductsTotalCount(0);
     }
   }, [slug]);
   
@@ -1234,8 +1253,8 @@ export default function CatalogoContent({
       }
     }
     
-    // Agregar filtros técnicos para colchones
-    if (categoryName === "Colchones" || category?.name === "Colchones") {
+    // Filtros técnicos: colchones y catálogos equivalentes (p. ej. sommier + colchón)
+    if (isColchonStyleCatalogCategory(categoryName) || isColchonStyleCatalogCategory(category?.name)) {
       // Firmeza (mattress_firmness)
       filters.push({
         title: "Firmeza",
@@ -1287,9 +1306,15 @@ export default function CatalogoContent({
   };
   
   // Obtener filtros para la categoría actual (dinámicos o hardcoded como fallback)
-  const currentFilters = buildDynamicFilters().length > 0 
-    ? buildDynamicFilters() 
-    : (categoryName ? categoryFilters[categoryName] || [] : []);
+  const builtFilters = buildDynamicFilters();
+  const staticFiltersForCategory =
+    categoryName &&
+    (categoryFilters[categoryName] ??
+      (isColchonStyleCatalogCategory(categoryName) ? categoryFilters["Colchones"] : undefined));
+  const currentFilters =
+    builtFilters.length > 0
+      ? builtFilters
+      : (categoryName ? staticFiltersForCategory || [] : []);
   
   // Función para manejar cambios en filtros
   const handleFilterChange = (filterTitle: string, value: string, checked: boolean) => {
@@ -1604,10 +1629,12 @@ export default function CatalogoContent({
         
         setProducts(result.products);
         setTotalPages(result.total_pages);
+        setProductsTotalCount(result.total);
       } catch (error) {
         console.error("Error loading products:", error);
         setProducts([]);
         setTotalPages(1);
+        setProductsTotalCount(0);
       } finally {
         setLoading(false);
       }
@@ -1730,7 +1757,8 @@ export default function CatalogoContent({
               )}
               {(categoryName || searchQuery) && !loading && (
                 <p className="text-sm md:text-base text-gray-600">
-                  {products.length} {products.length === 1 ? "producto encontrado" : "productos encontrados"}
+                  {productsTotalCount}{" "}
+                  {productsTotalCount === 1 ? "producto encontrado" : "productos encontrados"}
                 </p>
               )}
             </>

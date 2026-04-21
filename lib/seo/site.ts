@@ -52,6 +52,23 @@ export function titleWithBrand(segment: string): string {
   return `${s} | ${SITE_NAME}`;
 }
 
+const TITLE_CASE_LOCALE = "es-AR";
+
+/** Primera letra de cada palabra en mayúscula (p. ej. nombres desde slug en URL). */
+export function titleCaseWords(text: string): string {
+  return text
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => {
+      const lower = word.toLocaleLowerCase(TITLE_CASE_LOCALE);
+      const first = lower.charAt(0);
+      const rest = lower.slice(1);
+      return first.toLocaleUpperCase(TITLE_CASE_LOCALE) + rest;
+    })
+    .join(" ");
+}
+
 const FAVICON_PATH = "/images/logo/favicon.png";
 
 export function rootMetadata(): Metadata {

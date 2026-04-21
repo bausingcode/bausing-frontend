@@ -21,7 +21,7 @@ export default async function CatalogoPage({ searchParams }: Props) {
     include_images: true,
     include_promos: true,
     ...(search && { search }),
-  }).catch(() => ({ products: [], total_pages: 1 }));
+  }).catch(() => ({ products: [], total: 0, total_pages: 1 }));
 
   return (
     <Suspense
@@ -40,6 +40,7 @@ export default async function CatalogoPage({ searchParams }: Props) {
       <CatalogoContent
         initialProducts={initialData.products ?? []}
         initialTotalPages={initialData.total_pages ?? 1}
+        initialTotal={initialData.total ?? 0}
       />
     </Suspense>
   );

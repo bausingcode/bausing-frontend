@@ -103,6 +103,7 @@ export default async function CatalogoPage({ params, searchParams }: Props) {
   // Productos pre-fetcheados en el servidor → llegan en el HTML inicial
   const initialData = await fetchProducts(fetchParams).catch(() => ({
     products: [],
+    total: 0,
     total_pages: 1,
   }));
 
@@ -123,6 +124,7 @@ export default async function CatalogoPage({ params, searchParams }: Props) {
       <CatalogoContent
         initialProducts={initialData.products ?? []}
         initialTotalPages={initialData.total_pages ?? 1}
+        initialTotal={initialData.total ?? 0}
         initialCategories={categories}
         initialCategoryIdMap={categoryIdMap}
       />

@@ -17,9 +17,14 @@ import { firstProductImageUrl } from "@/lib/productImagePlaceholder";
 interface CatalogoContentProps {
   initialProducts: Product[];
   initialTotalPages: number;
+  initialTotal?: number;
 }
 
-export default function CatalogoContent({ initialProducts, initialTotalPages }: CatalogoContentProps) {
+export default function CatalogoContent({
+  initialProducts,
+  initialTotalPages,
+  initialTotal = 0,
+}: CatalogoContentProps) {
   const searchParams = useSearchParams();
   const { locality, isLoading: localityLoading } = useLocality();
 
@@ -27,6 +32,7 @@ export default function CatalogoContent({ initialProducts, initialTotalPages }: 
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(initialTotalPages);
+  const [totalCount, setTotalCount] = useState(initialTotal);
   const [sortBy, setSortBy] = useState("created_at_desc");
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [perPage, setPerPage] = useState(20);
@@ -75,10 +81,12 @@ export default function CatalogoContent({ initialProducts, initialTotalPages }: 
         const result = await fetchProducts(fetchParams);
         setProducts(result.products);
         setTotalPages(result.total_pages);
+        setTotalCount(result.total);
       } catch (error) {
         console.error("Error loading products:", error);
         setProducts([]);
         setTotalPages(1);
+        setTotalCount(0);
       } finally {
         setLoading(false);
       }
@@ -109,6 +117,7 @@ export default function CatalogoContent({ initialProducts, initialTotalPages }: 
         const result = await fetchProducts(fetchParams);
         setProducts(result.products);
         setTotalPages(result.total_pages);
+        setTotalCount(result.total);
       } catch {
         // silenciar error
       } finally {
@@ -198,10 +207,8 @@ export default function CatalogoContent({ initialProducts, initialTotalPages }: 
             </p>
           )}
           <p className="text-gray-600">
-            {products.length}{" "}
-            {products.length === 1
-              ? "producto encontrado"
-              : "productos encontrados"}
+            {totalCount}{" "}
+            {totalCount === 1 ? "producto encontrado" : "productos encontrados"}
           </p>
         </div>
 

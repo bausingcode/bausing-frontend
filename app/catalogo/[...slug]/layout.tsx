@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getSiteUrl, titleWithBrand } from "@/lib/seo/site";
+import { getSiteUrl, titleCaseWords, titleWithBrand } from "@/lib/seo/site";
 
 export async function generateMetadata({
   params,
@@ -8,7 +8,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const label = slug
-    .map((s) => s.replace(/-/g, " "))
+    .map((s) => titleCaseWords(s.replace(/-/g, " ")))
     .filter(Boolean)
     .join(" · ");
   const path = `/catalogo/${slug.join("/")}`;
