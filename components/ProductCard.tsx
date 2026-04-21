@@ -6,6 +6,7 @@ import { Heart, ShoppingCart } from "lucide-react";
 import wsrvLoader from "@/lib/wsrvLoader";
 import { PRODUCT_IMAGE_PLACEHOLDER } from "@/lib/productImagePlaceholder";
 import { useCart } from "@/contexts/CartContext";
+import { PRICE_UI_CARD_CAPTION } from "@/utils/priceUtils";
 
 interface ProductCardProps {
   id?: string;
@@ -218,7 +219,7 @@ export default function ProductCard({
                         : "text-[10px] md:text-xs font-medium text-[#00A890] leading-snug"
                     }
                   >
-                    {priceNote || "Efectivo o transferencia"}
+                    {priceNote || PRICE_UI_CARD_CAPTION}
                   </p>
                   <div className="flex flex-col items-start gap-0.5 min-w-0">
                     {originalPrice ? (

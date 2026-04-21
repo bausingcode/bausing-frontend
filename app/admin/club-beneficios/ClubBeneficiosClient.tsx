@@ -19,6 +19,34 @@ import {
 
 const PER_PAGE = 12;
 
+function SelectedProductCardSkeleton() {
+  return (
+    <div className="bg-white border border-gray-200 rounded-[10px] overflow-hidden animate-pulse">
+      <div className="w-full h-52 bg-gray-200" />
+      <div className="p-4 space-y-2">
+        <div className="h-4 bg-gray-200 rounded w-full" />
+        <div className="h-4 bg-gray-200 rounded w-4/5" />
+        <div className="h-6 bg-gray-200 rounded w-24 mt-2" />
+      </div>
+    </div>
+  );
+}
+
+function ModalProductRowSkeleton() {
+  return (
+    <div className="w-full border border-gray-200 rounded-[10px] p-4 animate-pulse flex items-center justify-between gap-4">
+      <div className="flex-1 min-w-0 space-y-2">
+        <div className="h-5 bg-gray-200 rounded-md w-3/4 max-w-md" />
+        <div className="h-4 bg-gray-200 rounded-md w-1/2 max-w-xs" />
+      </div>
+      <div className="flex-shrink-0 w-24 space-y-2">
+        <div className="h-5 bg-gray-200 rounded-md" />
+        <div className="h-4 bg-gray-200 rounded-md w-16 ml-auto" />
+      </div>
+    </div>
+  );
+}
+
 function SelectedProductCard({
   product,
   onRemove,
@@ -133,14 +161,16 @@ function ProductSelectionModal({
               placeholder="Buscar producto..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-[6px] focus:outline-none focus:ring-2 focus:ring-[#00C1A7] placeholder:text-gray-500 placeholder:opacity-100"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-[6px] bg-white text-gray-900 caret-[#00C1A7] focus:outline-none focus:ring-2 focus:ring-[#00C1A7] placeholder:text-gray-600"
             />
           </div>
 
           <div className="flex-1 overflow-y-auto">
             {isLoading ? (
-              <div className="text-center py-12 text-gray-500">
-                Cargando productos...
+              <div className="space-y-2">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <ModalProductRowSkeleton key={i} />
+                ))}
               </div>
             ) : filteredProducts.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
@@ -422,12 +452,25 @@ export default function ClubBeneficiosClient() {
   if (loading) {
     return (
       <div>
-        <PageHeader
-          title="Club Beneficios"
-          description="Seleccioná los productos que se muestran en la página pública."
-          icon={<Gift className="w-5 h-5" />}
-        />
-        <p className="text-gray-600">Cargando...</p>
+        <div className="flex items-start justify-between gap-4">
+          <PageHeader
+            title="Club Beneficios"
+            description="Seleccioná los productos que se muestran en la página pública."
+            icon={<Gift className="w-5 h-5" />}
+          />
+          <div className="flex gap-2 pt-1">
+            <div className="h-10 w-[7.5rem] rounded-[10px] bg-gray-200 animate-pulse" />
+            <div className="h-10 w-24 rounded-[10px] bg-gray-200 animate-pulse" />
+          </div>
+        </div>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="h-5 w-40 rounded bg-gray-200 animate-pulse" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <SelectedProductCardSkeleton key={i} />
+          ))}
+        </div>
       </div>
     );
   }

@@ -10,8 +10,9 @@ import { useLocality } from "@/contexts/LocalityContext";
 import { ChevronDown } from "lucide-react";
 import {
   calculateProductPrice,
-  PRICE_UI_TRANSFER_CAPTION,
-  PRICE_UI_CARD_CAPTION,
+  productCardPriceDisplayFromPriceInfo,
+  productHasPositiveListPrice,
+  productListingPriceForSort,
 } from "@/utils/priceUtils";
 import { firstProductImageUrl } from "@/lib/productImagePlaceholder";
 
@@ -19,10 +20,23 @@ interface Props {
   initialProducts: Product[];
 }
 
+function priceRowForProduct(pricesData: Record<string, any>, productId: unknown) {
+  if (productId == null || productId === "") return undefined;
+  const s = String(productId).trim();
+  if (pricesData[s]) return pricesData[s];
+  const lower = s.toLowerCase();
+  for (const k of Object.keys(pricesData)) {
+    if (k.toLowerCase() === lower) return pricesData[k];
+  }
+  return undefined;
+}
+
 function mergePrices(products: Product[], pricesData: Record<string, any>): Product[] {
   return products.map((p) => {
-    const priceInfo = pricesData[p.id];
-    if (!priceInfo) return p;
+    const priceInfo = priceRowForProduct(pricesData, p.id);
+    if (!priceInfo) {
+      return p;
+    }
     return {
       ...p,
       min_price: priceInfo.min_price,
@@ -42,7 +56,7 @@ function mergePrices(products: Product[], pricesData: Record<string, any>): Prod
 
 function productToCardProps(product: Product, isPriceLoading: boolean) {
   const image = firstProductImageUrl(product);
-  const hasPrice = product.min_price !== null && product.min_price !== undefined && product.min_price > 0;
+  const hasPrice = productHasPositiveListPrice(product);
 
   if (isPriceLoading || !hasPrice) {
     return {
@@ -64,25 +78,26 @@ function productToCardProps(product: Product, isPriceLoading: boolean) {
   };
 
   const priceInfo = calculateProductPrice(productWithPromos, 1);
+  const cardFields = productCardPriceDisplayFromPriceInfo(priceInfo);
 
   return {
     id: product.id,
     image,
     alt: product.name,
     name: product.name,
-    currentPrice: priceInfo.transferPrice || "",
+    currentPrice: cardFields.currentPrice || "",
     originalPrice: priceInfo.originalPrice || "",
     discount: priceInfo.discount,
-    priceNote: priceInfo.hasCardPrice ? PRICE_UI_TRANSFER_CAPTION : undefined,
-    secondaryPrice: priceInfo.hasCardPrice ? priceInfo.cardPrice : undefined,
-    secondaryPriceLabel: priceInfo.hasCardPrice ? PRICE_UI_CARD_CAPTION : undefined,
+    priceNote: cardFields.priceNote,
+    secondaryPrice: cardFields.secondaryPrice,
+    secondaryPriceLabel: cardFields.secondaryPriceLabel,
     isPriceLoading: false,
   };
 }
 
 export default function ClubBeneficiosContent({ initialProducts }: Props) {
   const searchParams = useSearchParams();
-  const { locality } = useLocality();
+  const { locality, isLoading: localityLoading } = useLocality();
 
   const [baseProducts, setBaseProducts] = useState<Product[]>(initialProducts || []);
   const [isLoadingPrices, setIsLoadingPrices] = useState(false);
@@ -101,25 +116,33 @@ export default function ClubBeneficiosContent({ initialProducts }: Props) {
     setPage(1);
   }, [searchQuery, perPage]);
 
-  // Cargar precios/promos por localidad
+  // Precios por localidad: no esperar localityLoading (si no, a veces nunca se pedían precios).
+  // Cuando termina la detección, locality?.id cambia y se vuelve a pedir con la zona correcta.
   useEffect(() => {
-    const ids = baseProducts.map((p) => p.id).filter(Boolean);
+    const ids = baseProducts
+      .map((p) => (p.id != null && p.id !== "" ? String(p.id).trim() : ""))
+      .filter(Boolean);
     if (ids.length === 0) return;
 
+    const nonePricedYet = baseProducts.every((p) => !productHasPositiveListPrice(p));
+
     const gen = ++pricesGen.current;
-    setIsLoadingPrices(true);
+    if (nonePricedYet) setIsLoadingPrices(true);
     (async () => {
       try {
         const prices = await fetchProductsPrices(ids, locality?.id);
         if (gen !== pricesGen.current) return;
+        if (!prices || Object.keys(prices).length === 0) return;
         setBaseProducts((prev) => mergePrices(prev, prices));
       } catch {
         // silenciar
       } finally {
-        if (gen === pricesGen.current) setIsLoadingPrices(false);
+        if (gen === pricesGen.current && nonePricedYet) setIsLoadingPrices(false);
       }
     })();
   }, [locality?.id, baseProducts.length]);
+
+  const priceStillPending = (product: Product) => !productHasPositiveListPrice(product);
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -130,7 +153,7 @@ export default function ClubBeneficiosContent({ initialProducts }: Props) {
   const sorted = useMemo(() => {
     const arr = [...filtered];
     const getCreatedAt = (p: Product) => (p.created_at ? new Date(p.created_at).getTime() : 0);
-    const getPrice = (p: Product) => (p.min_price && p.min_price > 0 ? p.min_price : Number.POSITIVE_INFINITY);
+    const getPrice = (p: Product) => productListingPriceForSort(p);
 
     arr.sort((a, b) => {
       switch (sortBy) {
@@ -308,8 +331,11 @@ export default function ClubBeneficiosContent({ initialProducts }: Props) {
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 mb-8 [&>*]:min-w-0">
                   {pageProducts.map((product) => (
                     <ProductCard
-                      key={product.id}
-                      {...productToCardProps(product, isLoadingPrices)}
+                      key={`${product.id}-${locality?.id ?? "no-locality"}`}
+                      {...productToCardProps(
+                        product,
+                        isLoadingPrices || (localityLoading && priceStillPending(product)),
+                      )}
                     />
                   ))}
                 </div>

@@ -7,8 +7,8 @@ import { useHomepageDistribution } from "@/contexts/HomepageDistributionContext"
 import { fetchProducts, Product } from "@/lib/api";
 import {
   calculateProductPrice,
-  PRICE_UI_TRANSFER_CAPTION,
-  PRICE_UI_CARD_CAPTION,
+  productCardPriceDisplayFromPriceInfo,
+  productHasPositiveListPrice,
 } from "@/utils/priceUtils";
 import { firstProductImageUrl } from "@/lib/productImagePlaceholder";
 
@@ -29,7 +29,7 @@ function productToCardProps(product: Product, isPriceLoading: boolean = false) {
   // Si el precio está cargando, usar skeleton
   // Si no hay precio después de cargar, mostrar "Sin Precio"
   // Si hay precio, calcular con promociones
-  const hasPrice = product.min_price !== null && product.min_price !== undefined && product.min_price > 0;
+  const hasPrice = productHasPositiveListPrice(product);
 
   if (isPriceLoading || !hasPrice) {
     return {
@@ -54,18 +54,19 @@ function productToCardProps(product: Product, isPriceLoading: boolean = false) {
   };
 
   const priceInfo = calculateProductPrice(productWithPromos, 1);
+  const cardFields = productCardPriceDisplayFromPriceInfo(priceInfo);
 
   return {
     id: product.id,
     image,
     alt: product.name,
     name: product.name,
-    currentPrice: priceInfo.transferPrice || "",
+    currentPrice: cardFields.currentPrice || "",
     originalPrice: priceInfo.originalPrice || "",
     discount: priceInfo.discount,
-    priceNote: priceInfo.hasCardPrice ? PRICE_UI_TRANSFER_CAPTION : undefined,
-    secondaryPrice: priceInfo.hasCardPrice ? priceInfo.cardPrice : undefined,
-    secondaryPriceLabel: priceInfo.hasCardPrice ? PRICE_UI_CARD_CAPTION : undefined,
+    priceNote: cardFields.priceNote,
+    secondaryPrice: cardFields.secondaryPrice,
+    secondaryPriceLabel: cardFields.secondaryPriceLabel,
     // Solo mostrar skeleton si está cargando, no si no hay precio
     isPriceLoading: false,
   };
@@ -77,7 +78,7 @@ interface HomeProductsProps {
 }
 
 export default function HomeProducts({ section, count }: HomeProductsProps) {
-  const { locality } = useLocality();
+  const { locality, isLoading: localityLoading } = useLocality();
   const { distribution, isLoadingPrices, isLoading: distributionLoading } = useHomepageDistribution();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,7 +105,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
     // Si hay productos en la distribución, usarlos inmediatamente
     if (sectionProducts.length > 0) {
       const cardProps = repeatProducts(
-        sectionProducts.map(p => productToCardProps(p, isLoadingPrices)),
+        sectionProducts.map((p) => productToCardProps(p, localityLoading || isLoadingPrices)),
         count
       ).slice(0, count);
       
@@ -118,7 +119,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
       setProducts([]);
       setLoading(false);
     }
-  }, [section, count, sectionProducts, distributionLoading, isLoadingPrices]);
+  }, [section, count, sectionProducts, distributionLoading, isLoadingPrices, locality?.id, localityLoading]);
 
   if (loading) {
     // Skeleton mientras carga

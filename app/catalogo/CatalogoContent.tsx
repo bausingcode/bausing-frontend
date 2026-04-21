@@ -9,8 +9,7 @@ import { fetchProducts, Product } from "@/lib/api";
 import { ChevronDown } from "lucide-react";
 import {
   calculateProductPrice,
-  PRICE_UI_TRANSFER_CAPTION,
-  PRICE_UI_CARD_CAPTION,
+  productCardPriceDisplayFromPriceInfo,
 } from "@/utils/priceUtils";
 import { useLocality } from "@/contexts/LocalityContext";
 import { firstProductImageUrl } from "@/lib/productImagePlaceholder";
@@ -22,7 +21,7 @@ interface CatalogoContentProps {
 
 export default function CatalogoContent({ initialProducts, initialTotalPages }: CatalogoContentProps) {
   const searchParams = useSearchParams();
-  const { locality } = useLocality();
+  const { locality, isLoading: localityLoading } = useLocality();
 
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [loading, setLoading] = useState(false);
@@ -45,6 +44,8 @@ export default function CatalogoContent({ initialProducts, initialTotalPages }: 
 
   // Obtener productos
   useEffect(() => {
+    if (localityLoading) return;
+
     // Si tenemos datos del servidor, saltear el primer fetch
     if (skipFirstFetch.current) {
       skipFirstFetch.current = false;
@@ -84,10 +85,11 @@ export default function CatalogoContent({ initialProducts, initialTotalPages }: 
     };
 
     loadProducts();
-  }, [page, sortBy, searchQuery, perPage, locality?.id]);
+  }, [page, sortBy, searchQuery, perPage, locality?.id, localityLoading]);
 
   // Re-fetchear con localidad cuando carga desde localStorage
   useEffect(() => {
+    if (localityLoading) return;
     if (!locality?.id) return;
     // Si teníamos datos del servidor (sin localidad), ahora refetcheamos con localidad
     const loadWithLocality = async () => {
@@ -116,7 +118,7 @@ export default function CatalogoContent({ initialProducts, initialTotalPages }: 
     loadWithLocality();
   // Solo corre cuando aparece/cambia la localidad
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locality?.id]);
+  }, [locality?.id, localityLoading]);
 
   // Escuchar cambios de localidad desde el evento personalizado
   useEffect(() => {
@@ -142,18 +144,19 @@ export default function CatalogoContent({ initialProducts, initialTotalPages }: 
     const image = firstProductImageUrl(product);
 
     const priceInfo = calculateProductPrice(product, 1);
+    const cardFields = productCardPriceDisplayFromPriceInfo(priceInfo);
 
     return {
       id: product.id,
       image,
       alt: product.name,
       name: product.name,
-      currentPrice: priceInfo.transferPrice,
+      currentPrice: cardFields.currentPrice,
       originalPrice: priceInfo.originalPrice,
       discount: priceInfo.discount,
-      priceNote: priceInfo.hasCardPrice ? PRICE_UI_TRANSFER_CAPTION : undefined,
-      secondaryPrice: priceInfo.hasCardPrice ? priceInfo.cardPrice : undefined,
-      secondaryPriceLabel: priceInfo.hasCardPrice ? PRICE_UI_CARD_CAPTION : undefined,
+      priceNote: cardFields.priceNote,
+      secondaryPrice: cardFields.secondaryPrice,
+      secondaryPriceLabel: cardFields.secondaryPriceLabel,
     };
   };
 
@@ -336,7 +339,7 @@ export default function CatalogoContent({ initialProducts, initialTotalPages }: 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 [&>*]:min-w-0">
                   {products.map((product) => (
                     <ProductCard
-                      key={product.id}
+                      key={`${product.id}-${locality?.id ?? "no-locality"}`}
                       {...getProductCardProps(product)}
                     />
                   ))}

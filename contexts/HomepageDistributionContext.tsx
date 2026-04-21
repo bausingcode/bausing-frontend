@@ -50,7 +50,18 @@ function mergePricesIntoDistribution(
   const apply = (products: Product[]) =>
     products.map((p) => {
       const priceInfo = pricesData[p.id];
-      if (!priceInfo) return p;
+      if (!priceInfo) {
+        return {
+          ...p,
+          min_price: undefined,
+          max_price: undefined,
+          min_card_price: undefined,
+          max_card_price: undefined,
+          show_transfer_price_highlight: undefined,
+          price_range: undefined,
+          promos: [],
+        };
+      }
       return {
         ...p,
         min_price: priceInfo.min_price,
@@ -77,7 +88,7 @@ function mergePricesIntoDistribution(
 
 export function HomepageDistributionProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { locality } = useLocality();
+  const { locality, isLoading: localityLoading } = useLocality();
   const localityId = locality?.id;
 
   const [distribution, setDistribution] = useState<HomepageDistribution | null>(null);
@@ -106,6 +117,7 @@ export function HomepageDistributionProvider({ children }: { children: ReactNode
 
         const pricesData = await fetchProductsPrices(productIds, localityKey);
         if (gen !== pricesGenRef.current) return;
+        if (!pricesData || Object.keys(pricesData).length === 0) return;
 
         setDistribution(mergePricesIntoDistribution(base, pricesData));
         setPrices(pricesData);
@@ -150,16 +162,17 @@ export function HomepageDistributionProvider({ children }: { children: ReactNode
       }
 
       if (cancelled || !quickBaseRef.current) return;
+      if (localityLoading) return;
       await loadPricesForBase(quickBaseRef.current, localityId);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [pathname, localityId, loadPricesForBase]);
+  }, [pathname, localityId, localityLoading, loadPricesForBase]);
 
   const refetch = useCallback(async () => {
-    if (pathname !== "/") return;
+    if (pathname !== "/" || localityLoading) return;
     homeDataReadyRef.current = false;
     setIsLoading(true);
     setError(null);
@@ -176,7 +189,7 @@ export function HomepageDistributionProvider({ children }: { children: ReactNode
     } finally {
       setIsLoading(false);
     }
-  }, [pathname, localityId, loadPricesForBase]);
+  }, [pathname, localityId, localityLoading, loadPricesForBase]);
 
   return (
     <HomepageDistributionContext.Provider

@@ -16,6 +16,7 @@ import {
   getProvinces,
   getSaleTypes,
   createOrder,
+  previewCouponCheckout,
   fetchCardTypes,
   fetchCardBankData,
   getPricePerKm,
@@ -180,6 +181,14 @@ export default function CheckoutPage() {
   const PAIS_CATALOG_ID = "8335e521-f25a-4f92-8f59-c4439671ef26";
   const [referralCode, setReferralCode] = useState<string>("");
   const [referralCodeValidating, setReferralCodeValidating] = useState<boolean>(false);
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discountAmount: number;
+    clubBeneficiosOnly: boolean;
+  } | null>(null);
+  const [couponError, setCouponError] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
   const [cardTypes, setCardTypes] = useState<CardType[]>([]);
   const [cardBankData, setCardBankData] = useState<CardBankData>({});
   const [loadingCardData, setLoadingCardData] = useState(false);
@@ -189,6 +198,11 @@ export default function CheckoutPage() {
   const [shippingQuoteLoading, setShippingQuoteLoading] = useState(false);
   /** Evita duplicar fetch para la misma localidad + dirección de envío */
   const lastShippingContextKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    setAppliedCoupon(null);
+    setCouponError("");
+  }, [cart]);
 
   // Resetear selecciones de tarjeta cuando se deselecciona
   useEffect(() => {
@@ -784,7 +798,11 @@ export default function CheckoutPage() {
         newErrors.address_province = "La provincia es obligatoria";
       }
     }
-    const subtotalVal = calculateTotal();
+    const subtotalValRaw = calculateTotal();
+    const subtotalVal = Math.max(
+      0,
+      subtotalValRaw - (appliedCoupon?.discountAmount ?? 0),
+    );
     const walletCreditAppliedVal =
       useWalletCredit &&
       !isThirdPartyTransport &&
@@ -1095,7 +1113,7 @@ export default function CheckoutPage() {
                 return `• ${item.name} x${item.quantity} - $${itemPrice.toLocaleString('es-AR')} ($${unitPrice.toLocaleString('es-AR')} c/u)`;
               }).join('\n');
               
-              const totalWithShipping = subtotal + shippingCost;
+              const totalWithShipping = subtotalAfterCoupon + shippingCost;
               
               // Información de métodos de pago (solo tarjeta en este caso)
               const paymentInfo = `\n\n*Método de pago:* Tarjeta (completarás la venta por WhatsApp)`;
@@ -1119,7 +1137,7 @@ export default function CheckoutPage() {
 ${cartItems}
 
 *RESUMEN:*
-Subtotal: $${subtotal.toLocaleString('es-AR')}
+${couponDiscount > 0.01 ? `Subtotal: $${subtotal.toLocaleString('es-AR')}\nDescuento cupón: −$${couponDiscount.toLocaleString('es-AR')}\n` : ""}Subtotal productos: $${subtotalAfterCoupon.toLocaleString('es-AR')}
 ${shippingCost > 0 ? `Envío: $${shippingCost.toLocaleString('es-AR')}` : 'Envío: Gratis'}
 *Total: $${totalWithShipping.toLocaleString('es-AR')}*${paymentInfo}
 
@@ -1180,7 +1198,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                 })
                 .join("\n");
 
-              const totalWithShipping = subtotal + shippingCost;
+              const totalWithShipping = subtotalAfterCoupon + shippingCost;
 
               let paymentInfo = "";
               const payLines: string[] = [];
@@ -1226,7 +1244,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
 ${cartItems}
 
 *RESUMEN:*
-Subtotal: $${subtotal.toLocaleString("es-AR")}
+${couponDiscount > 0.01 ? `Subtotal: $${subtotal.toLocaleString("es-AR")}\nDescuento cupón: −$${couponDiscount.toLocaleString("es-AR")}\n` : ""}Subtotal productos: $${subtotalAfterCoupon.toLocaleString("es-AR")}
 ${shippingCost > 0 ? `Envío: $${shippingCost.toLocaleString("es-AR")}` : "Envío: Gratis"}
 *Total: $${totalWithShipping.toLocaleString("es-AR")}*${paymentInfo}
 
@@ -1282,7 +1300,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ""}`;
                 return `• ${item.name} x${item.quantity} - $${itemPrice.toLocaleString('es-AR')} ($${unitPrice.toLocaleString('es-AR')} c/u)`;
               }).join('\n');
               
-              const totalWithShipping = subtotal + shippingCost;
+              const totalWithShipping = subtotalAfterCoupon + shippingCost;
               
               let paymentInfo = "";
               const payLinesPais: string[] = [];
@@ -1332,7 +1350,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ""}`;
 ${cartItems}
 
 *RESUMEN:*
-Subtotal: $${subtotal.toLocaleString('es-AR')}
+${couponDiscount > 0.01 ? `Subtotal: $${subtotal.toLocaleString('es-AR')}\nDescuento cupón: −$${couponDiscount.toLocaleString('es-AR')}\n` : ""}Subtotal productos: $${subtotalAfterCoupon.toLocaleString('es-AR')}
 ${shippingCost > 0 ? `Envío: $${shippingCost.toLocaleString('es-AR')}` : 'Envío: Gratis'}
 *Total: $${totalWithShipping.toLocaleString('es-AR')}*${paymentInfo}
 
@@ -1427,7 +1445,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
         ...(crmZoneId && {
           crm_zone_id: crmZoneId,
         }),
-        total: subtotal + shippingCost, // Total completo incluyendo envío
+        total: finalTotal,
         // Multi-payment: enviar array de métodos de pago con montos
         payment_methods: paymentMethodsArray,
         // Wallet amount for backward compat
@@ -1443,6 +1461,9 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
         observations: "",
         ...(referralCode.trim() && {
           referral_code: referralCode.trim().toUpperCase(),
+        }),
+        ...(appliedCoupon && {
+          coupon_code: appliedCoupon.code,
         }),
       };
 
@@ -1570,29 +1591,70 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
     return isNaN(parsed) ? 0 : parsed;
   };
 
+  const buildCouponPreviewItems = () =>
+    cart.map((item) => ({
+      product_id: item.id,
+      quantity: item.quantity,
+      price: getItemUnitPrice(item),
+    }));
+
+  const handleApplyCoupon = async () => {
+    const code = couponInput.trim();
+    if (!code) {
+      setCouponError("Ingresá un código");
+      return;
+    }
+    if (!isAuthenticated) {
+      setCouponError("Tenés que iniciar sesión para usar un cupón");
+      return;
+    }
+    setCouponLoading(true);
+    setCouponError("");
+    try {
+      const data = await previewCouponCheckout({
+        code: code.toUpperCase(),
+        items: buildCouponPreviewItems(),
+      });
+      setAppliedCoupon({
+        code: data.code,
+        discountAmount: data.discount_amount,
+        clubBeneficiosOnly: data.club_beneficios_only,
+      });
+      setCouponInput(data.code);
+    } catch (e: unknown) {
+      setAppliedCoupon(null);
+      setCouponError(e instanceof Error ? e.message : "Cupón inválido");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
   const calculateTotal = () => {
     return cart.reduce((sum, item) => sum + getItemPrice(item), 0);
   };
 
-  const totalAmount = calculateTotal();
-  const canPayWithWallet = walletBalance >= totalAmount && !walletIsBlocked;
   const subtotal = calculateTotal();
+  const couponDiscount = appliedCoupon?.discountAmount ?? 0;
+  const subtotalAfterCoupon = Math.max(0, subtotal - couponDiscount);
+  const totalAmount = subtotalAfterCoupon;
+  const canPayWithWallet =
+    walletBalance >= subtotalAfterCoupon && !walletIsBlocked;
   const walletCreditApplied =
     useWalletCredit &&
     !isThirdPartyTransport &&
     !walletIsBlocked &&
     walletBalance > 0
-      ? Math.min(walletBalance, subtotal)
+      ? Math.min(walletBalance, subtotalAfterCoupon)
       : 0;
-  const payableSubtotal = Math.max(0, subtotal - walletCreditApplied);
+  const payableSubtotal = Math.max(0, subtotalAfterCoupon - walletCreditApplied);
 
   useEffect(() => {
-    if (payableSubtotal <= 0.01 && subtotal > 0.01) {
+    if (payableSubtotal <= 0.01 && subtotalAfterCoupon > 0.01) {
       setSelectedMethods([]);
       setMethodAmounts({});
       setEnableMultiPayment(false);
     }
-  }, [payableSubtotal, subtotal]);
+  }, [payableSubtotal, subtotalAfterCoupon]);
 
   /**
    * Calcula el costo de envío basado en la distancia
@@ -1675,7 +1737,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
         if (methodsToSet.length === 1 && !enableMultiPayment) {
           // Si solo hay un método y no es multi-pago, asignar el total completo
           const method = methodsToSet[0];
-          newMethodAmounts[method] = subtotal;
+          newMethodAmounts[method] = subtotalAfterCoupon;
         } else {
           methodsToSet.forEach(method => {
             if (methodAmounts[method]) {
@@ -1686,7 +1748,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
         setMethodAmounts(newMethodAmounts);
       }
     }
-  }, [isThirdPartyTransport, enableMultiPayment, selectedMethods, methodAmounts, subtotal]);
+  }, [isThirdPartyTransport, enableMultiPayment, selectedMethods, methodAmounts, subtotalAfterCoupon]);
 
   // Multi-payment derived values (métodos = solo tarjeta / efectivo / transferencia; billetera va aparte)
   const isMultiPayment = enableMultiPayment && selectedMethods.length > 1;
@@ -2105,6 +2167,69 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
 
   const selectedAddress = addresses.find((addr) => addr.id === selectedAddressId);
   const needsEmailVerification = !!(isAuthenticated && user && !user.email_verified);
+
+  const couponFields = (
+    <>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Código de descuento
+      </label>
+      <div className="flex flex-col sm:flex-row gap-2">
+        <input
+          type="text"
+          value={couponInput}
+          onChange={(e) => {
+            setCouponInput(e.target.value.toUpperCase());
+            setCouponError("");
+          }}
+          placeholder="Ej: VERANO2026"
+          disabled={couponLoading || !isAuthenticated}
+          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-[#00C1A7] focus:border-[#00C1A7] bg-white disabled:bg-gray-100"
+        />
+        <button
+          type="button"
+          onClick={() => void handleApplyCoupon()}
+          disabled={couponLoading || !isAuthenticated}
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-[#00C1A7] text-white hover:opacity-90 disabled:opacity-50"
+        >
+          {couponLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin inline" />
+          ) : (
+            "Aplicar"
+          )}
+        </button>
+      </div>
+      {!isAuthenticated && (
+        <p className="text-xs text-gray-500 mt-1">
+          Iniciá sesión para validar un cupón.
+        </p>
+      )}
+      {couponError && (
+        <p className="text-sm text-red-600 mt-2">{couponError}</p>
+      )}
+      {appliedCoupon && appliedCoupon.discountAmount > 0.01 && (
+        <div className="mt-2 flex items-center justify-between text-sm text-[#00A896]">
+          <span>
+            Cupón {appliedCoupon.code}
+            {appliedCoupon.clubBeneficiosOnly
+              ? " (Club Beneficios)"
+              : ""}{" "}
+            −{formatPrice(appliedCoupon.discountAmount)}
+          </span>
+          <button
+            type="button"
+            className="text-gray-500 hover:text-gray-800 text-xs underline"
+            onClick={() => {
+              setAppliedCoupon(null);
+              setCouponInput("");
+              setCouponError("");
+            }}
+          >
+            Quitar
+          </button>
+        </div>
+      )}
+    </>
+  );
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -3427,6 +3552,9 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                   </div>
                 )}
 
+                {/* Cupón: encima del código de referido */}
+                <div className="mt-4 pt-4 border-t border-gray-200">{couponFields}</div>
+
                 {/* Código de Referido */}
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -3548,6 +3676,16 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                       {formatPrice(subtotal)}
                     </span>
                   </div>
+                  {couponDiscount > 0.01 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-[#00A896]">
+                        Cupón{appliedCoupon?.clubBeneficiosOnly ? " (Club Beneficios)" : ""}
+                      </span>
+                      <span className="text-sm font-semibold text-[#00A896]">
+                        −{formatPrice(couponDiscount)}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Wallet Discount */}
                   {hasWalletPayment && walletDiscount > 0 && (

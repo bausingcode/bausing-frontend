@@ -11,8 +11,7 @@ import { useLocality } from "@/contexts/LocalityContext";
 import { ChevronDown, Minus, Plus, SlidersHorizontal, X } from "lucide-react";
 import {
   calculateProductPrice,
-  PRICE_UI_TRANSFER_CAPTION,
-  PRICE_UI_CARD_CAPTION,
+  productCardPriceDisplayFromPriceInfo,
 } from "@/utils/priceUtils";
 
 // ============================================
@@ -895,7 +894,7 @@ export default function CatalogoContent({
   const params = useParams();
   const searchParams = useSearchParams();
   const slug = params?.slug as string[];
-  const { locality } = useLocality();
+  const { locality, isLoading: localityLoading } = useLocality();
 
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [loading, setLoading] = useState(false);
@@ -1373,6 +1372,10 @@ export default function CatalogoContent({
   
   // Obtener productos
   useEffect(() => {
+    if (localityLoading) {
+      return;
+    }
+
     // No cargar productos si las categorías aún no están cargadas y hay un slug
     // Esto evita cargar productos con categoryId incorrecto
     if (slug && slug.length > 0 && isLoadingCategories) {
@@ -1611,7 +1614,7 @@ export default function CatalogoContent({
     };
     
     loadProducts();
-  }, [page, sortBy, categoryId, subcategoryId, subcategoryName, subcategory2Name, searchQuery, perPage, selectedFilters, hasActiveFilters, categories, categoryIdMap, slug, isLoadingCategories, locality?.id, priceRange]);
+  }, [page, sortBy, categoryId, subcategoryId, subcategoryName, subcategory2Name, searchQuery, perPage, selectedFilters, hasActiveFilters, categories, categoryIdMap, slug, isLoadingCategories, locality?.id, localityLoading, priceRange]);
   
   const sortOptions = [
     { value: "created_at_desc", label: "Más recientes" },
@@ -1634,18 +1637,19 @@ export default function CatalogoContent({
 
     // Calcular precio usando función centralizada
     const priceInfo = calculateProductPrice(product, 1);
-    
+    const cardFields = productCardPriceDisplayFromPriceInfo(priceInfo);
+
     return {
       id: product.id,
       image,
       alt: product.name,
       name: product.name,
-      currentPrice: priceInfo.transferPrice,
+      currentPrice: cardFields.currentPrice,
       originalPrice: priceInfo.originalPrice,
       discount: priceInfo.discount,
-      priceNote: priceInfo.hasCardPrice ? PRICE_UI_TRANSFER_CAPTION : undefined,
-      secondaryPrice: priceInfo.hasCardPrice ? priceInfo.cardPrice : undefined,
-      secondaryPriceLabel: priceInfo.hasCardPrice ? PRICE_UI_CARD_CAPTION : undefined,
+      priceNote: cardFields.priceNote,
+      secondaryPrice: cardFields.secondaryPrice,
+      secondaryPriceLabel: cardFields.secondaryPriceLabel,
     };
   };
   
@@ -2200,7 +2204,10 @@ export default function CatalogoContent({
               <>
                 <div className={`grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6 mb-8 transition-all duration-300 ease-in-out [&>*]:min-w-0 ${filtersExpanded ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
                   {products.map((product) => (
-                    <ProductCard key={product.id} {...getProductCardProps(product)} />
+                    <ProductCard
+                      key={`${product.id}-${locality?.id ?? "no-locality"}`}
+                      {...getProductCardProps(product)}
+                    />
                   ))}
                 </div>
                 

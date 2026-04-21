@@ -22,6 +22,7 @@ import {
   initializeCatalogCache,
   PRICE_UI_TRANSFER_CAPTION,
   PRICE_UI_CARD_CAPTION,
+  productCardPriceDisplayFromPriceInfo,
 } from "@/utils/priceUtils";
 import { getPromoLabel } from "@/utils/promoUtils";
 
@@ -404,15 +405,16 @@ export default function ProductDetailPage() {
               // Calcular precio usando función centralizada
               const priceInfo = calculateProductPrice(p, 1);
               
+              const cardFields = productCardPriceDisplayFromPriceInfo(priceInfo);
               return {
                 id: p.id,
                 name: p.name,
-                currentPrice: priceInfo.transferPrice,
+                currentPrice: cardFields.currentPrice,
                 originalPrice: priceInfo.originalPrice,
                 discount: priceInfo.discount,
-                priceNote: priceInfo.hasCardPrice ? PRICE_UI_TRANSFER_CAPTION : undefined,
-                secondaryPrice: priceInfo.hasCardPrice ? priceInfo.cardPrice : undefined,
-                secondaryPriceLabel: priceInfo.hasCardPrice ? PRICE_UI_CARD_CAPTION : undefined,
+                priceNote: cardFields.priceNote,
+                secondaryPrice: cardFields.secondaryPrice,
+                secondaryPriceLabel: cardFields.secondaryPriceLabel,
                 image: firstProductImageUrl(p),
               };
             });
@@ -1144,7 +1146,7 @@ export default function ProductDetailPage() {
                       const priceRow = (
                         <div className="flex items-baseline gap-2 md:gap-3 flex-wrap">
                           <span className="text-xl md:text-2xl font-semibold text-gray-900 tabular-nums">
-                            {priceInfo.transferPrice}
+                            {priceInfo.currentPrice}
                           </span>
                           {displayStrikethrough ? (
                             <span className="text-base md:text-lg text-gray-400 line-through tabular-nums">
@@ -1160,12 +1162,12 @@ export default function ProductDetailPage() {
                           {showDualPrice ? (
                             <div className="space-y-3 text-gray-900">
                               <div>
-                                <p className="text-sm font-medium text-[#00A890] mb-1">{PRICE_UI_TRANSFER_CAPTION}</p>
+                                <p className="text-sm font-medium text-[#00A890] mb-1">{PRICE_UI_CARD_CAPTION}</p>
                                 {priceRow}
                               </div>
                               <p className="text-sm text-gray-600">
-                                <span>{PRICE_UI_CARD_CAPTION}: </span>
-                                <span className="font-semibold text-gray-900 tabular-nums">{priceInfo.cardPrice}</span>
+                                <span>{PRICE_UI_TRANSFER_CAPTION}: </span>
+                                <span className="font-semibold text-gray-900 tabular-nums">{priceInfo.transferPrice}</span>
                               </p>
                             </div>
                           ) : (
@@ -1632,7 +1634,7 @@ export default function ProductDetailPage() {
           {showComboSection && (
             <div className="lg:col-span-3 order-1 lg:order-2">
               <div className="flex items-center justify-between mb-4 md:mb-6">
-                <h2 className="text-lg md:text-xl text-gray-900">Elegí tu combo</h2>
+                <h2 className="text-lg md:text-xl text-gray-900">Completa tu compra</h2>
                 {!isSpecialCategory && completedCombos.length > 3 && (
                   <Link
                     href={`/productos/${productId}/combos`}

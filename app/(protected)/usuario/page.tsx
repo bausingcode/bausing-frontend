@@ -1710,6 +1710,22 @@ export default function UsuarioPage() {
                                   <span className="text-xs md:text-sm text-gray-900">Sí</span>
                                 </div>
                               )}
+                              {selectedOrder.coupon_code &&
+                                selectedOrder.coupon_discount_amount != null &&
+                                selectedOrder.coupon_discount_amount > 0 && (
+                                  <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 pt-2 border-t border-gray-100">
+                                    <span className="text-xs md:text-sm text-[#00A896]">
+                                      Cupón {selectedOrder.coupon_code}
+                                    </span>
+                                    <span className="text-xs md:text-sm font-medium text-[#00A896]">
+                                      −$
+                                      {selectedOrder.coupon_discount_amount.toLocaleString("es-AR", {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      })}
+                                    </span>
+                                  </div>
+                                )}
                               <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 pt-2 md:pt-3 border-t border-gray-200">
                                 <span className="text-sm md:text-base font-semibold text-gray-900">Total:</span>
                                 <span className="text-base md:text-lg font-bold text-gray-900">

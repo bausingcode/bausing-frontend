@@ -107,13 +107,41 @@ export interface ProductPriceInfo {
 export type PaymentPriceKind = "transfer" | "card";
 
 export interface CalculateProductPriceOptions {
-  /** Base numérica antes de promo: transfer (default) o tarjeta */
+  /** Base numérica antes de promo. Sin valor: tarjeta si existe `min_card_price`, si no transferencia. */
   paymentPriceKind?: PaymentPriceKind;
 }
 
 /** Textos para mostrar precio transferencia vs tarjeta (UI) */
 export const PRICE_UI_TRANSFER_CAPTION = "Efectivo o transferencia";
 export const PRICE_UI_CARD_CAPTION = "Precio con tarjeta";
+
+/**
+ * Indica si el producto tiene algún precio de lista (min agregado o tarjeta/transfer explícitos).
+ * Evita "Sin precio" cuando solo existe fila `card` en product_prices y min_price legacy es 0.
+ */
+export function productHasPositiveListPrice(
+  product: Pick<Product, "min_price" | "min_card_price" | "min_transfer_price">,
+): boolean {
+  const n = (v: unknown): v is number =>
+    typeof v === "number" && Number.isFinite(v) && v > 0;
+  return n(product.min_price) || n(product.min_card_price) || n(product.min_transfer_price);
+}
+
+/** Mismo criterio que el precio mostrado: tarjeta si existe; si no, min_price / transfer. */
+export function productListingPriceForSort(
+  product: Pick<Product, "min_price" | "min_card_price" | "min_transfer_price">,
+): number {
+  const n = (v: unknown): number | null => {
+    if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) return null;
+    return v;
+  };
+  return (
+    n(product.min_card_price) ??
+    n(product.min_price) ??
+    n(product.min_transfer_price) ??
+    Number.POSITIVE_INFINITY
+  );
+}
 
 /**
  * Formatea un precio numérico a string en formato argentino
@@ -140,12 +168,38 @@ export function formatPrice(price: number): string {
  * @param quantity - Cantidad (default: 1)
  * @returns Información completa del precio calculado
  */
+/**
+ * Props de precio para cards: el monto principal es el precio disponible (tarjeta)
+ * cuando existe `min_card_price`; si también hay transferencia distinta, se muestra abajo.
+ */
+export function productCardPriceDisplayFromPriceInfo(priceInfo: ProductPriceInfo): {
+  currentPrice: string;
+  priceNote?: string;
+  secondaryPrice?: string;
+  secondaryPriceLabel?: string;
+} {
+  if (priceInfo.hasCardPrice) {
+    return {
+      currentPrice: priceInfo.currentPrice,
+      priceNote: PRICE_UI_CARD_CAPTION,
+      secondaryPrice: priceInfo.transferPrice,
+      secondaryPriceLabel: PRICE_UI_TRANSFER_CAPTION,
+    };
+  }
+  return { currentPrice: priceInfo.currentPrice };
+}
+
 export function calculateProductPrice(
   product: Product,
   quantity: number = 1,
   options?: CalculateProductPriceOptions
 ): ProductPriceInfo {
-  const paymentKind: PaymentPriceKind = options?.paymentPriceKind ?? "transfer";
+  const hasCardMin =
+    product.min_card_price !== undefined &&
+    product.min_card_price !== null &&
+    product.min_card_price > 0;
+  const paymentKind: PaymentPriceKind =
+    options?.paymentPriceKind ?? (hasCardMin ? "card" : "transfer");
   const transferMin =
     product.min_transfer_price !== undefined &&
     product.min_transfer_price !== null &&

@@ -5,8 +5,7 @@ import { useLocality } from "@/contexts/LocalityContext";
 import { fetchProducts, Product } from "@/lib/api";
 import {
   calculateProductPrice,
-  PRICE_UI_TRANSFER_CAPTION,
-  PRICE_UI_CARD_CAPTION,
+  productCardPriceDisplayFromPriceInfo,
 } from "@/utils/priceUtils";
 import ProductCard from "@/components/ProductCard";
 import { firstProductImageUrl } from "@/lib/productImagePlaceholder";
@@ -62,18 +61,19 @@ export default function ProductsWithLocality({
 
     // Calcular precio usando función centralizada
     const priceInfo = calculateProductPrice(product, 1);
+    const cardFields = productCardPriceDisplayFromPriceInfo(priceInfo);
 
     return {
       id: product.id,
       image,
       alt: product.name,
       name: product.name,
-      currentPrice: priceInfo.transferPrice,
+      currentPrice: cardFields.currentPrice,
       originalPrice: priceInfo.originalPrice,
       discount: priceInfo.discount,
-      priceNote: priceInfo.hasCardPrice ? PRICE_UI_TRANSFER_CAPTION : undefined,
-      secondaryPrice: priceInfo.hasCardPrice ? priceInfo.cardPrice : undefined,
-      secondaryPriceLabel: priceInfo.hasCardPrice ? PRICE_UI_CARD_CAPTION : undefined,
+      priceNote: cardFields.priceNote,
+      secondaryPrice: cardFields.secondaryPrice,
+      secondaryPriceLabel: cardFields.secondaryPriceLabel,
     };
   };
 

@@ -3594,6 +3594,8 @@ export async function createOrder(orderData: {
     holder_dni: string;
   };
   observations?: string;
+  /** Cupón validado en checkout (el backend recalcula el descuento; no confiar solo en el cliente) */
+  coupon_code?: string;
 }): Promise<any> {
   // Para orders, necesitamos usar la URL completa porque el rewrite elimina /api
   // El backend tiene la ruta en /api/orders (blueprint con url_prefix='/api' + ruta '/orders')
@@ -4337,6 +4339,9 @@ export interface Order {
   payment_processed?: boolean; // Indica si el pago fue procesado (campo payment_processed de la tabla orders)
   pay_on_delivery: boolean;
   total_amount: number;
+  /** Cupón usado en la compra (si aplica) */
+  coupon_code?: string | null;
+  coupon_discount_amount?: number | null;
   shipping_address: Address;
   items: OrderItem[];
   tracking_number?: string;
@@ -5777,6 +5782,39 @@ export async function deleteAdminCoupon(couponId: string): Promise<void> {
     const msg = json?.error || response.statusText;
     throw new Error(msg || "Error al eliminar cupón");
   }
+}
+
+export type CouponPreviewResult = {
+  code: string;
+  discount_amount: number;
+  club_beneficios_only: boolean;
+  discount_type: string;
+  discount_value: number;
+};
+
+/** Vista previa del descuento (misma lógica que el servidor al crear la orden) */
+export async function previewCouponCheckout(body: {
+  code: string;
+  items: Array<{ product_id: string; quantity: number; price: number }>;
+}): Promise<CouponPreviewResult> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/api/coupons/preview`
+      : `/api/api/coupons/preview`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getUserAuthHeaders(),
+    body: JSON.stringify({ code: body.code.trim(), items: body.items }),
+    cache: "no-store",
+  });
+
+  const json = await response.json().catch(() => null);
+  if (!response.ok || !json?.success) {
+    const msg = json?.error || response.statusText;
+    throw new Error(msg || "No se pudo validar el cupón");
+  }
+  return json.data as CouponPreviewResult;
 }
 
 /**
