@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import type { LucideIcon } from "lucide-react";
-import { PillowIcon, SheetsIcon } from "@/lib/navbarCustomIcons";
+import { BaulIcon, PillowIcon, RespaldoIcon, SheetsIcon } from "@/lib/navbarCustomIcons";
 import {
   AirVent,
   Bed,
@@ -31,6 +31,8 @@ import {
 
 const SheetsIconMenu = SheetsIcon as unknown as LucideIcon;
 const PillowIconMenu = PillowIcon as unknown as LucideIcon;
+const BaulIconMenu = BaulIcon as unknown as LucideIcon;
+const RespaldoIconMenu = RespaldoIcon as unknown as LucideIcon;
 
 const NAVBAR_ICON_MAP: Record<string, LucideIcon> = {
   Package,
@@ -60,6 +62,8 @@ const NAVBAR_ICON_MAP: Record<string, LucideIcon> = {
   Sparkles,
   SheetsIcon: SheetsIconMenu,
   PillowIcon: PillowIconMenu,
+  BaulIcon: BaulIconMenu,
+  RespaldoIcon: RespaldoIconMenu,
 };
 
 export type NavbarMenuIconKey = keyof typeof NAVBAR_ICON_MAP;
@@ -93,11 +97,18 @@ const NAVBAR_ICON_LABELS_ES: Record<NavbarMenuIconKey, string> = {
   Package: "Paquete (predeterminado)",
   SheetsIcon: "Sábanas",
   PillowIcon: "Almohadas",
+  BaulIcon: "Baúl",
+  RespaldoIcon: "Respaldo",
 };
 
 const COLCHONES_MENU_ICON_KEYS: NavbarMenuIconKey[] = ["CreditCard"];
 /** Sábanas / almohadas — mismos SVG que el mega menú, visibles al principio del desplegable. */
-const ACCESORIOS_MENU_ICON_KEYS: NavbarMenuIconKey[] = ["SheetsIcon", "PillowIcon"];
+const ACCESORIOS_MENU_ICON_KEYS: NavbarMenuIconKey[] = [
+  "SheetsIcon",
+  "PillowIcon",
+  "BaulIcon",
+  "RespaldoIcon",
+];
 
 const MENU_ICON_PRIORITY: NavbarMenuIconKey[] = [
   ...COLCHONES_MENU_ICON_KEYS,

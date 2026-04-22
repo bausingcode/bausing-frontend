@@ -48,7 +48,7 @@ import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchCategories, Category, type Event } from "@/lib/api";
 import { buildNavbarCategoryDataFromApi } from "@/lib/buildNavbarCategoryDataFromApi";
-import { PillowIcon, SheetsIcon } from "@/lib/navbarCustomIcons";
+import { BaulIcon, PillowIcon, RespaldoIcon, SheetsIcon } from "@/lib/navbarCustomIcons";
 
 // Icono de bajo mesada
 const BajoMesadaIcon = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
@@ -1491,7 +1491,7 @@ export default function Navbar({ event }: NavbarProps = {}) {
                             >
                               {item.icon && (
                                 <div className="flex-shrink-0" style={{ width: '80px' }}>
-                                  {item.icon === PillowIcon || item.icon === BedFrontIcon || item.icon === SheetsIcon || item.icon === BajoMesadaIcon ? (
+                                  {item.icon === PillowIcon || item.icon === BedFrontIcon || item.icon === SheetsIcon || item.icon === BaulIcon || item.icon === RespaldoIcon || item.icon === BajoMesadaIcon ? (
                                     item.icon === PillowIcon ? (
                                       <PillowIcon 
                                         className="text-[#00C1A7]" 
@@ -1506,6 +1506,16 @@ export default function Navbar({ event }: NavbarProps = {}) {
                                       <SheetsIcon 
                                         className="text-[#00C1A7]" 
                                         style={item.iconSize || { width: '40px', height: '40px' }} 
+                                      />
+                                    ) : item.icon === BaulIcon ? (
+                                      <BaulIcon
+                                        className="text-[#00C1A7]"
+                                        style={item.iconSize || { width: "40px", height: "40px" }}
+                                      />
+                                    ) : item.icon === RespaldoIcon ? (
+                                      <RespaldoIcon
+                                        className="text-[#00C1A7]"
+                                        style={item.iconSize || { width: "40px", height: "40px" }}
                                       />
                                     ) : (
                                       <BajoMesadaIcon 
@@ -1855,7 +1865,7 @@ export default function Navbar({ event }: NavbarProps = {}) {
                               >
                                 {item.icon && (
                                   <div className="flex-shrink-0" style={{ width: '80px' }}>
-                                    {item.icon === PillowIcon || item.icon === BedFrontIcon || item.icon === SheetsIcon || item.icon === BajoMesadaIcon ? (
+                                    {item.icon === PillowIcon || item.icon === BedFrontIcon || item.icon === SheetsIcon || item.icon === BaulIcon || item.icon === RespaldoIcon || item.icon === BajoMesadaIcon ? (
                                       item.icon === PillowIcon ? (
                                         <PillowIcon 
                                           className="text-[#00C1A7]" 
@@ -1870,6 +1880,16 @@ export default function Navbar({ event }: NavbarProps = {}) {
                                         <SheetsIcon 
                                           className="text-[#00C1A7]" 
                                           style={item.iconSize || { width: '40px', height: '40px' }} 
+                                        />
+                                      ) : item.icon === BaulIcon ? (
+                                        <BaulIcon
+                                          className="text-[#00C1A7]"
+                                          style={item.iconSize || { width: "40px", height: "40px" }}
+                                        />
+                                      ) : item.icon === RespaldoIcon ? (
+                                        <RespaldoIcon
+                                          className="text-[#00C1A7]"
+                                          style={item.iconSize || { width: "40px", height: "40px" }}
                                         />
                                       ) : (
                                         <BajoMesadaIcon 

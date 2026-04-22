@@ -191,3 +191,52 @@ export function SheetsIcon({ className, style }: NavbarSvgIconProps) {
     </svg>
   );
 }
+
+/** Baúl — contorno, junta de tapa (~⅓) y pestillo en el gozne. */
+export function BaulIcon({ className, style }: NavbarSvgIconProps) {
+  const top = 3.5;
+  const h = 16.5;
+  const lidY = top + h / 3;
+  return (
+    <svg
+      className={className}
+      style={style}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="0.5" y={top} width="23" height={h} rx="1" />
+      <line x1="1.25" y1={lidY} x2="22.75" y2={lidY} />
+      <line
+        x1="12"
+        y1={lidY - 1.4}
+        x2="12"
+        y2={lidY + 1.4}
+        strokeWidth={1.85}
+      />
+    </svg>
+  );
+}
+
+/** Respaldo de cama — panel superior redondeado y patas (estilo lineal). */
+export function RespaldoIcon({ className, style }: NavbarSvgIconProps) {
+  return (
+    <svg
+      className={className}
+      style={style}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="2" y="4.5" width="20" height="9" rx="1.5" />
+      <line x1="6.5" y1="13.5" x2="6.5" y2="17.5" />
+      <line x1="17.5" y1="13.5" x2="17.5" y2="17.5" />
+    </svg>
+  );
+}
