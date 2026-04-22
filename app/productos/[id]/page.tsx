@@ -115,15 +115,6 @@ const CATEGORY_COLCHONES_ID = "12788182-9221-4d8a-9bf5-1a00503dcd34";
 const CATEGORY_SOMMIERS_ID = "57e5e2e5-e054-4b18-84dc-be94a22e2994";
 const CATEGORY_OPTION_SOMMIER_FILTER = "04dbb0ef-d918-496e-ba9c-db61664f5d0";
 
-const DEBUG_PDP_PRICE =
-  process.env.NODE_ENV === "development" ||
-  process.env.NEXT_PUBLIC_DEBUG_PDP_PRICE === "1";
-
-function logPdpPriceDebug(label: string, data: Record<string, unknown>) {
-  if (!DEBUG_PDP_PRICE) return;
-  console.log(`[PDP price] ${label}`, data);
-}
-
 /** Barra 1–5: SOFT → 1, MEDIO → 3, FIRME → 5 (valores del admin: SOFT / MEDIO / FIRME). */
 function firmnessLabelToBarLevel(label: string | undefined | null): number {
   const key = (label ?? "").trim().toUpperCase();
@@ -251,23 +242,6 @@ function buildPdpTempApiProductForPrice(
   const hasDistinctTransferCard =
     transferAmt > 0 && cardAmt > 0 && Math.abs(transferAmt - cardAmt) > PRICE_TOL;
   const primaryMin = cardAmt > 0 ? cardAmt : transferAmt;
-
-  logPdpPriceDebug("buildPdpTempApiProductForPrice", {
-    productId: product.id,
-    localityId: locality?.id ?? null,
-    priceFromVariantSelection,
-    baseTransfer: basePriceWithoutPromos,
-    baseCard: baseCardWithoutPromos,
-    apiTransfer,
-    apiCard,
-    finalTransfer: transferAmt,
-    finalCard: cardAmt,
-    hasDistinctTransferCard,
-    min_transfer_out: hasDistinctTransferCard ? transferAmt : undefined,
-    min_card_out: cardAmt,
-    selectedVariant,
-    selectedVariantOptions,
-  });
 
   return {
     ...product,
@@ -1123,19 +1097,6 @@ export default function ProductDetailPage() {
 
                       const priceWithoutTaxes = priceInfo.currentPriceValue * 0.79;
                       const showDualPrice = Boolean(priceInfo.hasCardPrice && priceInfo.cardPrice);
-                      logPdpPriceDebug("calculateProductPrice (PDP hero)", {
-                        productId: product.id,
-                        tempMinTransfer: tempProduct.min_transfer_price,
-                        tempMinCard: tempProduct.min_card_price,
-                        tempMinPrice: tempProduct.min_price,
-                        transferPrice: priceInfo.transferPrice,
-                        cardPrice: priceInfo.cardPrice,
-                        transferPriceValue: priceInfo.transferPriceValue,
-                        cardPriceValue: priceInfo.cardPriceValue,
-                        hasCardPrice: priceInfo.hasCardPrice,
-                        showDualPrice,
-                        currentPriceValue: priceInfo.currentPriceValue,
-                      });
                       const promoBadge = shouldShowDiscount && discountLabel && (
                         <span className="bg-[#00C1A7] text-white px-2 py-0.5 md:py-1 rounded-[4px] font-semibold text-xs md:text-sm shrink-0">
                           {discountLabel}

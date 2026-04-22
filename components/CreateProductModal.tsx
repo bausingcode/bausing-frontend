@@ -75,6 +75,15 @@ function parseDisplayReferencePriceForPayload(raw: string): number | null {
   return n;
 }
 
+/** Viacargo: número ≥ 0 o vacío → null (borrar en backend). */
+function parseViacargoOptionalNumber(raw: string): number | null {
+  const t = String(raw).trim();
+  if (!t) return null;
+  const n = parseFloat(t.replace(",", "."));
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
+}
+
 interface CreateProductModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -112,7 +121,11 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   const [hasMoistureBreathers, setHasMoistureBreathers] = useState(false);
   const [hasSideHandles, setHasSideHandles] = useState(false);
   const [sizeLabel, setSizeLabel] = useState("");
-  
+  const [viacargoAlto, setViacargoAlto] = useState("");
+  const [viacargoAncho, setViacargoAncho] = useState("");
+  const [viacargoProfundidad, setViacargoProfundidad] = useState("");
+  const [viacargoPeso, setViacargoPeso] = useState("");
+
   // Images
   const [images, setImages] = useState<Array<{ image_url: string; alt_text?: string; position: number }>>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -371,6 +384,10 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setDescription("");
         setIsActive(crmProduct.is_active ?? true);
         setImages([]);
+        setViacargoAlto("");
+        setViacargoAncho("");
+        setViacargoProfundidad("");
+        setViacargoPeso("");
       } else {
         // New product
         setName("");
@@ -390,6 +407,10 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setIsBedInBox(false);
         setMattressFirmness("");
         setSizeLabel("");
+        setViacargoAlto("");
+        setViacargoAncho("");
+        setViacargoProfundidad("");
+        setViacargoPeso("");
         setImages([]);
         setDisplayReferencePrice("");
       }
@@ -458,6 +479,18 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 	            ? String(fullProduct.display_reference_price)
 	            : "",
 	        );
+        setViacargoAlto(
+          fullProduct.viacargo_height_cm != null ? String(fullProduct.viacargo_height_cm) : "",
+        );
+        setViacargoAncho(
+          fullProduct.viacargo_width_cm != null ? String(fullProduct.viacargo_width_cm) : "",
+        );
+        setViacargoProfundidad(
+          fullProduct.viacargo_depth_cm != null ? String(fullProduct.viacargo_depth_cm) : "",
+        );
+        setViacargoPeso(
+          fullProduct.viacargo_weight_kg != null ? String(fullProduct.viacargo_weight_kg) : "",
+        );
 	        
 	        // Imágenes
         if (fullProduct.images && fullProduct.images.length > 0) {
@@ -617,10 +650,6 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                   const { transfer: optionPrices, card: optionCardPrices } = splitCatalogPricesByKind(
                     option.prices
                   );
-                  if (Object.keys(optionPrices).length > 0 || Object.keys(optionCardPrices).length > 0) {
-                    console.log(`[PRICES] Option "${option.name}"`, { optionPrices, optionCardPrices });
-                  }
-                  
                   // Si ya existe esta combinación, actualizar precios (merge)
                   if (variantMap.has(attrKey)) {
                     const existing = variantMap.get(attrKey)!;
@@ -636,15 +665,6 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                       prices: { ...optionPrices },
                       cardPrices: { ...optionCardPrices },
                     });
-                    
-                    if (Object.keys(optionPrices).length > 0 || Object.keys(optionCardPrices).length > 0) {
-                      console.log(`[PRICES] Variante creada con precios:`, {
-                        attributes,
-                        optionName: option.name,
-                        prices: optionPrices,
-                        cardPrices: optionCardPrices,
-                      });
-                    }
                   }
                 });
               } else {
@@ -724,16 +744,6 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 
           // Cargar variantes desde el mapa
           const loadedVariants: Variant[] = Array.from(variantMap.values());
-          loadedVariants.forEach((variant, index) => {
-            const pricesCount = Object.keys(variant.prices).length;
-            if (pricesCount > 0) {
-              console.log(`[PRICES] Variante ${index} (${JSON.stringify(variant.attributes)}) tiene ${pricesCount} precio(s):`, variant.prices);
-              Object.entries(variant.prices).forEach(([catalogId, price]) => {
-                const catalog = catalogs.find(c => c.id === catalogId);
-                console.log(`[PRICES]   - Catálogo ${catalogId} (${catalog?.name || 'N/A'}): ${price}`);
-              });
-            }
-          });
 
           if (loadedVariants.length > 0) {
             setVariants(loadedVariants);
@@ -890,7 +900,6 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
             // Si coinciden, preservar las variantes existentes (con sus precios)
             if (currentCombos.length === expectedSorted.length && 
                 currentCombos.every((combo, i) => combo === expectedSorted[i])) {
-              console.log("[PRICES] Variantes actuales coinciden con atributos, preservando precios");
               return prev;
             }
           }
@@ -944,10 +953,6 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           return comboKey === variantKey;
         });
         
-        if (existingVariant) {
-          console.log(`[PRICES] Preservando precios para variante ${JSON.stringify(combo)}:`, existingVariant.prices);
-        }
-        
         return {
           attributes: combo,
           stock: 99999,
@@ -956,7 +961,6 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         };
       });
 
-      console.log(`[PRICES] Variantes generadas: ${newVariants.length}, precios preservados`);
       return newVariants;
     });
   };
@@ -1199,11 +1203,11 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 	          images: images,
 	          variants: variants.map(variantToApiPayload),
 	          display_reference_price: parseDisplayReferencePriceForPayload(displayReferencePrice),
+	          viacargo_height_cm: parseViacargoOptionalNumber(viacargoAlto),
+	          viacargo_width_cm: parseViacargoOptionalNumber(viacargoAncho),
+	          viacargo_depth_cm: parseViacargoOptionalNumber(viacargoProfundidad),
+	          viacargo_weight_kg: parseViacargoOptionalNumber(viacargoPeso),
 	        };
-
-        console.log("📦 [CRM] Creando producto CRM con datos:", JSON.stringify(productData, null, 2));
-        console.log("📦 [CRM] Variants:", variants);
-        console.log("📦 [CRM] Variants mapped:", productData.variants);
 
         const completedProduct = await completeCrmProduct(crmProduct.id, productData);
         
@@ -1238,15 +1242,14 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 	          size_label: showMattressFields && sizeLabel ? sizeLabel : undefined,
 	          variants: variants.map(variantToApiPayload),
 	          display_reference_price: parseDisplayReferencePriceForPayload(displayReferencePrice),
+	          viacargo_height_cm: parseViacargoOptionalNumber(viacargoAlto),
+	          viacargo_width_cm: parseViacargoOptionalNumber(viacargoAncho),
+	          viacargo_depth_cm: parseViacargoOptionalNumber(viacargoProfundidad),
+	          viacargo_weight_kg: parseViacargoOptionalNumber(viacargoPeso),
 	        };
-
-        console.log("📦 Creando producto con datos:", JSON.stringify(productData, null, 2));
-        console.log("📦 Variants:", variants);
-        console.log("📦 Variants mapped:", productData.variants);
 
         try {
           const createdProduct = await createCompleteProduct(productData);
-          console.log("✅ Producto creado exitosamente:", createdProduct);
           
           // Upload new images if any
           if (imageFiles.length > 0 && createdProduct.id) {
@@ -1255,8 +1258,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
             }
           }
         } catch (createError: any) {
-          console.error("❌ Error al crear producto:", createError);
-          console.error("❌ Error details:", createError.message);
+          console.error("Error al crear producto:", createError);
           throw createError;
         }
       }
@@ -1286,6 +1288,10 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       setHasMoistureBreathers(false);
       setHasSideHandles(false);
       setSizeLabel("");
+      setViacargoAlto("");
+      setViacargoAncho("");
+      setViacargoProfundidad("");
+      setViacargoPeso("");
       setDisplayReferencePrice("");
       setImages([]);
       setImageFiles([]);
@@ -1726,6 +1732,59 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                           className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors resize-none"
                           placeholder="Materiales utilizados en el producto"
                         />
+                      </div>
+
+                      <div className="border-t border-gray-200 pt-4">
+                        <h4 className="text-base font-medium text-gray-900 mb-3">Datos para Viacargo</h4>
+                        <p className="text-sm text-gray-500 mb-3">
+                          Dimensiones en centímetros y peso en kilogramos (opcional).
+                        </p>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Alto (cm)</label>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={viacargoAlto}
+                              onChange={(e) => setViacargoAlto(e.target.value)}
+                              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                              placeholder="Ej: 30"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Ancho (cm)</label>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={viacargoAncho}
+                              onChange={(e) => setViacargoAncho(e.target.value)}
+                              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                              placeholder="Ej: 100"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Profundidad (cm)</label>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={viacargoProfundidad}
+                              onChange={(e) => setViacargoProfundidad(e.target.value)}
+                              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                              placeholder="Ej: 200"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Peso (kg)</label>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={viacargoPeso}
+                              onChange={(e) => setViacargoPeso(e.target.value)}
+                              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                              placeholder="Ej: 25,5"
+                            />
+                          </div>
+                        </div>
                       </div>
 
                       {/* Toggle para campos específicos de colchones */}

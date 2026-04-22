@@ -80,7 +80,7 @@ export function getAuthHeadersServer(cookieHeader?: string | null): HeadersInit 
 }
 
 const API_BASE_URL = '/api'
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5050'
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:5050'
 // Categories API
 export interface Category {
   id: string;
@@ -457,6 +457,11 @@ export interface Product {
   max_transfer_price?: number;
   /** Solo vitrina: precio tachado si no hay descuento real por promo */
   display_reference_price?: number | null;
+  /** Viacargo (admin): dimensiones cm y peso kg */
+  viacargo_height_cm?: number | null;
+  viacargo_width_cm?: number | null;
+  viacargo_depth_cm?: number | null;
+  viacargo_weight_kg?: number | null;
   show_transfer_price_highlight?: boolean;
   price_range?: string;
   main_image?: string;
@@ -636,19 +641,6 @@ export async function fetchProductById(
     
     const data = await response.json();
     const product = data.success ? data.data : null;
-    if (options?.includeAllVariantPrices && product?.variants) {
-      let priceRows = 0;
-      for (const v of product.variants) {
-        for (const o of v.options || []) {
-          priceRows += (o.prices || []).length;
-        }
-      }
-      console.debug("[fetchProductById] include_all_variant_prices", {
-        productId,
-        variantCount: product.variants.length,
-        optionPriceRowCount: priceRows,
-      });
-    }
     return product;
   } catch (error) {
     console.error("Error fetching product:", error);
@@ -886,6 +878,10 @@ export async function completeCrmProduct(
     has_moisture_breathers?: boolean;
     has_side_handles?: boolean;
     size_label?: string;
+    viacargo_height_cm?: number | null;
+    viacargo_width_cm?: number | null;
+    viacargo_depth_cm?: number | null;
+    viacargo_weight_kg?: number | null;
     /** Solo vitrina (precio tachado de referencia). null para borrar. */
     display_reference_price?: number | null;
     sku?: string;
@@ -1137,6 +1133,10 @@ export async function createCompleteProduct(productData: {
   has_moisture_breathers?: boolean;
   has_side_handles?: boolean;
   size_label?: string;
+  viacargo_height_cm?: number | null;
+  viacargo_width_cm?: number | null;
+  viacargo_depth_cm?: number | null;
+  viacargo_weight_kg?: number | null;
   show_transfer_price_highlight?: boolean;
   /** Solo vitrina (tachado). null para borrar. */
   display_reference_price?: number | null;
@@ -1159,32 +1159,20 @@ export async function createCompleteProduct(productData: {
   }>;
 }): Promise<Product> {
   const url = `/api/products/complete`;
-  console.log("🌐 Enviando request a:", url);
-  console.log("🌐 Headers:", getAuthHeaders());
-  console.log("🌐 Body:", JSON.stringify(productData, null, 2));
-  
   const response = await fetch(url, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(productData),
   });
-  
-  console.log("📡 Response status:", response.status, response.statusText);
-  
   const responseData = await response.json();
-  console.log("📡 Response data:", JSON.stringify(responseData, null, 2));
-  
   if (!response.ok) {
-    console.error("❌ Error response:", responseData);
+    console.error("Error response:", responseData);
     throw new Error(responseData.error || `Failed to create product: ${response.statusText}`);
   }
-  
   if (!responseData.success || !responseData.data) {
-    console.error("❌ Invalid response structure:", responseData);
+    console.error("Invalid response structure:", responseData);
     throw new Error("Failed to create product: Invalid response");
   }
-  
-  console.log("✅ Product created successfully:", responseData.data);
   return responseData.data;
 }
 
@@ -1775,7 +1763,7 @@ export interface FooterData {
  * Get footer data (public - no auth required)
  */
 export async function getFooterData(): Promise<FooterData> {
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5050';
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:5050';
   
   // En servidor, llamar directamente al backend; en cliente, usar rewrite de Next.js
   const url = typeof window === "undefined"
@@ -2315,7 +2303,7 @@ export async function getLocalPageImage(): Promise<string | null> {
     params.append('position', '5');
     params.append('active', 'true');
 
-    const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5050';
+    const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:5050';
     const url = typeof window === "undefined"
       ? `${BACKEND_URL}/hero-images?${params.toString()}`
       : `/api/hero-images?${params.toString()}`;
@@ -3627,41 +3615,29 @@ export async function createOrder(orderData: {
   const url = typeof window === "undefined"
     ? `/api/api/orders`
     : `${BACKEND_URL}/api/orders`;
-  
-  console.log("[API] URL:", url);
-  console.log("[API] Order data being sent:", JSON.stringify(orderData, null, 2));
   try {
     const response = await fetch(url, {
       method: "POST",
       headers: getUserAuthHeaders(),
       body: JSON.stringify(orderData),
     });
-    
-    console.log("[API] Response status:", response.status, response.statusText);
-    
     // Verificar si la respuesta es JSON
     const contentType = response.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) {
       const text = await response.text();
-      console.error("[API] Response is not JSON. Text:", text);
+      console.error("Response is not JSON. Text:", text);
       throw new Error(`Error al crear orden: ${response.status} ${response.statusText}. ${text}`);
     }
-    
     const data = await response.json();
-    console.log("[API] Response data:", JSON.stringify(data, null, 2));
-    
     if (!response.ok) {
-      console.error("[API] Response not OK. Error:", data.error || data.message);
+      console.error("Response not OK. Error:", data.error || data.message);
       throw new Error(data.error || data.message || `Error al crear orden: ${response.status}`);
     }
-    
     // Retornar tanto data.data como los campos adicionales como mercadopago
     const result = data.data || data;
-    // Si hay campos adicionales en data (como mercadopago), agregarlos al resultado
     if (data.mercadopago) {
       result.mercadopago = data.mercadopago;
     }
-    console.log("[API] Returning result:", JSON.stringify(result, null, 2));
     return result;
   } catch (error: any) {
     // Si es un error de red, proporcionar un mensaje más claro
@@ -5301,42 +5277,6 @@ function _normalizeHomepageAdminPayload(raw: unknown): HomepageDistributionAdmin
   throw new Error("Formato de distribución no reconocido");
 }
 
-/** Debug en consola del navegador (filtrar: "Distribución inicio") */
-function _debugLogHomepageAdminRaw(data: unknown): void {
-  if (typeof window === "undefined") return;
-  const P = "[Distribución inicio API]";
-  try {
-    const root = data as Record<string, unknown>;
-    const inner = root?.data;
-    console.log(P, "success:", root?.success, "top-level keys:", inner && typeof inner === "object" ? Object.keys(inner as object) : typeof inner);
-    if (!inner || typeof inner !== "object") {
-      console.log(P, "data (raw):", inner);
-      return;
-    }
-    const o = inner as Record<string, unknown>;
-    for (const sec of ["featured", "discounts", "mattresses", "complete_purchase"] as const) {
-      const arr = o[sec];
-      if (!Array.isArray(arr)) {
-        console.log(P, sec, "→ no es array:", arr);
-        continue;
-      }
-      const filled = arr.filter((x) => x != null).length;
-      const sample = arr.find((x) => x != null) as Record<string, unknown> | undefined;
-      const sampleInfo = sample
-        ? {
-            keys: Object.keys(sample),
-            product_id: sample.product_id,
-            has_product: !!sample.product,
-            product_name: (sample.product as { name?: string } | undefined)?.name,
-          }
-        : null;
-      console.log(P, sec, `slots=${arr.length} con_dato=${filled}`, "muestra:", sampleInfo);
-    }
-  } catch (e) {
-    console.warn(P, "debug falló", e);
-  }
-}
-
 /**
  * Fetch homepage product distribution (admin): published + draft merged
  */
@@ -5361,14 +5301,7 @@ export async function fetchHomepageDistribution(): Promise<HomepageDistributionA
       throw new Error(data.error || "Failed to fetch homepage distribution");
     }
 
-    _debugLogHomepageAdminRaw(data);
-
     const normalized = _normalizeHomepageAdminPayload(data.data);
-    if (typeof window !== "undefined") {
-      console.log("[Distribución inicio API]", "normalizado OK", {
-        has_unpublished_changes: normalized.has_unpublished_changes,
-      });
-    }
     return normalized;
   } catch (error) {
     console.error("Error fetching homepage distribution:", error);

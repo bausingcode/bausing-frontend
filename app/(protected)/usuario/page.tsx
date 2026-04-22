@@ -29,6 +29,7 @@ import {
   type ReferralStats,
   type ReferralHistoryItem,
 } from "@/lib/api";
+import { postalCodeDigitsOnly } from "@/utils/postalCodeInput";
 import {
   Calendar,
   FileText,
@@ -712,6 +713,9 @@ export default function UsuarioPage() {
                           if (!addressForm.street || !addressForm.number || !addressForm.postal_code || !addressForm.city || !addressForm.province_id) {
                             throw new Error("Calle, número, código postal, ciudad y provincia son obligatorios.");
                           }
+                          if (addressForm.postal_code.length < 4) {
+                            throw new Error("El código postal debe tener al menos 4 dígitos.");
+                          }
                           if (!addressForm.full_name || !addressForm.phone) {
                             throw new Error("Nombre completo y teléfono del destinatario son obligatorios.");
                           }
@@ -802,10 +806,17 @@ export default function UsuarioPage() {
                           <label className="text-sm font-medium text-gray-700">Código postal *</label>
                           <input
                             type="text"
+                            inputMode="numeric"
+                            maxLength={8}
                             value={addressForm.postal_code}
-                            onChange={(e) => setAddressForm((prev) => ({ ...prev, postal_code: e.target.value }))}
+                            onChange={(e) =>
+                              setAddressForm((prev) => ({
+                                ...prev,
+                                postal_code: postalCodeDigitsOnly(e.target.value),
+                              }))
+                            }
                             className="block w-full px-3 py-3 border border-gray-300 rounded-[10px] text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] focus:border-transparent"
-                            placeholder="Ej: 1405"
+                            placeholder="Ej: 5000 (solo números)"
                             required
                           />
                         </div>

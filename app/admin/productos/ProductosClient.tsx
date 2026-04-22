@@ -727,23 +727,8 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
   }, [viewingCatalogs]);
 
   const adminProductPriceDetailRows = useMemo(() => {
-    const rows = collectAdminProductPriceRows(viewingProductData, viewingCatalogNameById);
-    if (typeof window !== "undefined" && viewingProductData?.id) {
-      let rawOptionPrices = 0;
-      for (const v of viewingProductData.variants || []) {
-        for (const o of v.options || []) {
-          rawOptionPrices += ((o as { prices?: unknown[] }).prices || []).length;
-        }
-      }
-      console.debug("[admin/productos] precios detalle", {
-        productId: viewingProductData.id,
-        filasTablaAdmin: rows.length,
-        filasEnPayloadOpciones: rawOptionPrices,
-        catalogosCargados: viewingCatalogs.length,
-      });
-    }
-    return rows;
-  }, [viewingProductData, viewingCatalogNameById, viewingCatalogs.length]);
+    return collectAdminProductPriceRows(viewingProductData, viewingCatalogNameById);
+  }, [viewingProductData, viewingCatalogNameById]);
 
 
   return (
@@ -2193,6 +2178,50 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                             <div>
                               <span className="text-sm font-medium text-gray-600 block mb-1">Materiales:</span>
                               <span className="text-sm text-gray-900 whitespace-pre-wrap">{(viewingProductData as any).materials}</span>
+                            </div>
+                          )}
+
+                          {/* Viacargo */}
+                          {(((viewingProductData as any).viacargo_height_cm != null &&
+                            (viewingProductData as any).viacargo_height_cm !== "") ||
+                            ((viewingProductData as any).viacargo_width_cm != null &&
+                              (viewingProductData as any).viacargo_width_cm !== "") ||
+                            ((viewingProductData as any).viacargo_depth_cm != null &&
+                              (viewingProductData as any).viacargo_depth_cm !== "") ||
+                            ((viewingProductData as any).viacargo_weight_kg != null &&
+                              (viewingProductData as any).viacargo_weight_kg !== "")) && (
+                            <div>
+                              <span className="text-sm font-medium text-gray-600 block mb-2">Viacargo</span>
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                                {(viewingProductData as any).viacargo_height_cm != null &&
+                                  (viewingProductData as any).viacargo_height_cm !== "" && (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">Alto</span>
+                                      <span className="text-gray-900">{(viewingProductData as any).viacargo_height_cm} cm</span>
+                                    </div>
+                                  )}
+                                {(viewingProductData as any).viacargo_width_cm != null &&
+                                  (viewingProductData as any).viacargo_width_cm !== "" && (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">Ancho</span>
+                                      <span className="text-gray-900">{(viewingProductData as any).viacargo_width_cm} cm</span>
+                                    </div>
+                                  )}
+                                {(viewingProductData as any).viacargo_depth_cm != null &&
+                                  (viewingProductData as any).viacargo_depth_cm !== "" && (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">Profundidad</span>
+                                      <span className="text-gray-900">{(viewingProductData as any).viacargo_depth_cm} cm</span>
+                                    </div>
+                                  )}
+                                {(viewingProductData as any).viacargo_weight_kg != null &&
+                                  (viewingProductData as any).viacargo_weight_kg !== "" && (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">Peso</span>
+                                      <span className="text-sm text-gray-900">{(viewingProductData as any).viacargo_weight_kg} kg</span>
+                                    </div>
+                                  )}
+                              </div>
                             </div>
                           )}
 

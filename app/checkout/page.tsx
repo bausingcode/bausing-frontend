@@ -19,7 +19,6 @@ import {
   previewCouponCheckout,
   fetchCardTypes,
   fetchCardBankData,
-  getPricePerKm,
   type Address,
   type Product,
   type DocType,
@@ -45,41 +44,25 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { formatPrice, calculateProductPrice } from "@/utils/priceUtils";
+import { postalCodeDigitsOnly } from "@/utils/postalCodeInput";
 
 type PaymentMethodType = "card" | "cash" | "transfer" | "wallet";
 
-// Coordenadas de origen: Cnel. Juan P. Pringles 839, X5004 Córdoba, Argentina
-const ORIGIN_COORDINATES = {
-  lat: -31.4201, // Aproximado, se puede ajustar con geocodificación exacta
-  lon: -64.1888
-};
-
 /**
- * Calcula la distancia en kilómetros entre dos puntos usando la fórmula de Haversine
+ * CP para Vía Cargo / Busplus: 4 dígitos clásicos, o los 4 centrales del CPA (X1234ABC).
+ * Más de 4 dígitos seguidos sin formato CPA → se toman los primeros 4 (evita "10001" → inválido en Busplus).
  */
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Radio de la Tierra en kilómetros
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-/**
- * Parsea las coordenadas desde el formato "lat,lon" string
- */
-function parseCoordinates(latLonString: string | undefined | null): { lat: number; lon: number } | null {
-  if (!latLonString) return null;
-  const parts = latLonString.split(',');
-  if (parts.length !== 2) return null;
-  const lat = parseFloat(parts[0].trim());
-  const lon = parseFloat(parts[1].trim());
-  if (isNaN(lat) || isNaN(lon)) return null;
-  return { lat, lon };
+function normalizeArPostalCode(raw: string | undefined | null): string | null {
+  if (!raw) return null;
+  const s = raw.trim().toUpperCase().replace(/\s/g, "");
+  const cpa = /^([A-Z])?([0-9]{4})([A-Z]{3})?$/.exec(s);
+  if (cpa?.[2]) {
+    return cpa[2];
+  }
+  const d = raw.replace(/\D/g, "");
+  if (d.length < 4) return null;
+  if (d.length > 4) return d.slice(0, 4);
+  return d;
 }
 
 export default function CheckoutPage() {
@@ -93,6 +76,8 @@ export default function CheckoutPage() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
+  const [savingCheckoutAddress, setSavingCheckoutAddress] = useState(false);
+  const saveAddressInFlightRef = useRef(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [productsWithPrices, setProductsWithPrices] = useState<Record<string, Product>>({});
   const [loadingPrices, setLoadingPrices] = useState(false);
@@ -103,8 +88,10 @@ export default function CheckoutPage() {
   const [loadingProvinces, setLoadingProvinces] = useState(false);
   const [loadingSaleTypes, setLoadingSaleTypes] = useState(false);
   const [crmSaleTypeId, setCrmSaleTypeId] = useState<number>(1); // Default: Consumidor Final
-  const [pricePerKm, setPricePerKm] = useState<number>(105); // Precio por km desde configuración
-  
+  const [viacargoQuoteTotal, setViacargoQuoteTotal] = useState<number | null>(null);
+  const [viacargoQuoteError, setViacargoQuoteError] = useState<string | null>(null);
+  const [viacargoCotizarLoading, setViacargoCotizarLoading] = useState(false);
+
   // Registration and verification states
   const [showRegistration, setShowRegistration] = useState(false);
   const [registrationData, setRegistrationData] = useState({
@@ -326,10 +313,7 @@ export default function CheckoutPage() {
   // Check if active catalog is "pais" and check for third party transport
   useEffect(() => {
     const checkPaisCatalog = async () => {
-      console.log("[DEBUG] checkPaisCatalog ejecutado, locality?.id:", locality?.id);
-      
       if (!locality?.id) {
-        console.log("[DEBUG] No hay locality.id, reseteando valores");
         setIsPaisCatalog(false);
         setIsThirdPartyTransport(false);
         setConfiguredShippingPrice(null);
@@ -341,12 +325,10 @@ export default function CheckoutPage() {
 
       const shippingContextKey = `${locality.id}:${selectedAddressId ?? ""}`;
       if (lastShippingContextKeyRef.current === shippingContextKey) {
-        console.log("[DEBUG] Ya procesamos este contexto envío, saltando:", shippingContextKey);
         setShippingQuoteLoading(false);
         return;
       }
 
-      console.log("[DEBUG] Procesando envío para localidad + dirección:", shippingContextKey);
       const fetchForContextKey = shippingContextKey;
       lastShippingContextKeyRef.current = shippingContextKey;
       setShippingLocalityError(false);
@@ -364,28 +346,15 @@ export default function CheckoutPage() {
         
         if (savedLocality) {
           const parsedLocality = JSON.parse(savedLocality);
-          console.log("[DEBUG] LocalStorage locality:", {
-            id: parsedLocality.id,
-            is_third_party_transport: parsedLocality.is_third_party_transport,
-            shipping_price: parsedLocality.shipping_price
-          });
-          
+
           if (parsedLocality.id === locality.id) {
             if (parsedLocality.is_third_party_transport !== undefined) {
               localIsThirdParty = parsedLocality.is_third_party_transport;
               localShippingPrice = parsedLocality.shipping_price !== undefined && parsedLocality.shipping_price !== null 
                 ? parsedLocality.shipping_price 
                 : null;
-              console.log("[DEBUG] Valores localStorage (solo referencia para diff):", {
-                isThirdParty: localIsThirdParty,
-                shippingPrice: localShippingPrice
-              });
             }
-          } else {
-            console.log("[DEBUG] LocalStorage locality.id no coincide con locality.id actual");
           }
-        } else {
-          console.log("[DEBUG] No hay savedLocality en localStorage");
         }
 
         // Misma fuente que LocalityContext: con address_id + token si hay, no solo IP genérica
@@ -402,7 +371,6 @@ export default function CheckoutPage() {
             detectHeaders["Authorization"] = `Bearer ${token}`;
           }
         }
-        console.log("[DEBUG] Haciendo fetch a", detectUrl);
         const detectResponse = await fetch(detectUrl, {
           method: "GET",
           headers: detectHeaders,
@@ -410,11 +378,6 @@ export default function CheckoutPage() {
         
         if (detectResponse.ok) {
           const detectData = await detectResponse.json();
-          console.log("[DEBUG] Respuesta de detect-locality:", {
-            success: detectData.success,
-            is_third_party_transport: detectData.data?.is_third_party_transport,
-            shipping_price: detectData.data?.shipping_price
-          });
 
           if (!detectData.success || !detectData.data) {
             setShippingLocalityError(true);
@@ -456,14 +419,6 @@ export default function CheckoutPage() {
             const serverShippingPrice = detectData.data.shipping_price !== undefined && detectData.data.shipping_price !== null 
               ? detectData.data.shipping_price 
               : null;
-            
-            console.log("[DEBUG] Comparando valores:", {
-              localIsThirdParty,
-              serverIsThirdParty,
-              localShippingPrice,
-              serverShippingPrice,
-              serverHasValue: detectData.data.is_third_party_transport !== undefined
-            });
 
             if (detectData.data.is_third_party_transport !== undefined) {
               setIsThirdPartyTransport(serverIsThirdParty);
@@ -471,11 +426,10 @@ export default function CheckoutPage() {
             }
           }
         } else {
-          console.log("[DEBUG] Error en detect-locality response:", detectResponse.status);
           setShippingLocalityError(true);
         }
       } catch (error) {
-        console.error("[DEBUG] Error checking pais catalog and third party transport:", error);
+        console.error("Error checking pais catalog and third party transport:", error);
         setIsPaisCatalog(false);
         setIsThirdPartyTransport(false);
         setConfiguredShippingPrice(null);
@@ -489,16 +443,6 @@ export default function CheckoutPage() {
 
     checkPaisCatalog();
   }, [locality?.id, selectedAddressId]);
-
-  // Debug: Monitorear cambios en isThirdPartyTransport y configuredShippingPrice
-  useEffect(() => {
-    console.log("[DEBUG] Estado actualizado:", {
-      isThirdPartyTransport,
-      configuredShippingPrice,
-      localityId: locality?.id,
-      timestamp: new Date().toISOString()
-    });
-  }, [isThirdPartyTransport, configuredShippingPrice, locality?.id]);
 
   // Load product prices based on locality
   useEffect(() => {
@@ -572,11 +516,10 @@ export default function CheckoutPage() {
         isDetectingLocalityRef.current = true;
         lastAddressIdRef.current = selectedAddressId;
         try {
-          console.log("[Checkout] Dirección cambiada, detectando localidad para:", selectedAddressId);
           await selectAddress(selectedAddressId);
           // Los precios se recalcularán automáticamente cuando cambie locality?.id
         } catch (error) {
-          console.error("[Checkout] Error al detectar localidad para la dirección:", error);
+          console.error("Error al detectar localidad para la dirección:", error);
           // Resetear el ref en caso de error para permitir reintentos
           lastAddressIdRef.current = null;
         } finally {
@@ -611,21 +554,6 @@ export default function CheckoutPage() {
     };
 
     loadCardData();
-  }, []);
-
-  // Load price per km from settings
-  useEffect(() => {
-    const loadPricePerKm = async () => {
-      try {
-        const price = await getPricePerKm();
-        setPricePerKm(price);
-      } catch (error) {
-        console.error("Error loading price per km:", error);
-        // Si falla, mantener el valor por defecto (105)
-      }
-    };
-
-    loadPricePerKm();
   }, []);
 
   const loadAddresses = async () => {
@@ -739,7 +667,8 @@ export default function CheckoutPage() {
   };
 
   const handleAddressInputChange = (field: string, value: string) => {
-    setAddressForm((prev) => ({ ...prev, [field]: value }));
+    const v = field === "postal_code" ? postalCodeDigitsOnly(value) : value;
+    setAddressForm((prev) => ({ ...prev, [field]: v }));
   };
 
   const validateForm = (): boolean => {
@@ -790,6 +719,8 @@ export default function CheckoutPage() {
       }
       if (!addressForm.postal_code.trim()) {
         newErrors.address_postal_code = "El código postal es obligatorio";
+      } else if (addressForm.postal_code.length < 4) {
+        newErrors.address_postal_code = "Ingresá al menos 4 dígitos del código postal";
       }
       if (!addressForm.city.trim()) {
         newErrors.address_city = "La ciudad es obligatoria";
@@ -837,11 +768,30 @@ export default function CheckoutPage() {
 
     // Los campos de tarjeta ya no se validan porque siempre se abona al recibir
 
+    if (isPaisCatalog && !isThirdPartyTransport && cart.length > 0) {
+      const sel = addresses.find((a) => a.id === selectedAddressId);
+      const cpO = normalizeArPostalCode(sel?.postal_code);
+      if (locality?.id && !shippingLocalityError && sel && cpO) {
+        if (viacargoCotizarLoading) {
+          newErrors.address = "Esperá a que termine el cálculo del costo de envío";
+        } else if (viacargoQuoteError) {
+          newErrors.address = viacargoQuoteError;
+        } else if (viacargoQuoteTotal === null) {
+          newErrors.address = "No se pudo obtener el costo de envío";
+        }
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSaveAddress = async () => {
+  const handleSaveAddress = async (): Promise<boolean> => {
+    if (saveAddressInFlightRef.current) {
+      return false;
+    }
+    saveAddressInFlightRef.current = true;
+    setSavingCheckoutAddress(true);
     try {
       const newAddress = await createUserAddress({
         full_name: addressForm.full_name,
@@ -867,8 +817,13 @@ export default function CheckoutPage() {
         city: "",
         province_id: "",
       });
+      return true;
     } catch (error: any) {
       setErrors({ address: error?.message || "Error al guardar la dirección" });
+      return false;
+    } finally {
+      saveAddressInFlightRef.current = false;
+      setSavingCheckoutAddress(false);
     }
   };
 
@@ -884,11 +839,37 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (isPaisCatalog && !isThirdPartyTransport) {
+      const selAddr = addresses.find((addr) => addr.id === selectedAddressId);
+      const cpOk = normalizeArPostalCode(selAddr?.postal_code);
+      if (!locality?.id || shippingLocalityError || !selAddr || !cpOk) {
+        setErrors({ address: "Ingresá un código postal válido en la dirección de envío" });
+        return;
+      }
+      if (viacargoCotizarLoading) {
+        setErrors({ address: "Esperá a que termine el cálculo del costo de envío" });
+        return;
+      }
+      if (viacargoQuoteError) {
+        setErrors({
+          address: viacargoQuoteError,
+        });
+        return;
+      }
+      if (viacargoQuoteTotal === null) {
+        setErrors({ address: "No se pudo obtener el costo de envío" });
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       // If showing address form, save it first
       if (showAddressForm) {
-        await handleSaveAddress();
+        const saved = await handleSaveAddress();
+        if (!saved) {
+          return;
+        }
       }
 
       const selectedAddress = addresses.find((addr) => addr.id === selectedAddressId);
@@ -928,25 +909,10 @@ export default function CheckoutPage() {
         
         if (localityResponse.ok) {
           const localityData = await localityResponse.json();
-          console.log("[Checkout] Respuesta de detect-locality:", JSON.stringify(localityData, null, 2));
-          
           if (localityData.success && localityData.data) {
-            // No actualizar aquí, el useEffect principal se encargará de esto
-            // if (localityData.data.is_third_party_transport !== undefined) {
-            //   setIsThirdPartyTransport(localityData.data.is_third_party_transport);
-            //   console.log("[Checkout] Transporte tercerizado actualizado:", localityData.data.is_third_party_transport);
-            // }
-            // if (localityData.data.shipping_price !== undefined && localityData.data.shipping_price !== null) {
-            //   setConfiguredShippingPrice(localityData.data.shipping_price);
-            //   console.log("[Checkout] Precio de envío actualizado:", localityData.data.shipping_price);
-            // }
-            
-            // Obtener catalog_id si está disponible en la respuesta
             if (localityData.data.catalog?.id) {
               catalogId = localityData.data.catalog.id;
-              console.log("[Checkout] Catalog ID obtenido de detect-locality:", catalogId);
             } else if (localityData.data.locality?.id) {
-              // Si no hay catalog en la respuesta, obtenerlo desde la localidad
               try {
                 const catalogResponse = await fetch(`/api/localities/${localityData.data.locality.id}/catalog`, {
                   method: "GET",
@@ -958,41 +924,25 @@ export default function CheckoutPage() {
                   const catalogData = await catalogResponse.json();
                   if (catalogData.success && catalogData.data?.catalog_id) {
                     catalogId = catalogData.data.catalog_id;
-                    console.log("[Checkout] Catalog ID obtenido desde endpoint:", catalogId);
                   }
                 }
-              } catch (catalogError) {
-                console.warn("[Checkout] No se pudo obtener catalog_id desde endpoint:", catalogError);
+              } catch {
+                /* catalog not required for order flow to continue */
               }
             }
-            
-            // El backend siempre debería retornar crm_zone_id (incluso si es del fallback)
             if (localityData.data.crm_zone_id) {
               crmZoneId = localityData.data.crm_zone_id;
-              console.log("[Checkout] Zona de entrega detectada por IP:", crmZoneId);
             } else {
-              console.warn("[Checkout] La respuesta no incluye crm_zone_id, intentando obtener del localStorage");
-              // Si no hay crm_zone_id en la respuesta, intentar obtener del localStorage
               try {
                 const savedLocality = localStorage.getItem("bausing_locality");
                 if (savedLocality) {
                   const parsedLocality = JSON.parse(savedLocality);
                   if (parsedLocality.crm_zone_id) {
                     crmZoneId = parsedLocality.crm_zone_id;
-                    console.log("[Checkout] Zona de entrega obtenida del localStorage:", crmZoneId);
                   }
-                  // También intentar obtener catalog_id del localStorage
                   if (!catalogId && parsedLocality.catalog_id) {
                     catalogId = parsedLocality.catalog_id;
-                    console.log("[Checkout] Catalog ID obtenido del localStorage:", catalogId);
                   }
-                  // No actualizar aquí, el useEffect principal se encargará de esto
-                  // if (localityData.data.is_third_party_transport === undefined && parsedLocality.is_third_party_transport) {
-                  //   setIsThirdPartyTransport(parsedLocality.is_third_party_transport);
-                  // }
-                  // if (localityData.data.shipping_price === undefined && parsedLocality.shipping_price !== undefined) {
-                  //   setConfiguredShippingPrice(parsedLocality.shipping_price);
-                  // }
                 }
               } catch (localStorageError) {
                 console.error("Error al obtener zona de entrega del localStorage:", localStorageError);
@@ -1000,50 +950,33 @@ export default function CheckoutPage() {
             }
           }
         } else {
-          console.error("[Checkout] Error en respuesta de detect-locality:", localityResponse.status, localityResponse.statusText);
-          // Fallback: intentar obtener del localStorage
+          console.error("Error en respuesta de detect-locality:", localityResponse.status, localityResponse.statusText);
           try {
             const savedLocality = localStorage.getItem("bausing_locality");
             if (savedLocality) {
               const parsedLocality = JSON.parse(savedLocality);
               if (parsedLocality.crm_zone_id) {
                 crmZoneId = parsedLocality.crm_zone_id;
-                console.log("[Checkout] Zona de entrega obtenida del localStorage (fallback):", crmZoneId);
               }
-              // También intentar obtener catalog_id del localStorage
               if (parsedLocality.catalog_id) {
                 catalogId = parsedLocality.catalog_id;
-                console.log("[Checkout] Catalog ID obtenido del localStorage (fallback):", catalogId);
               }
-              // No actualizar aquí, el useEffect principal se encargará de esto
-              // if (parsedLocality.is_third_party_transport) {
-              //   setIsThirdPartyTransport(true);
-              //   console.log("[Checkout] Transporte tercerizado obtenido del localStorage (fallback)");
-              // }
-              // if (parsedLocality.shipping_price !== undefined && parsedLocality.shipping_price !== null) {
-              //   setConfiguredShippingPrice(parsedLocality.shipping_price);
-              //   console.log("[Checkout] Precio de envío obtenido del localStorage (fallback):", parsedLocality.shipping_price);
-              // }
             }
           } catch (localStorageError) {
             console.error("Error al obtener zona de entrega del localStorage:", localStorageError);
           }
         }
       } catch (error) {
-        console.error("[Checkout] Error al detectar localidad por IP:", error);
-        // Fallback: intentar obtener del localStorage
+        console.error("Error al detectar localidad por IP:", error);
         try {
           const savedLocality = localStorage.getItem("bausing_locality");
           if (savedLocality) {
             const parsedLocality = JSON.parse(savedLocality);
             if (parsedLocality.crm_zone_id) {
               crmZoneId = parsedLocality.crm_zone_id;
-              console.log("[Checkout] Zona de entrega obtenida del localStorage (error fallback):", crmZoneId);
             }
-            // También intentar obtener catalog_id del localStorage
             if (parsedLocality.catalog_id) {
               catalogId = parsedLocality.catalog_id;
-              console.log("[Checkout] Catalog ID obtenido del localStorage (error fallback):", catalogId);
             }
           }
         } catch (localStorageError) {
@@ -1064,11 +997,10 @@ export default function CheckoutPage() {
             const catalogData = await catalogResponse.json();
             if (catalogData.success && catalogData.data?.catalog_id) {
               catalogId = catalogData.data.catalog_id;
-              console.log("[Checkout] Catalog ID obtenido desde locality context:", catalogId);
             }
           }
-        } catch (catalogError) {
-          console.warn("[Checkout] No se pudo obtener catalog_id desde locality context:", catalogError);
+        } catch {
+          /* optional catalog for validation branch */
         }
       }
       
@@ -1079,18 +1011,8 @@ export default function CheckoutPage() {
       // Usar el estado isPaisCatalog que se actualiza correctamente en el useEffect
       // Este estado es más confiable que catalogId que puede no estar disponible en el momento del submit
       
-      console.log("[Checkout] Verificando catálogo y transporte tercerizado:", {
-        isPaisCatalog,
-        isThirdPartyTransport,
-        selectedMethods,
-        catalogId,
-        PAIS_CATALOG_ID,
-        localityId: locality?.id
-      });
-      
       // Si es transporte tercerizado y se seleccionó tarjeta, redirigir a WhatsApp sin crear orden
       if (isThirdPartyTransport && selectedMethods.includes("card")) {
-        console.log("[Checkout] Transporte tercerizado con tarjeta seleccionada, redirigiendo a WhatsApp. NO se creará orden.");
         // Obtener número de WhatsApp desde la configuración
         try {
           const whatsappResponse = await fetch("/api/settings/public/phone", {
@@ -1161,7 +1083,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
             }
           }
         } catch (whatsappError) {
-          console.error("[Checkout] Error al obtener número de WhatsApp:", whatsappError);
+          console.error("Error al obtener número de WhatsApp:", whatsappError);
           setErrors({ submit: "No se pudo obtener el número de WhatsApp. Por favor, intenta nuevamente." });
           setSubmitting(false);
           return;
@@ -1174,9 +1096,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
         selectedMethods.includes("transfer") &&
         !selectedMethods.includes("card")
       ) {
-        console.log(
-          "[Checkout] Transporte tercerizado con transferencia, redirigiendo a WhatsApp. NO se creará orden."
-        );
         try {
           const whatsappResponse = await fetch("/api/settings/public/phone", {
             method: "GET",
@@ -1266,7 +1185,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ""}`;
             }
           }
         } catch (whatsappError) {
-          console.error("[Checkout] Error al obtener número de WhatsApp (transferencia tercerizada):", whatsappError);
+          console.error("Error al obtener número de WhatsApp (transferencia tercerizada):", whatsappError);
           setErrors({
             submit: "No se pudo obtener el número de WhatsApp. Por favor, intenta nuevamente.",
           });
@@ -1277,7 +1196,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ""}`;
       
       // Solo redirigir a WhatsApp si isPaisCatalog es true (estado actualizado correctamente)
       if (isPaisCatalog) {
-        console.log("[Checkout] Catálogo activo es 'pais', redirigiendo a WhatsApp. NO se creará orden en CRM.");
         // Obtener número de WhatsApp desde la configuración
         try {
           const whatsappResponse = await fetch("/api/settings/public/phone", {
@@ -1374,15 +1292,11 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
             }
           }
         } catch (whatsappError) {
-          console.error("[Checkout] Error al obtener número de WhatsApp:", whatsappError);
+          console.error("Error al obtener número de WhatsApp:", whatsappError);
           setErrors({ submit: "No se pudo obtener el número de WhatsApp. Por favor, intenta nuevamente." });
           setSubmitting(false);
           return;
         }
-      }
-      
-      if (!crmZoneId) {
-        console.warn("[Checkout] ⚠️ No se pudo obtener crm_zone_id. El backend debería usar el fallback automáticamente.");
       }
 
       // Billetera = descuento (primero); el resto se paga con tarjeta / efectivo / transferencia
@@ -1469,25 +1383,17 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
 
 
       // Send order to backend
-      console.log("[Checkout] Enviando orden con datos:", JSON.stringify(orderData, null, 2));
       let orderResponse;
       try {
         orderResponse = await createOrder(orderData);
-        console.log("[Checkout] Respuesta completa del backend:", JSON.stringify(orderResponse, null, 2));
-        
-        console.log("[Checkout] ✅ Orden creada exitosamente.");
       } catch (orderError: any) {
-        // Si hay un error al crear la orden, lanzarlo para que se maneje en el catch principal
-        console.error("[Checkout] Error al crear orden:", orderError);
+        console.error("Error al crear orden:", orderError);
         throw orderError;
       }
 
       // La respuesta del backend es { success: True, data: { id: ... }, message: ... }
       // Pero createOrder retorna data.data || data, así que orderResponse ya es el objeto data
       let orderId = orderResponse?.id || (orderResponse as any)?.data?.id || null;
-      
-      console.log("[Checkout] Order response completo:", JSON.stringify(orderResponse, null, 2));
-      console.log("[Checkout] Order ID extraído:", orderId);
       
       // Solo redirigir si la orden se creó exitosamente
       if (!orderId) {
@@ -1503,7 +1409,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
       
       // Redirigir a la página de éxito
       // IMPORTANTE: Redirigir ANTES de limpiar el carrito para evitar que el useEffect redirija al inicio
-      console.log("[Checkout] Redirigiendo a página de éxito con order_id:", orderId);
       router.push(`/checkout/success?order_id=${orderId}`);
       
       // Clear cart AFTER redirecting (use setTimeout to ensure redirect happens first)
@@ -1511,8 +1416,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
         cart.forEach((item) => removeFromCart(item.id));
       }, 100);
     } catch (error: any) {
-      console.error("[Checkout] Error al procesar el pedido:", error);
-      console.error("[Checkout] Error completo:", JSON.stringify(error, null, 2));
+      console.error("Error al procesar el pedido:", error);
       
       // Detectar error específico de tipo de documento incompatible con tipo de venta
       let errorMessage = error?.message || "Error al procesar el pedido";
@@ -1538,12 +1442,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
       // Detectar errores de pago rechazado (pero no tratar in_process como error)
       if (errorMessage.includes("rejected") || (errorMessage.includes("El pago fue") && !errorMessage.includes("in_process") && !errorMessage.includes("pending_contingency"))) {
         errorMessage = "El pago fue rechazado. Por favor, verifica los datos de tu tarjeta o intenta con otra tarjeta.";
-      }
-      
-      // Si el pago está en proceso (pending_contingency), no es un error
-      if (errorMessage.includes("in_process") || errorMessage.includes("pending_contingency")) {
-        // El backend debería retornar success: true con pending: true, pero por si acaso
-        console.log("[Checkout] ⚠️ Pago en proceso, no es un error. El webhook notificará cuando se apruebe o rechace.");
       }
       
       setErrors({ submit: errorMessage });
@@ -1656,54 +1554,120 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
     }
   }, [payableSubtotal, subtotalAfterCoupon]);
 
-  /**
-   * Calcula el costo de envío basado en la distancia
-   */
-  const calculateShippingCost = (destinationLatLon: string | undefined | null): number => {
-    const destCoords = parseCoordinates(destinationLatLon);
-    if (!destCoords) return 0;
-    
-    const distance = calculateDistance(
-      ORIGIN_COORDINATES.lat,
-      ORIGIN_COORDINATES.lon,
-      destCoords.lat,
-      destCoords.lon
-    );
-    
-    return Math.round(distance * pricePerKm);
-  };
-  
-  // Calcular costo de envío: 
-  // - Si es transporte tercerizado, usar el precio configurado
-  // - Si el catálogo es Pais y no es transporte tercerizado, calcular por distancia
+  // Catálogo País: cotización Vía Cargo (Busplus) según CP destino, bultos y medidas en DB
+  // Debounce: evita dos POST seguidos con CP distintos (p. ej. 5000 y luego 1499) por estado aún inestable.
+  useEffect(() => {
+    if (!isPaisCatalog || isThirdPartyTransport) {
+      setViacargoQuoteTotal(null);
+      setViacargoQuoteError(null);
+      setViacargoCotizarLoading(false);
+      return;
+    }
+    if (!locality?.id || shippingLocalityError) {
+      setViacargoQuoteTotal(null);
+      setViacargoQuoteError(null);
+      setViacargoCotizarLoading(false);
+      return;
+    }
+    const addr = addresses.find((a) => a.id === selectedAddressId);
+    const cp = normalizeArPostalCode(addr?.postal_code);
+    if (!addr || !cp) {
+      setViacargoQuoteTotal(null);
+      setViacargoQuoteError(null);
+      return;
+    }
+    if (cart.length === 0) {
+      setViacargoQuoteTotal(null);
+      return;
+    }
+
+    const ac = new AbortController();
+    const debounceMs = 450;
+    const timeoutId = setTimeout(() => {
+      (async () => {
+        setViacargoCotizarLoading(true);
+        setViacargoQuoteError(null);
+        const requestBody = {
+          codigo_postal_destinatario: cp,
+          importe_valor_declarado: Math.max(0, Math.round(subtotalAfterCoupon)),
+          items: cart.map((c) => ({ product_id: c.id, quantity: c.quantity })),
+        };
+        try {
+          const res = await fetch("/api/public/viacargo-cotizar", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+            signal: ac.signal,
+          });
+          const data = await res.json();
+          if (ac.signal.aborted) return;
+          if (!data.success) {
+            setViacargoQuoteTotal(null);
+            setViacargoQuoteError(
+              typeof data.error === "string" ? data.error : "No se pudo calcular el envío",
+            );
+            return;
+          }
+          setViacargoQuoteTotal(
+            data.data && typeof data.data.total === "number" ? data.data.total : null,
+          );
+        } catch (e) {
+          if (ac.signal.aborted) return;
+          setViacargoQuoteTotal(null);
+          setViacargoQuoteError(
+            e instanceof Error ? e.message : "Error al cotizar el envío",
+          );
+        } finally {
+          if (!ac.signal.aborted) setViacargoCotizarLoading(false);
+        }
+      })();
+    }, debounceMs);
+
+    return () => {
+      clearTimeout(timeoutId);
+      ac.abort();
+    };
+  }, [
+    isPaisCatalog,
+    isThirdPartyTransport,
+    locality?.id,
+    shippingLocalityError,
+    selectedAddressId,
+    addresses,
+    cart,
+    subtotalAfterCoupon,
+  ]);
+
+  // Calcular costo de envío: tercerizado fijo, catálogo País = cotización Vía Cargo
   const selectedAddressForShipping = addresses.find((addr) => addr.id === selectedAddressId);
+  const paisPostalOk = normalizeArPostalCode(selectedAddressForShipping?.postal_code);
   const localityShippingProblem =
     !locality?.id ||
     shippingLocalityError ||
     (isPaisCatalog &&
-      (!selectedAddressForShipping || !selectedAddressForShipping.lat_lon));
+      !isThirdPartyTransport &&
+      (!selectedAddressForShipping || !paisPostalOk));
   let shippingCost = 0;
   if (isThirdPartyTransport && configuredShippingPrice !== null) {
     shippingCost = configuredShippingPrice;
-    console.log("[DEBUG] Calculando shippingCost desde transporte tercerizado:", {
-      isThirdPartyTransport,
-      configuredShippingPrice,
-      shippingCost
-    });
-  } else if (isPaisCatalog && selectedAddressForShipping?.lat_lon) {
-    shippingCost = calculateShippingCost(selectedAddressForShipping.lat_lon);
-    console.log("[DEBUG] Calculando shippingCost desde Pais catalog:", {
-      isPaisCatalog,
-      shippingCost
-    });
-  } else {
-    console.log("[DEBUG] ShippingCost = 0:", {
-      isThirdPartyTransport,
-      configuredShippingPrice,
-      isPaisCatalog,
-      hasLatLon: !!selectedAddressForShipping?.lat_lon
-    });
+  } else if (isPaisCatalog && !isThirdPartyTransport && viacargoQuoteTotal !== null) {
+    shippingCost = viacargoQuoteTotal;
   }
+
+  /** Vía Cargo obligatorio: sin cotización OK (error, carga, o sin monto) no se puede finalizar. */
+  const paisViacargoBloqueaFinalizar =
+    isPaisCatalog &&
+    !isThirdPartyTransport &&
+    cart.length > 0 &&
+    !(
+      Boolean(locality?.id) &&
+      !shippingLocalityError &&
+      Boolean(selectedAddressForShipping) &&
+      Boolean(paisPostalOk) &&
+      !viacargoCotizarLoading &&
+      !viacargoQuoteError &&
+      viacargoQuoteTotal !== null
+    );
 
   useEffect(() => {
     setSelectedMethods((prev) => prev.filter((m) => m !== "wallet"));
@@ -1727,7 +1691,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
       const currentMethods = selectedMethods.filter(m => allowedMethods.includes(m)) as PaymentMethodType[];
       
       if (currentMethods.length !== selectedMethods.length || selectedMethods.length === 0) {
-        console.log("[Checkout] Limpiando métodos de pago no permitidos para transporte tercerizado");
         // Si no hay métodos permitidos seleccionados, seleccionar efectivo por defecto
         const methodsToSet: PaymentMethodType[] = currentMethods.length > 0 ? currentMethods : ["cash"];
         setSelectedMethods(methodsToSet);
@@ -2904,9 +2867,12 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                         </label>
                         <input
                           type="text"
+                          inputMode="numeric"
+                          autoComplete="postal-code"
+                          maxLength={8}
                           value={addressForm.postal_code}
                           onChange={(e) => handleAddressInputChange("postal_code", e.target.value)}
-                          placeholder="Ej: C1000"
+                          placeholder="Ej: 5000 (solo números)"
                           className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 placeholder:text-gray-400 ${
                             errors.address_postal_code ? "border-red-500" : "border-gray-300"
                           }`}
@@ -2984,16 +2950,23 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                             province_id: "",
                           });
                         }}
-                        className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                        disabled={savingCheckoutAddress}
+                        className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Cancelar
                       </button>
                       <button
                         type="button"
-                        onClick={handleSaveAddress}
-                        className="px-4 py-2 bg-[#00C1A7] text-white rounded-lg hover:bg-[#00A892] transition-colors"
+                        onClick={() => {
+                          void handleSaveAddress();
+                        }}
+                        disabled={savingCheckoutAddress}
+                        className="inline-flex items-center justify-center gap-2 min-w-[180px] px-4 py-2 bg-[#00C1A7] text-white rounded-lg hover:bg-[#00A892] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                       >
-                        Guardar dirección
+                        {savingCheckoutAddress && (
+                          <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
+                        )}
+                        {savingCheckoutAddress ? "Guardando…" : "Guardar dirección"}
                       </button>
                     </div>
                   </div>
@@ -3613,7 +3586,8 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                     disabled={
                       submitting ||
                       needsEmailVerification ||
-                      !isAuthenticated
+                      !isAuthenticated ||
+                      paisViacargoBloqueaFinalizar
                     }
                     className="w-full bg-[#00C1A7] text-white py-3 px-6 rounded-lg font-semibold text-base hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
@@ -3739,18 +3713,22 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                           <span className="text-gray-400 text-xs">Calculando...</span>
                         )
                       ) : isPaisCatalog ? (
-                        shippingCost > 0 ? (
-                          formatPrice(shippingCost)
-                        ) : localityShippingProblem ? (
+                        localityShippingProblem ? (
                           <span className="text-red-600 text-xs font-medium text-right block max-w-[200px] ml-auto leading-snug">
-                            Ingresá una localidad correcta
+                            Ingresá un código postal válido en la dirección de envío
                           </span>
-                        ) : shippingQuoteLoading ? (
+                        ) : viacargoQuoteError ? (
+                          <span className="text-red-600 text-xs font-medium text-right block max-w-[200px] ml-auto leading-snug">
+                            {viacargoQuoteError}
+                          </span>
+                        ) : shippingQuoteLoading || viacargoCotizarLoading ? (
                           <span
                             className="inline-block align-middle h-5 min-w-[5rem] rounded-md bg-gray-200 animate-pulse ml-auto"
                             aria-busy="true"
                             aria-label="Calculando costo de envío"
                           />
+                        ) : viacargoQuoteTotal !== null ? (
+                          formatPrice(viacargoQuoteTotal)
                         ) : (
                           <span className="text-gray-400 text-xs">Calculando...</span>
                         )
@@ -3862,9 +3840,10 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                 <button
                   type="submit"
                   disabled={
-                    submitting || 
-                    needsEmailVerification || 
-                    !isAuthenticated
+                    submitting ||
+                    needsEmailVerification ||
+                    !isAuthenticated ||
+                    paisViacargoBloqueaFinalizar
                   }
                   className="hidden lg:flex w-full mt-4 md:mt-6 bg-[#00C1A7] text-white py-2.5 md:py-3 px-4 md:px-6 rounded-lg font-semibold text-sm md:text-base hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed items-center justify-center gap-2"
                 >
