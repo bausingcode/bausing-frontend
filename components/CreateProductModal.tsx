@@ -417,7 +417,9 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       }
 
       try {
-        const fullProduct = await fetchProductById(crmProduct.product_id) as any;
+        const fullProduct = (await fetchProductById(crmProduct.product_id, undefined, {
+          includeAllVariantPrices: true,
+        })) as any;
         if (!fullProduct) {
           return;
         }

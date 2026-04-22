@@ -15,7 +15,9 @@ import {
   CrmProduct,
   CrmCombo,
   fetchProductById,
+  fetchCatalogs,
   Product,
+  Catalog,
   deleteCategory,
   setCrmProductNotCompletedHidden,
   updateCategory,
@@ -66,6 +68,88 @@ function convertBackendCategoryToLocal(cat: Category, allCategories: Category[])
   return localCat;
 }
 
+/** Opción de variante tal como la devuelve el backend (puede incluir precios aunque el tipo `Product` no lo liste). */
+type VariantOptionWithPrices = {
+  id: string;
+  name: string;
+  stock: number;
+  prices?: Array<{
+    id: string;
+    price: number;
+    locality_id?: string;
+    locality_name?: string;
+    catalog_id?: string;
+    price_kind?: string;
+  }>;
+};
+
+function collectAdminProductPriceRows(
+  product: Product | null,
+  catalogNames: Map<string, string>
+): Array<{
+  key: string;
+  segment: string;
+  catalogLabel: string;
+  kind: string;
+  price: number;
+}> {
+  if (!product?.variants?.length) return [];
+  const out: Array<{
+    key: string;
+    segment: string;
+    catalogLabel: string;
+    kind: string;
+    price: number;
+  }> = [];
+
+  for (const v of product.variants) {
+    const vLabel = v.sku || v.name || "Variante";
+    const pushPriceRows = (
+      prices: Array<{
+        id: string;
+        price: number;
+        locality_id?: string;
+        locality_name?: string;
+        catalog_id?: string;
+        price_kind?: string;
+      }> | undefined,
+      segment: string,
+      rowPrefix: string
+    ) => {
+      if (!prices?.length) return;
+      prices.forEach((p, i) => {
+        const raw = p.catalog_id ?? p.locality_id;
+        if (raw == null || raw === "") return;
+        const id = String(raw);
+        const catLabel =
+          catalogNames.get(id) ||
+          p.locality_name ||
+          (p.catalog_id ? `Catálogo (${id.slice(0, 8)}…)` : `Localidad (${id.slice(0, 8)}…)`);
+        const kind = p.price_kind === "card" ? "Tarjeta" : "Efectivo / transferencia";
+        out.push({
+          key: `${rowPrefix}-${id}-${p.price_kind || "x"}-${i}`,
+          segment,
+          catalogLabel: catLabel,
+          kind,
+          price: p.price,
+        });
+      });
+    };
+
+    if (v.options && v.options.length > 0) {
+      for (const opt of v.options) {
+        const o = opt as unknown as VariantOptionWithPrices;
+        const rowPrices =
+          o.prices && o.prices.length > 0 ? o.prices : v.prices;
+        pushPriceRows(rowPrices, `${vLabel} · ${o.name}`, `${v.id}-${o.id}`);
+      }
+    } else {
+      pushPriceRows(v.prices, vLabel, v.id);
+    }
+  }
+  return out;
+}
+
 export default function ProductosClient({ initialCategories = [] }: ProductosClientProps) {
   const [activeTab, setActiveTab] = useState<"crm-completados" | "crm-no-completados" | "combos" | "combos-completados" | "categorias">("crm-no-completados");
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -74,6 +158,7 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
   const [editingCrmProduct, setEditingCrmProduct] = useState<CrmProduct | CrmCombo | null>(null);
   const [viewingCrmProduct, setViewingCrmProduct] = useState<CrmProduct | CrmCombo | null>(null);
   const [viewingProductData, setViewingProductData] = useState<Product | null>(null);
+  const [viewingCatalogs, setViewingCatalogs] = useState<Catalog[]>([]);
   const [isLoadingViewingProduct, setIsLoadingViewingProduct] = useState(false);
   const [isOverlayAnimating, setIsOverlayAnimating] = useState(false);
   const [shouldRenderOverlay, setShouldRenderOverlay] = useState(false);
@@ -582,13 +667,21 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
   const handleViewProduct = async (crmProduct: CrmProduct | CrmCombo) => {
     setViewingCrmProduct(crmProduct);
     setViewingProductData(null);
+    setViewingCatalogs([]);
     
-    // Si el producto está completado, cargar los datos completos
+    // Si el producto está completado, cargar los datos completos y catálogos (nombres para precios por catálogo)
     if (crmProduct.product_id) {
       setIsLoadingViewingProduct(true);
       try {
-        const fullProduct = await fetchProductById(crmProduct.product_id);
+        const [fullProduct, catalogs] = await Promise.all([
+          fetchProductById(crmProduct.product_id, undefined, { includeAllVariantPrices: true }),
+          fetchCatalogs(false).catch((e) => {
+            console.error("Error loading catalogs for price labels:", e);
+            return [] as Catalog[];
+          }),
+        ]);
         setViewingProductData(fullProduct);
+        setViewingCatalogs(catalogs);
       } catch (error) {
         console.error("Error loading product data:", error);
       } finally {
@@ -623,8 +716,34 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
     setTimeout(() => {
       setViewingCrmProduct(null);
       setViewingProductData(null);
+      setViewingCatalogs([]);
     }, 500);
   };
+
+  const viewingCatalogNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    viewingCatalogs.forEach((c) => m.set(c.id, c.name));
+    return m;
+  }, [viewingCatalogs]);
+
+  const adminProductPriceDetailRows = useMemo(() => {
+    const rows = collectAdminProductPriceRows(viewingProductData, viewingCatalogNameById);
+    if (typeof window !== "undefined" && viewingProductData?.id) {
+      let rawOptionPrices = 0;
+      for (const v of viewingProductData.variants || []) {
+        for (const o of v.options || []) {
+          rawOptionPrices += ((o as { prices?: unknown[] }).prices || []).length;
+        }
+      }
+      console.debug("[admin/productos] precios detalle", {
+        productId: viewingProductData.id,
+        filasTablaAdmin: rows.length,
+        filasEnPayloadOpciones: rawOptionPrices,
+        catalogosCargados: viewingCatalogs.length,
+      });
+    }
+    return rows;
+  }, [viewingProductData, viewingCatalogNameById, viewingCatalogs.length]);
 
 
   return (
@@ -1984,6 +2103,41 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                                 {viewingProductData.price_range && (
                                   <div className="text-sm text-gray-600">{viewingProductData.price_range}</div>
                                 )}
+                              </div>
+                            </div>
+                          )}
+
+                          {adminProductPriceDetailRows.length > 0 && (
+                            <div>
+                              <span className="text-sm font-medium text-gray-600 block mb-2">
+                                Precios por catálogo (variante)
+                              </span>
+                              <p className="text-xs text-gray-500 mb-2">
+                                El rango de arriba resume todos los catálogos; acá se listan fila a fila lo guardado para cada catálogo.
+                              </p>
+                              <div className="overflow-x-auto rounded-md border border-gray-200 bg-white">
+                                <table className="min-w-full text-sm">
+                                  <thead>
+                                    <tr className="border-b border-gray-200 bg-gray-100 text-left text-gray-700">
+                                      <th className="px-3 py-2 font-medium">Variante / opción</th>
+                                      <th className="px-3 py-2 font-medium">Catálogo</th>
+                                      <th className="px-3 py-2 font-medium">Tipo</th>
+                                      <th className="px-3 py-2 font-medium text-right">Precio</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {adminProductPriceDetailRows.map((row) => (
+                                      <tr key={row.key} className="border-b border-gray-100 last:border-0">
+                                        <td className="px-3 py-2 text-gray-900">{row.segment}</td>
+                                        <td className="px-3 py-2 text-gray-800">{row.catalogLabel}</td>
+                                        <td className="px-3 py-2 text-gray-600">{row.kind}</td>
+                                        <td className="px-3 py-2 text-right font-medium text-gray-900 tabular-nums">
+                                          ${row.price.toLocaleString()}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
                               </div>
                             </div>
                           )}

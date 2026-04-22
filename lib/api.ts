@@ -589,8 +589,13 @@ export async function fetchProducts(params?: {
 
 /**
  * Fetch a single product by ID
+ * @param options.includeAllVariantPrices Si true, el backend devuelve todas las filas de precio por catálogo/localidad (admin), no solo el catálogo por defecto (p. ej. Córdoba capital).
  */
-export async function fetchProductById(productId: string, localityId?: string): Promise<Product | null> {
+export async function fetchProductById(
+  productId: string,
+  localityId?: string,
+  options?: { includeAllVariantPrices?: boolean }
+): Promise<Product | null> {
   try {
     const queryParams = new URLSearchParams({
       include_variants: 'true',
@@ -600,6 +605,9 @@ export async function fetchProductById(productId: string, localityId?: string): 
     
     if (localityId) {
       queryParams.append('locality_id', localityId);
+    }
+    if (options?.includeAllVariantPrices) {
+      queryParams.append('include_all_variant_prices', 'true');
     }
 
     // En el servidor, llamar al backend directamente (los rewrites /api solo aplican al request HTTP entrante).
@@ -624,7 +632,21 @@ export async function fetchProductById(productId: string, localityId?: string): 
     }
     
     const data = await response.json();
-    return data.success ? data.data : null;
+    const product = data.success ? data.data : null;
+    if (options?.includeAllVariantPrices && product?.variants) {
+      let priceRows = 0;
+      for (const v of product.variants) {
+        for (const o of v.options || []) {
+          priceRows += (o.prices || []).length;
+        }
+      }
+      console.debug("[fetchProductById] include_all_variant_prices", {
+        productId,
+        variantCount: product.variants.length,
+        optionPriceRowCount: priceRows,
+      });
+    }
+    return product;
   } catch (error) {
     console.error("Error fetching product:", error);
     return null;
