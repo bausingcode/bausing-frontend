@@ -66,7 +66,7 @@ export default function CatalogoContent({
           sort: sortBy,
           page,
           per_page: perPage,
-          include_images: true,
+          include_images: false,
           include_promos: true,
           require_crm_product_id: true,
         };
@@ -109,7 +109,7 @@ export default function CatalogoContent({
           sort: sortBy,
           page: 1,
           per_page: perPage,
-          include_images: true,
+          include_images: false,
           include_promos: true,
           require_crm_product_id: true,
           locality_id: locality.id,
