@@ -355,6 +355,7 @@ export default function ProductDetailPage() {
             per_page: 10,
             include_images: true,
             include_promos: true,
+            require_crm_product_id: true,
           };
           if (locality?.id) {
             catParams.locality_id = locality.id;
@@ -388,6 +389,7 @@ export default function ProductDetailPage() {
           include_images: true,
           include_variants: false, // No necesitamos variantes para productos similares
           include_promos: true,
+          require_crm_product_id: true,
         };
         
         // Agregar localidad si está disponible

@@ -92,6 +92,7 @@ export default async function CatalogoPage({ params, searchParams }: Props) {
     per_page: 20,
     include_images: true,
     include_promos: true,
+    require_crm_product_id: true,
     ...(subcategoryId
       ? { category_id: subcategoryId }
       : categoryId

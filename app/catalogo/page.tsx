@@ -20,6 +20,7 @@ export default async function CatalogoPage({ searchParams }: Props) {
     per_page: 20,
     include_images: true,
     include_promos: true,
+    require_crm_product_id: true,
     ...(search && { search }),
   }).catch(() => ({ products: [], total: 0, total_pages: 1 }));
 

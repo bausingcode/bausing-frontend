@@ -108,6 +108,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         page,
         per_page: 100,
         sort: "created_at_desc",
+        require_crm_product_id: true,
       });
       for (const p of res.products) {
         productUrls.add(`${base}/productos/${p.id}`);

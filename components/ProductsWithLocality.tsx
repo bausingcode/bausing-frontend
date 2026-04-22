@@ -41,6 +41,7 @@ export default function ProductsWithLocality({
           include_promos: true,
           locality_id: locality.id,
           per_page: count * 2, // Obtener más productos para tener opciones
+          require_crm_product_id: true,
         });
 
         setProducts(result.products.slice(0, count));

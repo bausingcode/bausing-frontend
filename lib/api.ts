@@ -528,6 +528,8 @@ export async function fetchProducts(params?: {
   include_variants?: boolean;
   include_images?: boolean;
   include_promos?: boolean;
+  /** Solo productos con crm_product_id (catálogo / vitrina) */
+  require_crm_product_id?: boolean;
 }): Promise<{ products: Product[]; total: number; page: number; per_page: number; total_pages: number }> {
   try {
     const queryParams = new URLSearchParams();
@@ -546,6 +548,7 @@ export async function fetchProducts(params?: {
     if (params?.include_variants !== undefined) queryParams.append('include_variants', params.include_variants.toString());
     if (params?.include_images !== undefined) queryParams.append('include_images', params.include_images.toString());
     if (params?.include_promos !== undefined) queryParams.append('include_promos', params.include_promos.toString());
+    if (params?.require_crm_product_id) queryParams.append('require_crm_product_id', 'true');
 
     // En el servidor, usar la URL completa del backend
     // En el cliente, usar la ruta relativa que será manejada por el rewrite de Next.js

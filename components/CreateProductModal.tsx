@@ -117,6 +117,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   const [images, setImages] = useState<Array<{ image_url: string; alt_text?: string; position: number }>>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  /** Evita doble envío (clics rápidos) que duplicaba filas en /products/complete. */
+  const submitInProgressRef = useRef(false);
 
   // Step 2: Atributos (generados automáticamente según categoría, pero editables)
   const [attributes, setAttributes] = useState<Attribute[]>([]);
@@ -1091,6 +1093,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   };
 
   const handleSubmit = async () => {
+    if (submitInProgressRef.current) return;
+    submitInProgressRef.current = true;
     setError("");
     setLoading(true);
 
@@ -1291,6 +1295,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
     } catch (err: any) {
       setError(err.message || "Error al guardar el producto");
     } finally {
+      submitInProgressRef.current = false;
       setLoading(false);
     }
   };

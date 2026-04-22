@@ -1427,6 +1427,7 @@ export default function CatalogoContent({
           per_page: perPage,
           include_images: true,
           include_promos: true,
+          require_crm_product_id: true,
         };
         
         // Agregar localidad si está disponible
