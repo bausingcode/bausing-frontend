@@ -1,5 +1,6 @@
 import { createElement } from "react";
 import type { LucideIcon } from "lucide-react";
+import { PillowIcon, SheetsIcon } from "@/lib/navbarCustomIcons";
 import {
   AirVent,
   Bed,
@@ -28,6 +29,9 @@ import {
   WashingMachine,
 } from "lucide-react";
 
+const SheetsIconMenu = SheetsIcon as unknown as LucideIcon;
+const PillowIconMenu = PillowIcon as unknown as LucideIcon;
+
 const NAVBAR_ICON_MAP: Record<string, LucideIcon> = {
   Package,
   CreditCard,
@@ -54,6 +58,8 @@ const NAVBAR_ICON_MAP: Record<string, LucideIcon> = {
   Truck,
   Heart,
   Sparkles,
+  SheetsIcon: SheetsIconMenu,
+  PillowIcon: PillowIconMenu,
 };
 
 export type NavbarMenuIconKey = keyof typeof NAVBAR_ICON_MAP;
@@ -85,21 +91,31 @@ const NAVBAR_ICON_LABELS_ES: Record<NavbarMenuIconKey, string> = {
   Heart: "Corazón",
   Sparkles: "Destacado",
   Package: "Paquete (predeterminado)",
+  SheetsIcon: "Sábanas",
+  PillowIcon: "Almohadas",
 };
 
 const COLCHONES_MENU_ICON_KEYS: NavbarMenuIconKey[] = ["CreditCard"];
+/** Sábanas / almohadas — mismos SVG que el mega menú, visibles al principio del desplegable. */
+const ACCESORIOS_MENU_ICON_KEYS: NavbarMenuIconKey[] = ["SheetsIcon", "PillowIcon"];
+
+const MENU_ICON_PRIORITY: NavbarMenuIconKey[] = [
+  ...COLCHONES_MENU_ICON_KEYS,
+  ...ACCESORIOS_MENU_ICON_KEYS,
+];
 
 export const NAVBAR_MENU_ICON_OPTIONS: { value: NavbarMenuIconKey; label: string }[] = (() => {
   const allKeys = Object.keys(NAVBAR_ICON_MAP) as NavbarMenuIconKey[];
+  const prioritySet = new Set(MENU_ICON_PRIORITY);
   const rest = allKeys
-    .filter((k) => !COLCHONES_MENU_ICON_KEYS.includes(k))
+    .filter((k) => !prioritySet.has(k))
     .map((value) => ({ value, label: NAVBAR_ICON_LABELS_ES[value] }))
     .sort((a, b) => a.label.localeCompare(b.label, "es"));
-  const colchonesFirst = COLCHONES_MENU_ICON_KEYS.map((value) => ({
+  const priorityFirst = MENU_ICON_PRIORITY.map((value) => ({
     value,
     label: NAVBAR_ICON_LABELS_ES[value],
   }));
-  return [...colchonesFirst, ...rest];
+  return [...priorityFirst, ...rest];
 })();
 
 export function getNavbarMenuIcon(key: string | null | undefined): LucideIcon {

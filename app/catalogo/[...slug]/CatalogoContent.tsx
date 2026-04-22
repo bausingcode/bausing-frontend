@@ -528,38 +528,23 @@ const categorySlugMap: Record<string, string> = {
   "muebles-cocina": "Muebles de cocina",
 };
 
-// Mapeo de subcategorías (esto también se puede mejorar con una API)
-const subcategoryMap: Record<string, { category: string; name: string }> = {
-  "una-plaza": { category: "Colchones", name: "Una plaza" },
-  "plaza-y-media": { category: "Colchones", name: "Plaza y media" },
-  "dos-plazas": { category: "Colchones", name: "Dos plazas" },
-  "queen": { category: "Colchones", name: "Queen" },
-  "extra-queen": { category: "Colchones", name: "Extra-queen" },
-  "king": { category: "Colchones", name: "King" },
-  "espuma-alta-densidad": { category: "Colchones", name: "Espuma alta densidad" },
-  "resortes": { category: "Colchones", name: "Resortes" },
-  "sommier-completo": { category: "Sommiers", name: "Sommier (colchón + base)" },
-  "bases": { category: "Sommiers", name: "Bases" },
-  "sommier-respaldo": { category: "Sommiers", name: "Sommier + respaldo" },
-  "respaldos": { category: "Sommiers", name: "Respaldos" },
-  "sabanas": { category: "Accesorios", name: "Sábanas" },
-  "cubre-colchon": { category: "Accesorios", name: "Cubre colchón" },
-  "almohadas": { category: "Accesorios", name: "Almohadas" },
-  "acolchados": { category: "Accesorios", name: "Acolchados" },
-  "grandes": { category: "Electrodomésticos", name: "Grandes electros" },
-  "pequenos": { category: "Electrodomésticos", name: "Pequeños electros" },
-  "heladeras": { category: "Electrodomésticos", name: "Heladeras" },
-  "lavarropas": { category: "Electrodomésticos", name: "Lavarropas" },
-  "aires-acondicionados": { category: "Electrodomésticos", name: "Aires acondicionados" },
-  "cocinas": { category: "Electrodomésticos", name: "Cocinas" },
-  "smart-tv": { category: "Electrodomésticos", name: "Smart TV" },
-  "pava-electrica": { category: "Electrodomésticos", name: "Pava electrica" },
-  "vaporera": { category: "Electrodomésticos", name: "Vaporera" },
-  "sandwuchera": { category: "Electrodomésticos", name: "Sandwuchera" },
-  "anafe": { category: "Electrodomésticos", name: "Anafe" },
-  "bajo-mesada-120": { category: "Muebles de cocina", name: "Bajo mesada 120 cm" },
-  "bajo-mesada-140": { category: "Muebles de cocina", name: "Bajo mesada 140 cm" },
-};
+/** Igual que al indexar categorías en categoryIdMap: nombre de fila → segmento de URL */
+function categoryNameToPathSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+}
+
+function findCategoryByPathSlug(categoriesList: Category[], pathSlug: string): Category | null {
+  for (const c of categoriesList) {
+    if (c.id === pathSlug) return c;
+    if (categoryNameToPathSlug(c.name) === pathSlug) return c;
+  }
+  return null;
+}
 
 // Estructura de filtros por categoría
 interface FilterOption {
@@ -1082,51 +1067,41 @@ export default function CatalogoContent({
     let subcategoryName: string | null = null;
     let subcategory2Name: string | null = null;
     
-    // Si hay subcategoría en el slug
+    // Subcategorías: solo filas reales bajo la categoría principal; si en DB no hay hijas, no mostrar ninguna
     if (slug.length >= 2) {
       const subcategorySlug = slug[1];
-      // Buscar subcategoría por slug en las categorías hijas de la categoría principal
-      if (category) {
-        // Las subcategorías tienen parent_id igual a categoryId
-        const subcategory = categories.find(c => {
-          const slugFromName = c.name.toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/\s+/g, "-")
-            .replace(/[^a-z0-9-]/g, "");
-          return c.parent_id === categoryId && (slugFromName === subcategorySlug || c.id === subcategorySlug);
-        });
-        
-        if (subcategory) {
-          subcategoryId = subcategory.id;
-          subcategoryName = subcategory.name;
-        } else {
-          subcategoryName = subcategoryMap[subcategorySlug]?.name || subcategorySlug;
+      if (categoryId) {
+        const underParent = categories.filter((c) => c.parent_id === categoryId);
+        if (underParent.length > 0) {
+          const subcategory = findCategoryByPathSlug(underParent, subcategorySlug);
+          if (subcategory) {
+            subcategoryId = subcategory.id;
+            subcategoryName = subcategory.name;
+          }
         }
       } else {
-        subcategoryName = subcategoryMap[subcategorySlug]?.name || subcategorySlug;
+        const sc = findCategoryByPathSlug(categories, subcategorySlug);
+        if (sc?.parent_id) {
+          subcategoryId = sc.id;
+          subcategoryName = sc.name;
+        }
       }
-      
-      // Si hay segunda subcategoría
+
       if (slug.length >= 3) {
         const subcategory2Slug = slug[2];
         if (subcategoryId) {
-          const subcategory2 = categories.find(c => {
-            const slugFromName = c.name.toLowerCase()
-              .normalize("NFD")
-              .replace(/[\u0300-\u036f]/g, "")
-              .replace(/\s+/g, "-")
-              .replace(/[^a-z0-9-]/g, "");
-            return c.parent_id === subcategoryId && (slugFromName === subcategory2Slug || c.id === subcategory2Slug);
-          });
-          
-          if (subcategory2) {
-            subcategory2Name = subcategory2.name;
-          } else {
-            subcategory2Name = subcategoryMap[subcategory2Slug]?.name || subcategory2Slug;
+          const underSub = categories.filter((c) => c.parent_id === subcategoryId);
+          if (underSub.length > 0) {
+            const sub2 = findCategoryByPathSlug(underSub, subcategory2Slug);
+            if (sub2) {
+              subcategory2Name = sub2.name;
+            }
           }
         } else {
-          subcategory2Name = subcategoryMap[subcategory2Slug]?.name || subcategory2Slug;
+          const s2 = findCategoryByPathSlug(categories, subcategory2Slug);
+          if (s2?.parent_id) {
+            subcategory2Name = s2.name;
+          }
         }
       }
     }
@@ -1311,10 +1286,20 @@ export default function CatalogoContent({
     categoryName &&
     (categoryFilters[categoryName] ??
       (isColchonStyleCatalogCategory(categoryName) ? categoryFilters["Colchones"] : undefined));
+
+  const hasNoDbSubcategoriesForMain =
+    !isLoadingCategories &&
+    categoryId != null &&
+    !categories.some((c) => c.parent_id === categoryId);
+  const staticFiltersWithoutFakeSubcategorias =
+    staticFiltersForCategory && hasNoDbSubcategoriesForMain
+      ? staticFiltersForCategory.filter((g) => g.title !== "Subcategorías")
+      : staticFiltersForCategory;
+
   const currentFilters =
     builtFilters.length > 0
       ? builtFilters
-      : (categoryName ? staticFiltersForCategory || [] : []);
+      : (categoryName ? staticFiltersWithoutFakeSubcategorias || [] : []);
   
   // Función para manejar cambios en filtros
   const handleFilterChange = (filterTitle: string, value: string, checked: boolean) => {
