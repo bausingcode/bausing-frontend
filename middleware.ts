@@ -17,7 +17,8 @@ function isPathExemptFromConstruction(pathname: string): boolean {
   if (pathname.startsWith("/_next") || pathname.startsWith("/favicon")) {
     return true;
   }
-  if (pathname === "/api/construction-unlock") {
+  // Proxy /api/* → backend: no exigir clave de "en construcción" (solo aplica al sitio público)
+  if (pathname.startsWith("/api/")) {
     return true;
   }
   if (pathname.includes(".")) {
