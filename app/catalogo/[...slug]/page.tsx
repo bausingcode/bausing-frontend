@@ -89,7 +89,7 @@ export default async function CatalogoPage({ params, searchParams }: Props) {
     is_active: true,
     sort: "created_at_desc",
     page: 1,
-    per_page: 20,
+    per_page: 21,
     include_images: false,
     include_promos: true,
     require_crm_product_id: true,

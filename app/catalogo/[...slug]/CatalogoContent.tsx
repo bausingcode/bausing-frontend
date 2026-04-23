@@ -6,13 +6,17 @@ import ProductCard from "@/components/ProductCard";
 import { firstProductImageUrl } from "@/lib/productImagePlaceholder";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { fetchProducts, fetchCategories, Product, Category } from "@/lib/api";
+import { fetchProducts, fetchProductsAllPages, fetchCategories, Product, Category } from "@/lib/api";
 import { useLocality } from "@/contexts/LocalityContext";
 import { ChevronDown, Minus, Plus, SlidersHorizontal, X } from "lucide-react";
 import {
   calculateProductPrice,
   productCardPriceDisplayFromPriceInfo,
 } from "@/utils/priceUtils";
+
+/** Default 21 = 7 filas de 3 columnas; el resto múltiplos de 3. */
+const CATALOGO_PER_PAGE_DEFAULT = 21;
+const CATALOGO_PER_PAGE_OPTIONS: readonly number[] = [21, 30, 45, 60, 99];
 
 // ============================================
 // MODULE-LEVEL CATEGORY CACHE
@@ -70,8 +74,14 @@ interface FilterOption {
 
 interface FilterGroup {
   title: string;
+  /** Clave en `selectedFilters` / `openFilters`; default `title` (evita colisión p. ej. otra "Tecnología" en otra categoría) */
+  id?: string;
   type: "radio" | "checkbox";
   options: FilterOption[];
+}
+
+function filterGroupStorageKey(g: FilterGroup): string {
+  return g.id ?? g.title;
 }
 
 type CategoryFilters = Record<string, FilterGroup[]>;
@@ -91,8 +101,311 @@ function isColchonStyleCatalogCategory(name: string | null | undefined): boolean
   return n.includes("sommier") && n.includes("colchon");
 }
 
+const CATEGORY_OPTION_ID_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Log de filtro Tecnología / colchón (siempre activo) */
+function debugCatalogoTecnologia(msg: string, data?: unknown) {
+  if (data !== undefined) {
+    // eslint-disable-next-line no-console
+    console.log(`[catálogo][Tecnología] ${msg}`, data);
+  } else {
+    // eslint-disable-next-line no-console
+    console.log(`[catálogo][Tecnología] ${msg}`);
+  }
+}
+
+/**
+ * Misma clave lógica para cada campo: en la DB suelen venir con mayúsculas como
+ * "Resortes Pocket", "Espuma de alta densidad", etc. — comparación case-insensitive.
+ */
+function normalizeEstructuraRellenoSegment(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+/** Texto unificado: filling_type + valores de category_option (por si el dato vino de subcategoría). */
+function combinedEstructuraRellenoSearchBlob(product: Product): string {
+  const parts: string[] = [];
+  if (product.filling_type?.trim()) {
+    parts.push(normalizeEstructuraRellenoSegment(product.filling_type));
+  }
+  if (product.category_option_value?.trim()) {
+    parts.push(normalizeEstructuraRellenoSegment(product.category_option_value));
+  }
+  for (const sc of product.subcategories ?? []) {
+    if (sc.category_option_value?.trim()) {
+      parts.push(normalizeEstructuraRellenoSegment(sc.category_option_value));
+    }
+  }
+  return parts.filter(Boolean).join(" | ");
+}
+
+/** Coincide con el nombre exacto "Espuma de alta densidad" (y variantes de tildes/mayúsculas). */
+function isEspumaDeAltaDensidadText(n: string): boolean {
+  return (
+    n.includes("espuma") &&
+    n.includes("alta") &&
+    (n.includes("dens") || n.includes("densi"))
+  );
+}
+
+/**
+ * Nombres canónicos (minúsculas, sin tildes) = mismas palabras y mayúsculas
+ * de referencia: "Resortes Bicónicos", "Espuma", "Espuma de alta densidad", "Resortes Pocket".
+ */
+const ESTRUCTURA_RELLENO_CANONICAL: Record<string, string> = {
+  "resortes-biconicos": "resortes biconicos",
+  "espuma": "espuma",
+  "espuma-de-alta-densidad": "espuma de alta densidad",
+  "espuma-alta-densidad": "espuma de alta densidad",
+  "resortes-pocket": "resortes pocket",
+};
+
+/**
+ * Valores de filtro alineados a los nombres exactos en el catálogo / admin:
+ * Resortes Bicónicos, Espuma, Espuma de alta densidad, Resortes Pocket
+ */
+function estructuraRellenoSlugMatchesNormalized(n: string, slug: string): boolean {
+  const canonical = ESTRUCTURA_RELLENO_CANONICAL[slug];
+  if (canonical) {
+    for (const seg of n.split(" | ")) {
+      const t = seg.trim();
+      if (t === canonical) return true;
+    }
+  }
+
+  if (slug === "resortes-biconicos") {
+    if (n === "resortes biconicos" || n.includes("resortes biconicos")) return true;
+    return n.includes("bicon");
+  }
+  if (slug === "resortes-pocket") {
+    if (n === "resortes pocket" || n.includes("resortes pocket")) return true;
+    return n.includes("pocket");
+  }
+  if (slug === "espuma-de-alta-densidad" || slug === "espuma-alta-densidad") {
+    return isEspumaDeAltaDensidadText(n);
+  }
+  if (slug === "espuma") {
+    return n.includes("espuma") && !isEspumaDeAltaDensidadText(n);
+  }
+  return false;
+}
+
+/** Coincide con opción de estructura: UUID (category_option) o slugs del catálogo vs texto libre en producto. */
+function productMatchesEstructuraRellenoFilterValue(product: Product, value: string): boolean {
+  if (CATEGORY_OPTION_ID_UUID_RE.test(value)) {
+    if (product.category_option_id === value) return true;
+    return product.subcategories?.some((s) => s.category_option_id === value) ?? false;
+  }
+  const n = combinedEstructuraRellenoSearchBlob(product);
+  if (!n) return false;
+  return estructuraRellenoSlugMatchesNormalized(n, value);
+}
+
+const TECHNICAL_FILTER_KEYS = [
+  "colchon-tecnologia",
+  "Firmeza",
+  "Peso Máximo Soportado",
+  "Pillow Top",
+  "Tipo de Entrega",
+] as const;
+
+type PriceRange = { min: number | null; max: number | null };
+
+/** Pool completo (fetchProductsAllPages) solo si hace falta lógica que aún no está en GET /products. */
+function catalogNeedsFullClientPool(
+  selectedFilters: Record<string, string[]>,
+  priceRange: PriceRange
+): boolean {
+  const nonEmpty = Object.entries(selectedFilters).filter(([, v]) => v.length > 0);
+  if (nonEmpty.length === 0) {
+    return false;
+  }
+  const categoryKeys: string[] = [];
+  const technicalKeys: string[] = [];
+  for (const [k] of nonEmpty) {
+    if (TECHNICAL_FILTER_KEYS.includes(k as (typeof TECHNICAL_FILTER_KEYS)[number])) {
+      technicalKeys.push(k);
+    } else {
+      categoryKeys.push(k);
+    }
+  }
+  if (categoryKeys.length > 0) {
+    return true;
+  }
+  const techOther = technicalKeys.filter((t) => t !== "colchon-tecnologia");
+  if (techOther.length > 0) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Aplica rango de precio + opciones de categoría + filtros técnicos de colchón sobre un array completo.
+ * Una sola pasada por tipo de criterio (sin re-buscar por páginas en la API).
+ */
+function applyCatalogClientFilters(
+  products: Product[],
+  priceRange: PriceRange,
+  selectedFilters: Record<string, string[]>
+): Product[] {
+  if (products.length === 0) return [];
+
+  const hasSelection =
+    Object.values(selectedFilters).some((a) => a.length > 0) ||
+    priceRange.min !== null ||
+    priceRange.max !== null;
+  if (!hasSelection) return products;
+
+  let out = products;
+
+  if (priceRange.min !== null || priceRange.max !== null) {
+    out = out.filter((product) => {
+      const productMinPrice = product.min_price ?? null;
+      const productMaxPrice = product.max_price ?? productMinPrice;
+      if (productMinPrice === null || productMinPrice === undefined) {
+        return false;
+      }
+      const minPrice = productMinPrice;
+      const maxPrice = productMaxPrice ?? productMinPrice;
+      if (priceRange.min !== null && maxPrice < priceRange.min) {
+        return false;
+      }
+      if (priceRange.max !== null && minPrice > priceRange.max) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  const categoryOptionFilters: Record<string, string[]> = {};
+  const technicalFilters: Record<string, string[]> = {};
+  Object.entries(selectedFilters).forEach(([k, v]) => {
+    if (TECHNICAL_FILTER_KEYS.includes(k as (typeof TECHNICAL_FILTER_KEYS)[number])) {
+      technicalFilters[k] = v;
+    } else {
+      categoryOptionFilters[k] = v;
+    }
+  });
+
+  if (Object.keys(categoryOptionFilters).length > 0) {
+    const allSelectedOptionIds = new Set<string>();
+    Object.values(categoryOptionFilters).forEach((values) => {
+      values.forEach((id) => allSelectedOptionIds.add(id));
+    });
+    if (allSelectedOptionIds.size > 0) {
+      out = out.filter((product) => {
+        if (product.category_option_id && allSelectedOptionIds.has(product.category_option_id)) {
+          return true;
+        }
+        if (product.subcategories && product.subcategories.length > 0) {
+          return product.subcategories.some(
+            (subcat) => subcat.category_option_id && allSelectedOptionIds.has(subcat.category_option_id)
+          );
+        }
+        return false;
+      });
+    }
+  }
+
+  for (const [filterKey, selectedValues] of Object.entries(technicalFilters)) {
+    if (selectedValues.length === 0) continue;
+    if (filterKey === "colchon-tecnologia") {
+      debugCatalogoTecnologia("aplicar filtro", { selectedValues, productosAntes: out.length });
+      out.slice(0, 4).forEach((p) => {
+        const blob = combinedEstructuraRellenoSearchBlob(p);
+        const perValue = selectedValues.map((v) => ({
+          value: v,
+          match: productMatchesEstructuraRellenoFilterValue(p, v),
+        }));
+        debugCatalogoTecnologia("muestra producto", {
+          id: p.id,
+          name: p.name,
+          filling_type: p.filling_type,
+          category_option_value: p.category_option_value,
+          blobNormalizado: blob,
+          perValue,
+          pasa: perValue.some((x) => x.match),
+        });
+      });
+      const before = out.length;
+      out = out.filter((product) =>
+        selectedValues.some((value) => productMatchesEstructuraRellenoFilterValue(product, value))
+      );
+      debugCatalogoTecnologia("resultado", { productosDespues: out.length, filtradoDesde: before });
+    }
+    if (filterKey === "Firmeza") {
+      out = out.filter((product) => {
+        if (!product.mattress_firmness) return false;
+        const productFirmness = product.mattress_firmness.toUpperCase().trim();
+        return selectedValues.some((value) => {
+          const valueMap: Record<string, string[]> = {
+            soft: ["SOFT"],
+            medio: ["MEDIO"],
+            firme: ["FIRME"],
+          };
+          const possibleValues = valueMap[value] || [value.toUpperCase()];
+          return possibleValues.includes(productFirmness);
+        });
+      });
+    }
+    if (filterKey === "Peso Máximo Soportado") {
+      out = out.filter((product) => {
+        const maxWeightKg = product.max_supported_weight_kg;
+        if (!maxWeightKg) return false;
+        return selectedValues.some((value) => {
+          if (value === "150+") {
+            return maxWeightKg >= 150;
+          }
+          const maxWeight = parseInt(value, 10);
+          return maxWeightKg <= maxWeight && maxWeightKg > maxWeight - 15;
+        });
+      });
+    }
+    if (filterKey === "Pillow Top") {
+      out = out.filter((product) => {
+        const hasPillowTop = product.has_pillow_top === true;
+        return selectedValues.some((value) => {
+          if (value === "true") return hasPillowTop;
+          if (value === "false") return !hasPillowTop;
+          return false;
+        });
+      });
+    }
+    if (filterKey === "Tipo de Entrega") {
+      out = out.filter((product) => {
+        const isBedInBox = product.is_bed_in_box === true;
+        return selectedValues.some((value) => {
+          if (value === "true") return isBedInBox;
+          if (value === "false") return !isBedInBox;
+          return false;
+        });
+      });
+    }
+  }
+  return out;
+}
+
+const COLCHON_TECNOLOGIA_FILTER: FilterGroup = {
+  id: "colchon-tecnologia",
+  title: "Tecnología",
+  type: "checkbox",
+  options: [
+    { value: "resortes-biconicos", label: "Resortes Bicónicos" },
+    { value: "espuma", label: "Espuma" },
+    { value: "espuma-de-alta-densidad", label: "Espuma de alta densidad" },
+    { value: "resortes-pocket", label: "Resortes Pocket" },
+  ],
+};
+
 const categoryFilters: CategoryFilters = {
   "Colchones": [
+    COLCHON_TECNOLOGIA_FILTER,
     {
       title: "Plazas",
       type: "checkbox",
@@ -103,15 +416,6 @@ const categoryFilters: CategoryFilters = {
         { value: "queen", label: "Queen" },
         { value: "extra-queen", label: "Extra-queen" },
         { value: "king", label: "King" },
-      ],
-    },
-    {
-      title: "Tecnología",
-      type: "checkbox",
-      options: [
-        { value: "espuma-alta-densidad", label: "Espuma alta densidad" },
-        { value: "resortes-biconicos", label: "Resortes bicónicos" },
-        { value: "resortes-pocket", label: "Resortes pocket" },
       ],
     },
     {
@@ -163,6 +467,7 @@ const categoryFilters: CategoryFilters = {
     },
   ],
   "Sommiers": [
+    COLCHON_TECNOLOGIA_FILTER,
     {
       title: "Plazas",
       type: "checkbox",
@@ -173,15 +478,6 @@ const categoryFilters: CategoryFilters = {
         { value: "queen", label: "Queen" },
         { value: "extra-queen", label: "Extra-queen" },
         { value: "king", label: "King" },
-      ],
-    },
-    {
-      title: "Tecnología",
-      type: "checkbox",
-      options: [
-        { value: "espuma-alta-densidad", label: "Espuma alta densidad" },
-        { value: "resortes-biconicos", label: "Resortes bicónicos" },
-        { value: "resortes-pocket", label: "Resortes pocket" },
       ],
     },
     {
@@ -421,7 +717,7 @@ export default function CatalogoContent({
   const [productsTotalCount, setProductsTotalCount] = useState(initialTotal);
   const [sortBy, setSortBy] = useState("created_at_desc");
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const [perPage, setPerPage] = useState(20);
+  const [perPage, setPerPage] = useState(CATALOGO_PER_PAGE_DEFAULT);
   const [showPerPageMenu, setShowPerPageMenu] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(true);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
@@ -433,7 +729,9 @@ export default function CatalogoContent({
   // y estamos en la misma página (mismo slug) que cuando se montó
   const initialSlugRef = useRef<string | undefined>(slug?.join('/'));
   const skipFirstProductFetch = useRef(initialProducts.length > 0);
-  
+  /** Catálogo sin filtrar (misma categoría/búsqueda/orden/localidad) para filtrar en cliente sin perder ítems por página */
+  const catalogProductPoolRef = useRef<{ key: string; products: Product[] } | null>(null);
+
   // Resetear estado cuando cambia el slug (navegación del lado del cliente)
   useEffect(() => {
     const currentSlug = slug?.join('/');
@@ -441,6 +739,7 @@ export default function CatalogoContent({
       // Si el slug cambió, resetear todo y cargar productos nuevos
       skipFirstProductFetch.current = false;
       initialSlugRef.current = currentSlug;
+      catalogProductPoolRef.current = null;
       // Resetear productos y página cuando cambia la categoría
       setProducts([]);
       setPage(1);
@@ -746,6 +1045,8 @@ export default function CatalogoContent({
     
     // Filtros técnicos: colchones y catálogos equivalentes (p. ej. sommier + colchón)
     if (isColchonStyleCatalogCategory(categoryName) || isColchonStyleCatalogCategory(category?.name)) {
+      // Tecnología (filling_type) al inicio (antes de subcategorías API y de firmeza/peso, etc.)
+      filters.unshift(COLCHON_TECNOLOGIA_FILTER);
       // Firmeza (mattress_firmness)
       filters.push({
         title: "Firmeza",
@@ -921,7 +1222,16 @@ export default function CatalogoContent({
     // Saltear el primer fetch solo si tenemos productos iniciales del servidor
     // y estamos en el mismo slug que cuando se montó el componente
     // Si el slug cambió, nunca saltar el fetch
-    if (!slugChanged && skipFirstProductFetch.current && currentSlug === initialSlugRef.current && initialProducts.length > 0) {
+    // Solo reutilizar el HTML inicial sin red cuando no hay localidad en cliente: el SSR no envía
+    // locality_id; si el usuario ya tiene localidad, hay que listar con esa tienda.
+    if (
+      !slugChanged &&
+      skipFirstProductFetch.current &&
+      currentSlug === initialSlugRef.current &&
+      initialProducts.length > 0 &&
+      !hasActiveFilters &&
+      !locality?.id
+    ) {
       skipFirstProductFetch.current = false;
       return;
     }
@@ -935,210 +1245,89 @@ export default function CatalogoContent({
     const loadProducts = async () => {
       setLoading(true);
       try {
-        // Construir parámetros de búsqueda
-        const fetchParams: any = {
+        const baseParams: Parameters<typeof fetchProducts>[0] = {
           is_active: true,
           sort: sortBy,
-          page,
-          per_page: perPage,
           include_images: false,
           include_promos: true,
           require_crm_product_id: true,
         };
-        
-        // Agregar localidad si está disponible
+
         if (locality?.id) {
-          fetchParams.locality_id = locality.id;
+          baseParams.locality_id = locality.id;
         }
-        
-        // Si hay búsqueda, agregar el parámetro de búsqueda
         if (searchQuery) {
-          fetchParams.search = searchQuery;
+          baseParams.search = searchQuery;
         }
-        
-        // Si hay subcategoryId, usar esa; sino usar categoryId
         if (subcategoryId) {
-          fetchParams.category_id = subcategoryId;
+          baseParams.category_id = subcategoryId;
         } else if (categoryId) {
-          fetchParams.category_id = categoryId;
+          baseParams.category_id = categoryId;
         }
-        
-        // Siempre usar la API real
-        let result = await fetchProducts(fetchParams);
-        
-        // Filtrar por opciones seleccionadas si hay filtros activos
-        if (hasActiveFilters && result.products.length > 0) {
-          let filteredProducts = result.products;
-          
-          // Filtrar por rango de precios primero
-          if (priceRange.min !== null || priceRange.max !== null) {
-            filteredProducts = filteredProducts.filter(product => {
-              // Obtener el precio mínimo y máximo del producto
-              const productMinPrice = product.min_price ?? null;
-              const productMaxPrice = product.max_price ?? productMinPrice;
-              
-              // Si el producto no tiene precio, excluirlo
-              if (productMinPrice === null || productMinPrice === undefined) {
-                return false;
-              }
-              
-              // Si solo hay un precio, usarlo como min y max
-              const minPrice = productMinPrice;
-              const maxPrice = productMaxPrice ?? productMinPrice;
-              
-              // Verificar si el rango de precios del producto se solapa con el filtro
-              // El producto debe tener al menos un precio dentro del rango
-              if (priceRange.min !== null && maxPrice < priceRange.min) {
-                return false;
-              }
-              if (priceRange.max !== null && minPrice > priceRange.max) {
-                return false;
-              }
-              
-              return true;
+
+        const useClientPool = hasActiveFilters && catalogNeedsFullClientPool(selectedFilters, priceRange);
+
+        if (useClientPool) {
+          const poolKey = [
+            categoryId ?? "",
+            subcategoryId ?? "",
+            searchQuery ?? "",
+            sortBy,
+            locality?.id ?? "",
+          ].join("|");
+
+          let allProducts: Product[];
+          if (catalogProductPoolRef.current?.key === poolKey) {
+            allProducts = catalogProductPoolRef.current.products;
+            debugCatalogoTecnologia("usando pool en caché (sin refetch red)", { productos: allProducts.length });
+          } else {
+            const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
+            const { products } = await fetchProductsAllPages(baseParams, { concurrency: 3 });
+            const ms =
+              (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0;
+            debugCatalogoTecnologia("red: pool completo para filtros (hojas en lotes de 3 request paralelos)", {
+              productos: products.length,
+              ms: Math.round(ms),
             });
+            catalogProductPoolRef.current = { key: poolKey, products };
+            allProducts = products;
           }
-          
-          // Separar filtros de opciones de categoría de filtros técnicos
-          const categoryOptionFilters: Record<string, string[]> = {};
-          const technicalFilters: Record<string, string[]> = {};
-          
-          Object.entries(selectedFilters).forEach(([filterKey, selectedValues]) => {
-            const technicalFilterKeys = ["Firmeza", "Peso Máximo Soportado", "Pillow Top", "Tipo de Entrega"];
-            if (technicalFilterKeys.includes(filterKey)) {
-              technicalFilters[filterKey] = selectedValues;
-            } else {
-              categoryOptionFilters[filterKey] = selectedValues;
-            }
-          });
-          
-          // Filtrar por opciones de categoría (IDs de category_option)
-          if (Object.keys(categoryOptionFilters).length > 0) {
-            const allSelectedOptionIds = new Set<string>();
-            Object.values(categoryOptionFilters).forEach(selectedValues => {
-              selectedValues.forEach(optionId => {
-                allSelectedOptionIds.add(optionId);
-              });
-            });
-            
-            if (allSelectedOptionIds.size > 0) {
-              filteredProducts = filteredProducts.filter(product => {
-                // Verificar si el producto tiene alguna de las opciones seleccionadas
-                // 1. Verificar category_option_id directo del producto
-                if (product.category_option_id && allSelectedOptionIds.has(product.category_option_id)) {
-                  return true;
-                }
-                
-                // 2. Verificar en las subcategorías asociadas
-                if (product.subcategories && product.subcategories.length > 0) {
-                  // El producto debe tener al menos UNA subcategoría con UNA de las opciones seleccionadas
-                  const hasMatchingOption = product.subcategories.some(subcat => {
-                    return subcat.category_option_id && allSelectedOptionIds.has(subcat.category_option_id);
-                  });
-                  
-                  if (hasMatchingOption) {
-                    return true;
-                  }
-                }
-                
-                // Si no coincide con ninguna opción, excluir el producto
-                return false;
-              });
-            }
-          }
-          
-          // Filtrar por filtros técnicos de colchones
-          Object.entries(technicalFilters).forEach(([filterKey, selectedValues]) => {
-            if (selectedValues.length === 0) return;
-            
-            // Firmeza
-            if (filterKey === "Firmeza") {
-              filteredProducts = filteredProducts.filter(product => {
-                if (!product.mattress_firmness) return false;
-                // Los valores en la DB son "MEDIO", "SOFT" o "FIRME" (mayúsculas)
-                const productFirmness = product.mattress_firmness.toUpperCase().trim();
-                return selectedValues.some(value => {
-                  // Mapear valores del filtro a valores en la BD (mayúsculas)
-                  const valueMap: Record<string, string[]> = {
-                    "soft": ["SOFT"],
-                    "medio": ["MEDIO"],
-                    "firme": ["FIRME"]
-                  };
-                  const possibleValues = valueMap[value] || [value.toUpperCase()];
-                  return possibleValues.includes(productFirmness);
-                });
-              });
-            }
-            
-            // Peso Máximo Soportado
-            if (filterKey === "Peso Máximo Soportado") {
-              filteredProducts = filteredProducts.filter(product => {
-                const maxWeightKg = product.max_supported_weight_kg;
-                if (!maxWeightKg) return false;
-                return selectedValues.some(value => {
-                  if (value === "150+") {
-                    return maxWeightKg >= 150;
-                  }
-                  const maxWeight = parseInt(value);
-                  return maxWeightKg <= maxWeight && 
-                         maxWeightKg > (maxWeight - 15);
-                });
-              });
-            }
-            
-            // Pillow Top
-            if (filterKey === "Pillow Top") {
-              filteredProducts = filteredProducts.filter(product => {
-                const hasPillowTop = product.has_pillow_top === true;
-                return selectedValues.some(value => {
-                  if (value === "true") return hasPillowTop;
-                  if (value === "false") return !hasPillowTop;
-                  return false;
-                });
-              });
-            }
-            
-            // Colchón en caja
-            if (filterKey === "Tipo de Entrega") {
-              filteredProducts = filteredProducts.filter(product => {
-                const isBedInBox = product.is_bed_in_box === true;
-                return selectedValues.some(value => {
-                  if (value === "true") return isBedInBox;
-                  if (value === "false") return !isBedInBox;
-                  return false;
-                });
-              });
-            }
-          });
-          
-          // Recalcular total_pages basado en productos filtrados
-          const filteredTotal = filteredProducts.length;
-          const filteredTotalPages = Math.ceil(filteredTotal / perPage);
-          
-          // Paginar los productos filtrados
-          const startIndex = (page - 1) * perPage;
-          const endIndex = startIndex + perPage;
-          filteredProducts = filteredProducts.slice(startIndex, endIndex);
-          
-          result = {
-            products: filteredProducts,
-            total: filteredTotal,
-            page: page,
+
+          const filtered = applyCatalogClientFilters(allProducts, priceRange, selectedFilters);
+          const filteredTotal = filtered.length;
+          const filteredTotalPages = Math.max(1, Math.ceil(filteredTotal / perPage));
+          const safePage = Math.min(page, filteredTotalPages);
+          const paged = filtered.slice((safePage - 1) * perPage, safePage * perPage);
+
+          setProducts(paged);
+          setTotalPages(filteredTotalPages);
+          setProductsTotalCount(filteredTotal);
+        } else {
+          catalogProductPoolRef.current = null;
+          const result = await fetchProducts({
+            ...baseParams,
+            page,
             per_page: perPage,
-            total_pages: filteredTotalPages,
-          };
+            ...(priceRange.min !== null ? { min_price: priceRange.min } : {}),
+            ...(priceRange.max !== null ? { max_price: priceRange.max } : {}),
+            ...(selectedFilters["colchon-tecnologia"]?.length
+              ? { filling_type_slugs: selectedFilters["colchon-tecnologia"].join(",") }
+              : {}),
+          });
+          setProducts(result.products);
+          setTotalPages(result.total_pages);
+          setProductsTotalCount(result.total);
         }
-        
-        setProducts(result.products);
-        setTotalPages(result.total_pages);
-        setProductsTotalCount(result.total);
       } catch (error) {
         console.error("Error loading products:", error);
+        catalogProductPoolRef.current = null;
         setProducts([]);
         setTotalPages(1);
         setProductsTotalCount(0);
       } finally {
         setLoading(false);
+        // Tras cualquier carga real, no volver a "saltar" y dejar la grilla colgada de page=1.
+        skipFirstProductFetch.current = false;
       }
     };
     
@@ -1323,7 +1512,7 @@ export default function CatalogoContent({
                     onClick={() => setShowPerPageMenu(false)}
                   />
                   <div className="absolute top-full right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-20 min-w-[180px]">
-                    {[20, 50, 100].map((value) => (
+                    {CATALOGO_PER_PAGE_OPTIONS.map((value) => (
                       <button
                         key={value}
                         onClick={() => {
@@ -1473,7 +1662,7 @@ export default function CatalogoContent({
               ) : (
                 <div className="space-y-4">
                   {currentFilters.map((filterGroup, index) => {
-                    const filterKey = filterGroup.title;
+                    const filterKey = filterGroupStorageKey(filterGroup);
                     const isOpen = openFilters[filterKey] || false;
                     
                     return (
@@ -1649,7 +1838,7 @@ export default function CatalogoContent({
                     ) : (
                       <div className="space-y-6">
                         {currentFilters.map((filterGroup, index) => {
-                          const filterKey = filterGroup.title;
+                          const filterKey = filterGroupStorageKey(filterGroup);
                           const isOpen = openFilters[filterKey] || false;
                           
                           return (

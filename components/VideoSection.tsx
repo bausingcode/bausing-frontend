@@ -31,7 +31,7 @@ export default function VideoSection({ videoData }: VideoSectionProps) {
 
           {/* Overlay */}
           {(videoData.title || videoData.subtitle || videoData.cta_text) && (
-            <div className="absolute inset-0 z-10 flex items-center justify-start px-6 md:px-12 lg:px-16 xl:px-20">
+            <div className="absolute inset-0 z-10 flex items-center justify-start px-6 md:px-12 lg:px-16 xl:px-20 lg:items-end lg:pb-10 xl:pb-14">
               <div className="max-w-[75%] sm:max-w-[55%] md:max-w-[48%] lg:max-w-[50%]">
                 {videoData.title && (
                   <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-white mb-2 md:mb-3.5 lg:mb-5 drop-shadow-lg leading-tight">

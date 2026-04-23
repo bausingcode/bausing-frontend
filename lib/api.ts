@@ -535,6 +535,11 @@ export async function fetchProducts(params?: {
   include_promos?: boolean;
   /** Solo productos con crm_product_id (catálogo / vitrina) */
   require_crm_product_id?: boolean;
+  /**
+   * Slugs de Tecnología (colchones), coma: resortes-biconicos,espuma,espuma-de-alta-densidad,resortes-pocket.
+   * Filtrado en backend; no hace falta bajar todo el catálogo al cliente.
+   */
+  filling_type_slugs?: string;
 }): Promise<{ products: Product[]; total: number; page: number; per_page: number; total_pages: number }> {
   try {
     const queryParams = new URLSearchParams();
@@ -554,6 +559,7 @@ export async function fetchProducts(params?: {
     if (params?.include_images !== undefined) queryParams.append('include_images', params.include_images.toString());
     if (params?.include_promos !== undefined) queryParams.append('include_promos', params.include_promos.toString());
     if (params?.require_crm_product_id) queryParams.append('require_crm_product_id', 'true');
+    if (params?.filling_type_slugs) queryParams.append('filling_type_slugs', params.filling_type_slugs);
 
     // En el servidor, usar la URL completa del backend
     // En el cliente, usar la ruta relativa que será manejada por el rewrite de Next.js
@@ -566,25 +572,50 @@ export async function fetchProducts(params?: {
       : getAuthHeaders();
     
     const response = await fetch(url, { headers, cache: "no-store" });
-    
+    const data = await response.json().catch(() => ({}));
+
     if (!response.ok) {
-      throw new Error(`Failed to fetch products: ${response.statusText}`);
+      const body = typeof (data as { error?: string }).error === "string"
+        ? (data as { error: string }).error
+        : JSON.stringify(data).slice(0, 500);
+      // eslint-disable-next-line no-console
+      console.error(
+        "[fetchProducts] HTTP",
+        response.status,
+        response.statusText,
+        url,
+        body
+      );
+      return {
+        products: [],
+        total: 0,
+        page: 1,
+        per_page: 20,
+        total_pages: 0,
+      };
     }
-    
-    const data = await response.json();
-    if (!data.success) {
-      throw new Error(data.error || "Failed to fetch products");
+    if (!(data as { success?: boolean }).success) {
+      // eslint-disable-next-line no-console
+      console.error("[fetchProducts] success=false", (data as { error?: string }).error || data, url);
+      return {
+        products: [],
+        total: 0,
+        page: 1,
+        per_page: 20,
+        total_pages: 0,
+      };
     }
-    
+    const d = data as { data: { items?: Product[]; total?: number; page?: number; per_page?: number; total_pages?: number } };
     return {
-      products: data.data.items || [],
-      total: data.data.total || 0,
-      page: data.data.page || 1,
-      per_page: data.data.per_page || 20,
-      total_pages: data.data.total_pages || 1,
+      products: d.data.items || [],
+      total: d.data.total || 0,
+      page: d.data.page || 1,
+      per_page: d.data.per_page || 20,
+      total_pages: d.data.total_pages || 1,
     };
   } catch (error) {
-    console.error("Error fetching products:", error);
+    // eslint-disable-next-line no-console
+    console.error("Error fetching products (network/parse):", error);
     return {
       products: [],
       total: 0,
@@ -593,6 +624,60 @@ export async function fetchProducts(params?: {
       total_pages: 0,
     };
   }
+}
+
+const CATALOG_FETCH_CHUNK = 100;
+/** Máx. hojas en paralelismo limitado: evita decenas de GET /products a la vez (DB y pool de conexiones). */
+const CATALOG_ALL_PAGES_CONCURRENCY_DEFAULT = 3;
+
+/**
+ * Toma todas las páginas del listado (hasta `maxPages`) para filtrar en cliente.
+ * Las hojas 2..N se piden en lotes de `concurrency` (default 3), no con un Promise.all global.
+ */
+export async function fetchProductsAllPages(
+  baseParams: Parameters<typeof fetchProducts>[0],
+  options?: { maxPages?: number; concurrency?: number }
+): Promise<{ products: Product[]; total: number }> {
+  const maxPages = options?.maxPages ?? 100;
+  const concurrency = Math.max(
+    1,
+    options?.concurrency ?? CATALOG_ALL_PAGES_CONCURRENCY_DEFAULT
+  );
+  const first = await fetchProducts({
+    ...baseParams,
+    page: 1,
+    per_page: CATALOG_FETCH_CHUNK,
+  });
+  if (first.total_pages <= 1) {
+    return { products: first.products, total: first.total };
+  }
+  const totalPages = Math.min(first.total_pages, maxPages);
+  if (totalPages === 0) {
+    return { products: first.products, total: first.total };
+  }
+  const firstChunk = first.products;
+  const otherPageNums = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+  const rest: Awaited<ReturnType<typeof fetchProducts>>[] = [];
+  for (let i = 0; i < otherPageNums.length; i += concurrency) {
+    const batch = otherPageNums.slice(i, i + concurrency);
+    const batchResults = await Promise.all(
+      batch.map((p) =>
+        fetchProducts({
+          ...baseParams,
+          page: p,
+          per_page: CATALOG_FETCH_CHUNK,
+        })
+      )
+    );
+    rest.push(...batchResults);
+  }
+  const products: Product[] = firstChunk.slice();
+  for (const r of rest) {
+    if (r.products.length) {
+      products.push(...r.products);
+    }
+  }
+  return { products, total: first.total };
 }
 
 /**

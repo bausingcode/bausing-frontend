@@ -14,6 +14,9 @@ import {
 import { useLocality } from "@/contexts/LocalityContext";
 import { firstProductImageUrl } from "@/lib/productImagePlaceholder";
 
+const CATALOGO_PER_PAGE_DEFAULT = 21;
+const CATALOGO_PER_PAGE_OPTIONS: readonly number[] = [21, 30, 45, 60, 99];
+
 interface CatalogoContentProps {
   initialProducts: Product[];
   initialTotalPages: number;
@@ -35,7 +38,7 @@ export default function CatalogoContent({
   const [totalCount, setTotalCount] = useState(initialTotal);
   const [sortBy, setSortBy] = useState("created_at_desc");
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const [perPage, setPerPage] = useState(20);
+  const [perPage, setPerPage] = useState(CATALOGO_PER_PAGE_DEFAULT);
   const [showPerPageMenu, setShowPerPageMenu] = useState(false);
 
   // Saltear el primer fetch del cliente si ya tenemos datos del servidor
@@ -238,7 +241,7 @@ export default function CatalogoContent({
                     onClick={() => setShowPerPageMenu(false)}
                   />
                   <div className="absolute top-full left-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-20 min-w-[180px]">
-                    {[20, 50, 100].map((value) => (
+                    {CATALOGO_PER_PAGE_OPTIONS.map((value) => (
                       <button
                         key={value}
                         onClick={() => {
