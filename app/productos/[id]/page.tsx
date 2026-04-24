@@ -1095,8 +1095,11 @@ export default function ProductDetailPage() {
                       const showMarketingReferenceStrike =
                         !hasDiscount && Boolean(originalPrice);
 
-                      const priceWithoutTaxes = priceInfo.currentPriceValue * 0.79;
                       const showDualPrice = Boolean(priceInfo.hasCardPrice && priceInfo.cardPrice);
+                      const priceForTaxesBase = showDualPrice
+                        ? priceInfo.transferPriceValue
+                        : priceInfo.currentPriceValue;
+                      const priceWithoutTaxes = priceForTaxesBase * 0.79;
                       const promoBadge = shouldShowDiscount && discountLabel && (
                         <span className="bg-[#00C1A7] text-white px-2 py-0.5 md:py-1 rounded-[4px] font-semibold text-xs md:text-sm shrink-0">
                           {discountLabel}
@@ -1120,17 +1123,35 @@ export default function ProductDetailPage() {
                         </div>
                       );
 
+                      const transferMainRow = (
+                        <div className="flex items-baseline gap-2 md:gap-3 flex-wrap">
+                          <span className="text-2xl md:text-3xl font-semibold text-gray-900 tabular-nums">
+                            {priceInfo.transferPrice}
+                          </span>
+                          {displayStrikethrough ? (
+                            <span className="text-base md:text-lg text-gray-400 line-through tabular-nums">
+                              {originalPrice}
+                            </span>
+                          ) : null}
+                          {promoBadge}
+                        </div>
+                      );
+
                       return (
                         <>
                           {showDualPrice ? (
-                            <div className="space-y-3 text-gray-900">
+                            <div className="space-y-2 text-gray-900">
                               <div>
-                                <p className="text-sm font-medium text-[#00A890] mb-1">{PRICE_UI_CARD_CAPTION}</p>
-                                {priceRow}
+                                <p className="text-sm font-medium text-[#00A890] mb-1">
+                                  {PRICE_UI_TRANSFER_CAPTION}
+                                </p>
+                                {transferMainRow}
                               </div>
-                              <p className="text-sm text-gray-600">
-                                <span>{PRICE_UI_TRANSFER_CAPTION}: </span>
-                                <span className="font-semibold text-gray-900 tabular-nums">{priceInfo.transferPrice}</span>
+                              <p className="text-xs md:text-sm text-gray-500 leading-snug">
+                                <span>{PRICE_UI_CARD_CAPTION}: </span>
+                                <span className="font-medium text-gray-700 tabular-nums">
+                                  {priceInfo.cardPrice}
+                                </span>
                               </p>
                             </div>
                           ) : (

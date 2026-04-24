@@ -6,7 +6,7 @@ import { Heart, ShoppingCart } from "lucide-react";
 import wsrvLoader from "@/lib/wsrvLoader";
 import { PRODUCT_IMAGE_PLACEHOLDER } from "@/lib/productImagePlaceholder";
 import { useCart } from "@/contexts/CartContext";
-import { PRICE_UI_CARD_CAPTION } from "@/utils/priceUtils";
+import { PRICE_UI_CARD_CAPTION, PRICE_UI_TRANSFER_CAPTION } from "@/utils/priceUtils";
 
 interface ProductCardProps {
   id?: string;
@@ -16,9 +16,9 @@ interface ProductCardProps {
   currentPrice: string;
   originalPrice?: string;
   discount?: string;
-  /** Leyenda bajo el precio (ej. precio efectivo / transferencia) */
+  /** Leyenda sobre el precio principal (ej. efectivo / transferencia) */
   priceNote?: string;
-  /** Precio secundario (ej. tarjeta) en texto pequeño */
+  /** Precio secundario (ej. precio de lista) en texto pequeño */
   secondaryPrice?: string;
   secondaryPriceLabel?: string;
   isPriceLoading?: boolean;
@@ -219,7 +219,7 @@ export default function ProductCard({
                         : "text-[10px] md:text-xs font-medium text-[#00A890] leading-snug"
                     }
                   >
-                    {priceNote || PRICE_UI_CARD_CAPTION}
+                    {priceNote || PRICE_UI_TRANSFER_CAPTION}
                   </p>
                   <div className="flex flex-col items-start gap-0.5 min-w-0">
                     {originalPrice ? (
@@ -233,17 +233,25 @@ export default function ProductCard({
                         {originalPrice}
                       </span>
                     ) : null}
-                    <span className={useNormalHeight ? "text-xl font-medium tabular-nums leading-tight" : "text-lg md:text-xl font-medium tabular-nums leading-tight"}>{currentPrice}</span>
+                    <span
+                      className={
+                        useNormalHeight
+                          ? "text-2xl font-semibold tabular-nums leading-tight"
+                          : "text-xl md:text-2xl font-semibold tabular-nums leading-tight"
+                      }
+                    >
+                      {currentPrice}
+                    </span>
                   </div>
                   <p
                     className={
                       useNormalHeight
-                        ? "text-xs text-gray-600 leading-snug pt-0.5"
-                        : "text-[10px] md:text-xs text-gray-600 leading-snug pt-0.5"
+                        ? "text-[10px] text-gray-500 leading-snug pt-0.5"
+                        : "text-[9px] md:text-[10px] text-gray-500 leading-snug pt-0.5"
                     }
                   >
-                    <span>{secondaryPriceLabel || "Precio con tarjeta"}: </span>
-                    <span className="font-medium text-gray-900 tabular-nums">{secondaryPrice}</span>
+                    <span>{secondaryPriceLabel || PRICE_UI_CARD_CAPTION}: </span>
+                    <span className="font-medium text-gray-600 tabular-nums">{secondaryPrice}</span>
                   </p>
                 </>
               ) : (

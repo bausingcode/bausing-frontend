@@ -87,7 +87,7 @@ export interface ProductPriceInfo {
 
   /** Precio efectivo/transferencia (formateado) */
   transferPrice: string;
-  /** Precio tarjeta (formateado). Presente si el producto tiene precio de tarjeta. */
+  /** Precio de lista / tarjeta (formateado). Presente si difiere del de transferencia. */
   cardPrice?: string;
   hasCardPrice: boolean;
   
@@ -111,9 +111,9 @@ export interface CalculateProductPriceOptions {
   paymentPriceKind?: PaymentPriceKind;
 }
 
-/** Textos para mostrar precio transferencia vs tarjeta (UI) */
+/** Textos para mostrar precio transferencia vs lista (UI) */
 export const PRICE_UI_TRANSFER_CAPTION = "Efectivo o transferencia";
-export const PRICE_UI_CARD_CAPTION = "Precio con tarjeta";
+export const PRICE_UI_CARD_CAPTION = "Precio de lista";
 
 /**
  * Indica si el producto tiene algún precio de lista (min agregado o tarjeta/transfer explícitos).
@@ -169,8 +169,8 @@ export function formatPrice(price: number): string {
  * @returns Información completa del precio calculado
  */
 /**
- * Props de precio para cards: el monto principal es el precio disponible (tarjeta)
- * cuando existe `min_card_price`; si también hay transferencia distinta, se muestra abajo.
+ * Props de precio para cards: con lista (tarjeta) distinta a transferencia, el monto principal
+ * es efectivo/transferencia; el precio de lista va en secundario más chico.
  */
 export function productCardPriceDisplayFromPriceInfo(priceInfo: ProductPriceInfo): {
   currentPrice: string;
@@ -180,10 +180,10 @@ export function productCardPriceDisplayFromPriceInfo(priceInfo: ProductPriceInfo
 } {
   if (priceInfo.hasCardPrice) {
     return {
-      currentPrice: priceInfo.currentPrice,
-      priceNote: PRICE_UI_CARD_CAPTION,
-      secondaryPrice: priceInfo.transferPrice,
-      secondaryPriceLabel: PRICE_UI_TRANSFER_CAPTION,
+      currentPrice: priceInfo.transferPrice,
+      priceNote: PRICE_UI_TRANSFER_CAPTION,
+      secondaryPrice: priceInfo.cardPrice,
+      secondaryPriceLabel: PRICE_UI_CARD_CAPTION,
     };
   }
   return { currentPrice: priceInfo.currentPrice };
