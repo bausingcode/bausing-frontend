@@ -76,12 +76,24 @@ interface FilterGroup {
   title: string;
   /** Clave en `selectedFilters` / `openFilters`; default `title` (evita colisión p. ej. otra "Tecnología" en otra categoría) */
   id?: string;
+  /** Si no hay estado en `openFilters`, acordeón abierto al montar */
+  defaultOpen?: boolean;
   type: "radio" | "checkbox";
   options: FilterOption[];
 }
 
 function filterGroupStorageKey(g: FilterGroup): string {
   return g.id ?? g.title;
+}
+
+/** Filtro por hijos directos de la categoría (valor = id de subcategoría en la API) */
+const CATALOGO_SUBCATEGORIAS_FILTER_ID = "catalogo-subcategorias";
+
+function sortSubcategoriesForCatalog(a: Category, b: Category): number {
+  const oa = a.order ?? 0;
+  const ob = b.order ?? 0;
+  if (oa !== ob) return oa - ob;
+  return a.name.localeCompare(b.name, "es");
 }
 
 type CategoryFilters = Record<string, FilterGroup[]>;
@@ -303,9 +315,14 @@ function applyCatalogClientFilters(
         if (product.category_option_id && allSelectedOptionIds.has(product.category_option_id)) {
           return true;
         }
+        if (product.category_id && allSelectedOptionIds.has(product.category_id)) {
+          return true;
+        }
         if (product.subcategories && product.subcategories.length > 0) {
           return product.subcategories.some(
-            (subcat) => subcat.category_option_id && allSelectedOptionIds.has(subcat.category_option_id)
+            (subcat) =>
+              (subcat.category_option_id && allSelectedOptionIds.has(subcat.category_option_id)) ||
+              (subcat.subcategory_id && allSelectedOptionIds.has(subcat.subcategory_id))
           );
         }
         return false;
@@ -586,6 +603,7 @@ const categoryFilters: CategoryFilters = {
   "Accesorios": [
     {
       title: "Subcategorías",
+      defaultOpen: true,
       type: "checkbox",
       options: [
         { value: "sabanas", label: "Sábanas" },
@@ -837,12 +855,13 @@ export default function CatalogoContent({
   // Estado para saber si se están aplicando filtros iniciales
   const [isApplyingFilter, setIsApplyingFilter] = useState(false);
   
-  // Función para toggle de cada filtro
-  const toggleFilter = (filterTitle: string) => {
-    setOpenFilters(prev => ({
-      ...prev,
-      [filterTitle]: !prev[filterTitle]
-    }));
+  // Función para toggle de cada filtro (respeta defaultOpen cuando aún no hay estado)
+  const toggleFilter = (filterKey: string, group?: FilterGroup) => {
+    setOpenFilters((prev) => {
+      const def = group?.defaultOpen ?? false;
+      const current = prev[filterKey] ?? def;
+      return { ...prev, [filterKey]: !current };
+    });
   };
   
   // Determinar la categoría y subcategoría desde el slug
@@ -997,56 +1016,79 @@ export default function CatalogoContent({
   const buildDynamicFilters = () => {
     const filters: FilterGroup[] = [];
     
-    if (!category && !subcategoryId) return filters;
-    
-    // Si hay subcategoría seleccionada, mostrar solo las opciones de esa subcategoría
+    if (!categoryId && !subcategoryId) return filters;
+
+    const mainCategoryForLeafOptions =
+      category ?? (categoryId ? (categories.find((c) => c.id === categoryId) ?? null) : null);
+
+    // Con subcategoría en la URL: hermanas bajo el mismo padre + opciones de la hoja (si existen)
     if (subcategoryId) {
-      const subcategory = categories.find(c => c.id === subcategoryId);
+      const subcategory = categories.find((c) => c.id === subcategoryId);
+      if (subcategory?.parent_id) {
+        const siblings = categories
+          .filter((c) => c.parent_id === subcategory.parent_id)
+          .sort(sortSubcategoriesForCatalog);
+        if (siblings.length > 0) {
+          filters.push({
+            id: CATALOGO_SUBCATEGORIAS_FILTER_ID,
+            title: "Subcategorías",
+            defaultOpen: true,
+            type: "checkbox" as const,
+            options: siblings.map((sc) => ({ value: sc.id, label: sc.name })),
+          });
+        }
+      }
       if (subcategory && subcategory.options && subcategory.options.length > 0) {
         filters.push({
           title: subcategory.name,
           type: "checkbox" as const,
-          options: subcategory.options.map(opt => ({
+          options: subcategory.options.map((opt) => ({
             value: opt.id,
-            label: opt.value
-          }))
+            label: opt.value,
+          })),
         });
       }
-    } else if (categoryId && category) {
-      // Si estamos en una categoría principal, agrupar opciones por subcategoría
-      const subcategories = categories.filter(c => c.parent_id === categoryId);
-      
-      // Si hay subcategorías, agrupar opciones por subcategoría
+    } else if (categoryId) {
+      const subcategories = categories
+        .filter((c) => c.parent_id === categoryId)
+        .sort(sortSubcategoriesForCatalog);
+
       if (subcategories.length > 0) {
+        filters.push({
+          id: CATALOGO_SUBCATEGORIAS_FILTER_ID,
+          title: "Subcategorías",
+          defaultOpen: true,
+          type: "checkbox" as const,
+          options: subcategories.map((sc) => ({ value: sc.id, label: sc.name })),
+        });
         subcategories
-          .filter(subcat => subcat.options && subcat.options.length > 0)
-          .forEach(subcat => {
+          .filter((subcat) => subcat.options && subcat.options.length > 0)
+          .forEach((subcat) => {
             filters.push({
               title: subcat.name,
               type: "checkbox" as const,
-              options: subcat.options!.map(opt => ({
+              options: subcat.options!.map((opt) => ({
                 value: opt.id,
-                label: opt.value
-              }))
+                label: opt.value,
+              })),
             });
           });
-      } else if (category.options && category.options.length > 0) {
-        // Si no hay subcategorías pero la categoría principal tiene opciones, mostrarlas
+      } else if (mainCategoryForLeafOptions?.options && mainCategoryForLeafOptions.options.length > 0) {
         filters.push({
-          title: category.name,
+          title: mainCategoryForLeafOptions.name,
           type: "checkbox" as const,
-          options: category.options.map(opt => ({
+          options: mainCategoryForLeafOptions.options.map((opt) => ({
             value: opt.id,
-            label: opt.value
-          }))
+            label: opt.value,
+          })),
         });
       }
     }
     
     // Filtros técnicos: colchones y catálogos equivalentes (p. ej. sommier + colchón)
     if (isColchonStyleCatalogCategory(categoryName) || isColchonStyleCatalogCategory(category?.name)) {
-      // Tecnología (filling_type) al inicio (antes de subcategorías API y de firmeza/peso, etc.)
-      filters.unshift(COLCHON_TECNOLOGIA_FILTER);
+      // Tecnología después de los bloques de subcategoría / opciones de categoría; luego firmeza, peso, etc.
+      filters.push(COLCHON_TECNOLOGIA_FILTER);
       // Firmeza (mattress_firmness)
       filters.push({
         title: "Firmeza",
@@ -1663,12 +1705,12 @@ export default function CatalogoContent({
                 <div className="space-y-4">
                   {currentFilters.map((filterGroup, index) => {
                     const filterKey = filterGroupStorageKey(filterGroup);
-                    const isOpen = openFilters[filterKey] || false;
+                    const isOpen = openFilters[filterKey] ?? filterGroup.defaultOpen ?? false;
                     
                     return (
                       <div key={index} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
                         <button
-                          onClick={() => toggleFilter(filterKey)}
+                          onClick={() => toggleFilter(filterKey, filterGroup)}
                           className="flex items-center justify-between w-full text-left mb-3 group"
                         >
                           <h3 className="text-sm font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">
@@ -1839,12 +1881,12 @@ export default function CatalogoContent({
                       <div className="space-y-6">
                         {currentFilters.map((filterGroup, index) => {
                           const filterKey = filterGroupStorageKey(filterGroup);
-                          const isOpen = openFilters[filterKey] || false;
+                          const isOpen = openFilters[filterKey] ?? filterGroup.defaultOpen ?? false;
                           
                           return (
                             <div key={index} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
                               <button
-                                onClick={() => toggleFilter(filterKey)}
+                                onClick={() => toggleFilter(filterKey, filterGroup)}
                                 className="flex items-center justify-between w-full text-left mb-3 group"
                               >
                                 <h3 className="text-sm font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">
