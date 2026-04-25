@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Image from "next/image";
 import { fetchBlogPostBySlug, BlogPost } from "@/lib/api";
+import { sanitizeBlogHtml } from "@/lib/sanitizeBlogHtml";
+import NewsletterSection from "@/components/NewsletterSection";
 
 // Función auxiliar para calcular tiempo de lectura (promedio 200 palabras por minuto)
 function calculateReadTime(content?: string): string {
@@ -15,12 +17,6 @@ function calculateReadTime(content?: string): string {
   const words = textContent.split(/\s+/).filter(word => word.length > 0).length;
   const minutes = Math.max(1, Math.ceil(words / 200));
   return `${minutes} min`;
-}
-
-// Función auxiliar para obtener categoría de keywords
-function getCategory(keywords?: Array<{ keyword: string }>): string {
-  if (!keywords || keywords.length === 0) return "Blog";
-  return keywords[0].keyword;
 }
 
 // Función auxiliar para formatear fecha
@@ -120,6 +116,9 @@ export default function ArticlePage() {
     loadArticle();
   }, [slug]);
 
+  const content = article?.content || "";
+  const safeHtml = useMemo(() => sanitizeBlogHtml(content), [content]);
+
   if (loading) {
     return <ArticleSkeleton />;
   }
@@ -147,14 +146,14 @@ export default function ArticlePage() {
     );
   }
 
-  const category = getCategory(article.keywords);
   const date = formatDate(article.published_at || article.created_at);
   const readTime = calculateReadTime(article.content);
   const author = article.author?.email || "Equipo Bausing";
   const coverImage = article.cover_image_url || "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=100";
 
-  // Parsear contenido HTML si existe
-  const content = article.content || "";
+  const ctaUrl = article.cta_url?.trim() || "";
+  const ctaLabel = article.cta_label?.trim() || "";
+  const ctaIsExternal = /^https?:\/\//i.test(ctaUrl);
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Navbar />
@@ -175,9 +174,6 @@ export default function ArticlePage() {
           </div>
           <div className="relative container mx-auto px-4 md:px-6 lg:px-8 py-20 md:py-28">
             <div className="max-w-3xl space-y-4 text-white">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-white/15 backdrop-blur">
-                {category}
-              </div>
               <h1 className="text-3xl md:text-4xl font-bold leading-tight">{article.title}</h1>
               {article.excerpt && (
                 <p className="text-base md:text-lg text-white/90">{article.excerpt}</p>
@@ -191,39 +187,36 @@ export default function ArticlePage() {
           </div>
         </section>
 
-        {/* Body */}
+        {/* Body (sin etiquetas/keywords: solo uso interno en admin) */}
         <section className="py-12 md:py-16 bg-white">
-          <div className="container mx-auto px-4 md:px-6 lg:px-8 grid lg:grid-cols-[2fr_1fr] gap-10">
-            <article className="prose max-w-none prose-headings:text-gray-900 prose-p:text-gray-600 prose-li:text-gray-600 prose-strong:text-gray-900 prose-img:rounded-lg">
-              {content ? (
-                <div 
-                  className="text-gray-600 leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: content }}
+          <div className="container mx-auto px-4 md:px-6 lg:px-8 max-w-3xl">
+            <article>
+              {safeHtml ? (
+                <div
+                  className="blog-article-body"
+                  dangerouslySetInnerHTML={{ __html: safeHtml }}
                 />
               ) : (
                 <p className="text-gray-600">No hay contenido disponible.</p>
               )}
-            </article>
-
-            <aside className="space-y-4">
-              {article.keywords && article.keywords.length > 0 && (
-                <div className="bg-white border border-gray-200 rounded-[12px] p-4">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Etiquetas</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {article.keywords.map((keyword) => (
-                      <span
-                        key={keyword.id}
-                        className="px-3 py-1 rounded-full bg-[#00C1A7]/10 text-[#00C1A7] text-xs font-semibold"
-                      >
-                        {keyword.keyword}
-                      </span>
-                    ))}
-                  </div>
+              {ctaLabel && ctaUrl ? (
+                <div className="not-prose mt-10">
+                  <a
+                    href={ctaUrl}
+                    className="inline-flex items-center justify-center rounded-full bg-[#101828] px-7 py-3.5 text-sm font-medium text-white transition-colors hover:bg-[#1d2939] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00C1A7]/50"
+                    {...(ctaIsExternal
+                      ? { target: "_blank" as const, rel: "noopener noreferrer" }
+                      : {})}
+                  >
+                    {ctaLabel}
+                  </a>
                 </div>
-              )}
-            </aside>
+              ) : null}
+            </article>
           </div>
         </section>
+
+        <NewsletterSection />
       </main>
 
       <Footer />

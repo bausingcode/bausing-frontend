@@ -14,7 +14,6 @@ type Article = {
   description: string;
   date: string;
   readTime: string;
-  category: string;
   featured: boolean;
   image: string;
 };
@@ -27,12 +26,6 @@ function calculateReadTime(content?: string): string {
   const words = textContent.split(/\s+/).filter(word => word.length > 0).length;
   const minutes = Math.max(1, Math.ceil(words / 200));
   return `${minutes} min`;
-}
-
-// Función auxiliar para obtener categoría de keywords
-function getCategory(keywords?: Array<{ keyword: string }>): string {
-  if (!keywords || keywords.length === 0) return "Blog";
-  return keywords[0].keyword;
 }
 
 // Función auxiliar para formatear fecha
@@ -59,7 +52,6 @@ function transformPostToArticle(post: BlogPost, index: number): Article {
     description: post.excerpt || "",
     date: formatDate(post.published_at || post.created_at),
     readTime: calculateReadTime(post.content),
-    category: getCategory(post.keywords),
     featured: index < 3, // Los primeros 3 son featured
     image: post.cover_image_url || "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1200&q=100",
   };
@@ -100,7 +92,7 @@ export default function BlogPage() {
         setLoading(true);
         const posts = await fetchBlogPosts({ 
           status: "published",
-          include_keywords: true,
+          include_keywords: false,
           include_images: false
         });
         const transformed = posts.map((post, index) => transformPostToArticle(post, index));
@@ -238,9 +230,6 @@ export default function BlogPage() {
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
                         sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
                       />
-                      <span className="absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-semibold bg-white/90 text-gray-900">
-                        {article.category}
-                      </span>
                     </div>
                     <div className="p-5 flex flex-col gap-3 flex-1">
                       <div className="flex items-center gap-3 text-xs text-gray-500">
@@ -292,9 +281,6 @@ export default function BlogPage() {
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
                         sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
                       />
-                      <span className="absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-semibold bg-white/90 text-gray-900">
-                        {article.category}
-                      </span>
                     </div>
                     <div className="p-5 flex flex-col gap-3 flex-1">
                       <div className="flex items-center gap-3 text-xs text-gray-500">

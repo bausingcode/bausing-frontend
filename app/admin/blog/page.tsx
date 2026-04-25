@@ -14,6 +14,11 @@ import {
 } from "@/lib/api";
 import wsrvLoader from "@/lib/wsrvLoader";
 import AutoResizeTextarea from "@/components/AutoResizeTextarea";
+import BlogRichTextEditor from "@/components/BlogRichTextEditor";
+
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
 import { 
   FileText, 
   X, 
@@ -63,6 +68,8 @@ export default function BlogPage() {
     cover_image_url: "",
     meta_title: "",
     meta_description: "",
+    cta_label: "",
+    cta_url: "",
     status: "draft" as "draft" | "published",
     published_at: "",
     keywords: [] as string[],
@@ -97,7 +104,10 @@ export default function BlogPage() {
       setEditingPost(post);
       // Auto-llenar meta título y meta descripción si no existen
       const metaTitle = post.meta_title || post.title || "";
-      const metaDesc = post.meta_description || post.excerpt || (post.content ? post.content.substring(0, 160) : "");
+      const metaDesc =
+        post.meta_description ||
+        post.excerpt ||
+        (post.content ? stripHtml(post.content).slice(0, 160) : "");
       
       setFormData({
         title: post.title || "",
@@ -107,6 +117,8 @@ export default function BlogPage() {
         cover_image_url: post.cover_image_url || "",
         meta_title: metaTitle,
         meta_description: metaDesc,
+        cta_label: post.cta_label || "",
+        cta_url: post.cta_url || "",
         status: post.status || "draft",
         published_at: post.published_at ? new Date(post.published_at).toISOString().slice(0, 16) : "",
         keywords: post.keywords?.map(k => k.keyword) || [],
@@ -122,6 +134,8 @@ export default function BlogPage() {
         cover_image_url: "",
         meta_title: "",
         meta_description: "",
+        cta_label: "",
+        cta_url: "",
         status: "draft",
         published_at: "",
         keywords: [],
@@ -142,6 +156,8 @@ export default function BlogPage() {
       cover_image_url: "",
       meta_title: "",
       meta_description: "",
+      cta_label: "",
+      cta_url: "",
       status: "draft",
       published_at: "",
       keywords: [],
@@ -171,15 +187,17 @@ export default function BlogPage() {
       setError("");
       setSuccess("");
 
+      const wasCreating = !editingPost?.id;
       let postId = editingPost?.id;
+      let savedPost: BlogPost | null = null;
 
-      // Si es un nuevo post, crearlo primero
       if (!postId) {
-        const newPost = await createBlogPost({
+        savedPost = await createBlogPost({
           title: formData.title,
-          // No enviar slug, el backend lo genera automáticamente
           excerpt: formData.excerpt || undefined,
           content: formData.content || undefined,
+          cta_label: formData.cta_label || undefined,
+          cta_url: formData.cta_url || undefined,
           cover_image_url: formData.cover_image_url || undefined,
           meta_title: formData.meta_title || undefined,
           meta_description: formData.meta_description || undefined,
@@ -187,14 +205,14 @@ export default function BlogPage() {
           published_at: formData.published_at || undefined,
           keywords: formData.keywords,
         });
-        postId = newPost.id;
+        postId = savedPost.id;
       } else {
-        // Actualizar post existente - solo actualizar slug si el título cambió
-        await updateBlogPost(postId, {
+        savedPost = await updateBlogPost(postId, {
           title: formData.title,
-          // No enviar slug, el backend lo genera automáticamente si cambia el título
           excerpt: formData.excerpt || undefined,
           content: formData.content || undefined,
+          cta_label: formData.cta_label || null,
+          cta_url: formData.cta_url || null,
           cover_image_url: formData.cover_image_url || undefined,
           meta_title: formData.meta_title || undefined,
           meta_description: formData.meta_description || undefined,
@@ -204,17 +222,42 @@ export default function BlogPage() {
         });
       }
 
-      // Subir imagen de portada si hay una nueva
       if (coverImageFile && postId) {
         const coverImage = await uploadBlogPostImageFile(coverImageFile, postId);
-        await updateBlogPost(postId, {
+        const afterCover = await updateBlogPost(postId, {
           cover_image_url: coverImage.image_url,
         });
+        savedPost = afterCover;
       }
 
-      setSuccess("Post guardado correctamente");
       await loadPosts();
-      handleCloseModal();
+
+      if (wasCreating && savedPost) {
+        setEditingPost(savedPost);
+        setFormData({
+          title: savedPost.title || "",
+          slug: savedPost.slug || "",
+          excerpt: savedPost.excerpt || "",
+          content: savedPost.content || "",
+          cover_image_url: savedPost.cover_image_url || "",
+          meta_title: savedPost.meta_title || "",
+          meta_description: savedPost.meta_description || "",
+          cta_label: savedPost.cta_label || "",
+          cta_url: savedPost.cta_url || "",
+          status: savedPost.status || "draft",
+          published_at: savedPost.published_at
+            ? new Date(savedPost.published_at).toISOString().slice(0, 16)
+            : "",
+          keywords: savedPost.keywords?.map((k) => k.keyword) || [],
+        });
+        setCoverImageFile(null);
+        setSuccess(
+          "Post creado. Podés seguir editando, insertar imágenes en el cuerpo y volver a guardar."
+        );
+      } else {
+        setSuccess("Post guardado correctamente");
+        handleCloseModal();
+      }
     } catch (err: any) {
       setError(err.message || "Error al guardar el post");
     } finally {
@@ -521,7 +564,9 @@ export default function BlogPage() {
                   onChange={(e) => {
                     const newExcerpt = e.target.value;
                     // Auto-llenar meta descripción con extracto, o parte del contenido si no hay extracto
-                    const metaDesc = newExcerpt || (formData.content ? formData.content.substring(0, 160) : '');
+                    const metaDesc =
+                      newExcerpt ||
+                      (formData.content ? stripHtml(formData.content).slice(0, 160) : "");
                     setFormData({ 
                       ...formData, 
                       excerpt: newExcerpt,
@@ -539,23 +584,61 @@ export default function BlogPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Contenido
                 </label>
-                <AutoResizeTextarea
+                <p className="text-xs text-gray-500 mb-2">
+                  Negrita, colores, listas, enlaces e imágenes. En un post nuevo, guardá una vez; después
+                  podés insertar imágenes en el texto.
+                </p>
+                <BlogRichTextEditor
+                  key={editingPost?.id ?? "new-blog-post"}
                   value={formData.content}
-                  onChange={(e) => {
-                    const newContent = e.target.value;
-                    // Si no hay extracto, usar parte del contenido para meta descripción
-                    const metaDesc = formData.excerpt || (newContent ? newContent.substring(0, 160) : '');
-                    setFormData({ 
-                      ...formData, 
-                      content: newContent,
-                      meta_description: metaDesc
+                  onChange={(html) => {
+                    const metaDesc =
+                      formData.excerpt || (html ? stripHtml(html).slice(0, 160) : "");
+                    setFormData({
+                      ...formData,
+                      content: html,
+                      meta_description: metaDesc,
                     });
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                  minRows={10}
-                  placeholder="Contenido del post"
+                  postId={editingPost?.id ?? null}
+                  onImageUploadError={(msg) => setError(msg)}
+                  onNeedPostId={() =>
+                    setError("Guardá el post primero para subir imágenes dentro del cuerpo del texto.")
+                  }
                 />
               </div>
+
+              {/* Call to action (artículo público) */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Texto del botón (CTA)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.cta_label}
+                    onChange={(e) => setFormData({ ...formData, cta_label: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    placeholder="Ej. Ver colchones"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Enlace del botón (CTA)
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.cta_url}
+                    onChange={(e) => setFormData({ ...formData, cta_url: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                    placeholder="https://... o ruta /productos"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 -mt-2">
+                Si completás ambos, se muestra un botón debajo del cuerpo del artículo. Dejá vacío para
+                ocultarlo.
+              </p>
 
               {/* Keywords */}
               <div>

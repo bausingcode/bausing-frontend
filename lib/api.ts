@@ -540,6 +540,8 @@ export async function fetchProducts(params?: {
    * Filtrado en backend; no hace falta bajar todo el catálogo al cliente.
    */
   filling_type_slugs?: string;
+  /** UUIDs de categoría-hijo (subcategoría) separados por coma; productos con al menos una asociación (OR). */
+  subcategory_ids?: string;
 }): Promise<{ products: Product[]; total: number; page: number; per_page: number; total_pages: number }> {
   try {
     const queryParams = new URLSearchParams();
@@ -560,6 +562,7 @@ export async function fetchProducts(params?: {
     if (params?.include_promos !== undefined) queryParams.append('include_promos', params.include_promos.toString());
     if (params?.require_crm_product_id) queryParams.append('require_crm_product_id', 'true');
     if (params?.filling_type_slugs) queryParams.append('filling_type_slugs', params.filling_type_slugs);
+    if (params?.subcategory_ids) queryParams.append('subcategory_ids', params.subcategory_ids);
 
     // En el servidor, usar la URL completa del backend
     // En el cliente, usar la ruta relativa que será manejada por el rewrite de Next.js
@@ -3830,6 +3833,8 @@ export interface BlogPost {
   slug: string;
   excerpt?: string;
   content?: string;
+  cta_label?: string | null;
+  cta_url?: string | null;
   cover_image_url?: string;
   meta_title?: string;
   meta_description?: string;
@@ -4108,6 +4113,8 @@ export async function createBlogPost(postData: {
   slug?: string;
   excerpt?: string;
   content?: string;
+  cta_label?: string | null;
+  cta_url?: string | null;
   cover_image_url?: string;
   meta_title?: string;
   meta_description?: string;
@@ -4145,6 +4152,8 @@ export async function updateBlogPost(
     slug: string;
     excerpt: string;
     content: string;
+    cta_label: string | null;
+    cta_url: string | null;
     cover_image_url: string;
     meta_title: string;
     meta_description: string;

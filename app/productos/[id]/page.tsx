@@ -309,7 +309,8 @@ export default function ProductDetailPage() {
     const loadProduct = async () => {
       try {
         setLoading(true);
-        
+        setSimilarProducts([]);
+
         const [apiProduct, combos] = await Promise.all([
           fetchProductById(productId, locality?.id),
           fetchProductCombos(productId).catch(() => []),
@@ -355,52 +356,83 @@ export default function ProductDetailPage() {
           setCategoryProducts([]);
         }
         
-        // Cargar productos similares de forma asíncrona sin bloquear la renderización
-        const similarParams: any = {
-          is_active: true,
-          page: 1,
-          per_page: 10, // Reducido de 20 a 10 para cargar más rápido
-          include_images: true,
-          include_variants: false, // No necesitamos variantes para productos similares
-          include_promos: true,
-          require_crm_product_id: true,
-        };
-        
-        // Agregar localidad si está disponible
-        if (locality?.id) {
-          similarParams.locality_id = locality.id;
-        }
-        
-        fetchProducts(similarParams).then((similarProductsResult) => {
-          if (similarProductsResult.products) {
-            const filteredProducts = similarProductsResult.products.filter(p => p.id !== productId);
-            const shuffled = filteredProducts.sort(() => 0.5 - Math.random());
-            const selected = shuffled.slice(0, 4);
-            
-            const similarProductsFormatted: SimilarProduct[] = selected.map(p => {
-              // Calcular precio usando función centralizada
-              const priceInfo = calculateProductPrice(p, 1);
-              
-              const cardFields = productCardPriceDisplayFromPriceInfo(priceInfo);
-              return {
-                id: p.id,
-                name: p.name,
-                currentPrice: cardFields.currentPrice,
-                originalPrice: priceInfo.originalPrice,
-                discount: priceInfo.discount,
-                priceNote: cardFields.priceNote,
-                secondaryPrice: cardFields.secondaryPrice,
-                secondaryPriceLabel: cardFields.secondaryPriceLabel,
-                image: firstProductImageUrl(p),
-              };
-            });
-            
-            setSimilarProducts(similarProductsFormatted);
+        // Productos similares: misma subcategoría (asociaciones en product_subcategories) o, si no hay, misma categoría
+        if (apiProduct) {
+          const subIds = [
+            ...new Set(
+              (apiProduct.subcategories ?? [])
+                .map((s) => s.subcategory_id)
+                .filter((id): id is string => Boolean(id && String(id).trim())),
+            ),
+          ];
+          const similarParams: {
+            is_active: boolean;
+            page: number;
+            per_page: number;
+            include_images: boolean;
+            include_variants: boolean;
+            include_promos: boolean;
+            require_crm_product_id: boolean;
+            locality_id?: string;
+            subcategory_ids?: string;
+            category_id?: string;
+          } = {
+            is_active: true,
+            page: 1,
+            per_page: 20,
+            include_images: true,
+            include_variants: false,
+            include_promos: true,
+            require_crm_product_id: true,
+          };
+          if (locality?.id) {
+            similarParams.locality_id = locality.id;
           }
-        }).catch(() => {
-          // Si falla, simplemente no mostrar productos similares
+          if (subIds.length > 0) {
+            similarParams.subcategory_ids = subIds.join(",");
+          } else if (apiProduct.category_id) {
+            similarParams.category_id = apiProduct.category_id;
+          } else {
+            setSimilarProducts([]);
+          }
+
+          if (similarParams.subcategory_ids || similarParams.category_id) {
+            fetchProducts(similarParams)
+              .then((similarProductsResult) => {
+                const list = similarProductsResult.products;
+                if (!list?.length) {
+                  setSimilarProducts([]);
+                  return;
+                }
+                const filteredProducts = list.filter((p) => p.id !== productId);
+                const shuffled = filteredProducts.sort(() => 0.5 - Math.random());
+                const selected = shuffled.slice(0, 4);
+
+                const similarProductsFormatted: SimilarProduct[] = selected.map((p) => {
+                  const priceInfo = calculateProductPrice(p, 1);
+                  const cardFields = productCardPriceDisplayFromPriceInfo(priceInfo);
+                  return {
+                    id: p.id,
+                    name: p.name,
+                    currentPrice: cardFields.currentPrice,
+                    originalPrice: priceInfo.originalPrice,
+                    discount: priceInfo.discount,
+                    priceNote: cardFields.priceNote,
+                    secondaryPrice: cardFields.secondaryPrice,
+                    secondaryPriceLabel: cardFields.secondaryPriceLabel,
+                    image: firstProductImageUrl(p),
+                  };
+                });
+
+                setSimilarProducts(similarProductsFormatted);
+              })
+              .catch(() => {
+                setSimilarProducts([]);
+              });
+          }
+        } else {
           setSimilarProducts([]);
-        });
+        }
 
         if (!apiProduct) {
           // Si no se encuentra en la API, dejar vacío
