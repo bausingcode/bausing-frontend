@@ -110,7 +110,7 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-gray-900 mb-3 md:mb-4 text-sm md:text-base">Comunidad</h4>
             <ul className="space-y-2 md:space-y-3 text-xs md:text-sm text-gray-700">
-              <li><a href="/referidos" className="hover:text-gray-900 transition-colors relative group inline-block">Club de beneficios<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              <li><a href="/club-beneficios" className="hover:text-gray-900 transition-colors relative group inline-block">Club de beneficios<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
               <li><a href="/programa-de-referidos" className="hover:text-gray-900 transition-colors relative group inline-block">Programa de referidos<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
               <li><a href="/programa-de-creadores" className="hover:text-gray-900 transition-colors relative group inline-block">Programa de creadores<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
             </ul>
@@ -159,32 +159,47 @@ export default function Footer() {
 
         {/* Bottom Section - Copyright */}
         <div className="border-t border-gray-300 pt-6 md:pt-8">
-          <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-xs text-gray-700 md:text-sm">
-            <span>&copy; {currentYear} BAUSING. Todos los derechos reservados.</span>
-            <span className="text-gray-400 select-none" aria-hidden>
-              &middot;
-            </span>
-            <span className="inline-flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5">
-              <span>
-                Desarrollado <span className="mr-1">por</span>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-3 md:gap-x-6">
+            <a
+              href="https://qr.afip.gob.ar/?qr=9JoX-GlIZcP2Y65SmmINzQ,,"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 border-0"
+              aria-label="Comprobante fiscal electrónico AFIP"
+            >
+              <img
+                src="https://www.afip.gob.ar/images/f960/DATAWEB.jpg"
+                alt="AFIP — Información fiscal del contribuyente"
+                className="h-auto w-[52px] border-0 md:w-[60px]"
+              />
+            </a>
+            <p className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-xs text-gray-700 md:text-sm">
+              <span>&copy; {currentYear} BAUSING. Todos los derechos reservados.</span>
+              <span className="text-gray-400 select-none" aria-hidden>
+                &middot;
               </span>
-              <a
-                href="https://nuba.studio"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex font-bold leading-none tracking-tight text-gray-900 transition-opacity hover:opacity-70"
-                style={{
-                  fontFamily: "var(--font-dm-sans), DM Sans, sans-serif",
-                }}
-                aria-label="Nuba Studio"
-              >
-                <span className="flex flex-col items-start">
-                  <span>nuba</span>
-                  <span>studio</span>
+              <span className="inline-flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5">
+                <span>
+                  Desarrollado <span className="mr-1">por</span>
                 </span>
-              </a>
-            </span>
-          </p>
+                <a
+                  href="https://nuba.studio"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex font-bold leading-none tracking-tight text-gray-900 transition-opacity hover:opacity-70"
+                  style={{
+                    fontFamily: "var(--font-dm-sans), DM Sans, sans-serif",
+                  }}
+                  aria-label="Nuba Studio"
+                >
+                  <span className="flex flex-col items-start">
+                    <span>nuba</span>
+                    <span>studio</span>
+                  </span>
+                </a>
+              </span>
+            </p>
+          </div>
         </div>
       </div>
     </footer>

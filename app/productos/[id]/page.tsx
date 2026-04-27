@@ -114,6 +114,17 @@ interface SimilarProduct {
 const CATEGORY_COLCHONES_ID = "12788182-9221-4d8a-9bf5-1a00503dcd34";
 const CATEGORY_SOMMIERS_ID = "57e5e2e5-e054-4b18-84dc-be94a22e2994";
 const CATEGORY_OPTION_SOMMIER_FILTER = "04dbb0ef-d918-496e-ba9c-db61664f5d0";
+/** Sábanas (categoría y/o subcategoría): aviso de color sujeto a disponibilidad solo acá */
+const CATEGORY_SUBCATEGORY_SABANAS_ID = "c135a303-e5ed-42c8-a0ca-2be17954a572";
+
+function productIsSabanasForColorNotice(
+  categoryId: string | undefined | null,
+  subcategories: Array<{ subcategory_id?: string }> | undefined | null,
+): boolean {
+  const id = CATEGORY_SUBCATEGORY_SABANAS_ID;
+  if (categoryId === id) return true;
+  return (subcategories ?? []).some((s) => s.subcategory_id === id);
+}
 
 /** Barra 1–5: SOFT → 1, MEDIO → 3, FIRME → 5 (valores del admin: SOFT / MEDIO / FIRME). */
 function firmnessLabelToBarLevel(label: string | undefined | null): number {
@@ -268,6 +279,8 @@ export default function ProductDetailPage() {
   const [productCombos, setProductCombos] = useState<ProductCombo[]>([]);
   const [categoryProducts, setCategoryProducts] = useState<ApiProduct[]>([]);
   const [productCategoryId, setProductCategoryId] = useState<string>("");
+  /** Solo sábanas: texto “color sujeto a disponibilidad” */
+  const [sabanasColorAvailabilityNotice, setSabanasColorAvailabilityNotice] = useState(false);
   const [productBanner, setProductBanner] = useState<HeroImage | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -437,9 +450,14 @@ export default function ProductDetailPage() {
         if (!apiProduct) {
           // Si no se encuentra en la API, dejar vacío
           setProduct(null);
+          setSabanasColorAvailabilityNotice(false);
           setLoading(false);
           return;
         }
+
+        setSabanasColorAvailabilityNotice(
+          productIsSabanasForColorNotice(apiProduct.category_id, apiProduct.subcategories),
+        );
 
         // Transformar datos del API al formato del componente
         // Calcular precio usando función centralizada
@@ -562,6 +580,7 @@ export default function ProductDetailPage() {
       } catch (error) {
         console.error("Error loading product:", error);
         setProduct(null);
+        setSabanasColorAvailabilityNotice(false);
       } finally {
         setLoading(false);
       }
@@ -1212,9 +1231,6 @@ export default function ProductDetailPage() {
                   : [];
                 const hasOnlyOneCategory = visibleVariants.length === 1;
                 if (visibleVariants.length === 0 || shouldHideVariantsSection()) return null;
-                const hasColorVariant = visibleVariants.some((v: any) =>
-                  /colou?r|color/i.test(v.name || v.sku || "")
-                );
                 return (
                   <div className="mb-6 md:mb-8">
                     <h3 className="text-sm font-medium text-gray-700 mb-2 md:mb-3">Opciones disponibles:</h3>
@@ -1325,14 +1341,14 @@ export default function ProductDetailPage() {
                         );
                       })}
                     </div>
-                    {hasColorVariant && (
-                      <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-[6px] px-3 py-2 leading-snug">
-                        El color está sujeto a disponibilidad. Nos contactaremos con vos luego de realizada la compra para confirmar el color disponible.
-                      </p>
-                    )}
                   </div>
                 );
               })()}
+              {sabanasColorAvailabilityNotice && (
+                <p className="mt-3 mb-4 md:mb-6 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-[6px] px-3 py-2 leading-snug">
+                  El color está sujeto a disponibilidad. Nos contactaremos con vos luego de realizada la compra para confirmar el color disponible.
+                </p>
+              )}
             </div>
 
             {/* Action Buttons - Alineados con el fondo de la imagen */}

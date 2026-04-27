@@ -133,7 +133,7 @@ export default function ReviewsSection() {
         {/* Titles */}
         <div className="text-center mb-12">
           <h2 className="text-3xl text-gray-900 mb-2">
-            La colchoneria mejor puntuada de Córdoba
+            La colchonería mejor puntuada de Córdoba
           </h2>
           
           {/* Google Logo and Rating */}
@@ -154,8 +154,8 @@ export default function ReviewsSection() {
                 ))}
               </div>
               <span className="text-gray-600 text-sm">
-                <span className="md:hidden">+1.200 reseñas</span>
-                <span className="hidden md:inline">+1.200 reseñas en Google</span>
+                <span className="md:hidden">+1.350 reseñas</span>
+                <span className="hidden md:inline">+1.350 reseñas en Google</span>
               </span>
             </div>
           </div>
