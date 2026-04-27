@@ -106,7 +106,7 @@ function mergePricesIntoDistribution(
 
 export function HomepageDistributionProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { locality, isLoading: localityLoading } = useLocality();
+  const { locality } = useLocality();
   const localityId = locality?.id;
 
   const [distribution, setDistribution] = useState<HomepageDistribution | null>(null);
@@ -180,17 +180,18 @@ export function HomepageDistributionProvider({ children }: { children: ReactNode
       }
 
       if (cancelled || !quickBaseRef.current) return;
-      if (localityLoading) return;
+      // No esperar a detect-locality: el backend usa catálogo Córdoba si locality_id es null;
+      // si la localidad llega después, este efecto vuelve a correr y actualiza precios.
       await loadPricesForBase(quickBaseRef.current, localityId);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [pathname, localityId, localityLoading, loadPricesForBase]);
+  }, [pathname, localityId, loadPricesForBase]);
 
   const refetch = useCallback(async () => {
-    if (pathname !== "/" || localityLoading) return;
+    if (pathname !== "/") return;
     homeDataReadyRef.current = false;
     setIsLoading(true);
     setError(null);
@@ -207,7 +208,7 @@ export function HomepageDistributionProvider({ children }: { children: ReactNode
     } finally {
       setIsLoading(false);
     }
-  }, [pathname, localityId, localityLoading, loadPricesForBase]);
+  }, [pathname, localityId, loadPricesForBase]);
 
   return (
     <HomepageDistributionContext.Provider

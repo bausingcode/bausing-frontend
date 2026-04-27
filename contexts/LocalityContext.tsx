@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useLayoutEffect, ReactNode } from "react";
 import { Address } from "@/lib/api";
 
 export interface Locality {
@@ -16,12 +16,33 @@ interface LocalityContextType {
   requiresAddressSelection: boolean;
   availableAddresses: Address[];
   setLocality: (locality: Locality | null) => void;
-  detectLocality: (simulatedIp?: string, addressId?: string) => Promise<void>;
+  detectLocality: (
+    simulatedIp?: string,
+    addressId?: string,
+    options?: { background?: boolean },
+  ) => Promise<void>;
   selectAddress: (addressId: string) => Promise<void>;
   clearAddressSelection: () => void;
 }
 
 const LocalityContext = createContext<LocalityContextType | undefined>(undefined);
+
+const STORAGE_KEY_LOCALITY = "bausing_locality";
+
+function readLocalityFromStorage(): Locality | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_LOCALITY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Locality & { id?: string };
+    if (parsed && typeof parsed.id === "string" && parsed.id.length > 0) {
+      return parsed as Locality;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
 
 export function LocalityProvider({ children }: { children: ReactNode }) {
   const [locality, setLocalityState] = useState<Locality | null>(null);
@@ -84,24 +105,35 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Hidratar localidad desde almacenamiento antes de useEffect hijos (precios, catálogo)
+  useLayoutEffect(() => {
+    const stored = readLocalityFromStorage();
+    if (stored) {
+      setLocalityState(stored);
+      setIsLoading(false);
+    }
+  }, []);
+
   // Verificar IP real al entrar a la página (sin simulación)
   useEffect(() => {
     console.log("[LocalityContext] Verificando IP real al entrar a la página (sin simulación)");
+
+    const hadStoredLocality = Boolean(readLocalityFromStorage());
     
     // Verificar si hay una dirección guardada
     const savedAddressId = getSavedAddressId();
     if (savedAddressId) {
       console.log("[LocalityContext] Usando dirección guardada:", savedAddressId);
-      detectLocality(undefined, savedAddressId).catch((err) => {
+      detectLocality(undefined, savedAddressId, { background: hadStoredLocality }).catch((err) => {
         console.error("[LocalityContext] Error al usar dirección guardada:", err);
         // Si falla, intentar sin dirección guardada
-        detectLocality().catch((err) => {
+        detectLocality(undefined, undefined, { background: hadStoredLocality }).catch((err) => {
           console.error("[LocalityContext] Error al verificar IP:", err);
         });
       });
     } else {
       // Si no hay dirección guardada, detectar normalmente
-      detectLocality().catch((err) => {
+      detectLocality(undefined, undefined, { background: hadStoredLocality }).catch((err) => {
         console.error("[LocalityContext] Error al verificar IP:", err);
         // El backend debería devolver el fallback automáticamente
       });
@@ -109,11 +141,17 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const detectLocality = async (simulatedIp?: string, addressId?: string) => {
+  const detectLocality = async (
+    simulatedIp?: string,
+    addressId?: string,
+    options?: { background?: boolean },
+  ) => {
     // Si se proporciona una IP simulada, usarla (solo para debug/testing)
     // Si no se proporciona, usar la IP real del request (sin parámetros)
-    
-    setIsLoading(true);
+    const background = options?.background === true;
+    if (!background) {
+      setIsLoading(true);
+    }
     setError(null);
     
     try {
@@ -293,7 +331,9 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
       setError(err instanceof Error ? err.message : "Error desconocido");
       throw err; // Re-lanzar el error para que el componente pueda manejarlo
     } finally {
-      setIsLoading(false);
+      if (!background) {
+        setIsLoading(false);
+      }
     }
   };
 

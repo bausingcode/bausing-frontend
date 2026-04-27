@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { fetchProducts } from "@/lib/api";
+import type { Product } from "@/lib/api";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import CatalogoContent from "./CatalogoContent";
@@ -9,20 +9,10 @@ interface Props {
 }
 
 export default async function CatalogoPage({ searchParams }: Props) {
-  const params = await searchParams;
-  const search = params?.search || "";
-
-  // Pre-fetchear productos en el servidor → los productos llegan en el HTML inicial
-  const initialData = await fetchProducts({
-    is_active: true,
-    sort: "created_at_desc",
-    page: 1,
-    per_page: 21,
-    include_images: false,
-    include_promos: true,
-    require_crm_product_id: true,
-    ...(search && { search }),
-  }).catch(() => ({ products: [], total: 0, total_pages: 1 }));
+  await searchParams;
+  // Carga de productos en el cliente: evita bloquear la respuesta RSC (navegación más rápida).
+  // CatalogoContent hace el primer fetch al montar.
+  const initialData = { products: [] as Product[], total: 0, total_pages: 1 };
 
   return (
     <Suspense

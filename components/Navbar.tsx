@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import { 
   Truck, 
   CreditCard, 
@@ -1096,14 +1097,15 @@ export default function Navbar({ event }: NavbarProps = {}) {
                   const categoryUrl = `/catalogo/${categorySlug}`;
                   
                   return (
-                    <a
+                    <Link
                       key={categoryName}
                       href={categoryUrl}
+                      prefetch
                       className="flex items-center gap-3 px-2 py-3 text-gray-700 hover:bg-gray-50 rounded-lg"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       <span>{categoryName}</span>
-                    </a>
+                    </Link>
                   );
                 })}
               </div>
@@ -1172,15 +1174,11 @@ export default function Navbar({ event }: NavbarProps = {}) {
                   );
                   
                   return (
-                    <a 
+                    <Link
                       key={categoryName}
                       href={categoryUrl}
+                      prefetch
                       className="flex items-center gap-2 text-black hover:text-gray-600 font-medium"
-                      onClick={(e) => {
-                        // Navegar a la categoría correcta
-                        e.preventDefault();
-                        router.push(categoryUrl);
-                      }}
                       onMouseEnter={() => {
                         // Si no tiene subcategorías, no abrir el dropdown
                         if (!hasSubcategories) return;
@@ -1216,7 +1214,7 @@ export default function Navbar({ event }: NavbarProps = {}) {
                         <CategoryIcon className="w-5 h-5 text-[#00C1A7]" />
                       )}
                       <span>{categoryName}</span>
-                    </a>
+                    </Link>
                   );
                 })}
               </div>

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { fetchProducts, fetchCategories, Category } from "@/lib/api";
+import { fetchCategories, type Category, type Product } from "@/lib/api";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import CatalogoContent from "./CatalogoContent";
@@ -34,79 +34,17 @@ function buildCategoryIdMap(categories: Category[]): Record<string, string> {
   return { ...nameToIdMap, ...slugToIdMap };
 }
 
-// Determina el categoryId y subcategoryId a partir del slug y las categorías
-function resolveCategoryIds(
-  slug: string[],
-  categories: Category[],
-  categoryIdMap: Record<string, string>
-): { categoryId: string | null; subcategoryId: string | null } {
-  if (!slug || slug.length === 0) {
-    return { categoryId: null, subcategoryId: null };
-  }
-
-  const mainSlug = slug[0];
-  let categoryId: string | null = categoryIdMap[mainSlug] || null;
-
-  // Fallback: normalizar el slug como nombre
-  if (!categoryId) {
-    const fallbackName = mainSlug.replace(/-/g, " ");
-    const normalized = fallbackName
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-    categoryId =
-      categoryIdMap[normalized] || categoryIdMap[fallbackName.toLowerCase()] || null;
-  }
-
-  let subcategoryId: string | null = null;
-  if (slug.length >= 2 && categoryId) {
-    const subSlug = slug[1];
-    const subcat = categories.find((c) => {
-      const slugFromName = c.name
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/\s+/g, "-")
-        .replace(/[^a-z0-9-]/g, "");
-      return c.parent_id === categoryId && (slugFromName === subSlug || c.id === subSlug);
-    });
-    if (subcat) subcategoryId = subcat.id;
-  }
-
-  return { categoryId, subcategoryId };
-}
-
 export default async function CatalogoPage({ params, searchParams }: Props) {
-  const { slug } = await params;
-  const { search } = await searchParams;
+  await params;
+  await searchParams;
 
-  // Fetchear categorías y productos en el servidor (en paralelo cuando es posible)
+  // Categorías en el servidor para mapas slug/id; productos vía API en el cliente
   const categories = await fetchCategories(true).catch(() => [] as Category[]);
   const categoryIdMap = buildCategoryIdMap(categories);
-  const { categoryId, subcategoryId } = resolveCategoryIds(slug, categories, categoryIdMap);
 
-  const fetchParams: Parameters<typeof fetchProducts>[0] = {
-    is_active: true,
-    sort: "created_at_desc",
-    page: 1,
-    per_page: 21,
-    include_images: false,
-    include_promos: true,
-    require_crm_product_id: true,
-    ...(subcategoryId
-      ? { category_id: subcategoryId }
-      : categoryId
-      ? { category_id: categoryId }
-      : {}),
-    ...(search ? { search } : {}),
-  };
-
-  // Productos pre-fetcheados en el servidor → llegan en el HTML inicial
-  const initialData = await fetchProducts(fetchParams).catch(() => ({
-    products: [],
-    total: 0,
-    total_pages: 1,
-  }));
+  // Productos se cargan en el cliente: evita un round-trip al API antes de mostrar la ruta
+  // (categorías sí vienen del servidor para resolver filtros del slug).
+  const initialData = { products: [] as Product[], total: 0, total_pages: 1 };
 
   return (
     <Suspense
