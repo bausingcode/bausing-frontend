@@ -65,35 +65,36 @@ export default function Footer() {
   return (
     <footer className="bg-[#FAFAFA] text-gray-800" style={{ fontFamily: 'DM Sans, sans-serif' }}>
       <div className="container mx-auto px-4 py-8 md:py-12">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8 md:mb-12">
-          {/* Categorías */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-8 md:mb-12">
+          {/* Productos */}
           <div>
-            <h4 className="font-semibold text-gray-900 mb-3 md:mb-4 capitalize text-sm md:text-base">Categorías</h4>
+            <h4 className="font-semibold text-gray-900 mb-3 md:mb-4 text-sm md:text-base">Productos</h4>
             <ul className="space-y-2 md:space-y-3 text-xs md:text-sm text-gray-700">
               <li><a href="/catalogo/colchones" className="hover:text-gray-900 transition-colors relative group inline-block">Colchones<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
               <li><a href="/catalogo/sommiers" className="hover:text-gray-900 transition-colors relative group inline-block">Sommier y colchón<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
-              <li><a href="/catalogo/accesorios" className="hover:text-gray-900 transition-colors capitalize relative group inline-block">Almohadas<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
-              <li><a href="/catalogo/electrodomesticos" className="hover:text-gray-900 transition-colors capitalize relative group inline-block">Electrodomésticos<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              <li><a href="/catalogo/accesorios" className="hover:text-gray-900 transition-colors relative group inline-block">Almohadas<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              <li><a href="/catalogo/electrodomesticos" className="hover:text-gray-900 transition-colors relative group inline-block">Electrodomésticos<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
               <li><a href="/catalogo/otros" className="hover:text-gray-900 transition-colors relative group inline-block">Otros<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
             </ul>
           </div>
 
-          {/* Nosotros */}
+          {/* Sobre Bausing */}
           <div>
-            <h4 className="font-semibold text-gray-900 mb-3 md:mb-4 capitalize text-sm md:text-base">Nosotros</h4>
+            <h4 className="font-semibold text-gray-900 mb-3 md:mb-4 text-sm md:text-base">Sobre Bausing</h4>
             <ul className="space-y-2 md:space-y-3 text-xs md:text-sm text-gray-700">
-              <li><a href="/blog" className="hover:text-gray-900 transition-colors capitalize relative group inline-block">Blog<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
-              <li><a href="/local" className="hover:text-gray-900 transition-colors capitalize relative group inline-block">Local<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
-              <li><a href="/terminos-y-condiciones" className="hover:text-gray-900 transition-colors relative group inline-block">Términos<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
-              <li><a href="/politica-de-privacidad" className="hover:text-gray-900 transition-colors relative group inline-block">Privacidad<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              <li><a href="/blog" className="hover:text-gray-900 transition-colors relative group inline-block">Blog<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              <li><a href="/local" className="hover:text-gray-900 transition-colors relative group inline-block">Local<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              <li><a href="/terminos-y-condiciones" className="hover:text-gray-900 transition-colors relative group inline-block">Términos y condiciones<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              <li><a href="/politica-de-privacidad" className="hover:text-gray-900 transition-colors relative group inline-block">Política de privacidad<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
             </ul>
           </div>
 
-          {/* Contacto */}
+          {/* Ayuda */}
           <div>
-            <h4 className="font-semibold text-gray-900 mb-3 md:mb-4 capitalize text-sm md:text-base">Contacto</h4>
+            <h4 className="font-semibold text-gray-900 mb-3 md:mb-4 text-sm md:text-base">Ayuda</h4>
             <ul className="space-y-2 md:space-y-3 text-xs md:text-sm text-gray-700">
-              {phone && <li>{phone}</li>}
+              <li><a href="/preguntas-frecuentes" className="hover:text-gray-900 transition-colors relative group inline-block">Preguntas frecuentes<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              <li><a href="/local" className="hover:text-gray-900 transition-colors relative group inline-block">Asesoramiento<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
               {email && (
                 <li>
                   <a href={`mailto:${email}`} className="hover:text-gray-900 transition-colors relative group inline-block break-all">
@@ -102,20 +103,27 @@ export default function Footer() {
                   </a>
                 </li>
               )}
-              {address && <li className="hidden md:block">{address}</li>}
             </ul>
           </div>
 
-          {/* Redes Sociales */}
+          {/* Comunidad */}
           <div>
-            <h4 className="font-semibold text-gray-900 mb-3 md:mb-4 whitespace-nowrap text-sm md:text-base">Seguinos</h4>
-            
-            {/* Social Media Icons */}
+            <h4 className="font-semibold text-gray-900 mb-3 md:mb-4 text-sm md:text-base">Comunidad</h4>
+            <ul className="space-y-2 md:space-y-3 text-xs md:text-sm text-gray-700">
+              <li><a href="/referidos" className="hover:text-gray-900 transition-colors relative group inline-block">Club de beneficios<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              <li><a href="/programa-de-referidos" className="hover:text-gray-900 transition-colors relative group inline-block">Programa de referidos<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              <li><a href="/programa-de-creadores" className="hover:text-gray-900 transition-colors relative group inline-block">Programa de creadores<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+            </ul>
+          </div>
+
+          {/* Seguinos */}
+          <div>
+            <h4 className="font-semibold text-gray-900 mb-3 md:mb-4 text-sm md:text-base">Seguinos</h4>
             <div className="flex gap-2 md:gap-3">
               {instagramUrl && (
-                <a 
-                  href={instagramUrl} 
-                  target="_blank" 
+                <a
+                  href={instagramUrl}
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors"
                   aria-label="Instagram"
@@ -124,9 +132,9 @@ export default function Footer() {
                 </a>
               )}
               {facebookUrl && (
-                <a 
-                  href={facebookUrl} 
-                  target="_blank" 
+                <a
+                  href={facebookUrl}
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors"
                   aria-label="Facebook"
@@ -135,9 +143,9 @@ export default function Footer() {
                 </a>
               )}
               {tiktokUrl && (
-                <a 
-                  href={tiktokUrl} 
-                  target="_blank" 
+                <a
+                  href={tiktokUrl}
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gray-800 text-white flex items-center justify-center hover:bg-gray-900 transition-colors"
                   aria-label="TikTok"

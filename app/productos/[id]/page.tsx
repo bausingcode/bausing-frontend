@@ -1212,6 +1212,9 @@ export default function ProductDetailPage() {
                   : [];
                 const hasOnlyOneCategory = visibleVariants.length === 1;
                 if (visibleVariants.length === 0 || shouldHideVariantsSection()) return null;
+                const hasColorVariant = visibleVariants.some((v: any) =>
+                  /colou?r|color/i.test(v.name || v.sku || "")
+                );
                 return (
                   <div className="mb-6 md:mb-8">
                     <h3 className="text-sm font-medium text-gray-700 mb-2 md:mb-3">Opciones disponibles:</h3>
@@ -1322,6 +1325,11 @@ export default function ProductDetailPage() {
                         );
                       })}
                     </div>
+                    {hasColorVariant && (
+                      <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-[6px] px-3 py-2 leading-snug">
+                        El color está sujeto a disponibilidad. Nos contactaremos con vos luego de realizada la compra para confirmar el color disponible.
+                      </p>
+                    )}
                   </div>
                 );
               })()}
