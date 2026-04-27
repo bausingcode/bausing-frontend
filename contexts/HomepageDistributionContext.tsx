@@ -11,7 +11,6 @@ import {
 } from "react";
 import { usePathname } from "next/navigation";
 import {
-  fetchHomepageDistributionProductIds,
   fetchPublicHomepageDistributionQuick,
   fetchProductsPrices,
   Product,
@@ -111,7 +110,7 @@ function mergePricesIntoDistribution(
 
 export function HomepageDistributionProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { locality } = useLocality();
+  const { locality, isLoading: localityLoading } = useLocality();
   const localityId = locality?.id;
 
   const [distribution, setDistribution] = useState<HomepageDistribution | null>(null);
@@ -123,16 +122,6 @@ export function HomepageDistributionProvider({ children }: { children: ReactNode
   const quickBaseRef = useRef<HomepageDistribution | null>(null);
   const homeDataReadyRef = useRef(false);
   const pricesGenRef = useRef(0);
-
-  /** Ids alineados con GET /quick (mismo orden/CRM) para acelerar POST /prices en paralelo. */
-  const fetchPricesInParallel = useCallback(
-    (localityKey: string | undefined) =>
-      fetchHomepageDistributionProductIds().then((ids) => {
-        if (ids && ids.length > 0) return fetchProductsPrices(ids, localityKey);
-        return {} as Awaited<ReturnType<typeof fetchProductsPrices>>;
-      }),
-    [],
-  );
 
   const loadPricesForBase = useCallback(
     async (base: HomepageDistribution, localityKey: string | undefined) => {
@@ -171,29 +160,17 @@ export function HomepageDistributionProvider({ children }: { children: ReactNode
       return;
     }
 
-
     let cancelled = false;
     const needQuickFetch = !homeDataReadyRef.current;
 
     (async () => {
       if (needQuickFetch) {
-        const gen = ++pricesGenRef.current;
         setIsLoading(true);
         setError(null);
         setIsLoadingPrices(true);
-        // Misma superposición de red que Promise.all, pero el UI se pinta al terminar solo /quick.
-        const pricesP = fetchPricesInParallel(localityId);
         let data: HomepageDistribution | null = null;
         try {
           data = await fetchPublicHomepageDistributionQuick();
-          if (cancelled || gen !== pricesGenRef.current) {
-            if (gen === pricesGenRef.current) setIsLoadingPrices(false);
-            return;
-          }
-          quickBaseRef.current = data;
-          homeDataReadyRef.current = true;
-          setDistribution(data);
-          setPrices({});
         } catch (err) {
           const e = err instanceof Error ? err : new Error("Error loading homepage distribution");
           setError(e);
@@ -201,68 +178,47 @@ export function HomepageDistributionProvider({ children }: { children: ReactNode
         } finally {
           if (!cancelled) setIsLoading(false);
         }
-        if (!data) {
-          if (gen === pricesGenRef.current) setIsLoadingPrices(false);
+        if (cancelled || !data) {
+          setIsLoadingPrices(false);
           return;
         }
-        if (cancelled || gen !== pricesGenRef.current) {
-          if (gen === pricesGenRef.current) setIsLoadingPrices(false);
+        quickBaseRef.current = data;
+        homeDataReadyRef.current = true;
+        setDistribution(data);
+        setPrices({});
+
+        // Un solo POST /prices. Si detect-locality sigue en curso, no pedimos precios todaví:
+        // al pasar localityLoading a false, el efecto re-ejecuta la rama de solo-precios.
+        if (localityLoading) {
           return;
         }
-        try {
-          const pricesData = await pricesP;
-          if (cancelled || gen !== pricesGenRef.current) return;
-          if (pricesData && Object.keys(pricesData).length > 0) {
-            setDistribution(mergePricesIntoDistribution(data, pricesData));
-            setPrices(pricesData);
-            return;
-          }
-          const allProducts = [
-            ...(data.featured || []),
-            ...(data.discounts || []),
-            ...(data.mattresses || []),
-            ...(data.complete_purchase || []),
-          ];
-          const productIds = allProducts.map((p) => p.id).filter(Boolean);
-          if (productIds.length === 0) return;
-          const pricesFallback = await fetchProductsPrices(productIds, localityId);
-          if (cancelled || gen !== pricesGenRef.current) return;
-          if (pricesFallback && Object.keys(pricesFallback).length > 0) {
-            setDistribution(mergePricesIntoDistribution(data, pricesFallback));
-            setPrices(pricesFallback);
-          }
-        } catch (err) {
-          console.error("[HomepageDistributionContext] Error loading homepage prices:", err);
-        } finally {
-          if (!cancelled && gen === pricesGenRef.current) setIsLoadingPrices(false);
-        }
+        await loadPricesForBase(data, localityId);
         return;
       }
 
       if (cancelled || !quickBaseRef.current) return;
-      // Misma localidad o primera carga con cache: solo recalcular precios.
-      // No esperar a detect-locality: el backend usa catálogo Córdoba si locality_id es null;
-      // si la localidad llega después, este efecto vuelve a correr y actualiza precios.
+      // Actualizar precios (localidad lista o cambió, sin re-descargar /quick)
+      if (localityLoading) return;
       await loadPricesForBase(quickBaseRef.current, localityId);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [pathname, localityId, loadPricesForBase, fetchPricesInParallel]);
+  }, [pathname, localityId, localityLoading, loadPricesForBase]);
 
   const refetch = useCallback(async () => {
     if (pathname !== "/") return;
-    const gen = ++pricesGenRef.current;
     homeDataReadyRef.current = false;
     setIsLoading(true);
     setError(null);
     setIsLoadingPrices(true);
-    const pricesP = fetchPricesInParallel(localityId);
     let data: HomepageDistribution | null = null;
     try {
       data = await fetchPublicHomepageDistributionQuick();
-      if (gen !== pricesGenRef.current) return;
+      if (!data) {
+        return;
+      }
       quickBaseRef.current = data;
       homeDataReadyRef.current = true;
       setDistribution(data);
@@ -274,39 +230,12 @@ export function HomepageDistributionProvider({ children }: { children: ReactNode
     } finally {
       setIsLoading(false);
     }
-    if (!data || gen !== pricesGenRef.current) {
-      if (gen === pricesGenRef.current) setIsLoadingPrices(false);
-      return;
+    if (data) {
+      await loadPricesForBase(data, localityId);
+    } else {
+      setIsLoadingPrices(false);
     }
-    try {
-      const pricesData = await pricesP;
-      if (gen !== pricesGenRef.current) return;
-      if (pricesData && Object.keys(pricesData).length > 0) {
-        setDistribution(mergePricesIntoDistribution(data, pricesData));
-        setPrices(pricesData);
-        return;
-      }
-      const allProducts = [
-        ...(data.featured || []),
-        ...(data.discounts || []),
-        ...(data.mattresses || []),
-        ...(data.complete_purchase || []),
-      ];
-      const productIds = allProducts.map((p) => p.id).filter(Boolean);
-      if (productIds.length > 0) {
-        const pricesFallback = await fetchProductsPrices(productIds, localityId);
-        if (gen !== pricesGenRef.current) return;
-        if (pricesFallback && Object.keys(pricesFallback).length > 0) {
-          setDistribution(mergePricesIntoDistribution(data, pricesFallback));
-          setPrices(pricesFallback);
-        }
-      }
-    } catch (err) {
-      console.error("[HomepageDistributionContext] Error loading homepage prices (refetch):", err);
-    } finally {
-      if (gen === pricesGenRef.current) setIsLoadingPrices(false);
-    }
-  }, [pathname, localityId, fetchPricesInParallel]);
+  }, [pathname, localityId, loadPricesForBase]);
 
   return (
     <HomepageDistributionContext.Provider

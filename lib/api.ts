@@ -5554,27 +5554,6 @@ export async function fetchPublicHomepageDistributionQuick(): Promise<{
 }
 
 /**
- * Mismos UUID de producto que /quick (reemplazos/CRM), sin carga pesada.
- * Permite POST /prices en paralelo con GET /quick en el home.
- */
-export async function fetchHomepageDistributionProductIds(): Promise<string[]> {
-  try {
-    const url =
-      typeof window === "undefined"
-        ? `${BACKEND_URL}/homepage-distribution/product-ids`
-        : `/api/homepage-distribution/product-ids`;
-    const response = await fetch(url, { cache: "default" });
-    if (!response.ok) return [];
-    const data = await response.json();
-    if (!data.success || !data.data) return [];
-    const ids = data.data.product_ids;
-    return Array.isArray(ids) ? ids : [];
-  } catch {
-    return [];
-  }
-}
-
-/**
  * Fetch prices and promos for specific products
  */
 export async function fetchProductsPrices(productIds: string[], localityId?: string): Promise<Record<string, {
