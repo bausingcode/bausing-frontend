@@ -5559,6 +5559,8 @@ export async function fetchPublicHomepageDistributionQuick(): Promise<{
 export async function fetchProductsPrices(productIds: string[], localityId?: string): Promise<Record<string, {
   min_price: number;
   max_price: number;
+  min_transfer_price?: number | null;
+  max_transfer_price?: number | null;
   min_card_price?: number;
   max_card_price?: number;
   show_transfer_price_highlight?: boolean;

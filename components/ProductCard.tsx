@@ -236,8 +236,8 @@ export default function ProductCard({
                     <span
                       className={
                         useNormalHeight
-                          ? "text-2xl font-semibold tabular-nums leading-tight"
-                          : "text-xl md:text-2xl font-semibold tabular-nums leading-tight"
+                          ? "text-xl font-medium tabular-nums leading-tight"
+                          : "text-lg md:text-xl font-medium tabular-nums leading-tight"
                       }
                     >
                       {currentPrice}

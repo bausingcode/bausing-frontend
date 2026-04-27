@@ -24,6 +24,8 @@ interface PricesMap {
   [productId: string]: {
     min_price: number;
     max_price: number;
+    min_transfer_price?: number | null;
+    max_transfer_price?: number | null;
     min_card_price?: number;
     max_card_price?: number;
     show_transfer_price_highlight?: boolean;
@@ -55,6 +57,8 @@ function mergePricesIntoDistribution(
           ...p,
           min_price: undefined,
           max_price: undefined,
+          min_transfer_price: undefined,
+          max_transfer_price: undefined,
           min_card_price: undefined,
           max_card_price: undefined,
           show_transfer_price_highlight: undefined,
@@ -62,10 +66,24 @@ function mergePricesIntoDistribution(
           promos: [],
         };
       }
+      const transferMin =
+        priceInfo.min_transfer_price != null &&
+        typeof priceInfo.min_transfer_price === "number" &&
+        priceInfo.min_transfer_price > 0
+          ? priceInfo.min_transfer_price
+          : undefined;
+      const transferMax =
+        priceInfo.max_transfer_price != null &&
+        typeof priceInfo.max_transfer_price === "number" &&
+        priceInfo.max_transfer_price > 0
+          ? priceInfo.max_transfer_price
+          : undefined;
       return {
         ...p,
         min_price: priceInfo.min_price,
         max_price: priceInfo.max_price,
+        min_transfer_price: transferMin,
+        max_transfer_price: transferMax,
         min_card_price: priceInfo.min_card_price,
         max_card_price: priceInfo.max_card_price,
         show_transfer_price_highlight: priceInfo.show_transfer_price_highlight,
