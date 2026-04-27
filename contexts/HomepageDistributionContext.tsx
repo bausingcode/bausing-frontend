@@ -181,48 +181,60 @@ export function HomepageDistributionProvider({ children }: { children: ReactNode
         setIsLoading(true);
         setError(null);
         setIsLoadingPrices(true);
+        // Misma superposición de red que Promise.all, pero el UI se pinta al terminar solo /quick.
+        const pricesP = fetchPricesInParallel(localityId);
+        let data: HomepageDistribution | null = null;
         try {
-          const [data, pricesData] = await Promise.all([
-            fetchPublicHomepageDistributionQuick(),
-            fetchPricesInParallel(localityId),
-          ]);
-          if (cancelled) return;
-          if (gen !== pricesGenRef.current) return;
+          data = await fetchPublicHomepageDistributionQuick();
+          if (cancelled || gen !== pricesGenRef.current) {
+            if (gen === pricesGenRef.current) setIsLoadingPrices(false);
+            return;
+          }
           quickBaseRef.current = data;
           homeDataReadyRef.current = true;
-
-          const hasParallelPrices = pricesData && Object.keys(pricesData).length > 0;
-          if (hasParallelPrices) {
-            setDistribution(mergePricesIntoDistribution(data, pricesData));
-            setPrices(pricesData);
-          } else {
-            setDistribution(data);
-            setPrices({});
-            const allProducts = [
-              ...(data.featured || []),
-              ...(data.discounts || []),
-              ...(data.mattresses || []),
-              ...(data.complete_purchase || []),
-            ];
-            const productIds = allProducts.map((p) => p.id).filter(Boolean);
-            if (productIds.length > 0) {
-              const pricesFallback = await fetchProductsPrices(productIds, localityId);
-              if (cancelled || gen !== pricesGenRef.current) return;
-              if (pricesFallback && Object.keys(pricesFallback).length > 0) {
-                setDistribution(mergePricesIntoDistribution(data, pricesFallback));
-                setPrices(pricesFallback);
-              }
-            }
-          }
+          setDistribution(data);
+          setPrices({});
         } catch (err) {
           const e = err instanceof Error ? err : new Error("Error loading homepage distribution");
           setError(e);
           console.error("[HomepageDistributionContext] Error loading distribution:", e);
         } finally {
-          if (!cancelled) {
-            setIsLoading(false);
-            if (gen === pricesGenRef.current) setIsLoadingPrices(false);
+          if (!cancelled) setIsLoading(false);
+        }
+        if (!data) {
+          if (gen === pricesGenRef.current) setIsLoadingPrices(false);
+          return;
+        }
+        if (cancelled || gen !== pricesGenRef.current) {
+          if (gen === pricesGenRef.current) setIsLoadingPrices(false);
+          return;
+        }
+        try {
+          const pricesData = await pricesP;
+          if (cancelled || gen !== pricesGenRef.current) return;
+          if (pricesData && Object.keys(pricesData).length > 0) {
+            setDistribution(mergePricesIntoDistribution(data, pricesData));
+            setPrices(pricesData);
+            return;
           }
+          const allProducts = [
+            ...(data.featured || []),
+            ...(data.discounts || []),
+            ...(data.mattresses || []),
+            ...(data.complete_purchase || []),
+          ];
+          const productIds = allProducts.map((p) => p.id).filter(Boolean);
+          if (productIds.length === 0) return;
+          const pricesFallback = await fetchProductsPrices(productIds, localityId);
+          if (cancelled || gen !== pricesGenRef.current) return;
+          if (pricesFallback && Object.keys(pricesFallback).length > 0) {
+            setDistribution(mergePricesIntoDistribution(data, pricesFallback));
+            setPrices(pricesFallback);
+          }
+        } catch (err) {
+          console.error("[HomepageDistributionContext] Error loading homepage prices:", err);
+        } finally {
+          if (!cancelled && gen === pricesGenRef.current) setIsLoadingPrices(false);
         }
         return;
       }
@@ -246,44 +258,52 @@ export function HomepageDistributionProvider({ children }: { children: ReactNode
     setIsLoading(true);
     setError(null);
     setIsLoadingPrices(true);
+    const pricesP = fetchPricesInParallel(localityId);
+    let data: HomepageDistribution | null = null;
     try {
-      const [data, pricesData] = await Promise.all([
-        fetchPublicHomepageDistributionQuick(),
-        fetchPricesInParallel(localityId),
-      ]);
+      data = await fetchPublicHomepageDistributionQuick();
       if (gen !== pricesGenRef.current) return;
       quickBaseRef.current = data;
       homeDataReadyRef.current = true;
-
-      const hasParallelPrices = pricesData && Object.keys(pricesData).length > 0;
-      if (hasParallelPrices) {
-        setDistribution(mergePricesIntoDistribution(data, pricesData));
-        setPrices(pricesData);
-      } else {
-        setDistribution(data);
-        setPrices({});
-        const allProducts = [
-          ...(data.featured || []),
-          ...(data.discounts || []),
-          ...(data.mattresses || []),
-          ...(data.complete_purchase || []),
-        ];
-        const productIds = allProducts.map((p) => p.id).filter(Boolean);
-        if (productIds.length > 0) {
-          const pricesFallback = await fetchProductsPrices(productIds, localityId);
-          if (gen !== pricesGenRef.current) return;
-          if (pricesFallback && Object.keys(pricesFallback).length > 0) {
-            setDistribution(mergePricesIntoDistribution(data, pricesFallback));
-            setPrices(pricesFallback);
-          }
-        }
-      }
+      setDistribution(data);
+      setPrices({});
     } catch (err) {
       const e = err instanceof Error ? err : new Error("Error loading homepage distribution");
       setError(e);
       console.error("[HomepageDistributionContext] Error loading distribution:", e);
     } finally {
       setIsLoading(false);
+    }
+    if (!data || gen !== pricesGenRef.current) {
+      if (gen === pricesGenRef.current) setIsLoadingPrices(false);
+      return;
+    }
+    try {
+      const pricesData = await pricesP;
+      if (gen !== pricesGenRef.current) return;
+      if (pricesData && Object.keys(pricesData).length > 0) {
+        setDistribution(mergePricesIntoDistribution(data, pricesData));
+        setPrices(pricesData);
+        return;
+      }
+      const allProducts = [
+        ...(data.featured || []),
+        ...(data.discounts || []),
+        ...(data.mattresses || []),
+        ...(data.complete_purchase || []),
+      ];
+      const productIds = allProducts.map((p) => p.id).filter(Boolean);
+      if (productIds.length > 0) {
+        const pricesFallback = await fetchProductsPrices(productIds, localityId);
+        if (gen !== pricesGenRef.current) return;
+        if (pricesFallback && Object.keys(pricesFallback).length > 0) {
+          setDistribution(mergePricesIntoDistribution(data, pricesFallback));
+          setPrices(pricesFallback);
+        }
+      }
+    } catch (err) {
+      console.error("[HomepageDistributionContext] Error loading homepage prices (refetch):", err);
+    } finally {
       if (gen === pricesGenRef.current) setIsLoadingPrices(false);
     }
   }, [pathname, localityId, fetchPricesInParallel]);
