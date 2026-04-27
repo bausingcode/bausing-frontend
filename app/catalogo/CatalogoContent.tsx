@@ -99,41 +99,6 @@ export default function CatalogoContent({
     loadProducts();
   }, [page, sortBy, searchQuery, perPage, locality?.id, localityLoading]);
 
-  // Re-fetchear con localidad cuando carga desde localStorage
-  useEffect(() => {
-    if (localityLoading) return;
-    if (!locality?.id) return;
-    // Si teníamos datos del servidor (sin localidad), ahora refetcheamos con localidad
-    const loadWithLocality = async () => {
-      setLoading(true);
-      try {
-        const fetchParams: Record<string, unknown> = {
-          is_active: true,
-          sort: sortBy,
-          page: 1,
-          per_page: perPage,
-          include_images: false,
-          include_promos: true,
-          require_crm_product_id: true,
-          locality_id: locality.id,
-        };
-        if (searchQuery) fetchParams.search = searchQuery;
-
-        const result = await fetchProducts(fetchParams);
-        setProducts(result.products);
-        setTotalPages(result.total_pages);
-        setTotalCount(result.total);
-      } catch {
-        // silenciar error
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadWithLocality();
-  // Solo corre cuando aparece/cambia la localidad
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locality?.id, localityLoading]);
-
   // Escuchar cambios de localidad desde el evento personalizado
   useEffect(() => {
     const handleLocalityChange = () => {
