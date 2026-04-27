@@ -177,6 +177,8 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
                 originalPrice={product.originalPrice}
                 discount={product.discount}
                 priceNote={product.priceNote}
+                secondaryPrice={product.secondaryPrice}
+                secondaryPriceLabel={product.secondaryPriceLabel}
                 isPriceLoading={product.isPriceLoading}
                 useNormalHeight={false}
               />
@@ -203,6 +205,8 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
             originalPrice={product.originalPrice}
             discount={product.discount}
             priceNote={product.priceNote}
+            secondaryPrice={product.secondaryPrice}
+            secondaryPriceLabel={product.secondaryPriceLabel}
             isPriceLoading={product.isPriceLoading}
           />
         </div>
