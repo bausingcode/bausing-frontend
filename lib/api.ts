@@ -1,3 +1,5 @@
+import { backendOriginFromEnv } from "./backendOrigin";
+
 /** Cookie value puede incluir "=" (p. ej. padding en JWT); no usar split("=")[1]. */
 function _parseCookiePair(cookiePair: string): { name: string; value: string } | null {
   const t = cookiePair.trim();
@@ -80,7 +82,8 @@ export function getAuthHeadersServer(cookieHeader?: string | null): HeadersInit 
 }
 
 const API_BASE_URL = '/api'
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:5050'
+// Misma resolución que next.config.ts (rewrites): localhost → 127.0.0.1 para Node/IPv4.
+const BACKEND_URL = backendOriginFromEnv();
 // Categories API
 export interface Category {
   id: string;
@@ -5707,41 +5710,61 @@ export interface ClubBeneficiosAdminResponse {
   total: number;
 }
 
-function _isClubBeneficiosAdminShape(x: unknown): x is ClubBeneficiosAdminResponse {
-  if (!x || typeof x !== "object") return false;
-  const o = x as Record<string, unknown>;
-  return Array.isArray(o.items) && typeof o.total === "number";
+function _normalizeClubBeneficiosAdminData(
+  data: unknown,
+): ClubBeneficiosAdminResponse | null {
+  if (!data || typeof data !== "object") return null;
+  const o = data as Record<string, unknown>;
+  const rawItems = o.items;
+  const items = Array.isArray(rawItems) ? rawItems : rawItems == null ? [] : null;
+  if (items === null) return null;
+  let total: number;
+  if (typeof o.total === "number" && Number.isFinite(o.total)) {
+    total = o.total;
+  } else if (typeof o.total === "string" && o.total.trim() !== "") {
+    const n = Number(o.total);
+    total = Number.isFinite(n) ? n : items.length;
+  } else {
+    total = items.length;
+  }
+  return {
+    items: items as HomepageDistributionItem[],
+    total,
+  };
 }
 
-export async function fetchClubBeneficiosAdmin(): Promise<ClubBeneficiosAdminResponse> {
-  try {
-    const url = typeof window === "undefined"
+/** Mismo patrón que fetchAdminCoupons / fetchHomepageDistribution. Opcional cookieHeader solo para SSR (fetchAdminUsers). */
+export async function fetchClubBeneficiosAdmin(
+  cookieHeader?: string | null,
+): Promise<ClubBeneficiosAdminResponse> {
+  const url =
+    typeof window === "undefined"
       ? `${BACKEND_URL}/admin/club-beneficios`
       : `/api/admin/club-beneficios`;
 
-    const headers =
-      typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const headers =
+    typeof window === "undefined"
+      ? getAuthHeadersServer(cookieHeader ?? undefined)
+      : getAuthHeaders();
 
-    const response = await fetch(url, { headers, cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(`Failed to fetch club beneficios admin: ${response.statusText}`);
-    }
-    const json = await response.json();
-    if (!json.success) {
-      throw new Error(json.error || "Failed to fetch club beneficios admin");
-    }
-    const data = json.data as unknown;
-    if (!_isClubBeneficiosAdminShape(data)) {
-      throw new Error("Respuesta de club beneficios inválida");
-    }
-    return data;
-  } catch (error) {
-    console.error("Error fetching club beneficios admin:", error);
-    return {
-      items: [],
-      total: 0,
-    };
+  const response = await fetch(url, {
+    headers,
+    cache: "no-store",
+    credentials: "same-origin",
+    signal: typeof AbortSignal !== "undefined" ? AbortSignal.timeout(120_000) : undefined,
+  });
+
+  const json = await response.json().catch(() => null);
+  if (!response.ok || !json?.success) {
+    const msg = json?.error || response.statusText;
+    throw new Error(msg || "Error al cargar Club Beneficios");
   }
+
+  const normalized = _normalizeClubBeneficiosAdminData(json.data);
+  if (!normalized) {
+    throw new Error("Respuesta de club beneficios inválida");
+  }
+  return normalized;
 }
 
 export async function saveClubBeneficios(productIds: string[]): Promise<ClubBeneficiosAdminResponse> {
@@ -5757,6 +5780,8 @@ export async function saveClubBeneficios(productIds: string[]): Promise<ClubBene
     headers,
     body: JSON.stringify({ product_ids: productIds }),
     cache: "no-store",
+    credentials: "same-origin",
+    signal: typeof AbortSignal !== "undefined" ? AbortSignal.timeout(120_000) : undefined,
   });
 
   const json = await response.json().catch(() => null);
@@ -5765,11 +5790,8 @@ export async function saveClubBeneficios(productIds: string[]): Promise<ClubBene
     throw new Error(msg || "Failed to save club beneficios");
   }
 
-  const data = json.data as unknown;
-  if (!_isClubBeneficiosAdminShape(data)) {
-    return { items: [], total: 0 };
-  }
-  return data;
+  const normalized = _normalizeClubBeneficiosAdminData(json.data);
+  return normalized ?? { items: [], total: 0 };
 }
 
 export async function fetchClubBeneficiosQuick(): Promise<Product[]> {

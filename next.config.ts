@@ -1,13 +1,10 @@
 import type { NextConfig } from "next";
+import { backendOriginFromEnv } from "./lib/backendOrigin";
 
 // Reescribe /api/* → backend. Por defecto 127.0.0.1: en muchos sistemas "localhost"
 // resuelve a IPv6 (::1) y Flask en 0.0.0.0:5050 no acepta ahí; el proxy de Next devuelve 502.
 // En local: BACKEND_URL=http://127.0.0.1:5050 o dejar el default.
-const backendBase = (
-  process.env.BACKEND_URL ||
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  "http://127.0.0.1:5050"
-).replace(/\/+$/, "");
+const backendBase = backendOriginFromEnv();
 
 const nextConfig: NextConfig = {
   images: {

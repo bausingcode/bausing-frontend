@@ -1,5 +1,5 @@
 import ClubBeneficiosClient from "./ClubBeneficiosClient";
 
-export default async function ClubBeneficiosAdminPage() {
+export default function ClubBeneficiosAdminPage() {
   return <ClubBeneficiosClient />;
 }

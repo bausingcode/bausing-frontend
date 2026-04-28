@@ -311,7 +311,9 @@ function PublishConfirmModal({
 }
 
 function itemsToProducts(items: HomepageDistributionItem[]): Product[] {
+  if (!Array.isArray(items)) return [];
   return items
+    .filter((i): i is HomepageDistributionItem => Boolean(i && typeof i === "object"))
     .map((i) => i.product)
     .filter((p): p is Product => Boolean(p));
 }
@@ -353,17 +355,12 @@ export default function ClubBeneficiosClient() {
   }, [savedIds, selectedIds]);
 
   const totalPages = Math.max(1, Math.ceil(selectedProducts.length / PER_PAGE));
-  const safePage = Math.min(page, totalPages);
-
-  useEffect(() => {
-    if (page !== safePage) setPage(safePage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [safePage]);
+  const displayPage = Math.min(page, totalPages);
 
   const pageProducts = useMemo(() => {
-    const start = (safePage - 1) * PER_PAGE;
+    const start = (displayPage - 1) * PER_PAGE;
     return selectedProducts.slice(start, start + PER_PAGE);
-  }, [selectedProducts, safePage]);
+  }, [selectedProducts, displayPage]);
 
   const loadAdmin = async () => {
     setLoading(true);
@@ -410,7 +407,8 @@ export default function ClubBeneficiosClient() {
   };
 
   useEffect(() => {
-    loadAdmin();
+    void loadAdmin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleOpenAdd = async () => {
@@ -525,17 +523,17 @@ export default function ClubBeneficiosClient() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={safePage === 1}
+              disabled={displayPage === 1}
               className="px-3 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
             >
               Anterior
             </button>
             <span className="px-3 py-2 text-sm text-gray-700">
-              Página {safePage} de {totalPages}
+              Página {displayPage} de {totalPages}
             </span>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={safePage === totalPages}
+              disabled={displayPage === totalPages}
               className="px-3 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
             >
               Siguiente

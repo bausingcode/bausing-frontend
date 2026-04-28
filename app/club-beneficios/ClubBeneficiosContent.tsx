@@ -293,25 +293,40 @@ export default function ClubBeneficiosContent({ initialProducts }: Props) {
     setOpenFilters({});
   }, [selectedCategory]);
 
+  // Solo al cambiar cantidad de productos o localidad: evita loop con mergePrices / baseProducts
   useEffect(() => {
     const ids = baseProducts
       .map((p) => (p.id != null && p.id !== "" ? String(p.id).trim() : ""))
       .filter(Boolean);
-    if (ids.length === 0) return;
+    if (ids.length === 0) {
+      setIsLoadingPrices(false);
+      return;
+    }
 
     const nonePricedYet = baseProducts.every((p) => !productHasPositiveListPrice(p));
     const gen = ++pricesGen.current;
     if (nonePricedYet) setIsLoadingPrices(true);
+
+    let cancelled = false;
     (async () => {
       try {
         const prices = await fetchProductsPrices(ids, locality?.id);
-        if (gen !== pricesGen.current) return;
+        if (cancelled || gen !== pricesGen.current) return;
         if (!prices || Object.keys(prices).length === 0) return;
         setBaseProducts((prev) => mergePrices(prev, prices));
-      } catch { /* silenciar */ } finally {
-        if (gen === pricesGen.current && nonePricedYet) setIsLoadingPrices(false);
+      } catch {
+        /* silenciar */
+      } finally {
+        if (!cancelled && gen === pricesGen.current && nonePricedYet) {
+          setIsLoadingPrices(false);
+        }
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locality?.id, baseProducts.length]);
 
   const priceStillPending = (product: Product) => !productHasPositiveListPrice(product);
