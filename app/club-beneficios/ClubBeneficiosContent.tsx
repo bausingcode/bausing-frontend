@@ -225,9 +225,21 @@ function mergePrices(products: Product[], pricesData: Record<string, any>): Prod
 function productToCardProps(product: Product, isPriceLoading: boolean) {
   const image = firstProductImageUrl(product);
   const hasPrice = productHasPositiveListPrice(product);
+  const outOfStock = product.has_crm_stock === false;
 
   if (isPriceLoading || !hasPrice) {
-    return { id: product.id, image, alt: product.name, name: product.name, currentPrice: "", originalPrice: "", discount: undefined, priceNote: undefined, isPriceLoading };
+    return {
+      id: product.id,
+      image,
+      alt: product.name,
+      name: product.name,
+      currentPrice: "",
+      originalPrice: "",
+      discount: undefined,
+      priceNote: undefined,
+      isPriceLoading,
+      outOfStock,
+    };
   }
 
   const productWithPromos = { ...product, promos: Array.isArray(product.promos) ? product.promos : [] };
@@ -243,6 +255,7 @@ function productToCardProps(product: Product, isPriceLoading: boolean) {
     secondaryPrice: cardFields.secondaryPrice,
     secondaryPriceLabel: cardFields.secondaryPriceLabel,
     isPriceLoading: false,
+    outOfStock,
   };
 }
 

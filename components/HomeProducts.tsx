@@ -31,7 +31,12 @@ function productToCardProps(product: Product, isPriceLoading: boolean = false) {
   // Si hay precio, calcular con promociones
   const hasPrice = productHasPositiveListPrice(product);
 
-  if (isPriceLoading || !hasPrice) {
+  // Solo skeleton cuando el flujo pide "precio todavía en curso". Si no hay monto y ya terminó
+  // la carga, mostramos "Sin precio" (ver ProductCard) — nunca mezclar con !hasPrice en la condición
+  // de carga, o se ve un frame "Sin precio" antes de que arribe el merge de precios.
+  const outOfStock = product.has_crm_stock === false;
+
+  if (isPriceLoading) {
     return {
       id: product.id,
       image,
@@ -43,7 +48,25 @@ function productToCardProps(product: Product, isPriceLoading: boolean = false) {
       priceNote: undefined,
       secondaryPrice: undefined,
       secondaryPriceLabel: undefined,
-      isPriceLoading,
+      isPriceLoading: true,
+      outOfStock,
+    };
+  }
+
+  if (!hasPrice) {
+    return {
+      id: product.id,
+      image,
+      alt: product.name,
+      name: product.name,
+      currentPrice: "",
+      originalPrice: "",
+      discount: undefined,
+      priceNote: undefined,
+      secondaryPrice: undefined,
+      secondaryPriceLabel: undefined,
+      isPriceLoading: false,
+      outOfStock,
     };
   }
 
@@ -69,6 +92,7 @@ function productToCardProps(product: Product, isPriceLoading: boolean = false) {
     secondaryPriceLabel: cardFields.secondaryPriceLabel,
     // Solo mostrar skeleton si está cargando, no si no hay precio
     isPriceLoading: false,
+    outOfStock,
   };
 }
 
@@ -133,7 +157,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
             key={index} 
             className={`relative group block animate-pulse flex-shrink-0 snap-start w-[calc((100vw-1rem-1.5rem-0.75rem)/2)] md:w-auto min-w-0 ${section === "discounts" && index >= 2 ? 'hidden md:block' : ''}`}
           >
-            <div className={`relative w-full rounded-[10px] overflow-hidden bg-gray-200 ${section === "discounts" ? 'h-48 md:h-80' : 'h-48 md:h-80'}`}></div>
+            <div className="relative w-full rounded-[10px] overflow-hidden bg-gray-200 aspect-square md:aspect-auto md:h-80" />
             <div className="pt-3">
               <div className="mb-1">
                 <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
@@ -159,13 +183,12 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
 
   // Para la sección de descuentos, necesitamos un wrapper especial
   if (section === "discounts") {
-    // En mobile solo mostrar 2 productos, en desktop mostrar todos
     return (
       <>
         {products.map((product, index) => (
           <div 
             key={`${product.id}-${index}-${locality?.id || 'no-locality'}`} 
-            className={`bg-white p-2 md:p-4 rounded-lg md:rounded-[20px] h-full cursor-pointer flex-shrink-0 snap-start w-[calc((100vw-1rem-1.5rem-0.75rem)/2)] md:w-auto md:block min-w-0 ${index >= 2 ? 'hidden md:block' : ''}`}
+            className="bg-white p-2 md:p-4 rounded-lg md:rounded-[20px] h-full cursor-pointer flex-shrink-0 snap-start w-[calc((100vw-1rem-1.5rem-0.75rem)/2)] md:w-auto md:block min-w-0"
           >
             <div className="h-full flex flex-col min-w-0 w-full">
               <ProductCard
@@ -181,6 +204,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
                 secondaryPriceLabel={product.secondaryPriceLabel}
                 isPriceLoading={product.isPriceLoading}
                 useNormalHeight={false}
+                outOfStock={product.outOfStock}
               />
             </div>
           </div>
@@ -208,6 +232,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
             secondaryPrice={product.secondaryPrice}
             secondaryPriceLabel={product.secondaryPriceLabel}
             isPriceLoading={product.isPriceLoading}
+            outOfStock={product.outOfStock}
           />
         </div>
       ))}

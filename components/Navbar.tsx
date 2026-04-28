@@ -40,7 +40,8 @@ import {
   MapPin,
   Menu,
   X,
-  Users
+  Users,
+  ChevronDown
 } from "lucide-react";
 import Cart from "./Cart";
 import TopbarUpper from "./TopbarUpper";
@@ -544,6 +545,33 @@ const categoriesData: Record<string, CategoryData> = {
 // Lista de categorías principales para el menú
 const mainCategories = Object.keys(categoriesData);
 
+type MobileNavLink = { name: string; href: string };
+type MobileNavGroup = { heading: string | null; links: MobileNavLink[] };
+
+/** Grupos enlazables para el menú móvil (misma fuente que el mega menú desktop). */
+function getMobileCategoryNavGroups(data: CategoryData): MobileNavGroup[] {
+  const items = [...(data.columns.left ?? []), ...(data.columns.middle ?? [])];
+  const groups: MobileNavGroup[] = [];
+  for (const item of items) {
+    if (item.subcategories && item.subcategories.length > 0) {
+      groups.push({
+        heading: item.name,
+        links: item.subcategories.map((s) => ({
+          name: s.name,
+          href: s.href.startsWith("/") ? s.href : `/${s.href}`,
+        })),
+      });
+    } else if (item.href) {
+      const href = item.href.startsWith("/") ? item.href : `/${item.href}`;
+      groups.push({
+        heading: null,
+        links: [{ name: item.name, href }],
+      });
+    }
+  }
+  return groups;
+}
+
 /** Imagen por defecto del panel del mega menú si no hay URL en API ni en datos estáticos */
 const NAVBAR_CATEGORY_IMAGE_FALLBACK = "/images/home/4.png";
 
@@ -562,6 +590,7 @@ export default function Navbar({ event }: NavbarProps = {}) {
   const [searchQuery, setSearchQuery] = useState("");
   const [apiCategories, setApiCategories] = useState<Category[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [mobileExpandedCategory, setMobileExpandedCategory] = useState<string | null>(null);
   /** Altura real (px) del bloque superior móvil: topbars + header; el menú full-screen debe empezar debajo */
   const [mobileMenuOverlayTopPx, setMobileMenuOverlayTopPx] = useState(88);
   const mobileNavStackRef = useRef<HTMLDivElement>(null);
@@ -661,6 +690,10 @@ export default function Navbar({ event }: NavbarProps = {}) {
     };
     loadCategories();
   }, []);
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) setMobileExpandedCategory(null);
+  }, [isMobileMenuOpen]);
 
   // Obtener categorías principales (sin parent_id) ordenadas por el campo 'order' o usar las hardcoded si no hay API
   const mainCategoriesToUse = apiCategories.length > 0 
@@ -1003,6 +1036,28 @@ export default function Navbar({ event }: NavbarProps = {}) {
             </div>
 
           </div>
+
+          {/* Búsqueda ancho pantalla en móvil (fuera del container) */}
+          <div className="min-[1291px]:hidden w-full px-3 pb-3 pt-1">
+            <form onSubmit={handleSearch} className="relative w-full max-w-none">
+              <input
+                type="text"
+                placeholder="Buscar colchones, sommiers, almohadas..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                className="w-full px-3 py-2.5 pr-10 rounded-[10px] border border-stone-200/90 bg-[#fafaf9] text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#00C1A7]/25 focus:border-[#00C1A7]/45"
+                autoComplete="off"
+              />
+              <button
+                type="submit"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 cursor-pointer hover:opacity-70 transition-opacity p-0.5"
+                aria-label="Buscar"
+              >
+                <Search className="w-5 h-5 text-gray-400" />
+              </button>
+            </form>
+          </div>
         </header>
         </div>
 
@@ -1013,24 +1068,6 @@ export default function Navbar({ event }: NavbarProps = {}) {
             style={{ top: mobileMenuOverlayTopPx }}
           >
             <div className="container mx-auto px-4 py-4">
-              {/* Mobile Search */}
-              <form onSubmit={(e) => { handleSearch(e); setIsMobileMenuOpen(false); }} className="relative mb-4">
-                <input
-                  type="text"
-                  placeholder="Buscar productos..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-900 placeholder:text-gray-500"
-                />
-                <button
-                  type="submit"
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                  aria-label="Buscar"
-                >
-                  <Search className="w-5 h-5 text-gray-400" />
-                </button>
-              </form>
-
               {/* Mobile User Actions */}
               <div className="border-b border-gray-200 pb-4 mb-4">
                 {isAuthenticated && user ? (
@@ -1085,7 +1122,7 @@ export default function Navbar({ event }: NavbarProps = {}) {
                 )}
               </div>
 
-              {/* Mobile Categories */}
+              {/* Mobile Categories — enlace a la categoría + acordeón de subcategorías (mismos datos que desktop) */}
               <div className="space-y-1">
                 <p className="px-2 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Categorías</p>
                 {mainCategoriesToUse.map((categoryName) => {
@@ -1095,17 +1132,91 @@ export default function Navbar({ event }: NavbarProps = {}) {
                     .replace(/\s+/g, "-")
                     .replace(/[^a-z0-9-]/g, "");
                   const categoryUrl = `/catalogo/${categorySlug}`;
-                  
+                  const categoryData = resolveMenuCategoryData(categoryName);
+                  const groups = categoryData ? getMobileCategoryNavGroups(categoryData) : [];
+                  const hasSubnav = groups.length > 0;
+
+                  if (!hasSubnav) {
+                    return (
+                      <Link
+                        key={categoryName}
+                        href={categoryUrl}
+                        prefetch
+                        className="flex items-center gap-3 px-2 py-3 text-gray-700 hover:bg-gray-50 rounded-lg"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <span>{categoryName}</span>
+                      </Link>
+                    );
+                  }
+
+                  const expanded = mobileExpandedCategory === categoryName;
+
                   return (
-                    <Link
+                    <div
                       key={categoryName}
-                      href={categoryUrl}
-                      prefetch
-                      className="flex items-center gap-3 px-2 py-3 text-gray-700 hover:bg-gray-50 rounded-lg"
-                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="rounded-lg overflow-hidden"
                     >
-                      <span>{categoryName}</span>
-                    </Link>
+                      <div className="flex items-stretch min-h-[48px]">
+                        <Link
+                          href={categoryUrl}
+                          prefetch
+                          className="flex flex-1 items-center px-3 py-3 text-gray-800 hover:bg-gray-50 text-[15px]"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          {categoryName}
+                        </Link>
+                        <button
+                          type="button"
+                          className="flex items-center justify-center px-3 py-3 text-gray-600 hover:bg-gray-50 shrink-0"
+                          aria-expanded={expanded}
+                          aria-label={`Subcategorías de ${categoryName}`}
+                          onClick={() =>
+                            setMobileExpandedCategory(expanded ? null : categoryName)
+                          }
+                        >
+                          <ChevronDown
+                            className={`w-5 h-5 shrink-0 transition-transform duration-200 ${
+                              expanded ? "rotate-180" : ""
+                            }`}
+                          />
+                        </button>
+                      </div>
+                      {expanded && (
+                        <div className="bg-[#fafafa] px-2 py-3 space-y-3">
+                          <Link
+                            href={categoryUrl}
+                            prefetch
+                            className="block px-2 py-2 text-sm font-semibold text-[#00A892]"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            Ver todo en {categoryName}
+                          </Link>
+                          {groups.map((group, gi) => (
+                            <div key={gi} className="space-y-0.5">
+                              {group.heading ? (
+                                <p className="px-2 pt-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                                  {group.heading}
+                                </p>
+                              ) : null}
+                              <div className="space-y-0.5">
+                                {group.links.map((link, li) => (
+                                  <Link
+                                    key={`${gi}-${li}-${link.href}`}
+                                    href={link.href}
+                                    prefetch
+                                    className="block rounded-md py-2.5 px-2 text-sm text-gray-700 hover:bg-white"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                  >
+                                    {link.name}
+                                  </Link>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>

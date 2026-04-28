@@ -75,6 +75,7 @@ export default function ProductsWithLocality({
       priceNote: cardFields.priceNote,
       secondaryPrice: cardFields.secondaryPrice,
       secondaryPriceLabel: cardFields.secondaryPriceLabel,
+      outOfStock: product.has_crm_stock === false,
     };
   };
 
@@ -124,6 +125,7 @@ export default function ProductsWithLocality({
             priceNote={props.priceNote}
             secondaryPrice={props.secondaryPrice}
             secondaryPriceLabel={props.secondaryPriceLabel}
+            outOfStock={props.outOfStock}
           />
         );
       })}

@@ -447,6 +447,8 @@ export interface Product {
   has_moisture_breathers?: boolean;
   has_side_handles?: boolean;
   is_active: boolean;
+  /** false = CRM marca sin stock; el listado puede incluir el producto para mostrar etiqueta en vitrina */
+  has_crm_stock?: boolean;
   created_at?: string;
   min_price?: number;
   max_price?: number;
@@ -471,6 +473,7 @@ export interface Product {
     alt_text?: string;
     position: number;
   }>;
+  /** Variantes: `stock` en opciones es dato interno; en vitrina el stock visible es solo CRM (`has_crm_stock`). */
   variants?: Array<{
     id: string;
     name?: string;
@@ -2332,6 +2335,8 @@ export async function getGeneralMetrics(
 export interface HeroImage {
   id: string;
   image_url: string;
+  /** Imagen opcional más vertical, solo se usa en viewport móvil (hero principal). */
+  image_url_mobile?: string | null;
   title?: string;
   subtitle?: string;
   cta_text?: string;
@@ -2495,12 +2500,70 @@ export async function uploadHeroImageFile(file: File, position: number): Promise
 }
 
 /**
+ * Sube una imagen vertical para el mismo slide del hero (solo se muestra en móvil).
+ */
+export async function uploadHeroImageMobileFile(
+  heroId: string,
+  file: File,
+  position: number
+): Promise<HeroImage> {
+  const { compressToWebp } = await import("@/lib/image");
+
+  const compressedFile = await compressToWebp(file, {
+    maxSide: 2048,
+    quality: 0.9,
+  });
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error("Supabase configuration is missing. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  }
+
+  const fileExt = compressedFile.name.split(".").pop();
+  const fileName = `mobile-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+  const folder = `position-${position}`;
+  const filePath = `${folder}/${fileName}`;
+
+  const uploadResponse = await fetch(
+    `${supabaseUrl}/storage/v1/object/hero-images/${filePath}`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${supabaseKey}`,
+        "Content-Type": compressedFile.type,
+        "x-upsert": "true",
+      },
+      body: compressedFile,
+    }
+  );
+
+  if (!uploadResponse.ok) {
+    const errorText = await uploadResponse.text();
+    let errorMessage = `Failed to upload to Supabase: ${uploadResponse.statusText}`;
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.message || errorJson.error || errorMessage;
+    } catch {
+      errorMessage = errorText || errorMessage;
+    }
+    throw new Error(errorMessage);
+  }
+
+  const publicUrl = `${supabaseUrl}/storage/v1/object/public/hero-images/${filePath}`;
+
+  return updateHeroImage(heroId, { image_url_mobile: publicUrl });
+}
+
+/**
  * Update a hero image
  */
 export async function updateHeroImage(
   imageId: string,
   imageData: Partial<{
     image_url: string;
+    image_url_mobile: string | null;
     title: string;
     subtitle: string;
     cta_text: string;
@@ -5550,6 +5613,40 @@ export async function fetchPublicHomepageDistributionQuick(): Promise<{
       mattresses: [],
       complete_purchase: []
     };
+  }
+}
+
+/**
+ * Un solo request: grilla del home (como /quick) + mapa de precios (como POST /prices).
+ * Reduce 2 idas de red a 1 cuando el backend responde OK.
+ */
+export async function fetchHomepageDistributionReady(localityId?: string): Promise<{
+  distribution: {
+    featured: Product[];
+    discounts: Product[];
+    mattresses: Product[];
+    complete_purchase: Product[];
+  };
+  prices: Awaited<ReturnType<typeof fetchProductsPrices>>;
+} | null> {
+  try {
+    const q = localityId ? `?locality_id=${encodeURIComponent(localityId)}` : "";
+    const url =
+      typeof window === "undefined"
+        ? `${BACKEND_URL}/homepage-distribution/ready${q}`
+        : `/api/homepage-distribution/ready${q}`;
+
+    const response = await fetch(url, { cache: "default" });
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (!data.success || !data.data?.distribution) return null;
+    return {
+      distribution: data.data.distribution,
+      prices: data.data.prices ?? {},
+    };
+  } catch (error) {
+    console.error("Error fetching homepage distribution ready:", error);
+    return null;
   }
 }
 

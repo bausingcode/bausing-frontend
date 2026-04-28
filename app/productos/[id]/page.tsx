@@ -32,6 +32,7 @@ interface ProductImage {
   alt?: string;
 }
 
+/** Variantes: no usar `stock` en la vitrina; disponibilidad solo vía `has_crm_stock` (crm_products.stock). */
 interface ProductVariant {
   id: string;
   name?: string;
@@ -108,6 +109,7 @@ interface SimilarProduct {
   secondaryPrice?: string;
   secondaryPriceLabel?: string;
   image: string;
+  outOfStock?: boolean;
 }
 
 // Special category IDs for custom combo section logic
@@ -434,6 +436,7 @@ export default function ProductDetailPage() {
                     secondaryPrice: cardFields.secondaryPrice,
                     secondaryPriceLabel: cardFields.secondaryPriceLabel,
                     image: firstProductImageUrl(p),
+                    outOfStock: p.has_crm_stock === false,
                   };
                 });
 
@@ -922,7 +925,7 @@ export default function ProductDetailPage() {
 
   const currentPriceInfo = getCurrentProductPrice();
   const hasPrice = currentPriceInfo.price > 0;
-  
+
   // Calcular precio sin impuestos basado en el precio final (con descuento si aplica)
   const tempProductForTaxes = { 
     ...product, 
@@ -1244,53 +1247,37 @@ export default function ProductDetailPage() {
                             {hasOptions ? (
                               variant.options.map((option: any) => {
                                 const isSelected = selectedVariantOptions[variantKey] === option.id;
-                                const isOutOfStock = false
                                 return (
                                   <button
                                     key={option.id}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      if (!isOutOfStock) {
-                                        setSelectedVariantOptions(prev => ({ ...prev, [variantKey]: option.id }));
-                                      }
+                                      setSelectedVariantOptions(prev => ({ ...prev, [variantKey]: option.id }));
                                     }}
-                                    disabled={isOutOfStock}
                                     className={`px-3 py-1.5 md:px-4 md:py-2 rounded-[4px] border transition-all text-xs md:text-sm ${
-                                      isOutOfStock
-                                        ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
-                                        : isSelected
+                                      isSelected
                                         ? "border-[#00C1A7] bg-[#00C1A7] text-white cursor-pointer"
                                         : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 cursor-pointer"
                                     }`}
                                   >
                                     {option.name}
-                                    {isOutOfStock && <span className="ml-1 md:ml-2 text-xs">(Sin stock)</span>}
                                   </button>
                                 );
                               })
                             ) : (
-                              (() => {
-                                const isVariantOutOfStock = variant.stock !== undefined && variant.stock <= 0;
-                                return (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (!isVariantOutOfStock) setSelectedVariant(variant.id);
-                                    }}
-                                    disabled={isVariantOutOfStock}
-                                    className={`px-3 py-1.5 md:px-4 md:py-2 rounded-[4px] border transition-all text-xs md:text-sm ${
-                                      isVariantOutOfStock
-                                        ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
-                                        : selectedVariant === variant.id
-                                        ? "border-[#00C1A7] bg-[#00C1A7] text-white cursor-pointer"
-                                        : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 cursor-pointer"
-                                    }`}
-                                  >
-                                    {variant.name || variant.sku || variant.id}
-                                    {isVariantOutOfStock && <span className="ml-1 md:ml-2 text-xs">(Sin stock)</span>}
-                                  </button>
-                                );
-                              })()
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedVariant(variant.id);
+                                }}
+                                className={`px-3 py-1.5 md:px-4 md:py-2 rounded-[4px] border transition-all text-xs md:text-sm ${
+                                  selectedVariant === variant.id
+                                    ? "border-[#00C1A7] bg-[#00C1A7] text-white cursor-pointer"
+                                    : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 cursor-pointer"
+                                }`}
+                              >
+                                {variant.name || variant.sku || variant.id}
+                              </button>
                             )}
                           </div>
                         );
@@ -1359,7 +1346,7 @@ export default function ProductDetailPage() {
                 </div>
               ) : product?.has_crm_stock === false ? (
                 <div className="w-full bg-gray-300 text-gray-600 py-2.5 md:py-3 px-4 md:px-6 rounded-[4px] text-center font-medium text-sm md:text-base">
-                  Sin Stock
+                  Sin stock
                 </div>
               ) : !hasPrice ? (
                 <div className="w-full bg-gray-300 text-gray-600 py-2.5 md:py-3 px-4 md:px-6 rounded-[4px] text-center font-medium text-sm md:text-base">
@@ -1388,7 +1375,7 @@ export default function ProductDetailPage() {
         {/* Bottom Section: Technical Info (Left) and Combos (Right) */}
         <div className="grid grid-cols-1 lg:grid-cols-7 gap-8 lg:gap-12 mb-8 md:mb-12">
           {/* Left: Collapsible Sections */}
-          <div className="lg:col-span-4 order-2 lg:order-1">
+          <div className="lg:col-span-4 order-1">
             <h2 className="text-lg md:text-xl text-gray-900 mb-4 md:mb-6">Información técnica</h2>
             <div className="space-y-2">
               {/* Descripción */}
@@ -1672,7 +1659,7 @@ export default function ProductDetailPage() {
 
           {/* Right: Combo Section */}
           {showComboSection && (
-            <div className="lg:col-span-3 order-1 lg:order-2">
+            <div className="lg:col-span-3 order-2">
               <div className="flex items-center justify-between mb-4 md:mb-6">
                 <h2 className="text-lg md:text-xl text-gray-900">Completa tu compra</h2>
                 {!isSpecialCategory && completedCombos.length > 3 && (
@@ -1839,6 +1826,7 @@ export default function ProductDetailPage() {
                     priceNote={similarProduct.priceNote}
                     secondaryPrice={similarProduct.secondaryPrice}
                     secondaryPriceLabel={similarProduct.secondaryPriceLabel}
+                    outOfStock={similarProduct.outOfStock}
                   />
                 </div>
               ))}

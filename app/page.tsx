@@ -23,6 +23,7 @@ import HomeProducts from "@/components/HomeProducts";
 import ReviewsSectionLazy from "@/components/ReviewsSectionLazy";
 import InfoCarousel from "@/components/InfoCarousel";
 import FirstVisitModal from "@/components/FirstVisitModal";
+import HomeBenefitsMobileCarousel from "@/components/HomeBenefitsMobileCarousel";
 import WhatsAppLink from "@/components/WhatsAppLink";
 import InfoBannerCarousel from "@/components/InfoBannerCarousel";
 import ProductCarousel from "@/components/ProductCarousel";
@@ -82,6 +83,7 @@ export default async function Home() {
     id: parseInt(img.id.replace(/-/g, "").slice(0, 8), 16) || index + 1,
     heroId: img.id,
     url: img.image_url,
+    urlMobile: img.image_url_mobile,
     alt: img.title || img.subtitle || "Banner",
     title: img.title,
     subtitle: img.subtitle,
@@ -127,30 +129,8 @@ export default async function Home() {
       {/* Tres columnas informativas — debajo del hero; borde solo abajo, ancho pantalla */}
       <section className="bg-white">
         <div className="container mx-auto px-4 py-4 md:py-10 lg:py-10">
-          {/* Mobile: carrusel horizontal */}
-          <div className="mt-4 md:hidden max-w-5xl lg:max-w-6xl mx-auto">
-            <div
-              className="overflow-x-auto scrollbar-hide snap-x snap-mandatory"
-              role="region"
-              aria-label="Beneficios"
-            >
-              <div className="flex gap-6 px-1" style={{ width: "max-content" }}>
-                {infoCards.map((item) => (
-                  <div
-                    key={item.title}
-                    className="flex flex-col items-center text-center px-2 min-w-[calc(100vw-2rem)] flex-shrink-0 snap-start"
-                  >
-                    <h4 className="text-[#101828] font-semibold text-base mb-[3px]">
-                      {item.title}
-                    </h4>
-                    <p className="text-black/50 text-base leading-relaxed mb-4 flex-1 max-w-xs">
-                      {item.description}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          {/* Mobile: carrusel horizontal con avance automático */}
+          <HomeBenefitsMobileCarousel items={infoCards} />
 
           {/* Tablet y desktop: grid 3 columnas */}
           <div className="hidden md:grid grid-cols-3 gap-6 md:gap-8 lg:gap-8 max-w-5xl lg:max-w-6xl mx-auto">
@@ -228,7 +208,7 @@ export default async function Home() {
 
 
       {/* Hero Text Section */}
-      <section className="bg-white py-8 md:py-10 lg:py-12">
+      <section className="bg-white py-4 md:py-10 lg:py-12">
         <div className="container mx-auto px-4 md:px-6">
           <div className="flex items-center justify-between mb-4 md:mb-6 lg:mb-8 gap-3">
             <h2 className="text-sm md:text-xl lg:text-2xl font-medium text-gray-800 leading-snug">
@@ -257,7 +237,7 @@ export default async function Home() {
         <InfoBannerCarousel images={infoBannerImages} autoPlayInterval={5000} />
       )}
 
-      <section className="bg-[#fafafa] mt-0 md:mt-10 lg:mt-20 py-8 md:py-10 lg:py-12">
+      <section className="bg-[#fafafa] mt-0 md:mt-10 lg:mt-20 py-4 md:py-10 lg:py-12">
         <div className="container mx-auto px-4 md:px-6">
           <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
             <h3 className="text-sm md:text-xl lg:text-2xl font-medium text-gray-800 leading-snug">
@@ -269,9 +249,11 @@ export default async function Home() {
             </a>
           </div>
           
-          {/* Mobile: grid 2 columnas */}
-          <div className="grid grid-cols-2 md:hidden gap-5">
-            <HomeProducts section="discounts" count={3} />
+          {/* Mobile: carrusel horizontal (mismo patrón que “Encontrá el colchón ideal”) */}
+          <div className="md:hidden">
+            <ProductCarousel alwaysShow>
+              <HomeProducts section="discounts" count={3} />
+            </ProductCarousel>
           </div>
 
           {/* Tablet y “desktop angosto” hasta 1290px: banner arriba + grilla */}

@@ -64,22 +64,12 @@ export function productImageUrls(product: Product, max = 8): string[] {
   return urls;
 }
 
-function variantHasStock(product: Product): boolean {
-  const variants = product.variants ?? [];
-  if (variants.length === 0) return true;
-  for (const v of variants) {
-    if ((v.stock ?? 0) > 0) return true;
-    for (const o of v.options ?? []) {
-      if ((o.stock ?? 0) > 0) return true;
-    }
-  }
-  return false;
-}
-
+/** Disponibilidad para schema.org: solo `crm_products.stock` vía `has_crm_stock` del API. */
 export function productOfferAvailability(product: Product): string {
-  return variantHasStock(product)
-    ? "https://schema.org/InStock"
-    : "https://schema.org/OutOfStock";
+  if (product.has_crm_stock === false) {
+    return "https://schema.org/OutOfStock";
+  }
+  return "https://schema.org/InStock";
 }
 
 export function productOfferPrice(product: Product): number | undefined {

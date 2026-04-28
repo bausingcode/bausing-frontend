@@ -23,6 +23,8 @@ interface ProductCardProps {
   secondaryPriceLabel?: string;
   isPriceLoading?: boolean;
   useNormalHeight?: boolean;
+  /** Sin stock (CRM): etiqueta y sin agregar al carrito */
+  outOfStock?: boolean;
 }
 
 export default function ProductCard({
@@ -38,6 +40,7 @@ export default function ProductCard({
   secondaryPriceLabel,
   isPriceLoading = false,
   useNormalHeight = false,
+  outOfStock = false,
 }: ProductCardProps) {
   // Generar ID único si no se proporciona
   const productId = id || `product-${name.toLowerCase().replace(/\s+/g, "-")}`;
@@ -87,6 +90,7 @@ export default function ProductCard({
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (outOfStock) return;
     addToCart({
       id: productId,
       name,
@@ -131,11 +135,11 @@ export default function ProductCard({
       className="relative group block w-full min-w-0 cursor-pointer"
       style={{ fontFamily: "DM Sans, sans-serif" }}
     >
-      <div className={`relative w-full rounded-[10px] overflow-hidden ${useNormalHeight ? 'h-80' : 'h-48 md:h-80'}`}>
+      <div className="relative w-full rounded-[10px] overflow-hidden aspect-square md:aspect-auto md:h-80">
         <img
           src={optimizedUrl}
           alt={alt}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          className="w-full h-full object-cover object-center transition-transform duration-300 md:group-hover:scale-105"
           onError={(e) => {
             const target = e.currentTarget;
             target.onerror = null;
@@ -143,8 +147,17 @@ export default function ProductCard({
           }}
           loading="lazy"
         />
+        {outOfStock && (
+          <div className="absolute top-2 left-2 z-10 w-fit max-w-[calc(100%-1rem)] bg-gray-800 px-2 py-1 text-left text-xs font-semibold leading-snug text-white rounded-[4px]">
+            Sin stock
+          </div>
+        )}
         {discount && (
-          <div className="absolute top-2 left-2 z-10 w-fit max-w-[calc(100%-1rem)] bg-[#00C1A7] px-2 py-1 text-left text-xs font-semibold leading-snug text-white rounded-[4px] md:left-auto md:right-2">
+          <div
+            className={`absolute z-10 w-fit max-w-[calc(100%-1rem)] bg-[#00C1A7] px-2 py-1 text-left text-xs font-semibold leading-snug text-white rounded-[4px] ${
+              outOfStock ? "top-10 left-2 md:top-2 md:left-auto md:right-2" : "top-2 left-2 md:left-auto md:right-2"
+            }`}
+          >
             {discount}
           </div>
         )}
@@ -176,13 +189,19 @@ export default function ProductCard({
 
           {/* Botón de carrito */}
           <button
+            type="button"
             onClick={handleAddToCart}
             onMouseDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
             }}
-            className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 cursor-pointer bg-white text-gray-700 hover:bg-gray-50 relative z-30 ${showCartAnimation ? "scale-125" : ""}`}
-            aria-label="Agregar al carrito"
+            disabled={outOfStock}
+            className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 relative z-30 bg-white text-gray-700 ${
+              outOfStock
+                ? "opacity-40 cursor-not-allowed"
+                : "cursor-pointer hover:bg-gray-50"
+            } ${showCartAnimation && !outOfStock ? "scale-125" : ""}`}
+            aria-label={outOfStock ? "Sin stock" : "Agregar al carrito"}
           >
             <ShoppingCart className="w-5 h-5" />
           </button>

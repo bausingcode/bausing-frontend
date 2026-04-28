@@ -171,6 +171,7 @@ export default function ProductCombosPage() {
                     originalPrice={originalPrice || ""}
                     discount={discount}
                     priceNote={priceInfo.priceNote}
+                    outOfStock={combo.product.has_crm_stock === false}
                   />
                 );
               }

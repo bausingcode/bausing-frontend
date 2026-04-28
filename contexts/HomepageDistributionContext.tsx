@@ -11,6 +11,7 @@ import {
 } from "react";
 import { usePathname } from "next/navigation";
 import {
+  fetchHomepageDistributionReady,
   fetchPublicHomepageDistributionQuick,
   fetchProductsPrices,
   Product,
@@ -168,31 +169,67 @@ export function HomepageDistributionProvider({ children }: { children: ReactNode
         setIsLoading(true);
         setError(null);
         setIsLoadingPrices(true);
-        let data: HomepageDistribution | null = null;
+        let usedReady = false;
         try {
-          data = await fetchPublicHomepageDistributionQuick();
+          if (!localityLoading) {
+            const ready = await fetchHomepageDistributionReady(localityId);
+            if (cancelled) return;
+            if (ready) {
+              usedReady = true;
+              quickBaseRef.current = ready.distribution;
+              homeDataReadyRef.current = true;
+              const pd = ready.prices;
+              if (pd && Object.keys(pd).length > 0) {
+                setDistribution(mergePricesIntoDistribution(ready.distribution, pd));
+                setPrices(pd);
+              } else {
+                setDistribution(ready.distribution);
+                setPrices({});
+              }
+              setError(null);
+            } else {
+              const data = await fetchPublicHomepageDistributionQuick();
+              if (cancelled) return;
+              if (!data) {
+                setError(new Error("Error loading homepage distribution"));
+                setIsLoadingPrices(false);
+                return;
+              }
+              quickBaseRef.current = data;
+              homeDataReadyRef.current = true;
+              setDistribution(data);
+              setPrices({});
+              await loadPricesForBase(data, localityId);
+            }
+          } else {
+            const data = await fetchPublicHomepageDistributionQuick();
+            if (cancelled) return;
+            if (!data) {
+              setError(new Error("Error loading homepage distribution"));
+              setIsLoadingPrices(false);
+              return;
+            }
+            quickBaseRef.current = data;
+            homeDataReadyRef.current = true;
+            setDistribution(data);
+            setPrices({});
+          }
         } catch (err) {
           const e = err instanceof Error ? err : new Error("Error loading homepage distribution");
           setError(e);
           console.error("[HomepageDistributionContext] Error loading distribution:", e);
-        } finally {
-          if (!cancelled) setIsLoading(false);
-        }
-        if (cancelled || !data) {
           setIsLoadingPrices(false);
-          return;
+        } finally {
+          if (!cancelled) {
+            setIsLoading(false);
+          }
         }
-        quickBaseRef.current = data;
-        homeDataReadyRef.current = true;
-        setDistribution(data);
-        setPrices({});
-
-        // Un solo POST /prices. Si detect-locality sigue en curso, no pedimos precios todaví:
-        // al pasar localityLoading a false, el efecto re-ejecuta la rama de solo-precios.
-        if (localityLoading) {
-          return;
+        // Un microtask: que React aplique distribution + precios en el dom antes de quitar el skeleton
+        if (!cancelled && usedReady) {
+          queueMicrotask(() => {
+            if (!cancelled) setIsLoadingPrices(false);
+          });
         }
-        await loadPricesForBase(data, localityId);
         return;
       }
 
@@ -213,27 +250,48 @@ export function HomepageDistributionProvider({ children }: { children: ReactNode
     setIsLoading(true);
     setError(null);
     setIsLoadingPrices(true);
-    let data: HomepageDistribution | null = null;
+    let usedReady = false;
     try {
-      data = await fetchPublicHomepageDistributionQuick();
+      const ready = await fetchHomepageDistributionReady(localityId);
+      if (ready) {
+        usedReady = true;
+        quickBaseRef.current = ready.distribution;
+        homeDataReadyRef.current = true;
+        const pd = ready.prices;
+        if (pd && Object.keys(pd).length > 0) {
+          setDistribution(mergePricesIntoDistribution(ready.distribution, pd));
+          setPrices(pd);
+        } else {
+          setDistribution(ready.distribution);
+          setPrices({});
+        }
+        setError(null);
+        return;
+      }
+      const data = await fetchPublicHomepageDistributionQuick();
       if (!data) {
+        setError(new Error("Error loading homepage distribution"));
         return;
       }
       quickBaseRef.current = data;
       homeDataReadyRef.current = true;
       setDistribution(data);
       setPrices({});
+      await loadPricesForBase(data, localityId);
     } catch (err) {
       const e = err instanceof Error ? err : new Error("Error loading homepage distribution");
       setError(e);
       console.error("[HomepageDistributionContext] Error loading distribution:", e);
     } finally {
       setIsLoading(false);
+      if (!usedReady) {
+        setIsLoadingPrices(false);
+      }
     }
-    if (data) {
-      await loadPricesForBase(data, localityId);
-    } else {
-      setIsLoadingPrices(false);
+    if (usedReady) {
+      queueMicrotask(() => {
+        setIsLoadingPrices(false);
+      });
     }
   }, [pathname, localityId, loadPricesForBase]);
 

@@ -136,6 +136,7 @@ export default function CatalogoContent({
       priceNote: cardFields.priceNote,
       secondaryPrice: cardFields.secondaryPrice,
       secondaryPriceLabel: cardFields.secondaryPriceLabel,
+      outOfStock: product.has_crm_stock === false,
     };
   };
 
