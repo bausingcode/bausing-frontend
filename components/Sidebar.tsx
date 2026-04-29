@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import NavLink from "./NavLink";
-import { LogOut, Home, ShoppingCart, Users, CreditCard, Package, Truck, BarChart3, UserCog, Settings, Tag, User, ChevronDown, Image, FileText, Calendar, Mail, Star, PackageX, AlertTriangle, UserPlus, HelpCircle, Gift, TicketPercent } from "lucide-react";
+import { LogOut, Home, ShoppingCart, Users, CreditCard, Package, Truck, BarChart3, UserCog, Settings, Tag, User, ChevronDown, Image, FileText, Calendar, Mail, Star, PackageX, AlertTriangle, UserPlus, HelpCircle, Gift, TicketPercent, ShoppingBag } from "lucide-react";
 import { getCurrentAdminUser, AdminUser } from "@/lib/api";
 
 export default function Sidebar() {
@@ -206,6 +206,14 @@ export default function Sidebar() {
                   icon={<Package className="w-5 h-5" />}
                 >
                   Productos
+                </NavLink>
+              </li>
+              <li key="completa-compra">
+                <NavLink
+                  href="/admin/completa-compra"
+                  icon={<ShoppingBag className="w-5 h-5" />}
+                >
+                  Completa tu compra
                 </NavLink>
               </li>
               <li key="distribucion-inicio">

@@ -548,6 +548,8 @@ export async function fetchProducts(params?: {
   filling_type_slugs?: string;
   /** UUIDs de categoría-hijo (subcategoría) separados por coma; productos con al menos una asociación (OR). */
   subcategory_ids?: string;
+  /** UUIDs separados por coma; lista acotada en backend (p. ej. PDP cross-sell en un request) */
+  product_ids?: string;
 }): Promise<{ products: Product[]; total: number; page: number; per_page: number; total_pages: number }> {
   try {
     const queryParams = new URLSearchParams();
@@ -569,6 +571,7 @@ export async function fetchProducts(params?: {
     if (params?.require_crm_product_id) queryParams.append('require_crm_product_id', 'true');
     if (params?.filling_type_slugs) queryParams.append('filling_type_slugs', params.filling_type_slugs);
     if (params?.subcategory_ids) queryParams.append('subcategory_ids', params.subcategory_ids);
+    if (params?.product_ids?.trim()) queryParams.append('product_ids', params.product_ids.trim());
 
     // En el servidor, usar la URL completa del backend
     // En el cliente, usar la ruta relativa que será manejada por el rewrite de Next.js
@@ -1800,6 +1803,105 @@ export async function updateGeneralSettings(general: GeneralSettings): Promise<v
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || `Failed to update general settings: ${response.statusText}`);
+  }
+}
+
+/** categoría principal UUID → hasta 2 UUIDs de producto (PDP "Completa tu compra") */
+export type PdpCrossSellByCategory = Record<string, string[]>;
+
+/**
+ * PDP: IDs sugeridos resolviendo categoría principal en el servidor (subcategorías incluidas).
+ */
+export async function fetchPdpCrossSellForProductPage(
+  leafCategoryId: string | undefined,
+): Promise<{ productIds: string[]; resolvedMainCategoryId: string | null }> {
+  if (!leafCategoryId?.trim()) {
+    return { productIds: [], resolvedMainCategoryId: null };
+  }
+  const q = `leaf_category_id=${encodeURIComponent(leafCategoryId.trim())}`;
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/settings/public/pdp-cross-sell?${q}`
+      : `/api/settings/public/pdp-cross-sell?${q}`;
+  try {
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) return { productIds: [], resolvedMainCategoryId: null };
+    const data = await response.json();
+    if (!data.success || !data.data) return { productIds: [], resolvedMainCategoryId: null };
+    const pids = Array.isArray(data.data.product_ids)
+      ? data.data.product_ids.map((x: unknown) => String(x).trim()).filter(Boolean)
+      : [];
+    const resolved =
+      typeof data.data.resolved_main_category_id === "string" && data.data.resolved_main_category_id.trim()
+        ? data.data.resolved_main_category_id.trim()
+        : null;
+    return { productIds: pids.slice(0, 2), resolvedMainCategoryId: resolved };
+  } catch {
+    return { productIds: [], resolvedMainCategoryId: null };
+  }
+}
+
+/**
+ * Configuración pública de sugerencias PDP por categoría (sin auth).
+ * Sin query params devuelve el mapa completo por categoría principal.
+ */
+export async function fetchPdpCrossSellConfigPublic(): Promise<PdpCrossSellByCategory> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/settings/public/pdp-cross-sell`
+      : `/api/settings/public/pdp-cross-sell`;
+  try {
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) return {};
+    const data = await response.json();
+    if (!data.success || !data.data?.by_category) return {};
+    const raw = data.data.by_category as Record<string, unknown>;
+    const out: PdpCrossSellByCategory = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (!k?.trim()) continue;
+      if (Array.isArray(v)) {
+        const ids = v.map((x) => String(x).trim()).filter(Boolean).slice(0, 2);
+        if (ids.length) out[k.trim()] = ids;
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Admin: leer mapa categoría → productos sugeridos en PDP
+ */
+export async function getPdpCrossSellAdmin(): Promise<PdpCrossSellByCategory> {
+  const url = `/api/admin/settings/pdp-cross-sell`;
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`No se pudo cargar Completa tu compra: ${response.statusText}`);
+  }
+  const data = await response.json();
+  if (!data.success || !data.data?.by_category) {
+    return {};
+  }
+  return data.data.by_category as PdpCrossSellByCategory;
+}
+
+/**
+ * Admin: guardar sugerencias PDP (solo envía categorías con al menos un producto; el resto se borra del mapa)
+ */
+export async function updatePdpCrossSell(by_category: PdpCrossSellByCategory): Promise<void> {
+  const url = `/api/admin/settings/pdp-cross-sell`;
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ by_category }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `No se pudo guardar: ${response.statusText}`);
   }
 }
 

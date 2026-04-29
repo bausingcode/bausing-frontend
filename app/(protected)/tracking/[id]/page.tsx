@@ -349,10 +349,6 @@ export default function TrackingPage() {
               <p className="text-sm text-gray-600 mb-1">Teléfono</p>
               <p className="text-base font-medium text-gray-900">{trackingData.transport.phone}</p>
             </div>
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Fecha Estimada de Entrega</p>
-              <p className="text-base font-medium text-gray-900">{trackingData.estimatedDelivery}</p>
-            </div>
           </div>
         </div>
         */}

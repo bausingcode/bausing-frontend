@@ -47,7 +47,6 @@ export default function Configuracion() {
 
   const [general, setGeneral] = useState({
     telefono: "",
-    diasEstimadosEnvio: "",
     email: "",
     direccion: "",
     instagramUrl: "",
@@ -99,7 +98,6 @@ export default function Configuracion() {
       };
       const newGeneral = {
         telefono: settings.general?.telefono || "",
-        diasEstimadosEnvio: settings.general?.diasEstimadosEnvio !== undefined ? String(settings.general.diasEstimadosEnvio) : "3",
         email: settings.general?.email || "",
         direccion: settings.general?.direccion || "",
         instagramUrl: settings.general?.instagramUrl || "",
@@ -194,9 +192,6 @@ export default function Configuracion() {
       generalData.instagramUrl = general.instagramUrl;
       generalData.facebookUrl = general.facebookUrl;
       generalData.tiktokUrl = general.tiktokUrl;
-      if (general.diasEstimadosEnvio && !isNaN(parseFloat(general.diasEstimadosEnvio))) {
-        generalData.diasEstimadosEnvio = parseFloat(general.diasEstimadosEnvio);
-      }
       if (general.precioPorKm && !isNaN(parseFloat(general.precioPorKm))) {
         generalData.precioPorKm = parseFloat(general.precioPorKm);
       }
@@ -385,30 +380,6 @@ export default function Configuracion() {
               />
               <p className="text-sm text-gray-500 mt-1">
                 Número de teléfono que se mostrará a los clientes para contacto
-              </p>
-            </div>
-
-            {/* Días estimados de envío */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Días estimados para envío de pedidos
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={general.diasEstimadosEnvio}
-                  onChange={(e) => {
-                    const validated = handleNumberChange(e.target.value, 1);
-                    setGeneral({ ...general, diasEstimadosEnvio: validated });
-                  }}
-                  className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
-                />
-                <span className="text-gray-600">días</span>
-              </div>
-              <p className="text-sm text-gray-500 mt-1">
-                Cantidad de días estimados para la entrega de pedidos (usado en el panel de logística)
               </p>
             </div>
 

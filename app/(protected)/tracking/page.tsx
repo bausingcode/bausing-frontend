@@ -24,7 +24,6 @@ const mockTrackingData = {
   status: "En Reparto",
   statusColor: "purple",
   progress: 75, // Porcentaje de progreso
-  estimatedDelivery: "2025-11-29",
   transport: {
     name: "OCA",
     trackingNumber: "OCA123456789",
@@ -197,10 +196,6 @@ export default function TrackingPage() {
             <div>
               <p className="text-xs md:text-sm text-gray-600 mb-0.5 md:mb-1">Teléfono</p>
               <p className="text-sm md:text-base font-medium text-gray-900">{trackingData.transport.phone}</p>
-            </div>
-            <div>
-              <p className="text-xs md:text-sm text-gray-600 mb-0.5 md:mb-1">Fecha Estimada de Entrega</p>
-              <p className="text-sm md:text-base font-medium text-gray-900">{trackingData.estimatedDelivery}</p>
             </div>
           </div>
         </div>

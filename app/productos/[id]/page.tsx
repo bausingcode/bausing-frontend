@@ -9,7 +9,7 @@ import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import { useCart } from "@/contexts/CartContext";
 import { useLocality } from "@/contexts/LocalityContext";
-import { fetchProductById, Product as ApiProduct, fetchProducts, fetchProductCombos, ProductCombo, fetchHeroImages, HeroImage } from "@/lib/api";
+import { fetchProductById, Product as ApiProduct, fetchProducts, fetchProductCombos, ProductCombo, fetchHeroImages, HeroImage, fetchPdpCrossSellForProductPage } from "@/lib/api";
 import wsrvLoader from "@/lib/wsrvLoader";
 import {
   firstProductImageUrl,
@@ -280,7 +280,8 @@ export default function ProductDetailPage() {
   const [similarProducts, setSimilarProducts] = useState<SimilarProduct[]>([]);
   const [productCombos, setProductCombos] = useState<ProductCombo[]>([]);
   const [categoryProducts, setCategoryProducts] = useState<ApiProduct[]>([]);
-  const [productCategoryId, setProductCategoryId] = useState<string>("");
+  /** admin = IDs desde Completa tu compra; legacy = colchones/sommiers aleatorio */
+  const [pdpCrossSellKind, setPdpCrossSellKind] = useState<"admin" | "legacy" | null>(null);
   /** Solo sábanas: texto “color sujeto a disponibilidad” */
   const [sabanasColorAvailabilityNotice, setSabanasColorAvailabilityNotice] = useState(false);
   const [productBanner, setProductBanner] = useState<HeroImage | null>(null);
@@ -325,6 +326,9 @@ export default function ProductDetailPage() {
       try {
         setLoading(true);
         setSimilarProducts([]);
+        setProductCombos([]);
+        setCategoryProducts([]);
+        setPdpCrossSellKind(null);
 
         const [apiProduct, combos] = await Promise.all([
           fetchProductById(productId, locality?.id),
@@ -333,11 +337,39 @@ export default function ProductDetailPage() {
 
         setProductCombos(combos);
 
-        // Special category logic - fetch category products for combo section
-        const currentCategoryId = apiProduct?.category_id || "";
-        setProductCategoryId(currentCategoryId);
+        const { productIds: crossSellRawIds, resolvedMainCategoryId } =
+          await fetchPdpCrossSellForProductPage(apiProduct?.category_id);
 
-        if (apiProduct && (currentCategoryId === CATEGORY_COLCHONES_ID || currentCategoryId === CATEGORY_SOMMIERS_ID)) {
+        const currentCategoryId = apiProduct?.category_id || "";
+        const mainForLegacy = resolvedMainCategoryId || currentCategoryId;
+        const configuredCrossSellIds = crossSellRawIds
+          .filter((id) => id && id !== productId)
+          .slice(0, 2);
+
+        if (configuredCrossSellIds.length > 0) {
+          setPdpCrossSellKind("admin");
+          const batchParams: Parameters<typeof fetchProducts>[0] = {
+            product_ids: configuredCrossSellIds.join(","),
+            include_images: true,
+            include_promos: true,
+            require_crm_product_id: true,
+            per_page: 12,
+            page: 1,
+          };
+          if (locality?.id) {
+            batchParams.locality_id = locality.id;
+          }
+          const crossSellResult = await fetchProducts(batchParams);
+          const byId = new Map(crossSellResult.products.map((p) => [p.id, p]));
+          const ordered = configuredCrossSellIds
+            .map((id) => byId.get(id))
+            .filter((p): p is ApiProduct => Boolean(p && p.id !== productId));
+          setCategoryProducts(ordered);
+        } else if (
+          apiProduct &&
+          (mainForLegacy === CATEGORY_COLCHONES_ID || mainForLegacy === CATEGORY_SOMMIERS_ID)
+        ) {
+          setPdpCrossSellKind("legacy");
           const catParams: any = {
             is_active: true,
             category_id: CATEGORY_SOMMIERS_ID,
@@ -350,24 +382,26 @@ export default function ProductDetailPage() {
           if (locality?.id) {
             catParams.locality_id = locality.id;
           }
-          
-          fetchProducts(catParams).then((result) => {
-            let filtered = result.products.filter(p => p.id !== productId);
-            
-            // For sommiers category, additionally filter by category_option
-            if (currentCategoryId === CATEGORY_SOMMIERS_ID) {
-              filtered = filtered.filter(p => {
-                if (p.category_option_id === CATEGORY_OPTION_SOMMIER_FILTER) return true;
-                if (p.subcategories?.some(s => s.category_option_id === CATEGORY_OPTION_SOMMIER_FILTER)) return true;
-                return false;
-              });
-            }
-            
-            // Shuffle and pick 2
-            const shuffled = filtered.sort(() => 0.5 - Math.random());
-            setCategoryProducts(shuffled.slice(0, 2));
-          }).catch(() => setCategoryProducts([]));
+
+          fetchProducts(catParams)
+            .then((result) => {
+              let filtered = result.products.filter((p) => p.id !== productId);
+
+              if (currentCategoryId === CATEGORY_SOMMIERS_ID) {
+                filtered = filtered.filter((p) => {
+                  if (p.category_option_id === CATEGORY_OPTION_SOMMIER_FILTER) return true;
+                  if (p.subcategories?.some((s) => s.category_option_id === CATEGORY_OPTION_SOMMIER_FILTER))
+                    return true;
+                  return false;
+                });
+              }
+
+              const shuffled = filtered.sort(() => 0.5 - Math.random());
+              setCategoryProducts(shuffled.slice(0, 2));
+            })
+            .catch(() => setCategoryProducts([]));
         } else {
+          setPdpCrossSellKind(null);
           setCategoryProducts([]);
         }
         
@@ -454,6 +488,9 @@ export default function ProductDetailPage() {
           // Si no se encuentra en la API, dejar vacío
           setProduct(null);
           setSabanasColorAvailabilityNotice(false);
+          setProductCombos([]);
+          setCategoryProducts([]);
+          setPdpCrossSellKind(null);
           setLoading(false);
           return;
         }
@@ -584,6 +621,9 @@ export default function ProductDetailPage() {
         console.error("Error loading product:", error);
         setProduct(null);
         setSabanasColorAvailabilityNotice(false);
+        setProductCombos([]);
+        setCategoryProducts([]);
+        setPdpCrossSellKind(null);
       } finally {
         setLoading(false);
       }
@@ -972,29 +1012,44 @@ export default function ProductDetailPage() {
     return variantsWithSku.every((variant: any) => isDefaultAttributeVariant(variant));
   };
 
-  // Computed variables for combo section
-  const isSpecialCategory = productCategoryId === CATEGORY_COLCHONES_ID || productCategoryId === CATEGORY_SOMMIERS_ID;
-  const completedCombos = productCombos.filter(combo => combo.is_completed);
-  const showComboSection = isSpecialCategory 
-    ? (categoryProducts.length > 0 || completedCombos.length > 0)
-    : completedCombos.length > 0;
+  const hasCategorySlotProducts = categoryProducts.length > 0;
+  const completedCombos = productCombos.filter((combo) => combo.is_completed);
+  /**
+   * Combo CRM con producto de vitrina (hueco 2+1 solo en legacy colchones/sommiers).
+   * Cross-sell del admin: hasta 2 sugerencias; no les roba lugar un combo CRM.
+   */
+  const completedCombosWithVitrina = completedCombos.filter(
+    (combo) => Boolean(combo.product?.id),
+  );
+  const showComboSection =
+    categoryProducts.length > 0 || completedCombos.length > 0;
 
-  // For special categories: aim for 3 total (ideally 2 products + 1 combo), fill gaps as needed
+  const isAdminCrossSell = pdpCrossSellKind === "admin";
+  const reserveComboSlotBesideCategory =
+    !isAdminCrossSell && completedCombosWithVitrina.length > 0;
+
   let numCatProducts = 0;
   let numCombosToShow = 0;
-  if (isSpecialCategory) {
-    const TARGET = 3;
-    numCatProducts = Math.min(2, categoryProducts.length);
-    numCombosToShow = Math.min(TARGET - numCatProducts, completedCombos.length);
-    // If still room left, fill with more category products
-    if (numCatProducts + numCombosToShow < TARGET) {
-      numCatProducts = Math.min(TARGET - numCombosToShow, categoryProducts.length);
+  if (hasCategorySlotProducts) {
+    if (isAdminCrossSell) {
+      numCatProducts = Math.min(2, categoryProducts.length);
+      numCombosToShow = Math.min(1, completedCombosWithVitrina.length);
+    } else if (reserveComboSlotBesideCategory) {
+      numCatProducts = Math.min(2, categoryProducts.length);
+      numCombosToShow = Math.min(1, completedCombosWithVitrina.length);
+    } else {
+      numCatProducts = Math.min(2, categoryProducts.length);
+      numCombosToShow = 0;
     }
   } else {
-    numCombosToShow = 3;
+    numCombosToShow = Math.min(3, completedCombos.length);
   }
-  const catProductsToShow = isSpecialCategory ? categoryProducts.slice(0, numCatProducts) : [];
-  const combosToShow = completedCombos.slice(0, numCombosToShow);
+  const catProductsToShow = hasCategorySlotProducts
+    ? categoryProducts.slice(0, numCatProducts)
+    : [];
+  const combosToShow = hasCategorySlotProducts
+    ? completedCombosWithVitrina.slice(0, numCombosToShow)
+    : completedCombos.slice(0, numCombosToShow);
 
   return (
     <>
@@ -1662,7 +1717,7 @@ export default function ProductDetailPage() {
             <div className="lg:col-span-3 order-2">
               <div className="flex items-center justify-between mb-4 md:mb-6">
                 <h2 className="text-lg md:text-xl text-gray-900">Completa tu compra</h2>
-                {!isSpecialCategory && completedCombos.length > 3 && (
+                {!hasCategorySlotProducts && completedCombos.length > 3 && (
                   <Link
                     href={`/productos/${productId}/combos`}
                     className="flex items-center gap-1 md:gap-2 text-gray-700 hover:text-gray-900 transition-colors text-xs md:text-sm font-medium"
@@ -1674,7 +1729,7 @@ export default function ProductDetailPage() {
               </div>
               <div className="space-y-4 md:space-y-6">
                 {/* Category products for special categories, shown as combo-style cards */}
-                {isSpecialCategory && catProductsToShow.map((catProduct) => {
+                {hasCategorySlotProducts && catProductsToShow.map((catProduct) => {
                   const priceInfo = calculateProductPrice(catProduct, 1);
                   const catProductImage = firstProductImageUrl(catProduct);
                   return (
@@ -1718,7 +1773,7 @@ export default function ProductDetailPage() {
                     </div>
                   );
                 })}
-                {/* Combos: 1 for special categories, up to 3 for normal */}
+                {/* Combos: con combo completado (legacy) → 2 productos + 1 combo; admin cross-sell → hasta 2 productos */}
                 {combosToShow.map((combo) => {
                   const formatPrice = (price: number): string => {
                     return `$${Math.round(price).toLocaleString('es-AR')}`;

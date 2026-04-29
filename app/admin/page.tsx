@@ -106,8 +106,8 @@ async function DashboardContent() {
           comparisonText="vs mes anterior"
         />
         <MetricCard
-          title="Total de pedidos"
-          value={stats.total_pedidos.toString()}
+          title="Pedidos del mes"
+          value={(stats.pedidos_mes ?? 0).toString()}
           change={`${(stats.cambio_pedidos ?? 0) >= 0 ? '+' : ''}${stats.cambio_pedidos ?? 0}`}
           changeType={(stats.cambio_pedidos ?? 0) >= 0 ? "positive" : "negative"}
           icon={<Package className="w-5 h-5" />}
