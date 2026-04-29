@@ -85,6 +85,20 @@ function parseViacargoOptionalNumber(raw: string): number | null {
   return n;
 }
 
+function triToBoolNull(v: "" | "yes" | "no"): boolean | null {
+  if (v === "yes") return true;
+  if (v === "no") return false;
+  return null;
+}
+
+function parseOptionalNonNegInt(raw: string): number | null {
+  const t = String(raw).trim();
+  if (!t) return null;
+  const n = parseInt(t, 10);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
+}
+
 interface CreateProductModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -113,6 +127,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   /** negro | beige | gris | blanco — vacío = sin valor */
   const [basicColor, setBasicColor] = useState("");
   const [showMattressFields, setShowMattressFields] = useState(false);
+  const [showApplianceFields, setShowApplianceFields] = useState(false);
   const [fillingType, setFillingType] = useState("");
   const [maxSupportedWeightKg, setMaxSupportedWeightKg] = useState<number | undefined>(undefined);
   const [hasPillowTop, setHasPillowTop] = useState(false);
@@ -128,6 +143,18 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   const [viacargoAncho, setViacargoAncho] = useState("");
   const [viacargoProfundidad, setViacargoProfundidad] = useState("");
   const [viacargoPeso, setViacargoPeso] = useState("");
+
+  /** Electrodomésticos (modal: solo si "Mostrar campos específicos…") */
+  const [smartScreenSize, setSmartScreenSize] = useState("");
+  const [smartResolution, setSmartResolution] = useState("");
+  const [smartTvTri, setSmartTvTri] = useState<"" | "yes" | "no">("");
+  const [acInverterTri, setAcInverterTri] = useState<"" | "yes" | "no">("");
+  const [acClimateType, setAcClimateType] = useState("");
+  const [acFrigorias, setAcFrigorias] = useState("");
+  const [wmLoadType, setWmLoadType] = useState("");
+  const [wmWashCapacityKg, setWmWashCapacityKg] = useState("");
+  const [fridgeCapacityL, setFridgeCapacityL] = useState("");
+  const [freezerCapacityL, setFreezerCapacityL] = useState("");
 
   // Images
   const [images, setImages] = useState<Array<{ image_url: string; alt_text?: string; position: number }>>([]);
@@ -191,7 +218,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   
   // Obtener las subcategorías seleccionadas
   const selectedSubcategories = propCategories.filter(cat => subcategoryIds.includes(cat.id));
-  
+
   // Para Colchones, verificar si "Por tamaño" está seleccionada
   const hasPorTamañoSelected = selectedCategory?.nombre === "Colchones" && 
     subcategoryIds.some(id => {
@@ -391,6 +418,17 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setViacargoAncho("");
         setViacargoProfundidad("");
         setViacargoPeso("");
+        setSmartScreenSize("");
+        setSmartResolution("");
+        setSmartTvTri("");
+        setAcInverterTri("");
+        setAcClimateType("");
+        setAcFrigorias("");
+        setWmLoadType("");
+        setWmWashCapacityKg("");
+        setFridgeCapacityL("");
+        setFreezerCapacityL("");
+        setShowApplianceFields(false);
       } else {
         // New product
         setName("");
@@ -415,8 +453,19 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setViacargoAncho("");
         setViacargoProfundidad("");
         setViacargoPeso("");
+        setSmartScreenSize("");
+        setSmartResolution("");
+        setSmartTvTri("");
+        setAcInverterTri("");
+        setAcClimateType("");
+        setAcFrigorias("");
+        setWmLoadType("");
+        setWmWashCapacityKg("");
+        setFridgeCapacityL("");
+        setFreezerCapacityL("");
         setImages([]);
         setDisplayReferencePrice("");
+        setShowApplianceFields(false);
       }
       
       // Solo resetear estos campos si NO estamos editando un producto completo
@@ -475,6 +524,21 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           fullProduct.mattress_height_cm != null || fullProduct.mattress_fabric_type ||
           fullProduct.has_double_pillow || fullProduct.has_moisture_breathers || fullProduct.has_side_handles);
         setShowMattressFields(hasMattressData);
+        const hasApplianceData = !!(
+          fullProduct.smart_screen_size ||
+          fullProduct.smart_resolution ||
+          fullProduct.smart_tv === true ||
+          fullProduct.smart_tv === false ||
+          fullProduct.ac_inverter === true ||
+          fullProduct.ac_inverter === false ||
+          fullProduct.ac_climate_type ||
+          (fullProduct.ac_frigorias != null && fullProduct.ac_frigorias !== "") ||
+          fullProduct.wm_load_type ||
+          fullProduct.wm_wash_capacity_kg != null ||
+          fullProduct.fridge_capacity_liters != null ||
+          fullProduct.freezer_capacity_liters != null
+        );
+        setShowApplianceFields(hasApplianceData);
         setFillingType(fullProduct.filling_type || "");
         setMaxSupportedWeightKg(fullProduct.max_supported_weight_kg);
         setHasPillowTop(fullProduct.has_pillow_top || false);
@@ -502,6 +566,34 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         );
         setViacargoPeso(
           fullProduct.viacargo_weight_kg != null ? String(fullProduct.viacargo_weight_kg) : "",
+        );
+        setSmartScreenSize(fullProduct.smart_screen_size || "");
+        setSmartResolution(fullProduct.smart_resolution || "");
+        setSmartTvTri(
+          fullProduct.smart_tv === true ? "yes" : fullProduct.smart_tv === false ? "no" : "",
+        );
+        setAcInverterTri(
+          fullProduct.ac_inverter === true ? "yes" : fullProduct.ac_inverter === false ? "no" : "",
+        );
+        setAcClimateType(fullProduct.ac_climate_type || "");
+        setAcFrigorias(
+          fullProduct.ac_frigorias != null && fullProduct.ac_frigorias !== ""
+            ? String(fullProduct.ac_frigorias)
+            : "",
+        );
+        setWmLoadType(fullProduct.wm_load_type || "");
+        setWmWashCapacityKg(
+          fullProduct.wm_wash_capacity_kg != null ? String(fullProduct.wm_wash_capacity_kg) : "",
+        );
+        setFridgeCapacityL(
+          fullProduct.fridge_capacity_liters != null
+            ? String(fullProduct.fridge_capacity_liters)
+            : "",
+        );
+        setFreezerCapacityL(
+          fullProduct.freezer_capacity_liters != null
+            ? String(fullProduct.freezer_capacity_liters)
+            : "",
         );
 	        
 	        // Imágenes
@@ -1220,6 +1312,31 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 	          viacargo_width_cm: parseViacargoOptionalNumber(viacargoAncho),
 	          viacargo_depth_cm: parseViacargoOptionalNumber(viacargoProfundidad),
 	          viacargo_weight_kg: parseViacargoOptionalNumber(viacargoPeso),
+	          ...(showApplianceFields
+	            ? {
+	                smart_screen_size: smartScreenSize.trim() || null,
+	                smart_resolution: smartResolution.trim() || null,
+	                smart_tv: triToBoolNull(smartTvTri),
+	                ac_inverter: triToBoolNull(acInverterTri),
+	                ac_climate_type: acClimateType.trim() || null,
+	                ac_frigorias: parseOptionalNonNegInt(acFrigorias),
+	                wm_load_type: wmLoadType.trim() || null,
+	                wm_wash_capacity_kg: parseViacargoOptionalNumber(wmWashCapacityKg),
+	                fridge_capacity_liters: parseViacargoOptionalNumber(fridgeCapacityL),
+	                freezer_capacity_liters: parseViacargoOptionalNumber(freezerCapacityL),
+	              }
+	            : {
+	                smart_screen_size: null,
+	                smart_resolution: null,
+	                smart_tv: null,
+	                ac_inverter: null,
+	                ac_climate_type: null,
+	                ac_frigorias: null,
+	                wm_load_type: null,
+	                wm_wash_capacity_kg: null,
+	                fridge_capacity_liters: null,
+	                freezer_capacity_liters: null,
+	              }),
 	        };
 
         const completedProduct = await completeCrmProduct(crmProduct.id, productData);
@@ -1232,6 +1349,26 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         }
       } else {
         // Crear producto nuevo
+        const applianceCreate: Record<string, string | number | boolean> = {};
+        if (showApplianceFields) {
+          if (smartScreenSize.trim()) applianceCreate.smart_screen_size = smartScreenSize.trim();
+          if (smartResolution.trim()) applianceCreate.smart_resolution = smartResolution.trim();
+          if (smartTvTri === "yes") applianceCreate.smart_tv = true;
+          else if (smartTvTri === "no") applianceCreate.smart_tv = false;
+          if (acClimateType.trim()) applianceCreate.ac_climate_type = acClimateType.trim();
+          const fr = parseOptionalNonNegInt(acFrigorias);
+          if (fr !== null) applianceCreate.ac_frigorias = fr;
+          if (acInverterTri === "yes") applianceCreate.ac_inverter = true;
+          else if (acInverterTri === "no") applianceCreate.ac_inverter = false;
+          if (wmLoadType.trim()) applianceCreate.wm_load_type = wmLoadType.trim();
+          const kg = parseViacargoOptionalNumber(wmWashCapacityKg);
+          if (kg !== null) applianceCreate.wm_wash_capacity_kg = kg;
+          const fc = parseViacargoOptionalNumber(fridgeCapacityL);
+          const fz = parseViacargoOptionalNumber(freezerCapacityL);
+          if (fc !== null) applianceCreate.fridge_capacity_liters = fc;
+          if (fz !== null) applianceCreate.freezer_capacity_liters = fz;
+        }
+
 	        const productData = {
           name,
           description: description || undefined,
@@ -1260,6 +1397,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 	          viacargo_width_cm: parseViacargoOptionalNumber(viacargoAncho),
 	          viacargo_depth_cm: parseViacargoOptionalNumber(viacargoProfundidad),
 	          viacargo_weight_kg: parseViacargoOptionalNumber(viacargoPeso),
+	          ...applianceCreate,
 	        };
 
         try {
@@ -1292,6 +1430,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       setMaterials("");
       setBasicColor("");
       setShowMattressFields(false);
+      setShowApplianceFields(false);
       setFillingType("");
       setMaxSupportedWeightKg(undefined);
       setHasPillowTop(false);
@@ -1303,6 +1442,16 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       setHasMoistureBreathers(false);
       setHasSideHandles(false);
       setSizeLabel("");
+      setSmartScreenSize("");
+      setSmartResolution("");
+      setSmartTvTri("");
+      setAcInverterTri("");
+      setAcClimateType("");
+      setAcFrigorias("");
+      setWmLoadType("");
+      setWmWashCapacityKg("");
+      setFridgeCapacityL("");
+      setFreezerCapacityL("");
       setViacargoAlto("");
       setViacargoAncho("");
       setViacargoProfundidad("");
@@ -1993,6 +2142,202 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                                 <label htmlFor="isBedInBox" className="text-sm font-medium text-gray-700">
                                   Colchón en Caja
                                 </label>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="border-t border-gray-200 pt-4 mt-2">
+                        <div className="flex items-center gap-3 mb-4">
+                          <input
+                            type="checkbox"
+                            id="showApplianceFields"
+                            checked={showApplianceFields}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setShowApplianceFields(checked);
+                              if (!checked) {
+                                setSmartScreenSize("");
+                                setSmartResolution("");
+                                setSmartTvTri("");
+                                setAcInverterTri("");
+                                setAcClimateType("");
+                                setAcFrigorias("");
+                                setWmLoadType("");
+                                setWmWashCapacityKg("");
+                                setFridgeCapacityL("");
+                                setFreezerCapacityL("");
+                              }
+                            }}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <label
+                            htmlFor="showApplianceFields"
+                            className="text-sm font-medium text-gray-700 cursor-pointer"
+                          >
+                            Mostrar campos específicos de electrodomésticos
+                          </label>
+                        </div>
+
+                        {showApplianceFields && (
+                          <div className="space-y-6 pl-7 border-l-2 border-gray-200">
+                            <div className="rounded-lg border border-gray-200 p-4 space-y-3 bg-gray-50/50">
+                              <h5 className="text-sm font-semibold text-gray-800">Smart</h5>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Tamaño de pantalla
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={smartScreenSize}
+                                    onChange={(e) => setSmartScreenSize(e.target.value)}
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                                    placeholder='Ej: 55" o 139 cm'
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Resolución
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={smartResolution}
+                                    onChange={(e) => setSmartResolution(e.target.value)}
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                                    placeholder="Ej: 4K UHD"
+                                  />
+                                </div>
+                                <div className="sm:col-span-2">
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    ¿Es Smart?
+                                  </label>
+                                  <select
+                                    value={smartTvTri}
+                                    onChange={(e) =>
+                                      setSmartTvTri(e.target.value as "" | "yes" | "no")
+                                    }
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                                  >
+                                    <option value="">— Sin indicar —</option>
+                                    <option value="yes">Sí</option>
+                                    <option value="no">No</option>
+                                  </select>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="rounded-lg border border-gray-200 p-4 space-y-3 bg-gray-50/50">
+                              <h5 className="text-sm font-semibold text-gray-800">Aire acondicionado</h5>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="sm:col-span-2">
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Con tecnología Inverter
+                                  </label>
+                                  <select
+                                    value={acInverterTri}
+                                    onChange={(e) =>
+                                      setAcInverterTri(e.target.value as "" | "yes" | "no")
+                                    }
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                                  >
+                                    <option value="">— Sin indicar —</option>
+                                    <option value="yes">Sí</option>
+                                    <option value="no">No</option>
+                                  </select>
+                                </div>
+                                <div className="sm:col-span-2">
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Tipo de climatización
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={acClimateType}
+                                    onChange={(e) => setAcClimateType(e.target.value)}
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                                    placeholder="Ej: Frío solo, Frío / calor"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Frigorías
+                                  </label>
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={acFrigorias}
+                                    onChange={(e) => setAcFrigorias(e.target.value.replace(/[^\d]/g, ""))}
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                                    placeholder="Ej: 3500"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="rounded-lg border border-gray-200 p-4 space-y-3 bg-gray-50/50">
+                              <h5 className="text-sm font-semibold text-gray-800">Lavarropas</h5>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Tipo de carga
+                                  </label>
+                                  <select
+                                    value={wmLoadType}
+                                    onChange={(e) => setWmLoadType(e.target.value)}
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                                  >
+                                    <option value="">— Seleccionar —</option>
+                                    <option value="Frontal">Frontal</option>
+                                    <option value="Superior">Superior</option>
+                                    <option value="Otro">Otro (completar observaciones)</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Capacidad de lavado (kg)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={wmWashCapacityKg}
+                                    onChange={(e) => setWmWashCapacityKg(e.target.value)}
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                                    placeholder="Ej: 8,5"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="rounded-lg border border-gray-200 p-4 space-y-3 bg-gray-50/50">
+                              <h5 className="text-sm font-semibold text-gray-800">Heladera</h5>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Capacidad heladera (litros)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={fridgeCapacityL}
+                                    onChange={(e) => setFridgeCapacityL(e.target.value)}
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                                    placeholder="Ej: 300"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Capacidad freezer (litros)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={freezerCapacityL}
+                                    onChange={(e) => setFreezerCapacityL(e.target.value)}
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                                    placeholder="Ej: 95"
+                                  />
+                                </div>
                               </div>
                             </div>
                           </div>

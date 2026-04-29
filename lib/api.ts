@@ -471,6 +471,17 @@ export interface Product {
   viacargo_width_cm?: number | null;
   viacargo_depth_cm?: number | null;
   viacargo_weight_kg?: number | null;
+  /** Características electrodomésticos (admin) */
+  smart_screen_size?: string | null;
+  smart_resolution?: string | null;
+  smart_tv?: boolean | null;
+  ac_inverter?: boolean | null;
+  ac_climate_type?: string | null;
+  ac_frigorias?: number | null;
+  wm_load_type?: string | null;
+  wm_wash_capacity_kg?: number | null;
+  fridge_capacity_liters?: number | null;
+  freezer_capacity_liters?: number | null;
   show_transfer_price_highlight?: boolean;
   price_range?: string;
   main_image?: string;
@@ -1014,6 +1025,16 @@ export async function completeCrmProduct(
     viacargo_width_cm?: number | null;
     viacargo_depth_cm?: number | null;
     viacargo_weight_kg?: number | null;
+    smart_screen_size?: string | null;
+    smart_resolution?: string | null;
+    smart_tv?: boolean | null;
+    ac_inverter?: boolean | null;
+    ac_climate_type?: string | null;
+    ac_frigorias?: number | null;
+    wm_load_type?: string | null;
+    wm_wash_capacity_kg?: number | null;
+    fridge_capacity_liters?: number | null;
+    freezer_capacity_liters?: number | null;
     /** Solo vitrina (precio tachado de referencia). null para borrar. */
     display_reference_price?: number | null;
     sku?: string;
@@ -1269,6 +1290,16 @@ export async function createCompleteProduct(productData: {
   viacargo_width_cm?: number | null;
   viacargo_depth_cm?: number | null;
   viacargo_weight_kg?: number | null;
+  smart_screen_size?: string;
+  smart_resolution?: string;
+  smart_tv?: boolean;
+  ac_inverter?: boolean;
+  ac_climate_type?: string;
+  ac_frigorias?: number;
+  wm_load_type?: string;
+  wm_wash_capacity_kg?: number;
+  fridge_capacity_liters?: number;
+  freezer_capacity_liters?: number;
   show_transfer_price_highlight?: boolean;
   /** Solo vitrina (tachado). null para borrar. */
   display_reference_price?: number | null;

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, ShoppingCart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight, Layers, Bed, BedDouble, Scale, Package, Maximize, CheckCircle2, Package2, ChevronDown, ChevronUp, Ruler, Shirt, Wind, GripHorizontal, FileText, Palette } from "lucide-react";
+import { Heart, ShoppingCart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight, Layers, Bed, BedDouble, Scale, Package, Maximize, CheckCircle2, Package2, ChevronDown, ChevronUp, Ruler, Shirt, Wind, GripHorizontal, FileText, Palette, Tv } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
@@ -99,6 +99,17 @@ interface Product {
   max_transfer_price?: number;
   display_reference_price?: number | null;
   show_transfer_price_highlight?: boolean;
+  /** Electrodomésticos */
+  smart_screen_size?: string;
+  smart_resolution?: string;
+  smart_tv?: boolean | null;
+  ac_inverter?: boolean | null;
+  ac_climate_type?: string;
+  ac_frigorias?: number | null;
+  wm_load_type?: string;
+  wm_wash_capacity_kg?: number | null;
+  fridge_capacity_liters?: number | null;
+  freezer_capacity_liters?: number | null;
 }
 
 interface SimilarProduct {
@@ -152,6 +163,16 @@ function productHasMainCharacteristics(p: Product): boolean {
   if (p.has_moisture_breathers) return true;
   if (p.has_side_handles) return true;
   if (p.basic_color?.trim()) return true;
+  if (p.smart_screen_size?.trim()) return true;
+  if (p.smart_resolution?.trim()) return true;
+  if (p.smart_tv === true || p.smart_tv === false) return true;
+  if (p.ac_inverter === true || p.ac_inverter === false) return true;
+  if (p.ac_climate_type?.trim()) return true;
+  if (p.ac_frigorias != null) return true;
+  if (p.wm_load_type?.trim()) return true;
+  if (p.wm_wash_capacity_kg != null && Number(p.wm_wash_capacity_kg) > 0) return true;
+  if (p.fridge_capacity_liters != null && Number(p.fridge_capacity_liters) > 0) return true;
+  if (p.freezer_capacity_liters != null && Number(p.freezer_capacity_liters) > 0) return true;
   return false;
 }
 
@@ -590,6 +611,44 @@ export default function ProductDetailPage() {
               ? Number(apiProduct.display_reference_price)
               : undefined,
           show_transfer_price_highlight: apiProduct.show_transfer_price_highlight === true,
+          smart_screen_size: apiProductWithTech.smart_screen_size?.trim()
+            ? String(apiProductWithTech.smart_screen_size).trim()
+            : undefined,
+          smart_resolution: apiProductWithTech.smart_resolution?.trim()
+            ? String(apiProductWithTech.smart_resolution).trim()
+            : undefined,
+          smart_tv:
+            apiProductWithTech.smart_tv === true || apiProductWithTech.smart_tv === false
+              ? apiProductWithTech.smart_tv
+              : undefined,
+          ac_inverter:
+            apiProductWithTech.ac_inverter === true || apiProductWithTech.ac_inverter === false
+              ? apiProductWithTech.ac_inverter
+              : undefined,
+          ac_climate_type: apiProductWithTech.ac_climate_type?.trim()
+            ? String(apiProductWithTech.ac_climate_type).trim()
+            : undefined,
+          ac_frigorias:
+            apiProductWithTech.ac_frigorias != null && apiProductWithTech.ac_frigorias !== ""
+              ? Number(apiProductWithTech.ac_frigorias)
+              : undefined,
+          wm_load_type: apiProductWithTech.wm_load_type?.trim()
+            ? String(apiProductWithTech.wm_load_type).trim()
+            : undefined,
+          wm_wash_capacity_kg:
+            apiProductWithTech.wm_wash_capacity_kg != null && apiProductWithTech.wm_wash_capacity_kg !== ""
+              ? Number(apiProductWithTech.wm_wash_capacity_kg)
+              : undefined,
+          fridge_capacity_liters:
+            apiProductWithTech.fridge_capacity_liters != null &&
+            apiProductWithTech.fridge_capacity_liters !== ""
+              ? Number(apiProductWithTech.fridge_capacity_liters)
+              : undefined,
+          freezer_capacity_liters:
+            apiProductWithTech.freezer_capacity_liters != null &&
+            apiProductWithTech.freezer_capacity_liters !== ""
+              ? Number(apiProductWithTech.freezer_capacity_liters)
+              : undefined,
         };
 
         setProduct(transformedProduct);
@@ -1663,6 +1722,117 @@ export default function ProductDetailPage() {
                           </div>
                           <div className="flex-1">
                             <div className="text-sm font-medium text-gray-900">Agarraderas laterales</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {!!product.smart_screen_size?.trim() && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Tv className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Tamaño de pantalla</div>
+                            <div className="text-sm text-gray-900">{product.smart_screen_size?.trim()}</div>
+                          </div>
+                        </div>
+                      )}
+                      {!!product.smart_resolution?.trim() && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Tv className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Resolución</div>
+                            <div className="text-sm text-gray-900">{product.smart_resolution?.trim()}</div>
+                          </div>
+                        </div>
+                      )}
+                      {(product.smart_tv === true || product.smart_tv === false) && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Tv className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Smart</div>
+                            <div className="text-sm text-gray-900">{product.smart_tv === true ? "Sí" : "No"}</div>
+                          </div>
+                        </div>
+                      )}
+                      {(product.ac_inverter === true || product.ac_inverter === false) && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Wind className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Tecnología Inverter</div>
+                            <div className="text-sm text-gray-900">{product.ac_inverter === true ? "Sí" : "No"}</div>
+                          </div>
+                        </div>
+                      )}
+                      {!!product.ac_climate_type?.trim() && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Wind className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Tipo de climatización</div>
+                            <div className="text-sm text-gray-900">{product.ac_climate_type?.trim()}</div>
+                          </div>
+                        </div>
+                      )}
+                      {product.ac_frigorias != null && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Wind className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Frigorías</div>
+                            <div className="text-sm text-gray-900">{product.ac_frigorias}</div>
+                          </div>
+                        </div>
+                      )}
+                      {!!product.wm_load_type?.trim() && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Package2 className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Tipo de carga</div>
+                            <div className="text-sm text-gray-900">{product.wm_load_type?.trim()}</div>
+                          </div>
+                        </div>
+                      )}
+                      {product.wm_wash_capacity_kg != null && product.wm_wash_capacity_kg > 0 && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Package2 className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Capacidad de lavado</div>
+                            <div className="text-sm text-gray-900">{product.wm_wash_capacity_kg} kg</div>
+                          </div>
+                        </div>
+                      )}
+                      {product.fridge_capacity_liters != null && product.fridge_capacity_liters > 0 && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Package className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Capacidad heladera</div>
+                            <div className="text-sm text-gray-900">{product.fridge_capacity_liters} L</div>
+                          </div>
+                        </div>
+                      )}
+                      {product.freezer_capacity_liters != null && product.freezer_capacity_liters > 0 && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Package className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Capacidad freezer</div>
+                            <div className="text-sm text-gray-900">{product.freezer_capacity_liters} L</div>
                           </div>
                         </div>
                       )}
