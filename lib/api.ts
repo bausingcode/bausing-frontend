@@ -449,6 +449,10 @@ export interface Product {
   has_double_pillow?: boolean;
   has_moisture_breathers?: boolean;
   has_side_handles?: boolean;
+  /** Color básico (negro/beige/gris/blanco); opcional */
+  basic_color?: string | null;
+  /** Etiqueta de tamaño (colchón, etc.) */
+  size_label?: string;
   is_active: boolean;
   /** false = CRM marca sin stock; el listado puede incluir el producto para mostrar etiqueta en vitrina */
   has_crm_stock?: boolean;
@@ -550,6 +554,8 @@ export async function fetchProducts(params?: {
   subcategory_ids?: string;
   /** UUIDs separados por coma; lista acotada en backend (p. ej. PDP cross-sell en un request) */
   product_ids?: string;
+  /** Slugs basic_color permitidos por el backend */
+  basic_colors?: string;
 }): Promise<{ products: Product[]; total: number; page: number; per_page: number; total_pages: number }> {
   try {
     const queryParams = new URLSearchParams();
@@ -572,6 +578,7 @@ export async function fetchProducts(params?: {
     if (params?.filling_type_slugs) queryParams.append('filling_type_slugs', params.filling_type_slugs);
     if (params?.subcategory_ids) queryParams.append('subcategory_ids', params.subcategory_ids);
     if (params?.product_ids?.trim()) queryParams.append('product_ids', params.product_ids.trim());
+    if (params?.basic_colors?.trim()) queryParams.append('basic_colors', params.basic_colors.trim());
 
     // En el servidor, usar la URL completa del backend
     // En el cliente, usar la ruta relativa que será manejada por el rewrite de Next.js
@@ -690,6 +697,33 @@ export async function fetchProductsAllPages(
     }
   }
   return { products, total: first.total };
+}
+
+/**
+ * Colores básicos presentes en vitrina para una categoría (árbol). Una query rápida en backend.
+ */
+export async function fetchBasicColorFacets(categoryId: string): Promise<string[]> {
+  try {
+    const url =
+      typeof window === "undefined"
+        ? `${BACKEND_URL}/products/basic-color-facets?category_id=${encodeURIComponent(categoryId)}`
+        : `/api/products/basic-color-facets?category_id=${encodeURIComponent(categoryId)}`;
+
+    const headers =
+      typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+
+    const response = await fetch(url, { headers, cache: "no-store" });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok || !(data as { success?: boolean }).success) {
+      return [];
+    }
+
+    const list = (data as { data?: { basic_colors?: string[] } }).data?.basic_colors;
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -964,6 +998,7 @@ export async function completeCrmProduct(
     warranty_months?: number;
     warranty_description?: string;
     materials?: string;
+    basic_color?: string | null;
     filling_type?: string;
     max_supported_weight_kg?: number;
     has_pillow_top?: boolean;
@@ -1237,6 +1272,8 @@ export async function createCompleteProduct(productData: {
   show_transfer_price_highlight?: boolean;
   /** Solo vitrina (tachado). null para borrar. */
   display_reference_price?: number | null;
+  /** Opcional — null desde admin para borrar color */
+  basic_color?: string | null;
   variants: Array<{
     sku?: string;
     stock: number;

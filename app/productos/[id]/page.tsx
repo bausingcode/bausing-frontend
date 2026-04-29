@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, ShoppingCart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight, Layers, Bed, BedDouble, Scale, Package, Maximize, CheckCircle2, Package2, ChevronDown, ChevronUp, Ruler, Shirt, Wind, GripHorizontal, FileText } from "lucide-react";
+import { Heart, ShoppingCart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight, Layers, Bed, BedDouble, Scale, Package, Maximize, CheckCircle2, Package2, ChevronDown, ChevronUp, Ruler, Shirt, Wind, GripHorizontal, FileText, Palette } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
@@ -25,6 +25,7 @@ import {
   productCardPriceDisplayFromPriceInfo,
 } from "@/utils/priceUtils";
 import { getPromoLabel } from "@/utils/promoUtils";
+import { PRODUCT_BASIC_COLOR_LABEL } from "@/lib/productBasicColor";
 
 interface ProductImage {
   id: string;
@@ -73,7 +74,8 @@ interface Product {
   warrantyMonths?: number;
   warrantyDescription?: string;
   materials?: string;
-  // Otros campos técnicos
+  /** Slug backend: negro | beige | gris | blanco */
+  basic_color?: string;
   filling_type?: string;
   max_supported_weight_kg?: number;
   has_pillow_top?: boolean;
@@ -149,6 +151,7 @@ function productHasMainCharacteristics(p: Product): boolean {
   if (p.has_double_pillow) return true;
   if (p.has_moisture_breathers) return true;
   if (p.has_side_handles) return true;
+  if (p.basic_color?.trim()) return true;
   return false;
 }
 
@@ -553,6 +556,9 @@ export default function ProductDetailPage() {
           warrantyMonths: apiProductWithTech.warranty_months,
           warrantyDescription: apiProductWithTech.warranty_description || "",
           materials: apiProductWithTech.materials || "",
+          basic_color: apiProductWithTech.basic_color?.trim()
+            ? String(apiProductWithTech.basic_color).trim()
+            : undefined,
           filling_type: apiProductWithTech.filling_type || "",
           max_supported_weight_kg: apiProductWithTech.max_supported_weight_kg,
           has_pillow_top: apiProductWithTech.has_pillow_top,
@@ -1490,6 +1496,21 @@ export default function ProductDetailPage() {
                       </div>
                     ) : (
                     <div className="space-y-4">
+                      {product.basic_color?.trim() && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Palette className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Color</div>
+                            <div className="text-sm text-gray-900">
+                              {PRODUCT_BASIC_COLOR_LABEL[
+                                product.basic_color as keyof typeof PRODUCT_BASIC_COLOR_LABEL
+                              ] ?? product.basic_color}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       {/* Tipo de relleno */}
                       {product.fillingType && (
                         <div className="flex items-center gap-4">

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { X, Plus, ChevronRight, ChevronLeft, Trash2, ChevronDown, ChevronUp, ImagePlus } from "lucide-react";
 import AutoResizeTextarea from "@/components/AutoResizeTextarea";
 import { CrmProduct, CrmCombo, completeCrmProduct, uploadProductImageFile, fetchCatalogs, Catalog, createCompleteProduct, fetchProductById } from "@/lib/api";
+import { PRODUCT_BASIC_COLOR_LABEL, PRODUCT_BASIC_COLOR_SLUGS } from "@/lib/productBasicColor";
 
 interface Category {
   id: string;
@@ -109,6 +110,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   const [warrantyMonths, setWarrantyMonths] = useState<number | undefined>(undefined);
   const [warrantyDescription, setWarrantyDescription] = useState("");
   const [materials, setMaterials] = useState("");
+  /** negro | beige | gris | blanco — vacío = sin valor */
+  const [basicColor, setBasicColor] = useState("");
   const [showMattressFields, setShowMattressFields] = useState(false);
   const [fillingType, setFillingType] = useState("");
   const [maxSupportedWeightKg, setMaxSupportedWeightKg] = useState<number | undefined>(undefined);
@@ -400,6 +403,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setWarrantyMonths(undefined);
         setWarrantyDescription("");
         setMaterials("");
+        setBasicColor("");
         setShowMattressFields(false);
         setFillingType("");
         setMaxSupportedWeightKg(undefined);
@@ -456,6 +460,14 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setWarrantyMonths(fullProduct.warranty_months);
         setWarrantyDescription(fullProduct.warranty_description || "");
         setMaterials(fullProduct.materials || "");
+        {
+          const bc = fullProduct.basic_color as string | undefined | null;
+          setBasicColor(
+            bc && (PRODUCT_BASIC_COLOR_SLUGS as readonly string[]).includes(bc)
+              ? bc
+              : ""
+          );
+        }
         
         // Campos de colchón
         const hasMattressData = !!(fullProduct.filling_type || fullProduct.max_supported_weight_kg || 
@@ -1164,6 +1176,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           warranty_months: warrantyMonths || undefined,
           warranty_description: warrantyDescription || undefined,
           materials: materials || undefined,
+          basic_color: basicColor.trim() ? basicColor.trim() : null,
           filling_type: fillingType || undefined,
           max_supported_weight_kg: maxSupportedWeightKg || undefined,
           has_pillow_top: hasPillowTop,
@@ -1229,6 +1242,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           warranty_months: warrantyMonths || undefined,
           warranty_description: warrantyDescription || undefined,
           materials: materials || undefined,
+          basic_color: basicColor.trim() ? basicColor.trim() : undefined,
           filling_type: showMattressFields && fillingType ? fillingType : undefined,
           max_supported_weight_kg: showMattressFields ? maxSupportedWeightKg || undefined : undefined,
           has_pillow_top: showMattressFields ? hasPillowTop : undefined,
@@ -1276,6 +1290,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       setWarrantyMonths(undefined);
       setWarrantyDescription("");
       setMaterials("");
+      setBasicColor("");
       setShowMattressFields(false);
       setFillingType("");
       setMaxSupportedWeightKg(undefined);
@@ -1732,6 +1747,24 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                           className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors resize-none"
                           placeholder="Materiales utilizados en el producto"
                         />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Color básico (opcional)
+                        </label>
+                        <select
+                          value={basicColor}
+                          onChange={(e) => setBasicColor(e.target.value)}
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                        >
+                          <option value="">— Sin color —</option>
+                          {PRODUCT_BASIC_COLOR_SLUGS.map((slug) => (
+                            <option key={slug} value={slug}>
+                              {PRODUCT_BASIC_COLOR_LABEL[slug]}
+                            </option>
+                          ))}
+                        </select>
                       </div>
 
                       <div className="border-t border-gray-200 pt-4">

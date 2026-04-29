@@ -6,7 +6,12 @@ import ProductCard from "@/components/ProductCard";
 import { firstProductImageUrl } from "@/lib/productImagePlaceholder";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { fetchProducts, fetchProductsAllPages, fetchCategories, Product, Category } from "@/lib/api";
+import { fetchProducts, fetchProductsAllPages, fetchCategories, Product, Category, fetchBasicColorFacets } from "@/lib/api";
+import {
+  PRODUCT_BASIC_COLOR_LABEL,
+  PRODUCT_BASIC_COLOR_SLUGS,
+  CATALOGO_BASIC_COLOR_FILTER_ID,
+} from "@/lib/productBasicColor";
 import { useLocality } from "@/contexts/LocalityContext";
 import { ChevronDown, Minus, Plus, SlidersHorizontal, X } from "lucide-react";
 import {
@@ -225,6 +230,7 @@ const TECHNICAL_FILTER_KEYS = [
   "Peso Máximo Soportado",
   "Pillow Top",
   "Tipo de Entrega",
+  CATALOGO_BASIC_COLOR_FILTER_ID,
 ] as const;
 
 type PriceRange = { min: number | null; max: number | null };
@@ -250,7 +256,9 @@ function catalogNeedsFullClientPool(
   if (categoryKeys.length > 0) {
     return true;
   }
-  const techOther = technicalKeys.filter((t) => t !== "colchon-tecnologia");
+  const techOther = technicalKeys.filter(
+    (t) => t !== "colchon-tecnologia" && t !== CATALOGO_BASIC_COLOR_FILTER_ID
+  );
   if (techOther.length > 0) {
     return true;
   }
@@ -355,6 +363,13 @@ function applyCatalogClientFilters(
         selectedValues.some((value) => productMatchesEstructuraRellenoFilterValue(product, value))
       );
       debugCatalogoTecnologia("resultado", { productosDespues: out.length, filtradoDesde: before });
+    }
+    if (filterKey === CATALOGO_BASIC_COLOR_FILTER_ID) {
+      out = out.filter(
+        (product) =>
+          product.basic_color &&
+          selectedValues.some((v) => v === product.basic_color)
+      );
     }
     if (filterKey === "Firmeza") {
       out = out.filter((product) => {
@@ -743,6 +758,11 @@ export default function CatalogoContent({
   const [categoryIdMap, setCategoryIdMap] = useState<Record<string, string>>(initialCategoryIdMap);
   const [isLoadingCategories, setIsLoadingCategories] = useState(initialCategories.length === 0);
 
+  /** Colores presentes en el árbol de categoría (GET /products/basic-color-facets); solo entonces mostramos el filtro. */
+  const [catalogBasicColorOptions, setCatalogBasicColorOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
+
   // Saltear el primer fetch de productos solo si tenemos datos del servidor
   // y estamos en la misma página (mismo slug) que cuando se montó
   const initialSlugRef = useRef<string | undefined>(slug?.join('/'));
@@ -946,7 +966,63 @@ export default function CatalogoContent({
   // Recalcular categoryInfo cuando cambian las categorías o el slug
   const categoryInfo = getCategoryInfo();
   const { categoryName, categoryId, subcategoryId, subcategoryName, subcategory2Name, category } = categoryInfo;
-  
+
+  // Una petición DISTINCT: opciones **solo** las devueltas por facetas para esta categoría (subconjunto ordenado backend)
+  useEffect(() => {
+    if (searchQuery || (!categoryId && !subcategoryId)) {
+      setCatalogBasicColorOptions([]);
+      return;
+    }
+    const rootId = subcategoryId || categoryId;
+    if (!rootId) {
+      setCatalogBasicColorOptions([]);
+      return;
+    }
+    setCatalogBasicColorOptions([]);
+    let cancelled = false;
+    fetchBasicColorFacets(rootId).then((slugs) => {
+      if (cancelled) return;
+      const allowedSlugs = new Set(PRODUCT_BASIC_COLOR_SLUGS as readonly string[]);
+      /** Solo entradas de la respuesta facet (no iterar los 4 fijos por defecto). */
+      const opts: { value: string; label: string }[] = [];
+      const seen = new Set<string>();
+      if (Array.isArray(slugs)) {
+        for (const raw of slugs) {
+          const s = String(raw ?? "")
+            .trim()
+            .toLowerCase();
+          if (!s || seen.has(s) || !allowedSlugs.has(s)) continue;
+          seen.add(s);
+          opts.push({
+            value: s,
+            label:
+              PRODUCT_BASIC_COLOR_LABEL[s as keyof typeof PRODUCT_BASIC_COLOR_LABEL] ?? s,
+          });
+        }
+      }
+      setCatalogBasicColorOptions(opts);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [searchQuery, categoryId, subcategoryId]);
+
+  // Opciones efectivas ⇒ recortar checks a ese subconjunto (p. ej. al cambiar de categoría o al refrescar facetas)
+  useEffect(() => {
+    const allowed = new Set(catalogBasicColorOptions.map((o) => o.value));
+    setSelectedFilters((prev) => {
+      const key = CATALOGO_BASIC_COLOR_FILTER_ID;
+      const cur = prev[key];
+      if (!cur?.length) return prev;
+      const nextVals = cur.filter((v) => allowed.has(v));
+      if (nextVals.length === cur.length) return prev;
+      const next = { ...prev };
+      if (nextVals.length === 0) delete next[key];
+      else next[key] = nextVals;
+      return next;
+    });
+  }, [catalogBasicColorOptions]);
+
   // Aplicar filtro inicial desde la URL cuando las categorías se cargan
   useEffect(() => {
     if (initialFilterId && categories.length > 0 && Object.keys(categoryIdMap).length > 0 && !isLoadingCategories) {
@@ -1084,7 +1160,17 @@ export default function CatalogoContent({
         });
       }
     }
-    
+
+    if (!searchQuery && catalogBasicColorOptions.length > 0) {
+      filters.push({
+        id: CATALOGO_BASIC_COLOR_FILTER_ID,
+        title: "Color base",
+        defaultOpen: false,
+        type: "checkbox" as const,
+        options: catalogBasicColorOptions,
+      });
+    }
+
     // Filtros técnicos: colchones y catálogos equivalentes (p. ej. sommier + colchón)
     if (isColchonStyleCatalogCategory(categoryName) || isColchonStyleCatalogCategory(category?.name)) {
       // Tecnología después de los bloques de subcategoría / opciones de categoría; luego firmeza, peso, etc.
@@ -1354,6 +1440,12 @@ export default function CatalogoContent({
             ...(priceRange.max !== null ? { max_price: priceRange.max } : {}),
             ...(selectedFilters["colchon-tecnologia"]?.length
               ? { filling_type_slugs: selectedFilters["colchon-tecnologia"].join(",") }
+              : {}),
+            ...(selectedFilters[CATALOGO_BASIC_COLOR_FILTER_ID]?.length
+              ? {
+                  basic_colors:
+                    selectedFilters[CATALOGO_BASIC_COLOR_FILTER_ID].join(","),
+                }
               : {}),
           });
           setProducts(result.products);
