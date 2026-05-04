@@ -94,7 +94,7 @@ export default function Footer() {
             <h4 className="font-semibold text-gray-900 mb-3 md:mb-4 text-sm md:text-base">Ayuda</h4>
             <ul className="space-y-2 md:space-y-3 text-xs md:text-sm text-gray-700">
               <li><a href="/preguntas-frecuentes" className="hover:text-gray-900 transition-colors relative group inline-block">Preguntas frecuentes<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
-              <li><a href="/local" className="hover:text-gray-900 transition-colors relative group inline-block">Asesoramiento<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              <li><a href={`https://wa.me/${(footerData.phone || "").replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="hover:text-gray-900 transition-colors relative group inline-block">Asesoramiento<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
               {email && (
                 <li>
                   <a href={`mailto:${email}`} className="hover:text-gray-900 transition-colors relative group inline-block break-all">
