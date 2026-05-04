@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, ShoppingCart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight, Layers, Bed, BedDouble, Scale, Package, Maximize, CheckCircle2, Package2, ChevronDown, ChevronUp, Ruler, Shirt, Wind, GripHorizontal, FileText, Palette, Tv } from "lucide-react";
+import { Heart, ShoppingCart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight, Layers, Bed, BedDouble, Scale, Package, Maximize, CheckCircle2, ChevronDown, ChevronUp, Ruler, Shirt, Wind, GripHorizontal, FileText, Palette, Tv, WashingMachine, Refrigerator, Snowflake } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
@@ -1795,7 +1795,7 @@ export default function ProductDetailPage() {
                       {!!product.wm_load_type?.trim() && (
                         <div className="flex items-center gap-4">
                           <div className="flex-shrink-0">
-                            <Package2 className="w-5 h-5 text-gray-600" />
+                            <WashingMachine className="w-5 h-5 text-gray-600" />
                           </div>
                           <div className="flex-1">
                             <div className="text-sm font-medium text-gray-700 mb-1">Tipo de carga</div>
@@ -1806,7 +1806,7 @@ export default function ProductDetailPage() {
                       {product.wm_wash_capacity_kg != null && product.wm_wash_capacity_kg > 0 && (
                         <div className="flex items-center gap-4">
                           <div className="flex-shrink-0">
-                            <Package2 className="w-5 h-5 text-gray-600" />
+                            <WashingMachine className="w-5 h-5 text-gray-600" />
                           </div>
                           <div className="flex-1">
                             <div className="text-sm font-medium text-gray-700 mb-1">Capacidad de lavado</div>
@@ -1817,7 +1817,7 @@ export default function ProductDetailPage() {
                       {product.fridge_capacity_liters != null && product.fridge_capacity_liters > 0 && (
                         <div className="flex items-center gap-4">
                           <div className="flex-shrink-0">
-                            <Package className="w-5 h-5 text-gray-600" />
+                            <Refrigerator className="w-5 h-5 text-gray-600" />
                           </div>
                           <div className="flex-1">
                             <div className="text-sm font-medium text-gray-700 mb-1">Capacidad heladera</div>
@@ -1828,7 +1828,7 @@ export default function ProductDetailPage() {
                       {product.freezer_capacity_liters != null && product.freezer_capacity_liters > 0 && (
                         <div className="flex items-center gap-4">
                           <div className="flex-shrink-0">
-                            <Package className="w-5 h-5 text-gray-600" />
+                            <Snowflake className="w-5 h-5 text-gray-600" />
                           </div>
                           <div className="flex-1">
                             <div className="text-sm font-medium text-gray-700 mb-1">Capacidad freezer</div>

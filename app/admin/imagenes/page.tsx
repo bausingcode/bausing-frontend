@@ -35,6 +35,7 @@ import {
   ImageUp,
   LayoutGrid,
   Smartphone,
+  BookOpen,
 } from "lucide-react";
 
 const MAX_HERO_IMAGES = 5;
@@ -63,6 +64,7 @@ export default function ImagenesPage() {
   const [discountImage, setDiscountImage] = useState<HeroImage | null>(null);
   const [productBanner, setProductBanner] = useState<HeroImage | null>(null);
   const [localImage, setLocalImage] = useState<HeroImage | null>(null);
+  const [blogCoverImage, setBlogCoverImage] = useState<HeroImage | null>(null);
   const [videoData, setVideoData] = useState<HeroImage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -82,6 +84,7 @@ export default function ImagenesPage() {
   const [pendingDiscountFile, setPendingDiscountFile] = useState<File | null>(null);
   const [pendingProductFile, setPendingProductFile] = useState<File | null>(null);
   const [pendingLocalFile, setPendingLocalFile] = useState<File | null>(null);
+  const [pendingBlogCoverFile, setPendingBlogCoverFile] = useState<File | null>(null);
   const [pendingVideoFile, setPendingVideoFile] = useState<File | null>(null);
   
   // Estados para imágenes marcadas para eliminar
@@ -155,12 +158,13 @@ export default function ImagenesPage() {
       setLoading(true);
       setError("");
       
-      const [hero, info, discount, product, local, videos] = await Promise.all([
+      const [hero, info, discount, product, local, blogCover, videos] = await Promise.all([
         fetchHeroImages(1),
         fetchHeroImages(2, true),
         fetchHeroImages(3, true),
         fetchHeroImages(4, true),
         fetchHeroImages(5, true),
+        fetchHeroImages(7, true),
         fetchHeroImages(6, true),
       ]);
 
@@ -169,6 +173,7 @@ export default function ImagenesPage() {
       setDiscountImage(discount.length > 0 ? discount[0] : null);
       setProductBanner(product.length > 0 ? product[0] : null);
       setLocalImage(local.length > 0 ? local[0] : null);
+      setBlogCoverImage(blogCover.length > 0 ? blogCover[0] : null);
       const video = videos.length > 0 ? videos[0] : null;
       setVideoData(video);
       if (video) {
@@ -191,7 +196,7 @@ export default function ImagenesPage() {
     }
   };
 
-  const handleFileSelect = (file: File, type: 'hero' | 'info' | 'discount' | 'product' | 'local') => {
+  const handleFileSelect = (file: File, type: 'hero' | 'info' | 'discount' | 'product' | 'local' | 'blog') => {
     if (!file.type.startsWith('image/')) {
       setError("Por favor selecciona un archivo de imagen válido");
       return;
@@ -225,8 +230,10 @@ export default function ImagenesPage() {
       setPendingDiscountFile(file);
     } else if (type === 'product') {
       setPendingProductFile(file);
-    } else {
+    } else if (type === 'local') {
       setPendingLocalFile(file);
+    } else {
+      setPendingBlogCoverFile(file);
     }
   };
 
@@ -328,7 +335,7 @@ export default function ImagenesPage() {
       for (const imageId of imagesToDelete) {
         try {
           // Buscar la imagen/video para obtener su URL y eliminar del storage si es necesario
-          const allImages = [...heroImages, ...infoImages, discountImage, productBanner, localImage, videoData].filter((img): img is HeroImage => img !== null);
+          const allImages = [...heroImages, ...infoImages, discountImage, productBanner, localImage, blogCoverImage, videoData].filter((img): img is HeroImage => img !== null);
           const imageToDelete = allImages.find(img => img.id === imageId);
           await deleteHeroImage(imageId, imageToDelete?.image_url);
         } catch (err: any) {
@@ -381,6 +388,18 @@ export default function ImagenesPage() {
         }
         await uploadHeroImageFile(pendingLocalFile, 5);
         setPendingLocalFile(null);
+      }
+
+      if (pendingBlogCoverFile) {
+        if (blogCoverImage && !imagesToDelete.has(blogCoverImage.id)) {
+          try {
+            await updateHeroImage(blogCoverImage.id, { is_active: false });
+          } catch (err: any) {
+            console.error(`Error al desactivar portada de blog anterior:`, err);
+          }
+        }
+        await uploadHeroImageFile(pendingBlogCoverFile, 7);
+        setPendingBlogCoverFile(null);
       }
 
       // Subir/actualizar video
@@ -444,6 +463,7 @@ export default function ImagenesPage() {
       pendingDiscountFile ||
       pendingProductFile ||
       pendingLocalFile ||
+      pendingBlogCoverFile ||
       pendingVideoFile ||
       isEditingVideo
     );
@@ -457,7 +477,7 @@ export default function ImagenesPage() {
       <div>
         <PageHeader 
           title="Gestión de Imágenes" 
-          description="Encabezado, fotos del hero en celular, menú de categorías, informativas, descuentos y banners"
+          description="Encabezado, fotos del hero en celular, menú de categorías, informativas, descuentos, banners y portada del blog"
         />
         <Loader message="Cargando imágenes..." fullScreen={false} />
       </div>
@@ -468,7 +488,7 @@ export default function ImagenesPage() {
     <div className="min-h-screen bg-gray-50">
       <PageHeader 
         title="Gestión de Imágenes" 
-        description="Encabezado, fotos del hero en celular, menú de categorías, informativas, descuentos y banners"
+        description="Encabezado, fotos del hero en celular, menú de categorías, informativas, descuentos, banners y portada del blog"
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -1663,6 +1683,146 @@ export default function ImagenesPage() {
           </div>
         </section>
 
+        {/* Sección: Portada del blog (/blog) */}
+        <section className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="bg-gradient-to-r from-slate-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-start gap-3">
+                <BookOpen className="w-6 h-6 text-indigo-700 shrink-0 mt-0.5" />
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-1">
+                    Portada del blog
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    Una sola imagen de fondo para el encabezado de la página <code className="text-xs bg-white/80 px-1 rounded">/blog</code>. Recomendado: 1600×600px o similar panorámica, JPG/PNG.
+                  </p>
+                </div>
+              </div>
+              <div>
+                <input
+                  type="file"
+                  id="blog-cover-file-input"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileSelect(file, "blog");
+                    e.target.value = "";
+                  }}
+                />
+                <label
+                  htmlFor="blog-cover-file-input"
+                  className="px-3 py-2 text-sm rounded-lg flex items-center gap-2 transition-colors cursor-pointer bg-indigo-600 text-white hover:bg-indigo-700"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Agregar</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {pendingBlogCoverFile && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3">
+                <div className="flex items-center justify-between flex-1">
+                  <span className="text-sm font-medium text-blue-900">Nueva portada pendiente de subir</span>
+                  <button
+                    type="button"
+                    onClick={() => setPendingBlogCoverFile(null)}
+                    className="text-blue-600 hover:text-blue-800 cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div
+                  className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => setPreviewImage(URL.createObjectURL(pendingBlogCoverFile))}
+                >
+                  <img
+                    src={URL.createObjectURL(pendingBlogCoverFile)}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </div>
+            )}
+
+            {blogCoverImage && !imagesToDelete.has(blogCoverImage.id) ? (
+              <div
+                className={`border rounded-lg overflow-hidden ${
+                  imagesToDelete.has(blogCoverImage.id) ? "border-red-300 opacity-50" : "border-gray-200"
+                }`}
+              >
+                <div
+                  className="bg-gray-100 relative flex items-center justify-center"
+                  style={{ aspectRatio: "1600/600", maxHeight: "150px" }}
+                >
+                  <img
+                    src={blogCoverImage.image_url}
+                    alt={blogCoverImage.title || "Portada del blog"}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      if (target.src !== wsrvLoader({ src: blogCoverImage.image_url, width: 400 })) {
+                        target.src = wsrvLoader({ src: blogCoverImage.image_url, width: 400 });
+                      }
+                    }}
+                  />
+                  {imagesToDelete.has(blogCoverImage.id) && (
+                    <div className="absolute inset-0 bg-red-500 bg-opacity-20 flex items-center justify-center">
+                      <span className="text-red-700 font-semibold bg-white px-3 py-1 rounded">Se eliminará</span>
+                    </div>
+                  )}
+                </div>
+                <div className="p-4 bg-white">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-medium text-gray-900">
+                      {blogCoverImage.title || formatDate(blogCoverImage.created_at)}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewImage(blogCoverImage.image_url)}
+                        className="p-1.5 rounded transition-colors cursor-pointer text-blue-600 hover:bg-blue-50"
+                        title="Visualizar imagen"
+                      >
+                        <Maximize2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleImageDelete(blogCoverImage.id)}
+                        className={`p-1.5 rounded transition-colors cursor-pointer ${
+                          imagesToDelete.has(blogCoverImage.id)
+                            ? "bg-red-100 text-red-700"
+                            : "text-red-600 hover:bg-red-50"
+                        }`}
+                        title={
+                          imagesToDelete.has(blogCoverImage.id)
+                            ? "Cancelar eliminación"
+                            : "Marcar para eliminar"
+                        }
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  {blogCoverImage.subtitle && (
+                    <p className="text-sm text-gray-500">{blogCoverImage.subtitle}</p>
+                  )}
+                </div>
+              </div>
+            ) : !pendingBlogCoverFile ? (
+              <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
+                <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-500">No hay portada configurada para el blog</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Sin imagen, la página usa solo el degradado de fondo.
+                </p>
+              </div>
+            ) : null}
+          </div>
+        </section>
+
         {/* Sección: Video */}
         <section className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <div className="bg-gradient-to-r from-purple-50 to-pink-50 px-6 py-4 border-b border-gray-200">
@@ -1886,7 +2046,7 @@ export default function ImagenesPage() {
                   {imagesToDelete.size > 0 && (
                     <span className="mr-4">{imagesToDelete.size} imagen(es) marcada(s) para eliminar</span>
                   )}
-                  {(pendingHeroFiles.length > 0 || pendingInfoFiles.length > 0 || pendingDiscountFile || pendingProductFile || pendingLocalFile || pendingVideoFile || isEditingVideo) && (
+                  {(pendingHeroFiles.length > 0 || pendingInfoFiles.length > 0 || pendingDiscountFile || pendingProductFile || pendingLocalFile || pendingBlogCoverFile || pendingVideoFile || isEditingVideo) && (
                     <span>Cambios pendiente(s) de guardar</span>
                   )}
                 </div>
@@ -1899,6 +2059,7 @@ export default function ImagenesPage() {
                       setPendingDiscountFile(null);
                       setPendingProductFile(null);
                       setPendingLocalFile(null);
+                      setPendingBlogCoverFile(null);
                       setPendingVideoFile(null);
                       setIsEditingVideo(false);
                       if (videoData) {

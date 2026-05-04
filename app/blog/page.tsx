@@ -5,7 +5,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { fetchBlogPosts, BlogPost } from "@/lib/api";
+import { fetchBlogPosts, BlogPost, getBlogListingCoverImageUrl } from "@/lib/api";
 
 type Article = {
   id: string;
@@ -84,7 +84,12 @@ function ArticleSkeleton() {
 export default function BlogPage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
+  const [blogHeroUrl, setBlogHeroUrl] = useState<string | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    void getBlogListingCoverImageUrl().then(setBlogHeroUrl);
+  }, []);
 
   useEffect(() => {
     async function loadPosts() {
@@ -117,15 +122,24 @@ export default function BlogPage() {
         {/* Hero */}
         <section className="relative overflow-hidden py-16 md:py-24">
           <div className="absolute inset-0">
-            <Image
-              src="https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1600&q=100"
-              alt="Dormitorio luminoso"
-              fill
-              priority
-              className="object-cover"
-              sizes="100vw"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-white via-white/30 to-transparent" />
+            {blogHeroUrl ? (
+              <>
+                <Image
+                  src={blogHeroUrl}
+                  alt=""
+                  fill
+                  priority
+                  className="object-cover"
+                  sizes="100vw"
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-white via-white/30 to-transparent" />
+              </>
+            ) : (
+              <div
+                className="absolute inset-0 bg-gradient-to-br from-[#00C1A7]/12 via-white to-slate-100"
+                aria-hidden
+              />
+            )}
           </div>
           <div className="relative container mx-auto px-4 md:px-6 lg:px-8">
             <div className="flex flex-col gap-4 max-w-4xl">

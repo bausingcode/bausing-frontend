@@ -2521,7 +2521,7 @@ export interface HeroImage {
 
 /**
  * Fetch hero images from the backend (server-side compatible)
- * @param position - Optional position filter (1, 2, or 3)
+ * @param position - Opcional: 1 hero, 2 info carousel, 3 descuentos, 4 banner PDP, 5 página local, 6 video home, 7 portada blog
  * @param activeOnly - Only fetch active images
  * @param cookieHeader - Cookie header for server-side requests
  */
@@ -2588,6 +2588,39 @@ export async function getLocalPageImage(): Promise<string | null> {
     return null;
   } catch (error) {
     console.error("Error loading local page image:", error);
+    return null;
+  }
+}
+
+/**
+ * Imagen de portada del listado /blog (hero_images position 7, activa).
+ */
+export async function getBlogListingCoverImageUrl(): Promise<string | null> {
+  try {
+    const params = new URLSearchParams();
+    params.append("position", "7");
+    params.append("active", "true");
+
+    const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:5050";
+    const url =
+      typeof window === "undefined"
+        ? `${BACKEND_URL}/hero-images?${params.toString()}`
+        : `/api/hero-images?${params.toString()}`;
+
+    const response = await fetch(url, { cache: "no-store" });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    if (data.success && data.data && data.data.length > 0) {
+      return data.data[0].image_url;
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error loading blog listing cover image:", error);
     return null;
   }
 }
