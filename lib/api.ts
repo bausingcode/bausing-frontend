@@ -5737,7 +5737,7 @@ export async function setHomepageDistribution(params: {
   section: 'featured' | 'discounts' | 'mattresses' | 'complete_purchase';
   position: number;
   product_id: string | null;
-}): Promise<HomepageDistributionItem> {
+}): Promise<HomepageDistributionItem | null> {
   try {
     const url = typeof window === "undefined"
       ? `${BACKEND_URL}/admin/homepage-distribution`
@@ -5763,10 +5763,8 @@ export async function setHomepageDistribution(params: {
     if (!data.success) {
       throw new Error(data.error || "Failed to set homepage distribution");
     }
-    if (data.data == null) {
-      throw new Error("Failed to set homepage distribution: empty response");
-    }
-    return data.data as HomepageDistributionItem;
+    // Quitar producto del casillero: el backend responde success + message sin payload `data`.
+    return (data.data ?? null) as HomepageDistributionItem | null;
   } catch (error) {
     console.error("Error setting homepage distribution:", error);
     throw error;

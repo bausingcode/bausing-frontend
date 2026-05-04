@@ -270,9 +270,6 @@ export default async function Home() {
                 ) : (
                   <div className="bg-black w-full h-full flex items-center justify-center min-h-[200px]">
                     <div className="text-white font-bold text-3xl md:text-4xl leading-tight text-center" style={{ fontFamily: 'DM Sans, sans-serif' }}>
-                      <div>DES</div>
-                      <div>CUEN</div>
-                      <div>TAZOS</div>
                     </div>
                   </div>
                 )}
@@ -296,9 +293,6 @@ export default async function Home() {
               ) : (
                 <div className="bg-black w-full h-full flex items-center justify-center">
                   <div className="text-white font-bold text-4xl md:text-5xl leading-tight text-center" style={{ fontFamily: 'DM Sans, sans-serif' }}>
-                    <div>DES</div>
-                    <div>CUEN</div>
-                    <div>TAZOS</div>
                   </div>
                 </div>
               )}
@@ -390,7 +384,7 @@ export default async function Home() {
           </div>
 
           <ProductCarousel alwaysShow itemsPerView={{ base: 2, md: 3, lg: 4 }} scrollStep={2}>
-            <HomeProducts section="complete_purchase" count={8} />
+            <HomeProducts section="complete_purchase" count={48} />
           </ProductCarousel>
         </div>
       </section>

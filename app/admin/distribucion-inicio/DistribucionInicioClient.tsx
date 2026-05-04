@@ -61,6 +61,8 @@ interface ProductCardProps {
   onSelect: () => void;
   onRemove: () => void;
   readOnly?: boolean;
+  /** Texto del casillero vacío (ej. un solo “Agregar” al final de accesorios). */
+  emptySlotLabel?: string;
 }
 
 function BrokenRefSlot({
@@ -111,6 +113,7 @@ function ProductCardSlot({
   onSelect,
   onRemove,
   readOnly = false,
+  emptySlotLabel,
 }: ProductCardProps) {
   const handleRemove = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -129,7 +132,7 @@ function ProductCardSlot({
       >
         <Plus className={`w-12 h-12 mb-3 ${readOnly ? "text-gray-300" : "text-gray-400 group-hover:text-[#00C1A7] transition-colors"}`} />
         <p className={`text-sm ${readOnly ? "text-gray-400" : "text-gray-500 group-hover:text-[#00C1A7] transition-colors"}`}>
-          {readOnly ? "Vacío" : "Seleccionar producto"}
+          {readOnly ? "Vacío" : emptySlotLabel ?? "Seleccionar producto"}
         </p>
       </div>
     );
@@ -658,6 +661,11 @@ export default function DistribucionInicioClient() {
       const newDist = { ...prev };
       const sectionKey = section as keyof HomepageDistribution;
       const sectionArray = [...(newDist[sectionKey] || [])];
+      if (sectionKey === "complete_purchase") {
+        while (sectionArray.length < position) {
+          sectionArray.push(null);
+        }
+      }
       sectionArray[position] = {
         id: `temp-${Date.now()}`,
         section: section,
@@ -734,7 +742,7 @@ export default function DistribucionInicioClient() {
       featured: "Productos Destacados",
       discounts: "Descuentazos",
       mattresses: "Nuestros Colchones",
-      complete_purchase: "Completa tu compra",
+      complete_purchase: "Accesorios que completan tu descanso",
     };
     return titles[section] || section;
   };
@@ -744,7 +752,8 @@ export default function DistribucionInicioClient() {
       featured: "4 productos destacados en la primera sección",
       discounts: "3 productos en la sección de descuentazos",
       mattresses: "4 productos en la sección 'Nuestros Colchones'",
-      complete_purchase: "4 productos en la sección 'Completa tu compra'",
+      complete_purchase:
+        "Agregá todos los accesorios que quieras (sin límite). En el sitio solo se muestran los que elijas; usá el botón Agregar para sumar uno al final.",
     };
     return descriptions[section] || "";
   };
@@ -757,16 +766,17 @@ export default function DistribucionInicioClient() {
     );
   }
 
-  const sections = [
+  const fixedSections = [
     { key: "featured", count: 4 },
     { key: "discounts", count: 3 },
     { key: "mattresses", count: 4 },
-    { key: "complete_purchase", count: 4 },
-  ];
+  ] as const;
 
   const activeGrid =
     adminView === "draft" ? distribution : publishedGrid ?? distribution;
   const gridReadOnly = adminView === "published";
+  const cpRow = activeGrid?.complete_purchase ?? [];
+  const nextCompletePurchasePosition = cpRow.length;
 
   return (
     <div className="p-6">
@@ -845,7 +855,7 @@ export default function DistribucionInicioClient() {
       ) : null}
 
       <div className="mt-6 space-y-8">
-        {sections.map(({ key, count }) => {
+        {fixedSections.map(({ key, count }) => {
           const isLoadingSection = loadingSections.has(key);
           
           return (
@@ -896,6 +906,74 @@ export default function DistribucionInicioClient() {
             </div>
           );
         })}
+
+        <div className="bg-white rounded-[14px] p-6 border border-gray-200 relative">
+          {loadingSections.has("complete_purchase") && (
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-[14px] flex items-center justify-center z-10">
+              <Loader2 className="w-8 h-8 animate-spin text-[#00C1A7]" />
+            </div>
+          )}
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              {getSectionTitle("complete_purchase")}
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">
+              {getSectionDescription("complete_purchase")}
+            </p>
+          </div>
+
+          <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4">
+            {cpRow.map((item, position) => {
+              if (!item) return null;
+              const product = resolveSlotProduct(item);
+              const brokenRef = Boolean(item?.product_id && !product);
+              if (!brokenRef && !product) return null;
+              return (
+                <div key={`cp-${position}`}>
+                  {brokenRef ? (
+                    <BrokenRefSlot
+                      productId={item?.product_id}
+                      readOnly={gridReadOnly}
+                      onSelect={() =>
+                        setSelectedSlot({ section: "complete_purchase", position })
+                      }
+                      onRemove={() => handleRemoveProduct("complete_purchase", position)}
+                    />
+                  ) : (
+                    <ProductCardSlot
+                      product={product}
+                      section="complete_purchase"
+                      position={position}
+                      readOnly={gridReadOnly}
+                      onSelect={() =>
+                        setSelectedSlot({ section: "complete_purchase", position })
+                      }
+                      onRemove={() => handleRemoveProduct("complete_purchase", position)}
+                    />
+                  )}
+                </div>
+              );
+            })}
+            {gridReadOnly ? null : (
+              <div key="cp-add">
+                <ProductCardSlot
+                  product={null}
+                  section="complete_purchase"
+                  position={nextCompletePurchasePosition}
+                  readOnly={false}
+                  emptySlotLabel="Agregar producto"
+                  onSelect={() =>
+                    setSelectedSlot({
+                      section: "complete_purchase",
+                      position: nextCompletePurchasePosition,
+                    })
+                  }
+                  onRemove={() => {}}
+                />
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <ProductSelectionModal

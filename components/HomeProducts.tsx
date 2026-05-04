@@ -128,11 +128,15 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
   useEffect(() => {
     // Si hay productos en la distribución, usarlos inmediatamente
     if (sectionProducts.length > 0) {
-      const cardProps = repeatProducts(
-        sectionProducts.map((p) => productToCardProps(p, localityLoading || isLoadingPrices)),
-        count
-      ).slice(0, count);
-      
+      const loadingPrices = localityLoading || isLoadingPrices;
+      const cardProps =
+        section === "complete_purchase"
+          ? sectionProducts.map((p) => productToCardProps(p, loadingPrices))
+          : repeatProducts(
+              sectionProducts.map((p) => productToCardProps(p, loadingPrices)),
+              count
+            ).slice(0, count);
+
       setProducts(cardProps);
       setLoading(false);
       return;
