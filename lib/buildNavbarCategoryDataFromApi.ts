@@ -98,7 +98,7 @@ export function buildNavbarCategoryDataFromApi(
       icon: subIcon,
       iconSize: { ...defaultIconSize },
       description: sub.description?.trim() || undefined,
-      href: `/catalogo/${mainSlug}`,
+      href: `/catalogo/${mainSlug}?filter=${encodeURIComponent(sub.id)}`,
     };
   };
 

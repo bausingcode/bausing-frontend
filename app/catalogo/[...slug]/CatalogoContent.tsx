@@ -101,6 +101,22 @@ function sortSubcategoriesForCatalog(a: Category, b: Category): number {
   return a.name.localeCompare(b.name, "es");
 }
 
+/** Subcategoría en el árbol bajo la categoría principal del slug (no la raíz misma). */
+function categoryIsStrictDescendantUnderMain(
+  categories: Category[],
+  catId: string,
+  mainCategoryId: string
+): boolean {
+  if (!catId || !mainCategoryId || catId === mainCategoryId) return false;
+  const byId = new Map(categories.map((c) => [c.id, c]));
+  let cur = byId.get(catId);
+  while (cur?.parent_id) {
+    if (cur.parent_id === mainCategoryId) return true;
+    cur = byId.get(cur.parent_id);
+  }
+  return false;
+}
+
 type CategoryFilters = Record<string, FilterGroup[]>;
 
 /** Misma lógica de atributos de colchón (firmeza, etc.) que en /catalogo/colchones */
@@ -783,6 +799,12 @@ export default function CatalogoContent({
       setPage(1);
       setTotalPages(1);
       setProductsTotalCount(0);
+      setSelectedFilters((prev) => {
+        const next = { ...prev };
+        delete next[CATALOGO_SUBCATEGORIAS_FILTER_ID];
+        delete next["Subcategorías"];
+        return next;
+      });
     }
   }, [slug]);
   
@@ -888,7 +910,15 @@ export default function CatalogoContent({
   const getCategoryInfo = () => {
     // Si no hay slug o es un array vacío, retornar valores nulos
     if (!slug || !Array.isArray(slug) || slug.length === 0) {
-      return { categoryName: null, categoryId: null, subcategoryId: null, subcategoryName: null, subcategory2Name: null, category: null };
+      return {
+        categoryName: null,
+        categoryId: null,
+        subcategoryId: null,
+        subcategoryName: null,
+        subcategory2Name: null,
+        leafCategoryId: null,
+        category: null,
+      };
     }
     
     const mainCategorySlug = slug[0];
@@ -920,6 +950,7 @@ export default function CatalogoContent({
     let subcategoryId: string | null = null;
     let subcategoryName: string | null = null;
     let subcategory2Name: string | null = null;
+    let subcategory2Id: string | null = null;
     
     // Subcategorías: solo filas reales bajo la categoría principal; si en DB no hay hijas, no mostrar ninguna
     if (slug.length >= 2) {
@@ -949,31 +980,57 @@ export default function CatalogoContent({
             const sub2 = findCategoryByPathSlug(underSub, subcategory2Slug);
             if (sub2) {
               subcategory2Name = sub2.name;
+              subcategory2Id = sub2.id;
             }
           }
         } else {
           const s2 = findCategoryByPathSlug(categories, subcategory2Slug);
           if (s2?.parent_id) {
             subcategory2Name = s2.name;
+            subcategory2Id = s2.id;
           }
         }
       }
     }
-    
-    return { categoryName, categoryId, subcategoryId, subcategoryName, subcategory2Name, category };
+
+    /** Categoría más profunda en la URL (p. ej. heladeras en /electro/grandes/heladeras). */
+    const leafCategoryId =
+      subcategory2Id ?? (slug.length >= 2 ? subcategoryId : null);
+
+    return {
+      categoryName,
+      categoryId,
+      subcategoryId,
+      subcategoryName,
+      subcategory2Name,
+      leafCategoryId,
+      category,
+    };
   };
   
   // Recalcular categoryInfo cuando cambian las categorías o el slug
   const categoryInfo = getCategoryInfo();
-  const { categoryName, categoryId, subcategoryId, subcategoryName, subcategory2Name, category } = categoryInfo;
+  const {
+    categoryName,
+    categoryId,
+    subcategoryId,
+    subcategoryName,
+    subcategory2Name,
+    leafCategoryId,
+    category,
+  } = categoryInfo;
+
+  /** Para API y facetas: siempre la categoría hoja del path cuando existe. */
+  const catalogCategoryIdForFetch =
+    leafCategoryId ?? subcategoryId ?? categoryId;
 
   // Una petición DISTINCT: opciones **solo** las devueltas por facetas para esta categoría (subconjunto ordenado backend)
   useEffect(() => {
-    if (searchQuery || (!categoryId && !subcategoryId)) {
+    if (searchQuery || !catalogCategoryIdForFetch) {
       setCatalogBasicColorOptions([]);
       return;
     }
-    const rootId = subcategoryId || categoryId;
+    const rootId = catalogCategoryIdForFetch;
     if (!rootId) {
       setCatalogBasicColorOptions([]);
       return;
@@ -1005,7 +1062,7 @@ export default function CatalogoContent({
     return () => {
       cancelled = true;
     };
-  }, [searchQuery, categoryId, subcategoryId]);
+  }, [searchQuery, catalogCategoryIdForFetch]);
 
   // Opciones efectivas ⇒ recortar checks a ese subconjunto (p. ej. al cambiar de categoría o al refrescar facetas)
   useEffect(() => {
@@ -1064,7 +1121,6 @@ export default function CatalogoContent({
         setSelectedFilters(prev => {
           // Solo aplicar si no está ya aplicado para evitar loops
           if (prev[foundFilterGroup]?.includes(initialFilterId)) {
-            setIsApplyingFilter(false);
             return prev;
           }
           return {
@@ -1077,8 +1133,24 @@ export default function CatalogoContent({
           ...prev,
           [foundFilterGroup]: true
         }));
+      } else if (
+        categoryId &&
+        initialFilterId &&
+        categories.some((c) => c.id === initialFilterId) &&
+        categoryIsStrictDescendantUnderMain(categories, initialFilterId, categoryId)
+      ) {
+        // ?filter=<uuid de categoría hija>: mismo criterio que «Subcategorías», vista URL en categoría principal
+        setSelectedFilters((prev) => {
+          const key = CATALOGO_SUBCATEGORIAS_FILTER_ID;
+          if (prev[key]?.length === 1 && prev[key][0] === initialFilterId) return prev;
+          return { ...prev, [key]: [initialFilterId] };
+        });
+        setOpenFilters((prev) => ({
+          ...prev,
+          [CATALOGO_SUBCATEGORIAS_FILTER_ID]: true,
+        }));
       }
-      
+
       // Marcar como completado después de un pequeño delay para permitir que el estado se actualice
       setTimeout(() => {
         setIsApplyingFilter(false);
@@ -1086,23 +1158,33 @@ export default function CatalogoContent({
     } else if (!initialFilterId) {
       setIsApplyingFilter(false);
     }
-  }, [initialFilterId, categories, categoryIdMap, isLoadingCategories, categoryId, subcategoryId]);
-  
+  }, [
+    initialFilterId,
+    categories,
+    categoryIdMap,
+    isLoadingCategories,
+    categoryId,
+    subcategoryId,
+    leafCategoryId,
+  ]);
+
   // Construir filtros dinámicamente desde las opciones de categoría
   const buildDynamicFilters = () => {
     const filters: FilterGroup[] = [];
-    
-    if (!categoryId && !subcategoryId) return filters;
+
+    const catalogLeafForFilters = leafCategoryId ?? subcategoryId;
+
+    if (!categoryId && !catalogLeafForFilters) return filters;
 
     const mainCategoryForLeafOptions =
       category ?? (categoryId ? (categories.find((c) => c.id === categoryId) ?? null) : null);
 
-    // Con subcategoría en la URL: hermanas bajo el mismo padre + opciones de la hoja (si existen)
-    if (subcategoryId) {
-      const subcategory = categories.find((c) => c.id === subcategoryId);
-      if (subcategory?.parent_id) {
+    // Con hoja en la URL (p. ej. .../grandes/heladeras): hermanas del mismo padre + opciones de esa hoja
+    if (catalogLeafForFilters) {
+      const leafCat = categories.find((c) => c.id === catalogLeafForFilters);
+      if (leafCat?.parent_id) {
         const siblings = categories
-          .filter((c) => c.parent_id === subcategory.parent_id)
+          .filter((c) => c.parent_id === leafCat.parent_id)
           .sort(sortSubcategoriesForCatalog);
         if (siblings.length > 0) {
           filters.push({
@@ -1114,11 +1196,11 @@ export default function CatalogoContent({
           });
         }
       }
-      if (subcategory && subcategory.options && subcategory.options.length > 0) {
+      if (leafCat && leafCat.options && leafCat.options.length > 0) {
         filters.push({
-          title: subcategory.name,
+          title: leafCat.name,
           type: "checkbox" as const,
-          options: subcategory.options.map((opt) => ({
+          options: leafCat.options.map((opt) => ({
             value: opt.id,
             label: opt.value,
           })),
@@ -1245,7 +1327,42 @@ export default function CatalogoContent({
     builtFilters.length > 0
       ? builtFilters
       : (categoryName ? staticFiltersWithoutFakeSubcategorias || [] : []);
-  
+
+  /**
+   * Marcar el checkbox «Subcategorías» según la categoría hoja del path (navbar → catálogo).
+   */
+  useEffect(() => {
+    if (searchQuery || isLoadingCategories || categories.length === 0) return;
+
+    const leafForCheckbox = leafCategoryId ?? subcategoryId;
+    if (!leafForCheckbox) return;
+
+    const leafCat = categories.find((c) => c.id === leafForCheckbox);
+    if (!leafCat?.parent_id) return;
+
+    const siblings = categories.filter((c) => c.parent_id === leafCat.parent_id);
+    if (siblings.length === 0 || !siblings.some((s) => s.id === leafForCheckbox)) return;
+
+    setSelectedFilters((prev) => {
+      const key = CATALOGO_SUBCATEGORIAS_FILTER_ID;
+      const cur = prev[key];
+      if (cur?.length === 1 && cur[0] === leafForCheckbox) return prev;
+      return { ...prev, [key]: [leafForCheckbox] };
+    });
+    setOpenFilters((prev) => ({
+      ...prev,
+      [CATALOGO_SUBCATEGORIAS_FILTER_ID]: true,
+    }));
+  }, [
+    slug,
+    categories,
+    isLoadingCategories,
+    leafCategoryId,
+    subcategoryId,
+    searchQuery,
+    builtFilters.length,
+  ]);
+
   // Función para manejar cambios en filtros
   const handleFilterChange = (filterTitle: string, value: string, checked: boolean) => {
     setSelectedFilters(prev => {
@@ -1387,10 +1504,8 @@ export default function CatalogoContent({
         if (searchQuery) {
           baseParams.search = searchQuery;
         }
-        if (subcategoryId) {
-          baseParams.category_id = subcategoryId;
-        } else if (categoryId) {
-          baseParams.category_id = categoryId;
+        if (catalogCategoryIdForFetch) {
+          baseParams.category_id = catalogCategoryIdForFetch;
         }
 
         const useClientPool = hasActiveFilters && catalogNeedsFullClientPool(selectedFilters, priceRange);
@@ -1398,7 +1513,7 @@ export default function CatalogoContent({
         if (useClientPool) {
           const poolKey = [
             categoryId ?? "",
-            subcategoryId ?? "",
+            catalogCategoryIdForFetch ?? "",
             searchQuery ?? "",
             sortBy,
             locality?.id ?? "",
@@ -1466,7 +1581,25 @@ export default function CatalogoContent({
     };
     
     loadProducts();
-  }, [page, sortBy, categoryId, subcategoryId, subcategoryName, subcategory2Name, searchQuery, perPage, selectedFilters, hasActiveFilters, categories, categoryIdMap, slug, isLoadingCategories, locality?.id, localityLoading, priceRange]);
+  }, [
+    page,
+    sortBy,
+    categoryId,
+    catalogCategoryIdForFetch,
+    subcategoryName,
+    subcategory2Name,
+    searchQuery,
+    perPage,
+    selectedFilters,
+    hasActiveFilters,
+    categories,
+    categoryIdMap,
+    slug,
+    isLoadingCategories,
+    locality?.id,
+    localityLoading,
+    priceRange,
+  ]);
   
   const sortOptions = [
     { value: "created_at_desc", label: "Más recientes" },

@@ -1540,27 +1540,23 @@ export default function Navbar({ event }: NavbarProps = {}) {
                               .replace(/[^a-z0-9-]/g, "");
                             targetUrl = `/catalogo/${categorySlug}?filter=${encodeURIComponent(foundOption.id)}`;
                           } else if (foundSubcategory) {
-                            // Si es una subcategoría, buscar una opción que represente a toda la subcategoría
-                            // O usar el ID de la subcategoría directamente si hay una opción con el mismo nombre
                             const categorySlug = categoryName.toLowerCase()
                               .normalize("NFD")
                               .replace(/[\u0300-\u036f]/g, "")
                               .replace(/\s+/g, "-")
                               .replace(/[^a-z0-9-]/g, "");
-                            // Intentar encontrar una opción que coincida con el nombre de la subcategoría
-                            if (foundSubcategory.options && foundSubcategory.options.length > 0) {
-                              // Si la subcategoría tiene opciones, usar la primera como representativa
-                              // O mejor, navegar a la categoría principal y dejar que el usuario filtre
-                              targetUrl = `/catalogo/${categorySlug}`;
-                            } else {
-                              targetUrl = `/catalogo/${categorySlug}`;
-                            }
+                            targetUrl = `/catalogo/${categorySlug}?filter=${encodeURIComponent(foundSubcategory.id)}`;
                           } else if (item.href && !hasSubcategories) {
-                            // Si tiene href y no tiene subcategorías, usar la lógica anterior
-                            const hrefParts = item.href.split('/').filter(part => part && part !== 'catalogo');
-                            if (hrefParts.length > 0) {
-                              const mainCategorySlug = hrefParts[0];
-                              targetUrl = `/catalogo/${mainCategorySlug}`;
+                            const h = item.href.trim();
+                            if (h.startsWith("/catalogo/")) {
+                              targetUrl = h;
+                            } else if (h.startsWith("catalogo/")) {
+                              targetUrl = `/${h}`;
+                            } else {
+                              const hrefParts = item.href.split("/").filter((part) => part && part !== "catalogo");
+                              if (hrefParts.length > 0) {
+                                targetUrl = `/catalogo/${hrefParts.join("/")}`;
+                              }
                             }
                           }
 
@@ -1904,19 +1900,23 @@ export default function Navbar({ event }: NavbarProps = {}) {
                                 .replace(/[^a-z0-9-]/g, "");
                               targetUrl = `/catalogo/${categorySlug}?filter=${encodeURIComponent(foundOption.id)}`;
                             } else if (foundSubcategory) {
-                              // Si es una subcategoría, navegar a la categoría principal
                               const categorySlug = categoryName.toLowerCase()
                                 .normalize("NFD")
                                 .replace(/[\u0300-\u036f]/g, "")
                                 .replace(/\s+/g, "-")
                                 .replace(/[^a-z0-9-]/g, "");
-                              targetUrl = `/catalogo/${categorySlug}`;
+                              targetUrl = `/catalogo/${categorySlug}?filter=${encodeURIComponent(foundSubcategory.id)}`;
                             } else if (item.href && !hasSubcategories) {
-                              // Si tiene href y no tiene subcategorías, usar la lógica anterior
-                              const hrefParts = item.href.split('/').filter(part => part && part !== 'catalogo');
-                              if (hrefParts.length > 0) {
-                                const mainCategorySlug = hrefParts[0];
-                                targetUrl = `/catalogo/${mainCategorySlug}`;
+                              const h = item.href.trim();
+                              if (h.startsWith("/catalogo/")) {
+                                targetUrl = h;
+                              } else if (h.startsWith("catalogo/")) {
+                                targetUrl = `/${h}`;
+                              } else {
+                                const hrefParts = item.href.split("/").filter((part) => part && part !== "catalogo");
+                                if (hrefParts.length > 0) {
+                                  targetUrl = `/catalogo/${hrefParts.join("/")}`;
+                                }
                               }
                             }
 
