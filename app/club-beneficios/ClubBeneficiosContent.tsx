@@ -38,28 +38,41 @@ const CLUB_CATEGORIES = [
   { key: "Electrodomésticos", label: "Electro" },
 ];
 
-// Filtros específicos por categoría (tomados del catálogo)
+/**
+ * `category_name` en el API es el nombre de la fila Categoría (p. ej. "Sommier y colchón"),
+ * no siempre la etiqueta corta del menú ("Sommiers").
+ */
+const CLUB_CATEGORY_BACKEND_NAMES: Record<string, string[]> = {
+  Colchones: ["Colchones"],
+  Sommiers: ["Sommier y colchón", "Sommiers"],
+  Electrodomésticos: ["Electrodomésticos"],
+};
+
+const COLCHON_TECNOLOGIA_OPTIONS: FilterGroup = {
+  title: "Tecnología",
+  type: "checkbox",
+  options: [
+    { value: "resortes-biconicos", label: "Resortes bicónicos" },
+    { value: "espuma", label: "Espuma" },
+    { value: "espuma-de-alta-densidad", label: "Espuma de alta densidad" },
+    { value: "resortes-pocket", label: "Resortes pocket" },
+  ],
+};
+
+// Valores alineados al catálogo (`/catalogo/...`); criterios vía campos del producto, no solo el nombre.
 const categoryFilters: Record<string, FilterGroup[]> = {
   Colchones: [
+    COLCHON_TECNOLOGIA_OPTIONS,
     {
       title: "Plazas",
       type: "checkbox",
       options: [
-        { value: "una plaza", label: "Una plaza" },
-        { value: "plaza y media", label: "Plaza y media" },
-        { value: "dos plazas", label: "Dos plazas" },
+        { value: "una-plaza", label: "Una plaza" },
+        { value: "plaza-y-media", label: "Plaza y media" },
+        { value: "dos-plazas", label: "Dos plazas" },
         { value: "queen", label: "Queen" },
         { value: "extra-queen", label: "Extra-queen" },
         { value: "king", label: "King" },
-      ],
-    },
-    {
-      title: "Tecnología",
-      type: "checkbox",
-      options: [
-        { value: "espuma alta densidad", label: "Espuma alta densidad" },
-        { value: "resortes bicónicos", label: "Resortes bicónicos" },
-        { value: "resortes pocket", label: "Resortes pocket" },
       ],
     },
     {
@@ -69,7 +82,7 @@ const categoryFilters: Record<string, FilterGroup[]> = {
         { value: "soft", label: "Soft" },
         { value: "moderado", label: "Moderado" },
         { value: "firme", label: "Firme" },
-        { value: "muy firme", label: "Muy firme" },
+        { value: "muy-firme", label: "Muy firme" },
       ],
     },
     {
@@ -111,25 +124,17 @@ const categoryFilters: Record<string, FilterGroup[]> = {
     },
   ],
   Sommiers: [
+    COLCHON_TECNOLOGIA_OPTIONS,
     {
       title: "Plazas",
       type: "checkbox",
       options: [
-        { value: "una plaza", label: "Una plaza" },
-        { value: "plaza y media", label: "Plaza y media" },
-        { value: "dos plazas", label: "Dos plazas" },
+        { value: "una-plaza", label: "Una plaza" },
+        { value: "plaza-y-media", label: "Plaza y media" },
+        { value: "dos-plazas", label: "Dos plazas" },
         { value: "queen", label: "Queen" },
         { value: "extra-queen", label: "Extra-queen" },
         { value: "king", label: "King" },
-      ],
-    },
-    {
-      title: "Tecnología",
-      type: "checkbox",
-      options: [
-        { value: "espuma alta densidad", label: "Espuma alta densidad" },
-        { value: "resortes bicónicos", label: "Resortes bicónicos" },
-        { value: "resortes pocket", label: "Resortes pocket" },
       ],
     },
     {
@@ -139,7 +144,7 @@ const categoryFilters: Record<string, FilterGroup[]> = {
         { value: "soft", label: "Soft" },
         { value: "moderado", label: "Moderado" },
         { value: "firme", label: "Firme" },
-        { value: "muy firme", label: "Muy firme" },
+        { value: "muy-firme", label: "Muy firme" },
       ],
     },
     {
@@ -180,17 +185,200 @@ const categoryFilters: Record<string, FilterGroup[]> = {
       ],
     },
   ],
-  "Electrodomésticos": [
+  Electrodomésticos: [
     {
       title: "Tipo",
       type: "checkbox",
       options: [
-        { value: "grandes electros", label: "Grandes electros" },
-        { value: "pequeños electros", label: "Pequeños electros" },
+        { value: "grandes-electros", label: "Grandes electros" },
+        { value: "pequenos-electros", label: "Pequeños electros" },
       ],
     },
   ],
 };
+
+function normalizeClubText(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function normalizeMeasureToken(s: string): string {
+  return normalizeClubText(s).replace(/\*/g, "x").replace(/×/g, "x").replace(/\s+/g, "");
+}
+
+function productMatchesClubCategoryKey(p: Product, selectedKey: string): boolean {
+  const cn = (p.category_name ?? "").trim();
+  if (!cn) return false;
+  const aliases = CLUB_CATEGORY_BACKEND_NAMES[selectedKey] ?? [selectedKey];
+  const cnN = cn.toLowerCase();
+  return aliases.some((a) => a.toLowerCase() === cnN);
+}
+
+function matchesPlazaFilter(p: Product, slug: string): boolean {
+  const parts = [
+    p.name,
+    p.category_option_value ?? "",
+    p.size_label ?? "",
+    ...(p.subcategories?.map((s) => s.subcategory_name ?? s.category_option_value ?? "") ?? []),
+  ];
+  const blob = normalizeClubText(parts.join(" "));
+  switch (slug) {
+    case "una-plaza":
+      return (
+        /\b(una plaza|1 plaza|1plaza)\b/.test(blob) ||
+        blob.includes("una-plaza") ||
+        blob.includes("1 plaza")
+      );
+    case "plaza-y-media":
+      return (
+        blob.includes("plaza y media") ||
+        blob.includes("plaza-y-media") ||
+        blob.includes("1 y media") ||
+        blob.includes("media plaza")
+      );
+    case "dos-plazas":
+      return /\b(2 plazas|dos plazas|2plazas)\b/.test(blob) || blob.includes("dos-plazas");
+    case "queen":
+      return blob.includes("queen");
+    case "extra-queen":
+      return (blob.includes("extra") && blob.includes("queen")) || blob.includes("extra-queen");
+    case "king":
+      return /\bking\b/.test(blob);
+    default:
+      return false;
+  }
+}
+
+function matchesTecnologiaClub(p: Product, slug: string): boolean {
+  const ft = normalizeClubText(p.filling_type ?? "");
+  const cov = normalizeClubText(p.category_option_value ?? "");
+  const desc = normalizeClubText((p as Product & { technical_description?: string }).technical_description ?? "");
+  const blob = normalizeClubText(`${p.name} ${desc}`);
+  const combined = `${ft} ${cov} ${blob}`;
+  if (slug === "resortes-biconicos") {
+    return combined.includes("bicon") || combined.includes("biconicos");
+  }
+  if (slug === "resortes-pocket") {
+    return combined.includes("pocket");
+  }
+  if (slug === "espuma-de-alta-densidad") {
+    return (
+      (combined.includes("espuma") && (combined.includes("alta densidad") || combined.includes("alta-densidad"))) ||
+      combined.includes("espuma de alta densidad")
+    );
+  }
+  if (slug === "espuma") {
+    return combined.includes("espuma");
+  }
+  return false;
+}
+
+function matchesFirmezaClub(p: Product, value: string): boolean {
+  const vKey = value.replace(/\s+/g, "-");
+  const mfRaw = (p.mattress_firmness ?? "").trim();
+  if (mfRaw) {
+    const mf = mfRaw.toUpperCase();
+    const map: Record<string, string[]> = {
+      soft: ["SOFT"],
+      moderado: ["MEDIO", "MODERADO"],
+      firme: ["FIRME"],
+      "muy-firme": ["MUY FIRME", "MUY_FIRME", "MUY-FIRME"],
+    };
+    const allowed = map[vKey] ?? [value.toUpperCase()];
+    if (allowed.some((a) => mf === a || mf.includes(a))) return true;
+  }
+  const blob = normalizeClubText(
+    `${p.name} ${(p as Product & { technical_description?: string }).technical_description ?? ""}`,
+  );
+  const labels: Record<string, string> = {
+    soft: "soft",
+    moderado: "moderado",
+    firme: "firme",
+    "muy-firme": "muy firme",
+  };
+  const needle = labels[vKey] ?? normalizeClubText(value);
+  return needle.length > 0 && blob.includes(needle);
+}
+
+function matchesMedidaClub(p: Product, dim: string): boolean {
+  const target = normalizeMeasureToken(dim);
+  const sources = [p.size_label, p.name, (p as Product & { technical_description?: string }).technical_description].filter(
+    Boolean,
+  ) as string[];
+  return sources.some((s) => normalizeMeasureToken(s).includes(target));
+}
+
+function matchesAlturaClub(p: Product, value: string): boolean {
+  const cm = p.mattress_height_cm;
+  const n = parseInt(value.replace(/cm/gi, "").trim(), 10);
+  if (cm != null && Number.isFinite(cm) && !Number.isNaN(n)) {
+    return Math.round(cm) === n;
+  }
+  const blob = normalizeClubText(
+    `${p.name} ${(p as Product & { technical_description?: string }).technical_description ?? ""}`,
+  );
+  return blob.includes(normalizeClubText(value));
+}
+
+function matchesPesoPlazaClub(p: Product, value: string): boolean {
+  const maxW = p.max_supported_weight_kg;
+  const max = parseInt(value.replace(/kg/gi, "").trim(), 10);
+  if (maxW != null && Number.isFinite(maxW) && !Number.isNaN(max)) {
+    return maxW <= max && maxW > max - 15;
+  }
+  const blob = normalizeClubText(
+    `${p.name} ${(p as Product & { technical_description?: string }).technical_description ?? ""}`,
+  );
+  return blob.includes(normalizeClubText(value));
+}
+
+function matchesElectroTipoClub(p: Product, slug: string): boolean {
+  const blob = normalizeClubText(
+    [
+      p.name,
+      (p as Product & { technical_description?: string }).technical_description ?? "",
+      ...(p.subcategories?.map((s) => s.subcategory_name ?? "") ?? []),
+    ].join(" "),
+  );
+  if (slug === "grandes-electros") {
+    return (
+      (blob.includes("grande") && blob.includes("electro")) ||
+      blob.includes("grandes electros") ||
+      blob.includes("grandes-electros")
+    );
+  }
+  if (slug === "pequenos-electros") {
+    return (
+      (blob.includes("pequeno") && blob.includes("electro")) ||
+      (blob.includes("pequen") && blob.includes("electro")) ||
+      blob.includes("pequenos electros")
+    );
+  }
+  return false;
+}
+
+function productMatchesClubFilterGroup(p: Product, groupTitle: string, value: string): boolean {
+  switch (groupTitle) {
+    case "Plazas":
+      return matchesPlazaFilter(p, value);
+    case "Tecnología":
+      return matchesTecnologiaClub(p, value);
+    case "Nivel de firmeza":
+      return matchesFirmezaClub(p, value);
+    case "Medidas":
+      return matchesMedidaClub(p, value);
+    case "Altura":
+      return matchesAlturaClub(p, value);
+    case "Peso máximo por plaza":
+      return matchesPesoPlazaClub(p, value);
+    case "Tipo":
+      return matchesElectroTipoClub(p, value);
+    default:
+      return normalizeClubText(p.name).includes(normalizeClubText(value));
+  }
+}
 
 function priceRowForProduct(pricesData: Record<string, any>, productId: unknown) {
   if (productId == null || productId === "") return undefined;
@@ -276,7 +464,7 @@ export default function ClubBeneficiosContent({ initialProducts }: Props) {
   // Filtros
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
-  const [openFilters, setOpenFilters] = useState<Record<string, boolean>>({});
+  const [openFilters, setOpenFilters] = useState<Record<string, boolean>>({ Categoría: true });
   const [priceRangeInput, setPriceRangeInput] = useState({ min: "", max: "" });
   const [priceRange, setPriceRange] = useState<{ min: number | null; max: number | null }>({ min: null, max: null });
   const [priceRangeError, setPriceRangeError] = useState("");
@@ -290,7 +478,7 @@ export default function ClubBeneficiosContent({ initialProducts }: Props) {
   // Limpiar filtros de grupo al cambiar categoría
   useEffect(() => {
     setSelectedFilters({});
-    setOpenFilters({});
+    setOpenFilters({ Categoría: true });
   }, [selectedCategory]);
 
   // Solo al cambiar cantidad de productos o localidad: evita loop con mergePrices / baseProducts
@@ -339,16 +527,15 @@ export default function ClubBeneficiosContent({ initialProducts }: Props) {
     const q = searchQuery.trim().toLowerCase();
     if (q) result = result.filter((p) => p.name.toLowerCase().includes(q));
 
-    // Filtro de categoría
+    // Filtro de categoría (nombre de fila en API, p. ej. "Sommier y colchón")
     if (selectedCategory) {
-      result = result.filter((p) => p.category_name === selectedCategory);
+      result = result.filter((p) => productMatchesClubCategoryKey(p, selectedCategory));
     }
 
-    // Filtros específicos de categoría (por nombre de producto)
-    for (const [, values] of Object.entries(selectedFilters)) {
+    for (const [groupTitle, values] of Object.entries(selectedFilters)) {
       if (values.length === 0) continue;
       result = result.filter((p) =>
-        values.some((v) => p.name.toLowerCase().includes(v.toLowerCase()))
+        values.some((v) => productMatchesClubFilterGroup(p, groupTitle, v))
       );
     }
 
