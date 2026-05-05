@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, ShoppingCart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight, Layers, Bed, BedDouble, Scale, Package, Maximize, CheckCircle2, Package2, ChevronDown, ChevronUp, Ruler, Shirt, Wind, GripHorizontal, FileText, Palette, Tv } from "lucide-react";
+import { Heart, ShoppingCart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight, Layers, Bed, BedDouble, Scale, Package, Maximize, CheckCircle2, Package2, ChevronDown, ChevronUp, Ruler, Shirt, Wind, GripHorizontal, FileText, Palette, Tv, WashingMachine, Refrigerator, Snowflake } from "lucide-react";
 import { SheetsIcon } from "@/lib/navbarCustomIcons";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
