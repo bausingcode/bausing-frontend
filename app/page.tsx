@@ -232,7 +232,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Info Banner (position 2) — solo desktop; oculto mobile y tablet */}
+      {/* Info Banner (position 2) */}
       {infoBannerImages.length > 0 && (
         <InfoBannerCarousel images={infoBannerImages} autoPlayInterval={5000} />
       )}

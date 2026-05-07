@@ -22,6 +22,10 @@ export default function InfoBannerCarousel({
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
+    setCurrentIndex((i) => Math.min(i, Math.max(0, images.length - 1)));
+  }, [images.length]);
+
+  useEffect(() => {
     if (images.length <= 1) return;
 
     const interval = setInterval(() => {
@@ -48,27 +52,42 @@ export default function InfoBannerCarousel({
   if (images.length === 0) return null;
 
   return (
-    <section className="hidden lg:block bg-white py-6 lg:py-8">
+    <section className="bg-white py-4 md:py-6 lg:py-8">
       <div className="container mx-auto px-4 md:px-6">
         <div className="relative flex justify-center">
           <div
-            className="relative rounded-[10px] md:rounded-xl overflow-hidden w-full max-w-[1290px] min-[1920px]:max-w-none aspect-[1290/350]"
+            className="relative rounded-[10px] md:rounded-xl overflow-hidden w-full max-w-[1290px] min-[1920px]:max-w-none max-lg:bg-neutral-100 lg:aspect-[1290/350]"
           >
-            {/* Carousel Images */}
+            {/* Carousel Images — móvil: slide activa en flujo (img h-auto) para que el alto = al de la foto; desktop: capas absolutas + cover */}
             {images.map((image, index) => {
               const optimizedUrl = wsrvLoader({ src: image.url, width: 1290 });
               const isActive = index === currentIndex;
               return (
                 <div
                   key={`${image.id}-${index}`}
-                  className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-                    isActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
-                  }`}
+                  className={[
+                    "w-full transition-opacity duration-1000 ease-in-out",
+                    /* Desktop: siempre apiladas */
+                    "lg:absolute lg:inset-0 lg:h-full",
+                    isActive
+                      ? "lg:z-10 lg:opacity-100"
+                      : "lg:z-0 lg:opacity-0 lg:pointer-events-none",
+                    /* Mobile: la activa define el alto del bloque; el resto ocupa el mismo rectángulo para el crossfade */
+                    isActive
+                      ? "max-lg:relative max-lg:z-[1] max-lg:opacity-100"
+                      : "max-lg:absolute max-lg:inset-0 max-lg:z-0 max-lg:opacity-0 max-lg:pointer-events-none",
+                  ].join(" ")}
                 >
                   <img
                     src={optimizedUrl}
                     alt={image.alt}
-                    className="w-full h-full object-cover rounded-[10px] md:rounded-xl"
+                    className={[
+                      "w-full rounded-[10px] md:rounded-xl",
+                      isActive
+                        ? "max-lg:h-auto max-lg:block max-lg:object-contain"
+                        : "max-lg:absolute max-lg:inset-0 max-lg:h-full max-lg:object-contain",
+                      "lg:h-full lg:object-cover",
+                    ].join(" ")}
                     loading={index === 0 ? "eager" : "lazy"}
                   />
                 </div>
@@ -79,6 +98,7 @@ export default function InfoBannerCarousel({
             {images.length > 1 && (
               <>
                 <button
+                  type="button"
                   onClick={goToPrevious}
                   className="absolute left-2 md:left-4 top-1/2 transform -translate-y-1/2 z-20 bg-white/20 hover:bg-white/30 text-white p-1.5 md:p-2 rounded-full transition-all"
                   aria-label="Previous image"
@@ -86,6 +106,7 @@ export default function InfoBannerCarousel({
                   <ChevronLeft className="w-4 h-4 md:w-6 md:h-6" />
                 </button>
                 <button
+                  type="button"
                   onClick={goToNext}
                   className="absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 z-20 bg-white/20 hover:bg-white/30 text-white p-1.5 md:p-2 rounded-full transition-all"
                   aria-label="Next image"
@@ -100,6 +121,7 @@ export default function InfoBannerCarousel({
               <div className="absolute bottom-2 md:bottom-4 left-1/2 transform -translate-x-1/2 z-20 flex gap-1.5 md:gap-2">
                 {images.map((_, index) => (
                   <button
+                    type="button"
                     key={index}
                     onClick={() => goToSlide(index)}
                     className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full transition-all ${
