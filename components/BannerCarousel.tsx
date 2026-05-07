@@ -72,7 +72,7 @@ export default function BannerCarousel({
   const [desktopIndex, setDesktopIndex] = useState(0);
   const [mobileIndex, setMobileIndex] = useState(0);
   const [fallbackMobileIndex, setFallbackMobileIndex] = useState(0);
-  /** Dimensiones intrínsecas por slide (tras cargar la imagen) para fijar el alto del hero sin recortar. */
+  /** Dimensiones intrínsecas por slide (tras cargar) para fijar el ratio del contenedor a pantalla completa. */
   const [mobileImgDimsByHeroId, setMobileImgDimsByHeroId] = useState<
     Record<string, { w: number; h: number }>
   >({});
@@ -212,7 +212,7 @@ export default function BannerCarousel({
 
   return (
     <>
-      {/* ——— Móvil: hero exclusivo, ancho pantalla, ratio del archivo (sin recorte) ——— */}
+      {/* Móvil: hero con image_url_mobile; ancho 100vw, relleno con object-cover (sin letterboxing). */}
       {hasMobileExclusiveHero ? (
         <section
           className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 overflow-hidden bg-[#0f0f0f] md:hidden"
@@ -220,7 +220,9 @@ export default function BannerCarousel({
             activeMobileDims
               ? { aspectRatio: `${activeMobileDims.w} / ${activeMobileDims.h}` }
               : {
-                  height: "min(calc(100vw * 16 / 9), min(52svh, 360px))",
+                  /* Hasta conocer el ratio real: caja ancha tipo móvil; object-cover evita franjas laterales */
+                  aspectRatio: "9 / 16",
+                  maxHeight: "min(92svh, 720px)",
                 }
           }
         >
@@ -238,7 +240,7 @@ export default function BannerCarousel({
                   <img
                     src={wsrvLoader({ src, width: MOBILE_HERO_EXPORT_WIDTH })}
                     alt={slide.alt}
-                    className="h-full w-full min-h-0 object-contain object-center"
+                    className="h-full w-full min-h-0 object-cover object-center"
                     loading={index === 0 ? "eager" : "lazy"}
                     onLoad={(e) => {
                       const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
