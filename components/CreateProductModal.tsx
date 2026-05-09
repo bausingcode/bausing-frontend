@@ -4,7 +4,11 @@ import { useState, useEffect, useRef } from "react";
 import { X, Plus, ChevronRight, ChevronLeft, Trash2, ChevronDown, ChevronUp, ImagePlus } from "lucide-react";
 import AutoResizeTextarea from "@/components/AutoResizeTextarea";
 import { CrmProduct, CrmCombo, completeCrmProduct, uploadProductImageFile, fetchCatalogs, Catalog, createCompleteProduct, fetchProductById } from "@/lib/api";
-import { PRODUCT_BASIC_COLOR_LABEL, PRODUCT_BASIC_COLOR_SLUGS } from "@/lib/productBasicColor";
+import {
+  PRODUCT_BASIC_COLOR_LABEL,
+  PRODUCT_BASIC_COLOR_SLUGS,
+  type ProductBasicColorSlug,
+} from "@/lib/productBasicColor";
 
 interface Category {
   id: string;
@@ -124,8 +128,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   const [warrantyMonths, setWarrantyMonths] = useState<number | undefined>(undefined);
   const [warrantyDescription, setWarrantyDescription] = useState("");
   const [materials, setMaterials] = useState("");
-  /** negro | beige | gris | blanco — vacío = sin valor */
-  const [basicColor, setBasicColor] = useState("");
+  /** Filas opcionales; al guardar sólo se envían textos no vacíos como `manual_color_labels`. */
+  const [manualColorRows, setManualColorRows] = useState<string[]>([""]);
   const [showMattressFields, setShowMattressFields] = useState(false);
   const [showApplianceFields, setShowApplianceFields] = useState(false);
   const [fillingType, setFillingType] = useState("");
@@ -429,6 +433,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setFridgeCapacityL("");
         setFreezerCapacityL("");
         setShowApplianceFields(false);
+        setManualColorRows([""]);
       } else {
         // New product
         setName("");
@@ -441,7 +446,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setWarrantyMonths(undefined);
         setWarrantyDescription("");
         setMaterials("");
-        setBasicColor("");
+        setManualColorRows([""]);
         setShowMattressFields(false);
         setFillingType("");
         setMaxSupportedWeightKg(undefined);
@@ -510,12 +515,20 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setWarrantyDescription(fullProduct.warranty_description || "");
         setMaterials(fullProduct.materials || "");
         {
-          const bc = fullProduct.basic_color as string | undefined | null;
-          setBasicColor(
-            bc && (PRODUCT_BASIC_COLOR_SLUGS as readonly string[]).includes(bc)
-              ? bc
-              : ""
-          );
+          const rawMl = fullProduct.manual_color_labels;
+          let rows: string[] = [];
+          if (Array.isArray(rawMl) && rawMl.length > 0) {
+            rows = rawMl.map((x: unknown) => String(x).trim()).filter(Boolean);
+          }
+          const bc = (fullProduct.basic_color as string | undefined | null)?.trim?.() ?? "";
+          if (!rows.length && bc) {
+            rows = [
+              (PRODUCT_BASIC_COLOR_SLUGS as readonly string[]).includes(bc)
+                ? PRODUCT_BASIC_COLOR_LABEL[bc as ProductBasicColorSlug]
+                : bc,
+            ];
+          }
+          setManualColorRows(rows.length > 0 ? rows : [""]);
         }
         
         // Campos de colchón
@@ -1234,11 +1247,13 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         Object.values(v.prices).some((price) => price <= 0)
       );
 
-      if (invalidTransferPrices.length > 0) {
+        if (invalidTransferPrices.length > 0) {
         setError("Los precios de efectivo/transferencia deben ser mayores a 0 o dejá el campo vacío");
         setLoading(false);
         return;
       }
+
+        const manualLabelsPayload = manualColorRows.map((t) => t.trim()).filter(Boolean);
 
 	      // Si es un producto CRM, usar completeCrmProduct
 	      if (crmProduct) {
@@ -1268,7 +1283,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           warranty_months: warrantyMonths || undefined,
           warranty_description: warrantyDescription || undefined,
           materials: materials || undefined,
-          basic_color: basicColor.trim() ? basicColor.trim() : null,
+          manual_color_labels: manualLabelsPayload,
           filling_type: fillingType || undefined,
           max_supported_weight_kg: maxSupportedWeightKg || undefined,
           has_pillow_top: hasPillowTop,
@@ -1379,7 +1394,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           warranty_months: warrantyMonths || undefined,
           warranty_description: warrantyDescription || undefined,
           materials: materials || undefined,
-          basic_color: basicColor.trim() ? basicColor.trim() : undefined,
+          manual_color_labels: manualLabelsPayload,
           filling_type: showMattressFields && fillingType ? fillingType : undefined,
           max_supported_weight_kg: showMattressFields ? maxSupportedWeightKg || undefined : undefined,
           has_pillow_top: showMattressFields ? hasPillowTop : undefined,
@@ -1428,7 +1443,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       setWarrantyMonths(undefined);
       setWarrantyDescription("");
       setMaterials("");
-      setBasicColor("");
+      setManualColorRows([""]);
       setShowMattressFields(false);
       setShowApplianceFields(false);
       setFillingType("");
@@ -1900,20 +1915,51 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Color básico (opcional)
+                          Colores (opcional)
                         </label>
-                        <select
-                          value={basicColor}
-                          onChange={(e) => setBasicColor(e.target.value)}
-                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
-                        >
-                          <option value="">— Sin color —</option>
-                          {PRODUCT_BASIC_COLOR_SLUGS.map((slug) => (
-                            <option key={slug} value={slug}>
-                              {PRODUCT_BASIC_COLOR_LABEL[slug]}
-                            </option>
+                        <p className="text-xs text-gray-500 mb-2">
+                          Agregá una o más descripciones a mano. Si alguna coincide con negro / beige /
+                          gris / blanco (o lo escribís igual), sirve también para filtros del catálogo en
+                          ese color.
+                        </p>
+                        <div className="space-y-2">
+                          {manualColorRows.map((row, idx) => (
+                            <div key={`color-row-${idx}`} className="flex gap-2 items-center">
+                              <input
+                                type="text"
+                                value={row}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  setManualColorRows((prev) =>
+                                    prev.map((s, i) => (i === idx ? v : s)),
+                                  );
+                                }}
+                                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                                placeholder="Ej: Negro grafito"
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setManualColorRows((prev) =>
+                                    prev.length <= 1 ? [""] : prev.filter((_, i) => i !== idx),
+                                  )
+                                }
+                                className="shrink-0 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg hover:bg-gray-50"
+                              >
+                                Quitar
+                              </button>
+                            </div>
                           ))}
-                        </select>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setManualColorRows((prev) => [...prev, ""])
+                            }
+                            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            + Agregar otro color
+                          </button>
+                        </div>
                       </div>
 
                       <div className="border-t border-gray-200 pt-4">

@@ -25,6 +25,8 @@ interface ProductCardProps {
   useNormalHeight?: boolean;
   /** Sin stock (CRM): etiqueta y sin agregar al carrito */
   outOfStock?: boolean;
+  /** Línea secundaria bajo el nombre (ej. colores separados por coma) */
+  subtitle?: string;
 }
 
 export default function ProductCard({
@@ -41,6 +43,7 @@ export default function ProductCard({
   isPriceLoading = false,
   useNormalHeight = false,
   outOfStock = false,
+  subtitle,
 }: ProductCardProps) {
   // Generar ID único si no se proporciona
   const productId = id || `product-${name.toLowerCase().replace(/\s+/g, "-")}`;
@@ -221,6 +224,18 @@ export default function ProductCard({
           >
             {name}
           </h4>
+          {subtitle ? (
+            <p
+              title={subtitle}
+              className={
+                useNormalHeight
+                  ? "mt-0.5 text-xs text-gray-500 line-clamp-2 leading-snug"
+                  : "mt-0.5 text-[10px] md:text-xs text-gray-500 line-clamp-2 leading-snug"
+              }
+            >
+              {subtitle}
+            </p>
+          ) : null}
         </div>
         <div className="flex items-baseline gap-2">
           {isPriceLoading ? (

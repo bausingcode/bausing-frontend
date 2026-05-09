@@ -8,9 +8,10 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { fetchProducts, fetchProductsAllPages, fetchCategories, Product, Category, fetchBasicColorFacets } from "@/lib/api";
 import {
-  PRODUCT_BASIC_COLOR_LABEL,
-  PRODUCT_BASIC_COLOR_SLUGS,
   CATALOGO_BASIC_COLOR_FILTER_ID,
+  catalogBasicColorFacetLabel,
+  catalogProductColorsLine,
+  catalogProductMatchesBasicColorSlug,
 } from "@/lib/productBasicColor";
 import { useLocality } from "@/contexts/LocalityContext";
 import { ChevronDown, Minus, Plus, SlidersHorizontal, X } from "lucide-react";
@@ -381,10 +382,8 @@ function applyCatalogClientFilters(
       debugCatalogoTecnologia("resultado", { productosDespues: out.length, filtradoDesde: before });
     }
     if (filterKey === CATALOGO_BASIC_COLOR_FILTER_ID) {
-      out = out.filter(
-        (product) =>
-          product.basic_color &&
-          selectedValues.some((v) => v === product.basic_color)
+      out = out.filter((product) =>
+        selectedValues.some((slug) => catalogProductMatchesBasicColorSlug(product, slug)),
       );
     }
     if (filterKey === "Firmeza") {
@@ -774,7 +773,7 @@ export default function CatalogoContent({
   const [categoryIdMap, setCategoryIdMap] = useState<Record<string, string>>(initialCategoryIdMap);
   const [isLoadingCategories, setIsLoadingCategories] = useState(initialCategories.length === 0);
 
-  /** Colores presentes en el árbol de categoría (GET /products/basic-color-facets); solo entonces mostramos el filtro. */
+  /** Facetas de color (basic + manual) presentes en la categoría; GET /products/basic-color-facets. */
   const [catalogBasicColorOptions, setCatalogBasicColorOptions] = useState<
     { value: string; label: string }[]
   >([]);
@@ -1024,7 +1023,7 @@ export default function CatalogoContent({
   const catalogCategoryIdForFetch =
     leafCategoryId ?? subcategoryId ?? categoryId;
 
-  // Una petición DISTINCT: opciones **solo** las devueltas por facetas para esta categoría (subconjunto ordenado backend)
+  // Una petición DISTINCT: todas las opciones devueltas por facetas (basic + manual_color_labels)
   useEffect(() => {
     if (searchQuery || !catalogCategoryIdForFetch) {
       setCatalogBasicColorOptions([]);
@@ -1039,8 +1038,6 @@ export default function CatalogoContent({
     let cancelled = false;
     fetchBasicColorFacets(rootId).then((slugs) => {
       if (cancelled) return;
-      const allowedSlugs = new Set(PRODUCT_BASIC_COLOR_SLUGS as readonly string[]);
-      /** Solo entradas de la respuesta facet (no iterar los 4 fijos por defecto). */
       const opts: { value: string; label: string }[] = [];
       const seen = new Set<string>();
       if (Array.isArray(slugs)) {
@@ -1048,12 +1045,11 @@ export default function CatalogoContent({
           const s = String(raw ?? "")
             .trim()
             .toLowerCase();
-          if (!s || seen.has(s) || !allowedSlugs.has(s)) continue;
+          if (!s || seen.has(s)) continue;
           seen.add(s);
           opts.push({
             value: s,
-            label:
-              PRODUCT_BASIC_COLOR_LABEL[s as keyof typeof PRODUCT_BASIC_COLOR_LABEL] ?? s,
+            label: catalogBasicColorFacetLabel(s),
           });
         }
       }
@@ -1636,6 +1632,7 @@ export default function CatalogoContent({
       secondaryPrice: cardFields.secondaryPrice,
       secondaryPriceLabel: cardFields.secondaryPriceLabel,
       outOfStock: product.has_crm_stock === false,
+      subtitle: catalogProductColorsLine(product),
     };
   };
   

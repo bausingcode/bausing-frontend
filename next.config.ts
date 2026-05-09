@@ -7,6 +7,9 @@ import { backendOriginFromEnv } from "./lib/backendOrigin";
 const backendBase = backendOriginFromEnv();
 
 const nextConfig: NextConfig = {
+  experimental: {
+    optimizePackageImports: ["lucide-react"],
+  },
   images: {
     remotePatterns: [
       {

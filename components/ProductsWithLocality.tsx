@@ -9,6 +9,7 @@ import {
 } from "@/utils/priceUtils";
 import ProductCard from "@/components/ProductCard";
 import { firstProductImageUrl } from "@/lib/productImagePlaceholder";
+import { catalogProductColorsLine } from "@/lib/productBasicColor";
 
 interface ProductsWithLocalityProps {
   initialProducts: Product[];
@@ -76,6 +77,7 @@ export default function ProductsWithLocality({
       secondaryPrice: cardFields.secondaryPrice,
       secondaryPriceLabel: cardFields.secondaryPriceLabel,
       outOfStock: product.has_crm_stock === false,
+      subtitle: catalogProductColorsLine(product),
     };
   };
 
@@ -126,6 +128,7 @@ export default function ProductsWithLocality({
             secondaryPrice={props.secondaryPrice}
             secondaryPriceLabel={props.secondaryPriceLabel}
             outOfStock={props.outOfStock}
+            subtitle={props.subtitle}
           />
         );
       })}

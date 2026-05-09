@@ -1,0 +1,1993 @@
+"use client";
+
+import { useEffect, useState, useRef } from "react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Heart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight, Layers, Bed, BedDouble, Scale, Package, Maximize, CheckCircle2, ChevronDown, ChevronUp, Ruler, Shirt, Wind, GripHorizontal, FileText, Palette, Tv, WashingMachine, Refrigerator, Snowflake } from "lucide-react";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import ProductCard from "@/components/ProductCard";
+import { useCart } from "@/contexts/CartContext";
+import { useLocality } from "@/contexts/LocalityContext";
+import { fetchProductById, Product as ApiProduct, fetchProducts, fetchProductCombos, ProductCombo, fetchHeroImages, HeroImage, fetchPdpCrossSellForProductPage } from "@/lib/api";
+import wsrvLoader from "@/lib/wsrvLoader";
+import {
+  firstProductImageUrl,
+  PRODUCT_IMAGE_PLACEHOLDER,
+} from "@/lib/productImagePlaceholder";
+import {
+  calculateProductPrice,
+  formatPrice,
+  getVariantPriceByLocality,
+  initializeCatalogCache,
+  PRICE_UI_TRANSFER_CAPTION,
+  PRICE_UI_CARD_CAPTION,
+  productCardPriceDisplayFromPriceInfo,
+} from "@/utils/priceUtils";
+import { getPromoLabel } from "@/utils/promoUtils";
+import { PRODUCT_BASIC_COLOR_LABEL } from "@/lib/productBasicColor";
+import {
+  firmnessLabelToBarLevel,
+  mapApiProductToPdp,
+  type PdpProduct,
+} from "./pdpViewModel";
+
+type Product = PdpProduct;
+
+interface SimilarProduct {
+  id: string;
+  name: string;
+  currentPrice: string;
+  originalPrice?: string;
+  discount?: string;
+  priceNote?: string;
+  secondaryPrice?: string;
+  secondaryPriceLabel?: string;
+  image: string;
+  outOfStock?: boolean;
+}
+
+// Special category IDs for custom combo section logic
+const CATEGORY_COLCHONES_ID = "12788182-9221-4d8a-9bf5-1a00503dcd34";
+const CATEGORY_SOMMIERS_ID = "57e5e2e5-e054-4b18-84dc-be94a22e2994";
+const CATEGORY_OPTION_SOMMIER_FILTER = "04dbb0ef-d918-496e-ba9c-db61664f5d0";
+/** Sábanas (categoría y/o subcategoría): aviso de color sujeto a disponibilidad solo acá */
+const CATEGORY_SUBCATEGORY_SABANAS_ID = "c135a303-e5ed-42c8-a0ca-2be17954a572";
+
+function productIsSabanasForColorNotice(
+  categoryId: string | undefined | null,
+  subcategories: Array<{ subcategory_id?: string }> | undefined | null,
+): boolean {
+  const id = CATEGORY_SUBCATEGORY_SABANAS_ID;
+  if (categoryId === id) return true;
+  return (subcategories ?? []).some((s) => s.subcategory_id === id);
+}
+
+function pdpBasicColorFriendly(label: string): string {
+  const t = label.trim();
+  if (!t) return "";
+  const lower = t.toLowerCase();
+  const map = PRODUCT_BASIC_COLOR_LABEL as Record<string, string>;
+  return map[lower] ?? t;
+}
+
+function productColorLines(p: Product): string[] | undefined {
+  const manual = (p.manual_color_labels ?? []).map((x) => String(x).trim()).filter(Boolean);
+  if (manual.length > 0) return manual.map(pdpBasicColorFriendly);
+  const bc = p.basic_color?.trim();
+  if (bc) return [pdpBasicColorFriendly(bc)];
+  return undefined;
+}
+
+function productHasMainCharacteristics(p: Product): boolean {
+  if ((productColorLines(p)?.length ?? 0) > 0) return true;
+  if (p.fillingType?.trim()) return true;
+  if (p.firmness?.trim()) return true;
+  if (p.has_pillow_top === true) return true;
+  if (p.maxWeight?.trim()) return true;
+  if (p.is_bed_in_box === true) return true;
+  if (p.size_label?.trim()) return true;
+  if (p.mattress_height_cm != null && p.mattress_height_cm > 0) return true;
+  if (p.mattress_fabric_type?.trim()) return true;
+  if (p.has_double_pillow) return true;
+  if (p.has_moisture_breathers) return true;
+  if (p.has_side_handles) return true;
+  if (p.smart_screen_size?.trim()) return true;
+  if (p.smart_resolution?.trim()) return true;
+  if (p.smart_tv === true || p.smart_tv === false) return true;
+  if (p.ac_inverter === true || p.ac_inverter === false) return true;
+  if (p.ac_climate_type?.trim()) return true;
+  if (p.ac_frigorias != null) return true;
+  if (p.wm_load_type?.trim()) return true;
+  if (p.wm_wash_capacity_kg != null && Number(p.wm_wash_capacity_kg) > 0) return true;
+  if (p.fridge_capacity_liters != null && Number(p.fridge_capacity_liters) > 0) return true;
+  if (p.freezer_capacity_liters != null && Number(p.freezer_capacity_liters) > 0) return true;
+  return false;
+}
+
+function buildPdpTempApiProductForPrice(
+  product: Product,
+  locality: { id: string } | null | undefined,
+  selectedVariantOptions: Record<string, string>,
+  selectedVariant: string,
+): ApiProduct {
+  const PRICE_TOL = 0.005;
+  let basePriceWithoutPromos = 0;
+  let baseCardWithoutPromos = 0;
+  let priceFromVariantSelection = false;
+  if (product.variants && product.variants.length > 0 && locality?.id) {
+    for (const variant of product.variants) {
+      const variantKey = variant.id || variant.name || variant.sku || "default";
+      const selectedOptionId = selectedVariantOptions[variantKey];
+      if (selectedOptionId) {
+        const price = getVariantPriceByLocality(variant, selectedOptionId, locality.id);
+        const cardPrice = getVariantPriceByLocality(
+          variant,
+          selectedOptionId,
+          locality.id,
+          undefined,
+          "card",
+        );
+        if (price > 0) {
+          basePriceWithoutPromos = price;
+          baseCardWithoutPromos = cardPrice > 0 ? cardPrice : price;
+          priceFromVariantSelection = true;
+          break;
+        }
+      } else if (selectedVariant === variant.id) {
+        const price = getVariantPriceByLocality(variant, undefined, locality.id);
+        const cardPrice = getVariantPriceByLocality(
+          variant,
+          undefined,
+          locality.id,
+          undefined,
+          "card",
+        );
+        if (price > 0) {
+          basePriceWithoutPromos = price;
+          baseCardWithoutPromos = cardPrice > 0 ? cardPrice : price;
+          priceFromVariantSelection = true;
+          break;
+        }
+      }
+    }
+  }
+  if (basePriceWithoutPromos === 0) {
+    const numericPrice = parseFloat(product.currentPrice.replace(/[$.]/g, "").replace(/\./g, "")) || 0;
+    const apiT =
+      product.min_transfer_price != null && product.min_transfer_price > 0
+        ? Number(product.min_transfer_price)
+        : null;
+    const apiC =
+      product.min_card_price != null && product.min_card_price > 0
+        ? Number(product.min_card_price)
+        : null;
+    basePriceWithoutPromos = apiT ?? numericPrice;
+    baseCardWithoutPromos = apiC ?? numericPrice;
+  }
+
+  let transferAmt = basePriceWithoutPromos;
+  let cardAmt = baseCardWithoutPromos;
+
+  const apiTransfer =
+    product.min_transfer_price != null && product.min_transfer_price > 0
+      ? Number(product.min_transfer_price)
+      : null;
+  const apiCard =
+    product.min_card_price != null && product.min_card_price > 0
+      ? Number(product.min_card_price)
+      : null;
+
+  /**
+   * En PDP, getVariantPriceByLocality(..., "card") a veces cae al mismo monto que transferencia
+   * (p. ej. sin fila card en prices[]). Además, option.price suele ser el de vitrina (tarjeta):
+   * si leemos eso como "transfer", transfer y tarjeta colapsan y solo se ve un monto de tarjeta.
+   * Si el API ya trae min_transfer / min_card distintos, completamos el par cuando el local
+   * está colapsado (sin pisar un par ya distinto que venga de la variante).
+   */
+  if (transferAmt > 0 && Math.abs(transferAmt - cardAmt) <= PRICE_TOL) {
+    if (priceFromVariantSelection) {
+      if (apiTransfer != null && Math.abs(apiTransfer - transferAmt) > PRICE_TOL) {
+        transferAmt = apiTransfer;
+      }
+      if (apiCard != null && Math.abs(apiCard - cardAmt) > PRICE_TOL) {
+        cardAmt = apiCard;
+      }
+    } else if (
+      apiTransfer != null &&
+      apiCard != null &&
+      Math.abs(apiTransfer - apiCard) > PRICE_TOL
+    ) {
+      transferAmt = apiTransfer;
+      cardAmt = apiCard;
+    } else if (apiCard != null && Math.abs(apiCard - transferAmt) > PRICE_TOL) {
+      cardAmt = apiCard;
+    }
+  }
+
+  const hasDistinctTransferCard =
+    transferAmt > 0 && cardAmt > 0 && Math.abs(transferAmt - cardAmt) > PRICE_TOL;
+  const primaryMin = cardAmt > 0 ? cardAmt : transferAmt;
+
+  return {
+    ...product,
+    min_price: primaryMin,
+    max_price: primaryMin,
+    min_transfer_price: hasDistinctTransferCard ? transferAmt : undefined,
+    max_transfer_price: hasDistinctTransferCard ? transferAmt : undefined,
+    min_card_price: cardAmt,
+    max_card_price: cardAmt,
+    show_transfer_price_highlight: product.show_transfer_price_highlight === true,
+    promos: product.promos ?? [],
+    is_active: product.is_active !== false,
+  } as unknown as ApiProduct;
+}
+
+function bootstrapClientState(
+  productId: string,
+  initialApiProduct: ApiProduct | null,
+): {
+  product: Product | null;
+  loading: boolean;
+  initialSelectedOptions: Record<string, string>;
+  initialVariant: string;
+} {
+  if (
+    !initialApiProduct ||
+    initialApiProduct.id !== productId ||
+    initialApiProduct.is_active === false
+  ) {
+    return {
+      product: null,
+      loading: true,
+      initialSelectedOptions: {},
+      initialVariant: "",
+    };
+  }
+  const mapped = mapApiProductToPdp(initialApiProduct);
+  return {
+    product: mapped.product,
+    loading: false,
+    initialSelectedOptions: mapped.initialSelectedOptions,
+    initialVariant: mapped.selectedVariant,
+  };
+}
+
+export type ProductDetailPageClientProps = {
+  productId: string;
+  initialApiProduct: ApiProduct | null;
+};
+
+export default function ProductDetailPageClient({
+  productId,
+  initialApiProduct,
+}: ProductDetailPageClientProps) {
+  const router = useRouter();
+  const bootstrap = bootstrapClientState(productId, initialApiProduct);
+  const { locality } = useLocality();
+
+  const [product, setProduct] = useState<Product | null>(() => bootstrap.product);
+  const [similarProducts, setSimilarProducts] = useState<SimilarProduct[]>([]);
+  const [productCombos, setProductCombos] = useState<ProductCombo[]>([]);
+  const [categoryProducts, setCategoryProducts] = useState<ApiProduct[]>([]);
+  /** admin = IDs desde Completa tu compra; legacy = colchones/sommiers aleatorio */
+  const [pdpCrossSellKind, setPdpCrossSellKind] = useState<"admin" | "legacy" | null>(null);
+  /** Solo sábanas: texto “color sujeto a disponibilidad” */
+  const [sabanasColorAvailabilityNotice, setSabanasColorAvailabilityNotice] = useState(() =>
+    initialApiProduct && initialApiProduct.id === productId
+      ? productIsSabanasForColorNotice(
+          initialApiProduct.category_id,
+          initialApiProduct.subcategories,
+        )
+      : false,
+  );
+  const [productBanner, setProductBanner] = useState<HeroImage | null>(null);
+  const [loading, setLoading] = useState(() => bootstrap.loading);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [selectedVariant, setSelectedVariant] = useState<string>(() => bootstrap.initialVariant);
+  const [selectedVariantOptions, setSelectedVariantOptions] = useState<Record<string, string>>(
+    () => bootstrap.initialSelectedOptions,
+  );
+  const [expandedVariants, setExpandedVariants] = useState<Record<string, boolean>>({});
+  const colorsAutoExpandedForIdRef = useRef<string | null>(null);
+
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() => {
+    const lines = bootstrap.product ? productColorLines(bootstrap.product) : undefined;
+    return {
+      characteristics: (lines?.length ?? 0) > 1,
+      description: false,
+      warranty: false,
+    };
+  });
+
+  const { addToCart, addToFavorites, removeFromFavorites, isInFavorites, favorites } = useCart();
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  const productHydratedRef = useRef<Product | null>(product);
+  productHydratedRef.current = product;
+
+  // Sincronizar estado de favorito cuando cambia en el contexto (solo cuando cambia favorites)
+  useEffect(() => {
+    setIsFavorite(isInFavorites(productId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId, favorites]);
+
+  useEffect(() => {
+    colorsAutoExpandedForIdRef.current = null;
+  }, [productId]);
+
+  useEffect(() => {
+    if (!product?.id) return;
+    const lc = productColorLines(product)?.length ?? 0;
+    if (lc <= 1) return;
+    if (colorsAutoExpandedForIdRef.current === product.id) return;
+    colorsAutoExpandedForIdRef.current = product.id;
+    setExpandedSections((prev) =>
+      prev.characteristics ? prev : { ...prev, characteristics: true },
+    );
+  }, [product]);
+
+  useEffect(() => {
+    if (!product?.images?.length) {
+      setCurrentImageIndex(0);
+      return;
+    }
+    setCurrentImageIndex((i) =>
+      Math.min(Math.max(0, i), product.images.length - 1),
+    );
+  }, [product?.id, product?.images?.length]);
+
+  useEffect(() => {
+    if (locality?.id) {
+      initializeCatalogCache(locality.id).catch(() => {});
+    }
+  }, [locality?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const applyCrossSellAfterProduct = async (apiProduct: ApiProduct) => {
+      try {
+        const currentCategoryId = apiProduct?.category_id || "";
+        const [{ productIds: crossSellRawIds, resolvedMainCategoryId }, similarProductsResult] =
+          await Promise.all([
+            fetchPdpCrossSellForProductPage(apiProduct?.category_id),
+            (async (): Promise<{ products: ApiProduct[] }> => {
+              const subIds = [
+                ...new Set(
+                  (apiProduct.subcategories ?? [])
+                    .map((s) => s.subcategory_id)
+                    .filter((id): id is string => Boolean(id && String(id).trim())),
+                ),
+              ];
+              const similarParams: Parameters<typeof fetchProducts>[0] = {
+                is_active: true,
+                page: 1,
+                per_page: 20,
+                include_images: true,
+                include_variants: false,
+                include_promos: true,
+                require_crm_product_id: true,
+              };
+              if (locality?.id) {
+                similarParams.locality_id = locality.id;
+              }
+              if (subIds.length > 0) {
+                similarParams.subcategory_ids = subIds.join(",");
+              } else if (apiProduct.category_id) {
+                similarParams.category_id = apiProduct.category_id;
+              }
+
+              if (!similarParams.subcategory_ids && !similarParams.category_id) {
+                return { products: [] };
+              }
+
+              try {
+                return await fetchProducts(similarParams);
+              } catch {
+                return { products: [] };
+              }
+            })(),
+          ]);
+
+        if (cancelled) return;
+
+        if (similarProductsResult.products?.length) {
+          const list = similarProductsResult.products;
+          const filteredProducts = list.filter((p) => p.id !== productId);
+          const shuffled = filteredProducts.sort(() => 0.5 - Math.random());
+          const selected = shuffled.slice(0, 4);
+
+          const similarProductsFormatted: SimilarProduct[] = selected.map((p) => {
+            const priceInfo = calculateProductPrice(p, 1);
+            const cardFields = productCardPriceDisplayFromPriceInfo(priceInfo);
+            return {
+              id: p.id,
+              name: p.name,
+              currentPrice: cardFields.currentPrice,
+              originalPrice: priceInfo.originalPrice,
+              discount: priceInfo.discount,
+              priceNote: cardFields.priceNote,
+              secondaryPrice: cardFields.secondaryPrice,
+              secondaryPriceLabel: cardFields.secondaryPriceLabel,
+              image: firstProductImageUrl(p),
+              outOfStock: p.has_crm_stock === false,
+            };
+          });
+
+          setSimilarProducts(similarProductsFormatted);
+        } else if (!cancelled) {
+          setSimilarProducts([]);
+        }
+
+        const mainForLegacy = resolvedMainCategoryId || currentCategoryId;
+        const configuredCrossSellIds = crossSellRawIds
+          .filter((id) => id && id !== productId)
+          .slice(0, 2);
+
+        if (configuredCrossSellIds.length > 0) {
+          setPdpCrossSellKind("admin");
+          const batchParams: Parameters<typeof fetchProducts>[0] = {
+            product_ids: configuredCrossSellIds.join(","),
+            include_images: true,
+            include_promos: true,
+            require_crm_product_id: true,
+            per_page: 12,
+            page: 1,
+          };
+          if (locality?.id) {
+            batchParams.locality_id = locality.id;
+          }
+          const crossSellResult = await fetchProducts(batchParams);
+          if (cancelled) return;
+
+          const byId = new Map(crossSellResult.products.map((p) => [p.id, p]));
+          const ordered = configuredCrossSellIds
+            .map((id) => byId.get(id))
+            .filter((p): p is ApiProduct => Boolean(p && p.id !== productId));
+          setCategoryProducts(ordered);
+        } else if (
+          apiProduct &&
+          (mainForLegacy === CATEGORY_COLCHONES_ID || mainForLegacy === CATEGORY_SOMMIERS_ID)
+        ) {
+          setPdpCrossSellKind("legacy");
+          const catParams: Parameters<typeof fetchProducts>[0] & { category_id: string } = {
+            is_active: true,
+            category_id: CATEGORY_SOMMIERS_ID,
+            page: 1,
+            per_page: 10,
+            include_images: true,
+            include_promos: true,
+            require_crm_product_id: true,
+          };
+          if (locality?.id) {
+            catParams.locality_id = locality.id;
+          }
+
+          try {
+            const result = await fetchProducts(catParams);
+            if (cancelled) return;
+
+            let filtered = result.products.filter((p) => p.id !== productId);
+
+            if (currentCategoryId === CATEGORY_SOMMIERS_ID) {
+              filtered = filtered.filter((p) => {
+                if (p.category_option_id === CATEGORY_OPTION_SOMMIER_FILTER) return true;
+                if (p.subcategories?.some((s) => s.category_option_id === CATEGORY_OPTION_SOMMIER_FILTER))
+                  return true;
+                return false;
+              });
+            }
+
+            const shuffled = filtered.sort(() => 0.5 - Math.random());
+            setCategoryProducts(shuffled.slice(0, 2));
+          } catch {
+            if (!cancelled) setCategoryProducts([]);
+          }
+        } else if (!cancelled) {
+          setPdpCrossSellKind(null);
+          setCategoryProducts([]);
+        }
+      } catch {
+        if (!cancelled) {
+          setSimilarProducts([]);
+          setCategoryProducts([]);
+          setPdpCrossSellKind(null);
+        }
+      }
+    };
+
+    const loadProduct = async () => {
+      try {
+        if (productHydratedRef.current === null) {
+          setLoading(true);
+        }
+        setSimilarProducts([]);
+        setProductCombos([]);
+        setCategoryProducts([]);
+        setPdpCrossSellKind(null);
+
+        const apiProduct = await fetchProductById(productId, locality?.id);
+        if (cancelled) return;
+
+        if (!apiProduct) {
+          setProduct(null);
+          setSabanasColorAvailabilityNotice(false);
+          setProductCombos([]);
+          setCategoryProducts([]);
+          setPdpCrossSellKind(null);
+          setSimilarProducts([]);
+          setSelectedVariantOptions({});
+          setSelectedVariant("");
+          setLoading(false);
+          return;
+        }
+
+        setSabanasColorAvailabilityNotice(
+          productIsSabanasForColorNotice(apiProduct.category_id, apiProduct.subcategories),
+        );
+
+        const mapped = mapApiProductToPdp(apiProduct);
+        setProduct(mapped.product);
+        if (mapped.variantsNormalized.length > 0) {
+          setSelectedVariantOptions(mapped.initialSelectedOptions);
+          setSelectedVariant(mapped.selectedVariant);
+        } else {
+          setSelectedVariantOptions({});
+          setSelectedVariant("");
+        }
+
+        setIsFavorite(isInFavorites(productId));
+        setLoading(false);
+
+        void applyCrossSellAfterProduct(apiProduct);
+
+        fetchProductCombos(productId)
+          .then((combos) => {
+            if (!cancelled) setProductCombos(combos);
+          })
+          .catch(() => {
+            if (!cancelled) setProductCombos([]);
+          });
+      } catch (error) {
+        console.error("Error loading product:", error);
+        if (!cancelled) {
+          setProduct(null);
+          setSabanasColorAvailabilityNotice(false);
+          setProductCombos([]);
+          setCategoryProducts([]);
+          setPdpCrossSellKind(null);
+          setSimilarProducts([]);
+        }
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadProduct();
+    return () => {
+      cancelled = true;
+    };
+  }, [productId, locality?.id]);
+
+  useEffect(() => {
+    if (!productId) return;
+    let cancelled = false;
+    fetchHeroImages(4, true)
+      .then((banners) => {
+        if (!cancelled && banners?.length) setProductBanner(banners[0]);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [productId]);
+  
+  // Escuchar cambios de localidad desde el evento personalizado
+  useEffect(() => {
+    const handleLocalityChange = () => {
+      // El useEffect anterior se ejecutará automáticamente porque locality?.id cambió
+    };
+    
+    window.addEventListener('localityChanged', handleLocalityChange);
+    return () => {
+      window.removeEventListener('localityChanged', handleLocalityChange);
+    };
+  }, [locality?.id]);
+
+  // Los productos similares ahora se cargan en paralelo con el producto principal
+
+  // Mostrar/ocultar indicador de scroll del contenedor de variantes
+  useEffect(() => {
+    if (!product || !product.variants) return;
+    
+    const checkScrollIndicator = () => {
+      const variantsContainer = document.getElementById('variants-container');
+      const variantsIndicator = document.getElementById('variants-scroll-indicator');
+      
+      if (variantsContainer && variantsIndicator) {
+        const hasScroll = variantsContainer.scrollHeight > variantsContainer.clientHeight;
+        if (hasScroll) {
+          variantsIndicator.classList.remove('opacity-0');
+          variantsIndicator.classList.add('opacity-100');
+        } else {
+          variantsIndicator.classList.remove('opacity-100');
+          variantsIndicator.classList.add('opacity-0');
+        }
+      }
+    };
+    
+    // Verificar después de que el DOM se actualice
+    setTimeout(checkScrollIndicator, 100);
+    
+    // Verificar cuando se hace scroll en el contenedor de variantes
+    const variantsContainer = document.getElementById('variants-container');
+    let handleVariantsScroll: (() => void) | null = null;
+    
+    if (variantsContainer) {
+      handleVariantsScroll = () => {
+        const variantsIndicator = document.getElementById('variants-scroll-indicator');
+        if (variantsIndicator && variantsContainer) {
+          const isAtBottom = variantsContainer.scrollHeight - variantsContainer.scrollTop <= variantsContainer.clientHeight + 10;
+          if (isAtBottom) {
+            variantsIndicator.classList.remove('opacity-100');
+            variantsIndicator.classList.add('opacity-0');
+          } else {
+            variantsIndicator.classList.remove('opacity-0');
+            variantsIndicator.classList.add('opacity-100');
+          }
+        }
+      };
+      variantsContainer.addEventListener('scroll', handleVariantsScroll);
+    }
+    
+    // Verificar en resize
+    window.addEventListener('resize', checkScrollIndicator);
+    
+    return () => {
+      window.removeEventListener('resize', checkScrollIndicator);
+      if (variantsContainer && handleVariantsScroll) {
+        variantsContainer.removeEventListener('scroll', handleVariantsScroll);
+      }
+    };
+  }, [product]);
+
+  // Los combos ahora se cargan en paralelo con el producto principal
+
+  const toggleSection = (section: string) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
+  const nextImage = () => {
+    if (product && product.images.length > 1) {
+      setCurrentImageIndex((prev) => (prev + 1) % product.images.length);
+    }
+  };
+
+  const prevImage = () => {
+    if (product && product.images.length > 1) {
+      setCurrentImageIndex(
+        (prev) => (prev - 1 + product.images.length) % product.images.length,
+      );
+    }
+  };
+
+  const handleAddToCart = () => {
+    if (!product) return;
+    if (product.is_active === false) {
+      alert("Este producto no está disponible para la venta.");
+      return;
+    }
+    const currentPrice = getCurrentProductPrice();
+    if (product.has_crm_stock !== false && currentPrice.price > 0) {
+      addToCart({
+        id: product.id,
+        name: product.name,
+        image: product.images[0]?.url?.trim() || PRODUCT_IMAGE_PLACEHOLDER,
+        price: currentPrice.formattedPrice,
+      });
+    } else if (currentPrice.price === 0) {
+      alert("Este producto no tiene precio disponible");
+    } else {
+      alert("Este producto no está disponible en este momento");
+    }
+  };
+
+  const handleBuyNow = () => {
+    if (!product) return;
+    if (product.is_active === false) {
+      alert("Este producto no está disponible para la venta.");
+      return;
+    }
+    const currentPrice = getCurrentProductPrice();
+    if (product.has_crm_stock !== false && currentPrice.price > 0) {
+      handleAddToCart();
+      router.push("/checkout");
+    } else if (currentPrice.price === 0) {
+      alert("Este producto no tiene precio disponible");
+    } else {
+      alert("Este producto no está disponible en este momento");
+    }
+  };
+
+  const handleToggleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (product) {
+      if (isFavorite) {
+        removeFromFavorites(product.id);
+        setIsFavorite(false);
+      } else {
+        const tempApi = buildPdpTempApiProductForPrice(
+          product,
+          locality,
+          selectedVariantOptions,
+          selectedVariant,
+        );
+        const pi = calculateProductPrice(tempApi, 1);
+        addToFavorites({
+          id: product.id,
+          name: product.name,
+          image: product.images[0]?.url?.trim() || PRODUCT_IMAGE_PLACEHOLDER,
+          price: pi.currentPrice,
+          originalPrice:
+            pi.hasDiscount &&
+            pi.originalPrice &&
+            pi.originalPriceValue > pi.currentPriceValue
+              ? pi.originalPrice
+              : undefined,
+          priceNote: pi.priceNote,
+        });
+        setIsFavorite(true);
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Navbar />
+        <div className="container mx-auto px-4 py-6 md:py-14">
+          {/* Main Product Section Skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-7 gap-6 lg:gap-12 mb-8 md:mb-12 animate-pulse">
+            {/* Left: Image Skeleton */}
+            <div className="relative flex lg:col-span-4">
+              <div className="relative w-full h-[300px] sm:h-[400px] lg:h-[520px] rounded-[10px] overflow-hidden bg-gray-200"></div>
+            </div>
+
+            {/* Right: Product Info Skeleton */}
+            <div className="flex flex-col lg:h-[520px] lg:col-span-3">
+              <div className="flex-1">
+                {/* Title Skeleton */}
+                <div className="h-6 md:h-8 bg-gray-200 rounded w-3/4 mb-4 md:mb-6"></div>
+
+                {/* Pricing Skeleton */}
+                <div className="mb-4 md:mb-6">
+                  <div className="flex items-center gap-2 md:gap-3 mb-2">
+                    <div className="h-4 md:h-5 bg-gray-200 rounded w-20 md:w-24"></div>
+                    <div className="h-5 md:h-6 bg-gray-200 rounded w-14 md:w-16"></div>
+                  </div>
+                  <div className="h-6 md:h-8 bg-gray-200 rounded w-28 md:w-32 mb-2"></div>
+                  <div className="h-3 md:h-4 bg-gray-200 rounded w-36 md:w-40 mb-1"></div>
+                  <div className="h-3 bg-gray-200 rounded w-40 md:w-48"></div>
+                </div>
+
+                {/* Variant Selection Skeleton */}
+                <div className="mb-6 md:mb-8">
+                  <div className="h-3 md:h-4 bg-gray-200 rounded w-36 md:w-40 mb-2 md:mb-3"></div>
+                  <div className="flex flex-wrap gap-1.5 md:gap-2">
+                    {[...Array(4)].map((_, i) => (
+                      <div key={i} className="h-8 md:h-9 bg-gray-200 rounded-[4px] w-20 md:w-24"></div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons Skeleton */}
+              <div className="flex flex-col gap-3 md:gap-4">
+                <div className="w-full h-10 md:h-12 bg-gray-200 rounded-[4px]"></div>
+                <div className="w-full h-10 md:h-12 bg-gray-200 rounded-[4px]"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Section Skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-7 gap-8 lg:gap-12 mb-8 md:mb-12">
+            {/* Left: Technical Info Skeleton */}
+            <div className="lg:col-span-4 order-2 lg:order-1">
+              <div className="h-5 md:h-6 bg-gray-200 rounded w-40 md:w-48 mb-4 md:mb-6"></div>
+              <div className="space-y-2">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="border-b border-gray-200">
+                    <div className="w-full flex items-center justify-between py-3 md:py-4">
+                      <div className="h-4 md:h-5 bg-gray-200 rounded w-28 md:w-32"></div>
+                      <div className="h-4 md:h-5 w-4 md:w-5 bg-gray-200 rounded"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: Combos Skeleton */}
+            <div className="lg:col-span-3 order-1 lg:order-2">
+              <div className="h-5 md:h-6 bg-gray-200 rounded w-36 md:w-40 mb-4 md:mb-6"></div>
+              <div className="space-y-3 md:space-y-4">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="bg-gray-100 rounded-lg p-3 md:p-4">
+                    <div className="h-4 md:h-5 bg-gray-200 rounded w-3/4 mb-2 md:mb-3"></div>
+                    <div className="h-3 md:h-4 bg-gray-200 rounded w-1/2 mb-1 md:mb-2"></div>
+                    <div className="h-5 md:h-6 bg-gray-200 rounded w-20 md:w-24"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Navbar />
+        <div className="container mx-auto px-4 py-12">
+          <div className="text-center">Producto no encontrado</div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  const firmnessBarLevel = firmnessLabelToBarLevel(product.firmness);
+
+  // Calcular precio basado en variante/opción seleccionada y localidad
+  const getCurrentProductPrice = (): { price: number; formattedPrice: string } => {
+    if (!product) {
+      return { price: 0, formattedPrice: formatPrice(0) };
+    }
+
+    if (!locality?.id) {
+      const numericPrice = parseFloat(product.currentPrice.replace(/[$.]/g, '').replace(/\./g, '')) || 0;
+      return { price: numericPrice, formattedPrice: product.currentPrice };
+    }
+
+    let selectedPrice = 0;
+    let hasSelectedVariant = false;
+
+    if (product.variants && product.variants.length > 0) {
+      for (const variant of product.variants) {
+        const variantKey = variant.id || variant.name || variant.sku || 'default';
+        const selectedOptionId = selectedVariantOptions[variantKey];
+        
+        if (selectedOptionId) {
+          hasSelectedVariant = true;
+          const price = getVariantPriceByLocality(variant, selectedOptionId, locality.id);
+          if (price > 0) {
+            selectedPrice = price;
+            break;
+          }
+        } else if (selectedVariant === variant.id) {
+          hasSelectedVariant = true;
+          const price = getVariantPriceByLocality(variant, undefined, locality.id);
+          if (price > 0) {
+            selectedPrice = price;
+            break;
+          }
+        }
+      }
+    }
+
+    if (hasSelectedVariant && selectedPrice === 0) {
+      return { price: 0, formattedPrice: 'Sin precio' };
+    }
+
+    if (selectedPrice === 0 && !hasSelectedVariant) {
+      const numericPrice = parseFloat(product.currentPrice.replace(/[$.]/g, '').replace(/\./g, '')) || 0;
+      return { price: numericPrice, formattedPrice: product.currentPrice };
+    }
+
+    const apiProduct = product as any;
+    if (apiProduct.promos && apiProduct.promos.length > 0) {
+      const tempProduct = { ...apiProduct, min_price: selectedPrice, max_price: selectedPrice };
+      const priceInfo = calculateProductPrice(tempProduct, 1);
+      return { price: priceInfo.currentPriceValue, formattedPrice: priceInfo.currentPrice };
+    }
+
+    return { price: selectedPrice, formattedPrice: formatPrice(selectedPrice) };
+  };
+
+  const currentPriceInfo = getCurrentProductPrice();
+  const hasPrice = currentPriceInfo.price > 0;
+
+  // Calcular precio sin impuestos basado en el precio final (con descuento si aplica)
+  const tempProductForTaxes = { 
+    ...product, 
+    min_price: currentPriceInfo.price, 
+    max_price: currentPriceInfo.price,
+    promos: (product as any).promos || [],
+    is_active: product.is_active !== false,
+  } as unknown as ApiProduct;
+  const priceInfoForTaxes = calculateProductPrice(tempProductForTaxes, 1);
+  const priceWithoutTaxes = hasPrice ? priceInfoForTaxes.currentPriceValue * 0.79 : 0;
+
+  const heroUrl = product.images[currentImageIndex]?.url?.trim();
+  const heroUsesNextImage =
+    Boolean(heroUrl && /^https?:\/\//i.test(heroUrl));
+  const heroAlt = product.images[currentImageIndex]?.alt || product.name;
+  const heroImgSrcFallback = heroUrl
+    ? wsrvLoader({ src: heroUrl, width: 800 })
+    : PRODUCT_IMAGE_PLACEHOLDER;
+
+  // Función helper para verificar si una variante es del tipo "Atributo" con opción "Default"
+  const isDefaultAttributeVariant = (variant: any): boolean => {
+    const variantName = variant.name || variant.sku || '';
+    const hasOptions = variant.options && Array.isArray(variant.options) && variant.options.length > 0;
+    
+    if (hasOptions && variant.options.length === 1) {
+      const option = variant.options[0];
+      // Detectar variantes "Atributo" con opción "Default" o variantes sin sku con opción "Default"
+      return ((variantName === 'Atributo' || variantName === '' || variant.sku === null || variant.sku === undefined) && option.name === 'Default');
+    }
+    
+    return false;
+  };
+
+  // Verificar si todas las variantes son del tipo "Atributo" con opción "Default"
+  const shouldHideVariantsSection = (): boolean => {
+    if (!product || !product.variants || product.variants.length === 0) {
+      return true;
+    }
+    
+    const variantsWithSku = product.variants.filter((variant: any) => variant.sku !== null && variant.sku !== undefined);
+    
+    if (variantsWithSku.length === 0) {
+      return true;
+    }
+    
+    // Si todas las variantes son del tipo "Atributo" con opción "Default", ocultar la sección
+    return variantsWithSku.every((variant: any) => isDefaultAttributeVariant(variant));
+  };
+
+  const hasCategorySlotProducts = categoryProducts.length > 0;
+  const completedCombos = productCombos.filter((combo) => combo.is_completed);
+  /**
+   * Combo CRM con producto de vitrina (hueco 2+1 solo en legacy colchones/sommiers).
+   * Cross-sell del admin: hasta 2 sugerencias; no les roba lugar un combo CRM.
+   */
+  const completedCombosWithVitrina = completedCombos.filter(
+    (combo) => Boolean(combo.product?.id),
+  );
+  const showComboSection =
+    categoryProducts.length > 0 || completedCombos.length > 0;
+
+  const isAdminCrossSell = pdpCrossSellKind === "admin";
+  const reserveComboSlotBesideCategory =
+    !isAdminCrossSell && completedCombosWithVitrina.length > 0;
+
+  let numCatProducts = 0;
+  let numCombosToShow = 0;
+  if (hasCategorySlotProducts) {
+    if (isAdminCrossSell) {
+      numCatProducts = Math.min(2, categoryProducts.length);
+      numCombosToShow = Math.min(1, completedCombosWithVitrina.length);
+    } else if (reserveComboSlotBesideCategory) {
+      numCatProducts = Math.min(2, categoryProducts.length);
+      numCombosToShow = Math.min(1, completedCombosWithVitrina.length);
+    } else {
+      numCatProducts = Math.min(2, categoryProducts.length);
+      numCombosToShow = 0;
+    }
+  } else {
+    numCombosToShow = Math.min(3, completedCombos.length);
+  }
+  const catProductsToShow = hasCategorySlotProducts
+    ? categoryProducts.slice(0, numCatProducts)
+    : [];
+  const combosToShow = hasCategorySlotProducts
+    ? completedCombosWithVitrina.slice(0, numCombosToShow)
+    : completedCombos.slice(0, numCombosToShow);
+
+  return (
+    <>
+      <style jsx global>{`
+        .custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+        @keyframes arrowDown {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(8px);
+          }
+        }
+        .arrow-down-animation {
+          animation: arrowDown 1.5s ease-in-out infinite;
+        }
+      `}</style>
+      <div className="min-h-screen bg-white">
+        <Navbar />
+
+      <div className="container mx-auto px-4 py-6 md:py-14">
+        {/* Main Product Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-7 gap-6 lg:gap-12 mb-8 md:mb-12">
+          {/* Left: Image Carousel */}
+          <div className="relative flex lg:col-span-4">
+            <div className="relative w-full h-[300px] sm:h-[400px] lg:h-[520px] rounded-[10px] overflow-hidden bg-gray-100">
+              <>
+                {heroUsesNextImage ? (
+                  <Image
+                    src={heroUrl!}
+                    alt={heroAlt}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 56vw"
+                    priority={currentImageIndex === 0}
+                    fetchPriority={currentImageIndex === 0 ? "high" : "low"}
+                  />
+                ) : (
+                  <img
+                    src={heroImgSrcFallback}
+                    alt={heroAlt}
+                    className="w-full h-full object-cover"
+                    style={{ objectFit: "cover" }}
+                    fetchPriority={currentImageIndex === 0 ? "high" : "low"}
+                    onError={(e) => {
+                      const el = e.currentTarget;
+                      el.onerror = null;
+                      el.src = PRODUCT_IMAGE_PLACEHOLDER;
+                    }}
+                  />
+                )}
+
+                {product.images.length > 1 && (
+                  <>
+                    <button
+                      onClick={prevImage}
+                      className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-all z-10"
+                      aria-label="Imagen anterior"
+                    >
+                      <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 text-gray-700" />
+                    </button>
+                    <button
+                      onClick={nextImage}
+                      className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-all z-10"
+                      aria-label="Imagen siguiente"
+                    >
+                      <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-gray-700" />
+                    </button>
+                  </>
+                )}
+
+                {product.images.length > 1 && (
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                    {product.images.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentImageIndex(index)}
+                        className={`w-2 h-2 rounded-full transition-all ${
+                          index === currentImageIndex
+                            ? "bg-white"
+                            : "bg-white/50"
+                        }`}
+                        aria-label={`Ir a imagen ${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleToggleFavorite}
+                  className={`absolute top-2 right-2 md:top-4 md:right-4 w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center shadow-lg transition-all z-10 ${
+                    isFavorite
+                      ? "bg-red-500 text-white hover:bg-red-600"
+                      : "bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                  aria-label={
+                    isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"
+                  }
+                >
+                  <Heart
+                    className={`w-4 h-4 md:w-5 md:h-5 ${isFavorite ? "fill-current" : ""}`}
+                  />
+                </button>
+              </>
+            </div>
+          </div>
+
+          {/* Right: Product Info */}
+          <div className="flex flex-col lg:h-[520px] lg:col-span-3">
+            <div className="flex-1">
+              <h1 className="text-xl md:text-2xl font-semibold text-gray-900 mb-2">{product.name}</h1>
+              {(() => {
+                const clr = productColorLines(product);
+                if (!clr?.length) return null;
+                return (
+                  <p className="text-sm text-gray-600 mb-4 md:mb-6">{clr.join(", ")}</p>
+                );
+              })()}
+
+              {/* Pricing */}
+              <div className="mb-4 md:mb-6">
+                {hasPrice ? (
+                  <>
+                    {(() => {
+                      const tempProduct = buildPdpTempApiProductForPrice(
+                        product,
+                        locality,
+                        selectedVariantOptions,
+                        selectedVariant,
+                      );
+                      const priceInfo = calculateProductPrice(tempProduct, 1);
+                      const hasDiscount = priceInfo.hasDiscount;
+
+                      let discountLabel = priceInfo.discount;
+                      if (!discountLabel && tempProduct.promos && tempProduct.promos.length > 0) {
+                        discountLabel = getPromoLabel(tempProduct.promos as any, "product_view");
+                      }
+
+                      const originalPrice = priceInfo.originalPrice;
+
+                      const hasPromotionalMessage =
+                        tempProduct.promos &&
+                        tempProduct.promos.length > 0 &&
+                        tempProduct.promos.some((p: any) => p.type === "promotional_message");
+
+                      const shouldShowDiscount =
+                        (hasDiscount && discountLabel) || (hasPromotionalMessage && discountLabel);
+                      const shouldShowOriginalPrice =
+                        hasDiscount &&
+                        originalPrice &&
+                        priceInfo.originalPriceValue > priceInfo.currentPriceValue;
+                      const showMarketingReferenceStrike =
+                        !hasDiscount && Boolean(originalPrice);
+
+                      const showDualPrice = Boolean(priceInfo.hasCardPrice && priceInfo.cardPrice);
+                      const priceForTaxesBase = showDualPrice
+                        ? priceInfo.transferPriceValue
+                        : priceInfo.currentPriceValue;
+                      const priceWithoutTaxes = priceForTaxesBase * 0.79;
+                      const promoBadge = shouldShowDiscount && discountLabel && (
+                        <span className="bg-[#00C1A7] text-white px-2 py-0.5 md:py-1 rounded-[4px] font-semibold text-xs md:text-sm shrink-0">
+                          {discountLabel}
+                        </span>
+                      );
+
+                      const displayStrikethrough =
+                        (shouldShowOriginalPrice || showMarketingReferenceStrike) && originalPrice;
+
+                      const priceRow = (
+                        <div className="flex items-baseline gap-2 md:gap-3 flex-wrap">
+                          <span className="text-xl md:text-2xl font-semibold text-gray-900 tabular-nums">
+                            {priceInfo.currentPrice}
+                          </span>
+                          {displayStrikethrough ? (
+                            <span className="text-base md:text-lg text-gray-400 line-through tabular-nums">
+                              {originalPrice}
+                            </span>
+                          ) : null}
+                          {promoBadge}
+                        </div>
+                      );
+
+                      const transferMainRow = (
+                        <div className="flex items-baseline gap-2 md:gap-3 flex-wrap">
+                          <span className="text-2xl md:text-3xl font-semibold text-gray-900 tabular-nums">
+                            {priceInfo.transferPrice}
+                          </span>
+                          {displayStrikethrough ? (
+                            <span className="text-base md:text-lg text-gray-400 line-through tabular-nums">
+                              {originalPrice}
+                            </span>
+                          ) : null}
+                          {promoBadge}
+                        </div>
+                      );
+
+                      return (
+                        <>
+                          {showDualPrice ? (
+                            <div className="space-y-2 text-gray-900">
+                              <div>
+                                <p className="text-sm font-medium text-[#00A890] mb-1">
+                                  {PRICE_UI_TRANSFER_CAPTION}
+                                </p>
+                                {transferMainRow}
+                              </div>
+                              <p className="text-xs md:text-sm text-gray-500 leading-snug">
+                                <span>{PRICE_UI_CARD_CAPTION}: </span>
+                                <span className="font-medium text-gray-700 tabular-nums">
+                                  {priceInfo.cardPrice}
+                                </span>
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="mb-1">{priceRow}</div>
+                          )}
+
+                          <div className="text-xs text-gray-500 mt-3">
+                            Precio sin impuestos nacionales $
+                            {priceWithoutTaxes.toLocaleString("es-AR", { maximumFractionDigits: 0 })}
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </>
+                ) : (
+                  <div className="text-xl md:text-2xl font-semibold text-gray-500 mb-1 md:mb-2">Sin precio</div>
+                )}
+              </div>
+
+              {/* Variant Selection */}
+              {(() => {
+                const visibleVariants = product.variants
+                  ? product.variants
+                      .filter((v: any) => v.sku !== null && v.sku !== undefined)
+                      .filter((v: any) => !isDefaultAttributeVariant(v))
+                  : [];
+                const hasOnlyOneCategory = visibleVariants.length === 1;
+                if (visibleVariants.length === 0 || shouldHideVariantsSection()) return null;
+                return (
+                  <div className="mb-6 md:mb-8">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2 md:mb-3">Opciones disponibles:</h3>
+                    <div className="space-y-2 md:space-y-3">
+                      {visibleVariants.map((variant: any) => {
+                        const variantKey = variant.id || variant.name || variant.sku || 'default';
+                        const hasOptions = variant.options && Array.isArray(variant.options) && variant.options.length > 0;
+                        const isExpanded = hasOnlyOneCategory || (expandedVariants[variantKey] ?? false);
+                        const renderOptions = () => (
+                          <div className="flex flex-wrap gap-1.5 md:gap-2">
+                            {hasOptions ? (
+                              variant.options.map((option: any) => {
+                                const isSelected = selectedVariantOptions[variantKey] === option.id;
+                                return (
+                                  <button
+                                    key={option.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedVariantOptions(prev => ({ ...prev, [variantKey]: option.id }));
+                                    }}
+                                    className={`px-3 py-1.5 md:px-4 md:py-2 rounded-[4px] border transition-all text-xs md:text-sm ${
+                                      isSelected
+                                        ? "border-[#00C1A7] bg-[#00C1A7] text-white cursor-pointer"
+                                        : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 cursor-pointer"
+                                    }`}
+                                  >
+                                    {option.name}
+                                  </button>
+                                );
+                              })
+                            ) : (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedVariant(variant.id);
+                                }}
+                                className={`px-3 py-1.5 md:px-4 md:py-2 rounded-[4px] border transition-all text-xs md:text-sm ${
+                                  selectedVariant === variant.id
+                                    ? "border-[#00C1A7] bg-[#00C1A7] text-white cursor-pointer"
+                                    : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 cursor-pointer"
+                                }`}
+                              >
+                                {variant.name || variant.sku || variant.id}
+                              </button>
+                            )}
+                          </div>
+                        );
+                        if (hasOnlyOneCategory) {
+                          return (
+                            <div key={variantKey}>
+                              <h4 className="text-xs md:text-sm font-semibold text-gray-700 mb-2 md:mb-3">
+                                {variant.name || variant.sku || variant.id || "Opción"}
+                              </h4>
+                              {renderOptions()}
+                            </div>
+                          );
+                        }
+                        return (
+                          <div key={variantKey} className="border border-gray-200 rounded-[8px] overflow-hidden">
+                            <button
+                              onClick={() => {
+                                setExpandedVariants(prev => ({ ...prev, [variantKey]: !prev[variantKey] }));
+                              }}
+                              className="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-gray-50 transition-colors text-left"
+                            >
+                              <h4 className="text-xs md:text-sm font-semibold text-gray-900">
+                                {variant.name || variant.sku || variant.id || "Opción"}
+                              </h4>
+                              <div className="flex items-center gap-2">
+                                {hasOptions && (
+                                  <span className="text-xs text-gray-500">
+                                    {variant.options.length} opción{variant.options.length !== 1 ? 'es' : ''}
+                                  </span>
+                                )}
+                                {isExpanded ? (
+                                  <ChevronUp className="w-4 h-4 md:w-5 md:h-5 text-gray-600 shrink-0" />
+                                ) : (
+                                  <ChevronDown className="w-4 h-4 md:w-5 md:h-5 text-gray-600 shrink-0" />
+                                )}
+                              </div>
+                            </button>
+                            <div
+                              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                                isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
+                              }`}
+                            >
+                              <div className="px-4 pb-3 pt-2 bg-gray-50 border-t border-gray-200">
+                                {renderOptions()}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+              {sabanasColorAvailabilityNotice && (
+                <p className="mt-3 mb-4 md:mb-6 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-[6px] px-3 py-2 leading-snug">
+                  El color está sujeto a disponibilidad. Nos contactaremos con vos luego de realizada la compra para confirmar el color disponible.
+                </p>
+              )}
+            </div>
+
+            {/* Action Buttons - Alineados con el fondo de la imagen */}
+            <div className="flex flex-col gap-3 md:gap-4 mt-4 lg:mt-0">
+              {product.is_active === false ? (
+                <div className="w-full bg-gray-300 text-gray-600 py-2.5 md:py-3 px-4 md:px-6 rounded-[4px] text-center font-medium text-sm md:text-base">
+                  Producto no disponible
+                </div>
+              ) : product?.has_crm_stock === false ? (
+                <div className="w-full bg-gray-300 text-gray-600 py-2.5 md:py-3 px-4 md:px-6 rounded-[4px] text-center font-medium text-sm md:text-base">
+                  Sin stock
+                </div>
+              ) : !hasPrice ? (
+                <div className="w-full bg-gray-300 text-gray-600 py-2.5 md:py-3 px-4 md:px-6 rounded-[4px] text-center font-medium text-sm md:text-base">
+                  Sin precio
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={handleBuyNow}
+                    className="w-full bg-[#00C1A7] text-white py-2.5 md:py-3 px-4 md:px-6 rounded-[4px] hover:bg-[#00A890] transition-colors cursor-pointer text-sm md:text-base font-medium"
+                  >
+                    Comprar ahora
+                  </button>
+                  <button
+                    onClick={handleAddToCart}
+                    className="w-full border border-[#00C1A7] text-[#00C1A7] py-2.5 md:py-3 px-4 md:px-6 rounded-[4px] hover:bg-[#00C1A7] hover:text-white transition-colors cursor-pointer text-sm md:text-base font-medium"
+                  >
+                    Agregar al carrito
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Section: Technical Info (Left) and Combos (Right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-7 gap-8 lg:gap-12 mb-8 md:mb-12">
+          {/* Left: Collapsible Sections */}
+          <div className="lg:col-span-4 order-1">
+            <h2 className="text-lg md:text-xl text-gray-900 mb-4 md:mb-6">Información técnica</h2>
+            <div className="space-y-2">
+              {/* Descripción */}
+              <div className="border-b border-gray-200">
+                <button
+                  onClick={() => toggleSection("description")}
+                  className="w-full flex items-center justify-between py-4 text-left cursor-pointer"
+                >
+                  <span className="text-md text-gray-500">Descripción</span>
+                  {expandedSections.description ? (
+                    <Minus className="w-5 h-5 text-gray-500" />
+                  ) : (
+                    <Plus className="w-5 h-5 text-gray-500" />
+                  )}
+                </button>
+                <div 
+                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    expandedSections.description ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
+                  }`}
+                >
+                  <div className="pb-4">
+                    {product.description?.trim() ? (
+                      <div className="text-sm text-gray-600 whitespace-pre-wrap">{product.description}</div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-10 px-4 text-center rounded-lg bg-gray-50 border border-dashed border-gray-200">
+                        <FileText className="w-9 h-9 text-gray-300 mb-2" strokeWidth={1.25} aria-hidden />
+                        <p className="text-sm text-gray-500">No hay descripción disponible para este producto.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Características principales */}
+              <div className="border-b border-gray-200">
+                <button
+                  onClick={() => toggleSection("characteristics")}
+                  className="w-full flex items-center justify-between py-4 text-left cursor-pointer"
+                >
+                  <span className="text-md text-gray-500">Características principales</span>
+                  {expandedSections.characteristics ? (
+                    <Minus className="w-5 h-5 text-gray-500" />
+                  ) : (
+                    <Plus className="w-5 h-5 text-gray-500" />
+                  )}
+                </button>
+                <div 
+                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    expandedSections.characteristics ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+                  }`}
+                >
+                  <div className="pb-4">
+                    {!productHasMainCharacteristics(product) ? (
+                      <div className="flex flex-col items-center justify-center py-10 px-4 text-center rounded-lg bg-gray-50 border border-dashed border-gray-200">
+                        <Layers className="w-9 h-9 text-gray-300 mb-2" strokeWidth={1.25} aria-hidden />
+                        <p className="text-sm text-gray-500">No hay características registradas para este producto.</p>
+                      </div>
+                    ) : (
+                    <div className="space-y-4">
+                      {(() => {
+                        const lines = productColorLines(product);
+                        if (!lines?.length) return null;
+                        const multi = lines.length > 1;
+                        return (
+                          <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0 pt-0.5">
+                              <Palette className="w-5 h-5 text-gray-600" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-gray-700 mb-1">
+                                {multi ? "Colores" : "Color"}
+                              </div>
+                              {multi ? (
+                                <ul className="text-sm text-gray-900 list-disc list-inside space-y-0.5">
+                                  {lines.map((line, idx) => (
+                                    <li key={`${idx}-${line}`}>{line}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="text-sm text-gray-900">{lines[0]}</div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      {/* Tipo de relleno */}
+                      {product.fillingType && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <CheckCircle2 className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Estructura de relleno</div>
+                            <div className="text-sm text-gray-900">{product.fillingType}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Firmeza del colchón con barra visual */}
+                      {product.firmness && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Layers className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-2">Firmeza del colchón</div>
+                            <div className="flex items-center gap-3">
+                              <div className="flex-1">
+                                <div className="flex gap-1">
+                                  {[1, 2, 3, 4, 5].map((level) => {
+                                    const isActive = level <= firmnessBarLevel;
+                                    return (
+                                      <div
+                                        key={level}
+                                        className={`flex-1 h-2 rounded-sm ${
+                                          isActive ? "bg-[#00C1A7]" : "bg-gray-200"
+                                        }`}
+                                      />
+                                    );
+                                  })}
+                                </div>
+                                <div className="flex justify-between mt-1 text-xs text-gray-500">
+                                  <span>SOFT</span>
+                                  <span>FIRME</span>
+                                </div>
+                              </div>
+                              <div className="text-sm font-medium text-gray-900 min-w-[60px] text-right">
+                                {product.firmness}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Pillow superior — solo si aplica */}
+                      {product.has_pillow_top === true && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Bed className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900">Pillow superior</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Peso máximo soportado */}
+                      {product.maxWeight && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Scale className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Peso máximo soportado</div>
+                            <div className="text-sm text-gray-900">{product.maxWeight}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Colchón en caja — solo si aplica */}
+                      {product.is_bed_in_box === true && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Package className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900">Colchón en caja</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Tamaño */}
+                      {product.size_label && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Maximize className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Tamaño</div>
+                            <div className="text-sm text-gray-900">{product.size_label}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {product.mattress_height_cm != null && product.mattress_height_cm > 0 && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Ruler className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Altura</div>
+                            <div className="text-sm text-gray-900">{product.mattress_height_cm} cm</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {!!product.mattress_fabric_type?.trim() && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Shirt className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Tipo de tela</div>
+                            <div className="text-sm text-gray-900">{product.mattress_fabric_type?.trim()}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {product.has_double_pillow && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <BedDouble className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900">Doble pillow</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {product.has_moisture_breathers && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Wind className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900">Respiradores anti humedad</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {product.has_side_handles && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <GripHorizontal className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900">Agarraderas laterales</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {!!product.smart_screen_size?.trim() && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Tv className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Tamaño de pantalla</div>
+                            <div className="text-sm text-gray-900">{product.smart_screen_size?.trim()}</div>
+                          </div>
+                        </div>
+                      )}
+                      {!!product.smart_resolution?.trim() && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Tv className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Resolución</div>
+                            <div className="text-sm text-gray-900">{product.smart_resolution?.trim()}</div>
+                          </div>
+                        </div>
+                      )}
+                      {(product.smart_tv === true || product.smart_tv === false) && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Tv className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Smart</div>
+                            <div className="text-sm text-gray-900">{product.smart_tv === true ? "Sí" : "No"}</div>
+                          </div>
+                        </div>
+                      )}
+                      {(product.ac_inverter === true || product.ac_inverter === false) && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Wind className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Tecnología Inverter</div>
+                            <div className="text-sm text-gray-900">{product.ac_inverter === true ? "Sí" : "No"}</div>
+                          </div>
+                        </div>
+                      )}
+                      {!!product.ac_climate_type?.trim() && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Wind className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Tipo de climatización</div>
+                            <div className="text-sm text-gray-900">{product.ac_climate_type?.trim()}</div>
+                          </div>
+                        </div>
+                      )}
+                      {product.ac_frigorias != null && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Wind className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Frigorías</div>
+                            <div className="text-sm text-gray-900">{product.ac_frigorias}</div>
+                          </div>
+                        </div>
+                      )}
+                      {!!product.wm_load_type?.trim() && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <WashingMachine className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Tipo de carga</div>
+                            <div className="text-sm text-gray-900">{product.wm_load_type?.trim()}</div>
+                          </div>
+                        </div>
+                      )}
+                      {product.wm_wash_capacity_kg != null && product.wm_wash_capacity_kg > 0 && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <WashingMachine className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Capacidad de lavado</div>
+                            <div className="text-sm text-gray-900">{product.wm_wash_capacity_kg} kg</div>
+                          </div>
+                        </div>
+                      )}
+                      {product.fridge_capacity_liters != null && product.fridge_capacity_liters > 0 && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Refrigerator className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Capacidad heladera</div>
+                            <div className="text-sm text-gray-900">{product.fridge_capacity_liters} L</div>
+                          </div>
+                        </div>
+                      )}
+                      {product.freezer_capacity_liters != null && product.freezer_capacity_liters > 0 && (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            <Snowflake className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700 mb-1">Capacidad freezer</div>
+                            <div className="text-sm text-gray-900">{product.freezer_capacity_liters} L</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Garantía */}
+              {(product.warrantyDescription || product.warrantyMonths) && (
+                <div className="border-b border-gray-200">
+                  <button
+                    onClick={() => toggleSection("warranty")}
+                    className="w-full flex items-center justify-between py-4 text-left cursor-pointer"
+                  >
+                    <span className="text-md text-gray-500">Garantía</span>
+                    {expandedSections.warranty ? (
+                      <Minus className="w-5 h-5 text-gray-500" />
+                    ) : (
+                      <Plus className="w-5 h-5 text-gray-500" />
+                    )}
+                  </button>
+                  <div 
+                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                      expandedSections.warranty ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
+                    }`}
+                  >
+                    <div className="pb-4 text-sm text-gray-600 space-y-2">
+                      {product.warrantyMonths && (
+                        <div>
+                          <span className="font-medium text-gray-700">Duración:</span> {product.warrantyMonths} meses
+                        </div>
+                      )}
+                      {product.warrantyDescription && (
+                        <div className="whitespace-pre-wrap">{product.warrantyDescription}</div>
+                      )}
+                      {!product.warrantyDescription && !product.warrantyMonths && product.warranty && (
+                        <div>{product.warranty}</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Banner de productos - Último elemento del contenedor de información técnica */}
+              {productBanner && (
+                <div className="mt-6 mb-6">
+                  {productBanner.cta_link ? (
+                    <Link href={productBanner.cta_link} className="block">
+                      <img
+                        src={wsrvLoader({ src: productBanner.image_url, width: 1200 })}
+                        alt={productBanner.title || productBanner.subtitle || "Banner promocional"}
+                        className="w-full h-auto rounded-[10px] object-cover"
+                        style={{ maxHeight: '200px', objectFit: 'cover', width: '100%' }}
+                      />
+                    </Link>
+                  ) : (
+                    <img
+                      src={wsrvLoader({ src: productBanner.image_url, width: 1200 })}
+                      alt={productBanner.title || productBanner.subtitle || "Banner promocional"}
+                      className="w-full h-auto rounded-[10px] object-cover"
+                      style={{ maxHeight: '200px', objectFit: 'cover', width: '100%' }}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right: Combo Section */}
+          {showComboSection && (
+            <div className="lg:col-span-3 order-2">
+              <div className="flex items-center justify-between mb-4 md:mb-6">
+                <h2 className="text-lg md:text-xl text-gray-900">Completa tu compra</h2>
+                {!hasCategorySlotProducts && completedCombos.length > 3 && (
+                  <Link
+                    href={`/productos/${productId}/combos`}
+                    className="flex items-center gap-1 md:gap-2 text-gray-700 hover:text-gray-900 transition-colors text-xs md:text-sm font-medium"
+                  >
+                    <span>Ver todos</span>
+                    <ArrowRight className="w-3 h-3 md:w-4 md:h-4" />
+                  </Link>
+                )}
+              </div>
+              <div className="space-y-4 md:space-y-6">
+                {/* Category products for special categories, shown as combo-style cards */}
+                {hasCategorySlotProducts && catProductsToShow.map((catProduct) => {
+                  const priceInfo = calculateProductPrice(catProduct, 1);
+                  const catProductImage = firstProductImageUrl(catProduct);
+                  return (
+                    <div
+                      key={catProduct.id}
+                      className="bg-white border border-gray-200 rounded-[10px] p-3 md:p-4 flex items-center gap-3 md:gap-4"
+                    >
+                      <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-100 rounded-[4px] flex-shrink-0 overflow-hidden">
+                        <img
+                          src={
+                            catProductImage === PRODUCT_IMAGE_PLACEHOLDER
+                              ? catProductImage
+                              : wsrvLoader({ src: catProductImage, width: 200 })
+                          }
+                          alt={catProduct.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const el = e.currentTarget;
+                            el.onerror = null;
+                            el.src = PRODUCT_IMAGE_PLACEHOLDER;
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-900 mb-0.5 md:mb-1 text-sm md:text-base line-clamp-2">{catProduct.name}</h3>
+                        {priceInfo.currentPrice && (
+                          <div className="flex items-center gap-1.5 md:gap-2">
+                            <span className="text-base md:text-lg font-semibold text-gray-900">{priceInfo.currentPrice}</span>
+                            {priceInfo.hasDiscount && priceInfo.originalPrice && (
+                              <span className="text-xs md:text-sm text-gray-400 line-through">{priceInfo.originalPrice}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <Link 
+                        href={`/productos/${catProduct.id}`}
+                        className="w-7 h-7 md:w-8 md:h-8 rounded-full border border-[#484848] text-[#484848] flex items-center justify-center hover:bg-[#484848] hover:text-white transition-colors cursor-pointer flex-shrink-0"
+                      >
+                        <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                      </Link>
+                    </div>
+                  );
+                })}
+                {/* Combos: con combo completado (legacy) → 2 productos + 1 combo; admin cross-sell → hasta 2 productos */}
+                {combosToShow.map((combo) => {
+                  const formatPrice = (price: number): string => {
+                    return `$${Math.round(price).toLocaleString('es-AR')}`;
+                  };
+                  
+                  // Obtener precio del combo
+                  let currentPrice = "";
+                  let originalPrice: string | undefined = undefined;
+                  
+                  if (combo.product) {
+                    // Usar la función centralizada para calcular precios (incluye promociones)
+                    const priceInfo = calculateProductPrice(combo.product, 1);
+                    currentPrice = priceInfo.currentPrice;
+                    // Solo mostrar precio tachado si hay un descuento real de promoción
+                    originalPrice = priceInfo.hasDiscount ? priceInfo.originalPrice : undefined;
+                  } else if (combo.price_sale) {
+                    currentPrice = formatPrice(combo.price_sale);
+                  }
+                  
+                  // Construir nombre del combo desde los items
+                  const comboName = combo.product_name || 
+                                   combo.description || 
+                                   combo.alt_description || 
+                                   `Combo ${combo.crm_product_id}`;
+                  
+                  // Construir descripción con los items
+                  const itemsDescription = combo.items
+                    .map(item => `${item.quantity}x ${item.item_name || `Producto ${item.crm_product_id}`}`)
+                    .join(", ");
+                  
+                  const comboImage = combo.product
+                    ? firstProductImageUrl(combo.product)
+                    : product?.images[0]?.url?.trim() || PRODUCT_IMAGE_PLACEHOLDER;
+
+                  return (
+                    <div
+                      key={combo.id}
+                      className="bg-white border border-gray-200 rounded-[10px] p-3 md:p-4 flex items-center gap-3 md:gap-4"
+                    >
+                      <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-100 rounded-[4px] flex-shrink-0 overflow-hidden">
+                        <img
+                          src={
+                            comboImage === PRODUCT_IMAGE_PLACEHOLDER
+                              ? comboImage
+                              : wsrvLoader({ src: comboImage, width: 200 })
+                          }
+                          alt={comboName}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const el = e.currentTarget;
+                            el.onerror = null;
+                            el.src = PRODUCT_IMAGE_PLACEHOLDER;
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-900 mb-0.5 md:mb-1 text-sm md:text-base line-clamp-2">{comboName}</h3>
+                        {itemsDescription && (
+                          <p className="text-xs md:text-sm text-gray-600 mb-1 md:mb-2 line-clamp-1">{itemsDescription}</p>
+                        )}
+                        {currentPrice && (
+                          <div className="flex items-center gap-1.5 md:gap-2">
+                            <span className="text-base md:text-lg font-semibold text-gray-900">{currentPrice}</span>
+                            {originalPrice && (
+                              <span className="text-xs md:text-sm text-gray-400 line-through">{originalPrice}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <Link 
+                        href={combo.product_id ? `/productos/${combo.product_id}` : "#"}
+                        className="w-7 h-7 md:w-8 md:h-8 rounded-full border border-[#484848] text-[#484848] flex items-center justify-center hover:bg-[#484848] hover:text-white transition-colors cursor-pointer flex-shrink-0"
+                      >
+                        <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Similar Products */}
+        {similarProducts.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-4 md:mb-6">
+              <h2 className="text-lg md:text-2xl font-semibold text-gray-900">Productos similares</h2>
+              <a href="#" className="flex items-center gap-1 md:gap-2 text-gray-700 hover:text-gray-900 transition-colors">
+                <span className="font-medium text-sm md:text-base">Ver todos</span>
+                <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
+              </a>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 [&>*]:min-w-0">
+              {similarProducts.map((similarProduct, index) => (
+                <div key={similarProduct.id} className={`min-w-0 ${index >= 2 ? "hidden md:block" : ""}`}>
+                  <ProductCard
+                    id={similarProduct.id}
+                    image={similarProduct.image}
+                    alt={similarProduct.name}
+                    name={similarProduct.name}
+                    currentPrice={similarProduct.currentPrice}
+                    originalPrice={similarProduct.originalPrice || ""}
+                    discount={similarProduct.discount}
+                    priceNote={similarProduct.priceNote}
+                    secondaryPrice={similarProduct.secondaryPrice}
+                    secondaryPriceLabel={similarProduct.secondaryPriceLabel}
+                    outOfStock={similarProduct.outOfStock}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+        <Footer />
+      </div>
+    </>
+  );
+}

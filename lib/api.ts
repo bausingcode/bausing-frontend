@@ -449,8 +449,10 @@ export interface Product {
   has_double_pillow?: boolean;
   has_moisture_breathers?: boolean;
   has_side_handles?: boolean;
-  /** Color básico (negro/beige/gris/blanco); opcional */
+  /** Color básico (negro/beige/gris/blanco); opcional — facet/catálogo */
   basic_color?: string | null;
+  /** Etiquetas de color cargadas manualmente (opcional); la vitrina prioriza estas sobre basic_color */
+  manual_color_labels?: string[];
   /** Etiqueta de tamaño (colchón, etc.) */
   size_label?: string;
   is_active: boolean;
@@ -1010,6 +1012,7 @@ export async function completeCrmProduct(
     warranty_description?: string;
     materials?: string;
     basic_color?: string | null;
+    manual_color_labels?: string[];
     filling_type?: string;
     max_supported_weight_kg?: number;
     has_pillow_top?: boolean;
@@ -1303,8 +1306,9 @@ export async function createCompleteProduct(productData: {
   show_transfer_price_highlight?: boolean;
   /** Solo vitrina (tachado). null para borrar. */
   display_reference_price?: number | null;
-  /** Opcional — null desde admin para borrar color */
+  /** Opcional — null desde admin para borrar color (legacy si no hay manual_color_labels) */
   basic_color?: string | null;
+  manual_color_labels?: string[];
   variants: Array<{
     sku?: string;
     stock: number;

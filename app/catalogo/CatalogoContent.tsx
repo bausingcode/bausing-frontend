@@ -13,6 +13,7 @@ import {
 } from "@/utils/priceUtils";
 import { useLocality } from "@/contexts/LocalityContext";
 import { firstProductImageUrl } from "@/lib/productImagePlaceholder";
+import { catalogProductColorsLine } from "@/lib/productBasicColor";
 
 const CATALOGO_PER_PAGE_DEFAULT = 21;
 const CATALOGO_PER_PAGE_OPTIONS: readonly number[] = [21, 30, 45, 60, 99];
@@ -137,6 +138,7 @@ export default function CatalogoContent({
       secondaryPrice: cardFields.secondaryPrice,
       secondaryPriceLabel: cardFields.secondaryPriceLabel,
       outOfStock: product.has_crm_stock === false,
+      subtitle: catalogProductColorsLine(product),
     };
   };
 

@@ -11,6 +11,7 @@ import {
   productHasPositiveListPrice,
 } from "@/utils/priceUtils";
 import { firstProductImageUrl } from "@/lib/productImagePlaceholder";
+import { catalogProductColorsLine } from "@/lib/productBasicColor";
 
 // Helper function to repeat products if not enough
 function repeatProducts<T>(products: T[], count: number): T[] {
@@ -35,6 +36,7 @@ function productToCardProps(product: Product, isPriceLoading: boolean = false) {
   // la carga, mostramos "Sin precio" (ver ProductCard) — nunca mezclar con !hasPrice en la condición
   // de carga, o se ve un frame "Sin precio" antes de que arribe el merge de precios.
   const outOfStock = product.has_crm_stock === false;
+  const subtitle = catalogProductColorsLine(product);
 
   if (isPriceLoading) {
     return {
@@ -50,6 +52,7 @@ function productToCardProps(product: Product, isPriceLoading: boolean = false) {
       secondaryPriceLabel: undefined,
       isPriceLoading: true,
       outOfStock,
+      subtitle,
     };
   }
 
@@ -67,6 +70,7 @@ function productToCardProps(product: Product, isPriceLoading: boolean = false) {
       secondaryPriceLabel: undefined,
       isPriceLoading: false,
       outOfStock,
+      subtitle,
     };
   }
 
@@ -93,6 +97,7 @@ function productToCardProps(product: Product, isPriceLoading: boolean = false) {
     // Solo mostrar skeleton si está cargando, no si no hay precio
     isPriceLoading: false,
     outOfStock,
+    subtitle,
   };
 }
 
@@ -209,6 +214,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
                 isPriceLoading={product.isPriceLoading}
                 useNormalHeight={false}
                 outOfStock={product.outOfStock}
+                subtitle={product.subtitle}
               />
             </div>
           </div>
@@ -237,6 +243,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
             secondaryPriceLabel={product.secondaryPriceLabel}
             isPriceLoading={product.isPriceLoading}
             outOfStock={product.outOfStock}
+            subtitle={product.subtitle}
           />
         </div>
       ))}
