@@ -71,6 +71,12 @@ export function titleCaseWords(text: string): string {
 
 const FAVICON_PATH = "/images/logo/favicon.png";
 
+// Separate URL for og:image so WhatsApp/social scrapers get the updated version.
+// Bump the version query string whenever the logo file changes to bust stale caches.
+export const OG_IMAGE_URL = "/images/logo/favicon.png?v=2";
+export const OG_IMAGE_WIDTH = 165;
+export const OG_IMAGE_HEIGHT = 148;
+
 export function rootMetadata(): Metadata {
   const base = getSiteUrl();
   return {
@@ -99,18 +105,18 @@ export function rootMetadata(): Metadata {
       url: base,
       images: [
         {
-          url: FAVICON_PATH,
-          width: 512,
-          height: 512,
+          url: OG_IMAGE_URL,
+          width: OG_IMAGE_WIDTH,
+          height: OG_IMAGE_HEIGHT,
           alt: `${SITE_NAME} — colchones y descanso`,
         },
       ],
     },
     twitter: {
-      card: "summary_large_image",
+      card: "summary",
       title: titleWithBrand("Inicio"),
       description: SITE_TAGLINE,
-      images: [FAVICON_PATH],
+      images: [OG_IMAGE_URL],
     },
     robots: {
       index: true,

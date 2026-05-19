@@ -6,7 +6,14 @@ import {
   productPrimaryImageUrl,
 } from "@/lib/seo/product";
 import { getProductForSeo } from "@/lib/seo/productFetch";
-import { absoluteUrl, getSiteUrl } from "@/lib/seo/site";
+import {
+  absoluteUrl,
+  getSiteUrl,
+  OG_IMAGE_URL,
+  OG_IMAGE_WIDTH,
+  OG_IMAGE_HEIGHT,
+  SITE_NAME,
+} from "@/lib/seo/site";
 import ProductStructuredData from "./ProductStructuredData";
 
 export async function generateMetadata({
@@ -30,13 +37,11 @@ export async function generateMetadata({
   const primaryImage = productPrimaryImageUrl(product);
   const url = `${getSiteUrl()}/productos/${id}`;
   const ogImages = primaryImage
-    ? [
-        {
-          url: absoluteUrl(primaryImage),
-          alt: product.name,
-        },
-      ]
-    : undefined;
+    ? [{ url: absoluteUrl(primaryImage), alt: product.name }]
+    : [{ url: absoluteUrl(OG_IMAGE_URL), width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT, alt: SITE_NAME }];
+  const twitterImages = primaryImage
+    ? [absoluteUrl(primaryImage)]
+    : [absoluteUrl(OG_IMAGE_URL)];
 
   return {
     title: { absolute: titleText },
@@ -52,10 +57,10 @@ export async function generateMetadata({
       images: ogImages,
     },
     twitter: {
-      card: "summary_large_image",
+      card: primaryImage ? "summary_large_image" : "summary",
       title: titleText,
       description,
-      images: primaryImage ? [absoluteUrl(primaryImage)] : undefined,
+      images: twitterImages,
     },
   };
 }
