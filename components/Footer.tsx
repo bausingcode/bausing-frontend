@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Instagram, Facebook } from "lucide-react";
-import { getFooterData } from "@/lib/api";
+import { getFooterData, fetchCategories, type Category } from "@/lib/api";
 
 // Icono de TikTok
 const TikTok = ({ className }: { className?: string }) => (
@@ -19,6 +19,8 @@ const TikTok = ({ className }: { className?: string }) => (
 export default function Footer() {
   const currentYear = new Date().getFullYear();
   
+  const [mainCategories, setMainCategories] = useState<Category[]>([]);
+
   const [footerData, setFooterData] = useState<{
     phone: string | null;
     email: string | null;
@@ -38,7 +40,11 @@ export default function Footer() {
   useEffect(() => {
     const loadFooterData = async () => {
       try {
-        const data = await getFooterData();
+        const [data, cats] = await Promise.all([getFooterData(), fetchCategories()]);
+        const roots = cats
+          .filter((c) => !c.parent_id)
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name));
+        setMainCategories(roots);
         setFooterData({
           phone: data.phone || "+54 9 11 4049-0344",
           email: data.email || "hola@bausing.com",
@@ -70,11 +76,22 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-gray-900 mb-3 md:mb-4 text-sm md:text-base">Productos</h4>
             <ul className="space-y-2 md:space-y-3 text-xs md:text-sm text-gray-700">
-              <li><a href="/catalogo/colchones" className="hover:text-gray-900 transition-colors relative group inline-block">Colchones<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
-              <li><a href="/catalogo/sommiers" className="hover:text-gray-900 transition-colors relative group inline-block">Sommier y colchón<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
-              <li><a href="/catalogo/accesorios" className="hover:text-gray-900 transition-colors relative group inline-block">Almohadas<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
-              <li><a href="/catalogo/electrodomesticos" className="hover:text-gray-900 transition-colors relative group inline-block">Electrodomésticos<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
-              <li><a href="/catalogo/otros" className="hover:text-gray-900 transition-colors relative group inline-block">Otros<span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span></a></li>
+              {mainCategories.map((cat) => {
+                const slug = cat.name
+                  .toLowerCase()
+                  .normalize("NFD")
+                  .replace(/[\u0300-\u036f]/g, "")
+                  .replace(/\s+/g, "-")
+                  .replace(/[^a-z0-9-]/g, "");
+                return (
+                  <li key={cat.id}>
+                    <a href={`/catalogo/${slug}`} className="hover:text-gray-900 transition-colors relative group inline-block">
+                      {cat.name}
+                      <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span>
+                    </a>
+                  </li>
+                );
+              })}
             </ul>
           </div>
 

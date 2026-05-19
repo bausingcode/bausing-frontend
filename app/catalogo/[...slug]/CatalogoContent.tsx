@@ -246,7 +246,6 @@ const TECHNICAL_FILTER_KEYS = [
   "Firmeza",
   "Peso Máximo Soportado",
   "Pillow Top",
-  "Tipo de Entrega",
   CATALOGO_BASIC_COLOR_FILTER_ID,
 ] as const;
 
@@ -420,16 +419,6 @@ function applyCatalogClientFilters(
         return selectedValues.some((value) => {
           if (value === "true") return hasPillowTop;
           if (value === "false") return !hasPillowTop;
-          return false;
-        });
-      });
-    }
-    if (filterKey === "Tipo de Entrega") {
-      out = out.filter((product) => {
-        const isBedInBox = product.is_bed_in_box === true;
-        return selectedValues.some((value) => {
-          if (value === "true") return isBedInBox;
-          if (value === "false") return !isBedInBox;
           return false;
         });
       });
@@ -1289,15 +1278,6 @@ export default function CatalogoContent({
         ]
       });
       
-      // Colchón en caja (is_bed_in_box)
-      filters.push({
-        title: "Tipo de Entrega",
-        type: "checkbox" as const,
-        options: [
-          { value: "true", label: "Colchón en caja" },
-          { value: "false", label: "Colchón tradicional" }
-        ]
-      });
     }
     
     return filters;
