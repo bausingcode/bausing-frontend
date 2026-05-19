@@ -73,9 +73,9 @@ const FAVICON_PATH = "/images/logo/favicon.png";
 
 // Separate URL for og:image so WhatsApp/social scrapers get the updated version.
 // Bump the version query string whenever the logo file changes to bust stale caches.
-export const OG_IMAGE_URL = "/images/logo/favicon.png?v=2";
-export const OG_IMAGE_WIDTH = 165;
-export const OG_IMAGE_HEIGHT = 148;
+export const OG_IMAGE_URL = "/images/logo/og-image.png?v=3";
+export const OG_IMAGE_WIDTH = 1200;
+export const OG_IMAGE_HEIGHT = 630;
 
 export function rootMetadata(): Metadata {
   const base = getSiteUrl();
