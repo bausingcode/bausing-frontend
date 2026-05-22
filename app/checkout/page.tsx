@@ -14,7 +14,6 @@ import {
   fetchProductsPrices,
   getDocTypes,
   getProvinces,
-  getSaleTypes,
   createOrder,
   previewCouponCheckout,
   fetchCardTypes,
@@ -23,7 +22,6 @@ import {
   type Product,
   type DocType,
   type Province,
-  type SaleType,
   type CardType,
   type CardBankData,
 } from "@/lib/api";
@@ -63,6 +61,9 @@ import { postalCodeDigitsOnly } from "@/utils/postalCodeInput";
 
 type PaymentMethodType = "card" | "cash" | "transfer" | "wallet";
 
+/** Tipo de venta CRM por defecto en checkout web (Consumidor Final). */
+const DEFAULT_CRM_SALE_TYPE_ID = 1;
+
 /**
  * CP para Vía Cargo / Busplus: 4 dígitos clásicos, o los 4 centrales del CPA (X1234ABC).
  * Más de 4 dígitos seguidos sin formato CPA → se toman los primeros 4 (evita "10001" → inválido en Busplus).
@@ -98,11 +99,8 @@ export default function CheckoutPage() {
   const [loadingPrices, setLoadingPrices] = useState(false);
   const [docTypes, setDocTypes] = useState<DocType[]>([]);
   const [provinces, setProvinces] = useState<Province[]>([]);
-  const [saleTypes, setSaleTypes] = useState<SaleType[]>([]);
   const [loadingDocTypes, setLoadingDocTypes] = useState(false);
   const [loadingProvinces, setLoadingProvinces] = useState(false);
-  const [loadingSaleTypes, setLoadingSaleTypes] = useState(false);
-  const [crmSaleTypeId, setCrmSaleTypeId] = useState<number>(1); // Default: Consumidor Final
   const [viacargoQuoteTotal, setViacargoQuoteTotal] = useState<number | null>(null);
   const [viacargoQuoteError, setViacargoQuoteError] = useState<string | null>(null);
   const [viacargoCotizarLoading, setViacargoCotizarLoading] = useState(false);
@@ -293,27 +291,6 @@ export default function CheckoutPage() {
     loadDocTypes();
     loadProvinces();
   }, []);
-
-  // Load sale types - ahora se cargan siempre ya que el campo aparece siempre
-  useEffect(() => {
-    const loadSaleTypes = async () => {
-      setLoadingSaleTypes(true);
-      try {
-        const data = await getSaleTypes();
-        setSaleTypes(data);
-        // Default to Consumidor Final (crm_sale_type_id = 1)
-        const consumidorFinal = data.find(st => st.crm_sale_type_id === 1);
-        if (consumidorFinal) {
-          setCrmSaleTypeId(1);
-        }
-      } catch (error) {
-        console.error("Error loading sale types:", error);
-      } finally {
-        setLoadingSaleTypes(false);
-      }
-    };
-    loadSaleTypes();
-  }, []); // Cargar una sola vez al montar el componente
 
   // Load user data and addresses
   useEffect(() => {
@@ -1387,7 +1364,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
         address: addressData,
         payment_method: primaryMethod,
         pay_on_delivery: payOnDelivery,
-        crm_sale_type_id: crmSaleTypeId,
+        crm_sale_type_id: DEFAULT_CRM_SALE_TYPE_ID,
         ...(crmZoneId && {
           crm_zone_id: crmZoneId,
         }),
@@ -2821,36 +2798,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900"
                       />
                     </div>
-                  </div>
-
-                  {/* Tipo de Venta - ahora aparece siempre */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tipo de Venta <span className="text-red-500">*</span>
-                    </label>
-                    {loadingSaleTypes ? (
-                      <div className="text-sm text-gray-500 py-2.5">Cargando tipos de venta...</div>
-                    ) : (
-                      <select
-                        value={crmSaleTypeId}
-                        onChange={(e) => setCrmSaleTypeId(Number(e.target.value))}
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 bg-white"
-                        required
-                      >
-                        {saleTypes.map((st) => (
-                          <option key={st.id} value={st.crm_sale_type_id}>
-                            {st.description || st.code || `Tipo ${st.crm_sale_type_id}`}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    <p className="text-xs text-gray-500 mt-1">
-                      {crmSaleTypeId === 4 
-                        ? "Para Responsable Inscripto, el documento debe tener formato CUIT (XX-XXXXXXXX-X)"
-                        : crmSaleTypeId === 1
-                        ? "Consumidor Final"
-                        : ""}
-                    </p>
                   </div>
                 </div>
               </div>
