@@ -43,7 +43,12 @@ import {
   EyeOff,
   AlertCircle,
 } from "lucide-react";
-import { formatPrice, calculateProductPrice } from "@/utils/priceUtils";
+import {
+  formatPrice,
+  calculateProductPrice,
+  checkoutPaymentPriceKind,
+  productFromCheckoutPricesApi,
+} from "@/utils/priceUtils";
 import { postalCodeDigitsOnly } from "@/utils/postalCodeInput";
 
 type PaymentMethodType = "card" | "cash" | "transfer" | "wallet";
@@ -459,21 +464,14 @@ export default function CheckoutPage() {
         
         // Convert prices data to Product-like objects for calculateProductPrice
         const productsMap: Record<string, Product> = {};
-        cart.forEach(item => {
+        cart.forEach((item) => {
           const priceData = pricesData[item.id];
           if (priceData) {
-            const tmin = priceData.min_price;
-            const tmax = priceData.max_price;
-            productsMap[item.id] = {
-              id: item.id,
-              name: item.name,
-              min_price: tmin,
-              max_price: tmax,
-              min_card_price: priceData.min_card_price ?? tmin,
-              max_card_price: priceData.max_card_price ?? tmax,
-              show_transfer_price_highlight: priceData.show_transfer_price_highlight,
-              promos: priceData.promos || [],
-            } as Product;
+            productsMap[item.id] = productFromCheckoutPricesApi(
+              item.id,
+              item.name,
+              priceData,
+            );
           }
         });
         
@@ -1454,12 +1452,13 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
 
   // Función helper para obtener el precio de un item del carrito
   // Si hay precio calculado según localidad, usarlo; sino usar el precio guardado
+  const checkoutPriceKind = checkoutPaymentPriceKind(selectedMethods);
+
   const getItemPrice = (item: typeof cart[0]): number => {
     const product = productsWithPrices[item.id];
     if (product) {
-      const paymentUsesCard = selectedMethods.includes("card");
       const priceInfo = calculateProductPrice(product, item.quantity, {
-        paymentPriceKind: paymentUsesCard ? "card" : "transfer",
+        paymentPriceKind: checkoutPriceKind,
       });
       return priceInfo.currentPriceValue;
     }
@@ -1475,9 +1474,8 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
   const getItemUnitPrice = (item: typeof cart[0]): number => {
     const product = productsWithPrices[item.id];
     if (product) {
-      const paymentUsesCard = selectedMethods.includes("card");
       const priceInfo = calculateProductPrice(product, 1, {
-        paymentPriceKind: paymentUsesCard ? "card" : "transfer",
+        paymentPriceKind: checkoutPriceKind,
       });
       return priceInfo.currentPriceValue;
     }
@@ -1526,6 +1524,44 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
       setCouponLoading(false);
     }
   };
+
+  // Recalcular descuento del cupón si cambia el método de pago (tarjeta vs efectivo/transferencia)
+  useEffect(() => {
+    if (!appliedCoupon?.code || !isAuthenticated || cart.length === 0) return;
+    if (Object.keys(productsWithPrices).length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await previewCouponCheckout({
+          code: appliedCoupon.code,
+          items: buildCouponPreviewItems(),
+        });
+        if (!cancelled) {
+          setAppliedCoupon((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  discountAmount: data.discount_amount,
+                  clubBeneficiosOnly: data.club_beneficios_only,
+                }
+              : null,
+          );
+          setCouponError("");
+        }
+      } catch {
+        if (!cancelled) {
+          setAppliedCoupon(null);
+          setCouponError("El cupón ya no aplica con este método de pago");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMethods, productsWithPrices, cart]);
 
   const calculateTotal = () => {
     return cart.reduce((sum, item) => sum + getItemPrice(item), 0);

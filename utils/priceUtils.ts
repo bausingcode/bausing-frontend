@@ -106,6 +106,55 @@ export interface ProductPriceInfo {
 
 export type PaymentPriceKind = "transfer" | "card";
 
+/** Métodos de checkout que usan precio de lista (tarjeta) vs efectivo/transferencia. */
+export function checkoutPaymentPriceKind(
+  selectedMethods: ReadonlyArray<string>,
+): PaymentPriceKind {
+  return selectedMethods.includes("card") ? "card" : "transfer";
+}
+
+/** Fila de POST /homepage-distribution/prices → Product para calculateProductPrice en checkout. */
+export function productFromCheckoutPricesApi(
+  productId: string,
+  name: string,
+  priceData: {
+    min_price: number;
+    max_price: number;
+    min_transfer_price?: number | null;
+    max_transfer_price?: number | null;
+    min_card_price?: number;
+    max_card_price?: number;
+    show_transfer_price_highlight?: boolean;
+    promos?: Product["promos"];
+  },
+): Product {
+  const positive = (v: unknown): number | undefined => {
+    if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) return undefined;
+    return v;
+  };
+  const transferMin =
+    positive(priceData.min_transfer_price) ?? positive(priceData.min_price) ?? 0;
+  const transferMax =
+    positive(priceData.max_transfer_price) ??
+    positive(priceData.max_price) ??
+    transferMin;
+  const cardMin = positive(priceData.min_card_price);
+  const cardMax = positive(priceData.max_card_price) ?? cardMin;
+
+  return {
+    id: productId,
+    name,
+    min_price: transferMin,
+    max_price: transferMax,
+    min_transfer_price: transferMin,
+    max_transfer_price: transferMax,
+    min_card_price: cardMin,
+    max_card_price: cardMax,
+    show_transfer_price_highlight: priceData.show_transfer_price_highlight,
+    promos: priceData.promos ?? [],
+  } as Product;
+}
+
 export interface CalculateProductPriceOptions {
   /** Base numérica antes de promo. Sin valor: tarjeta si existe `min_card_price`, si no transferencia. */
   paymentPriceKind?: PaymentPriceKind;
