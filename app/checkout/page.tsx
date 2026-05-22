@@ -49,6 +49,16 @@ import {
   checkoutPaymentPriceKind,
   productFromCheckoutPricesApi,
 } from "@/utils/priceUtils";
+import {
+  buildCardPaymentDetailsPayload,
+  buildCardPaymentObservations,
+  installmentOptionKey,
+  parseInstallmentOptionKey,
+} from "@/lib/cardPaymentObservations";
+import {
+  CRM_MEDIOS_PAGO_BILLETERA,
+  crmMediosPagoIdForCheckoutMethod,
+} from "@/lib/crmPaymentMethods";
 import { postalCodeDigitsOnly } from "@/utils/postalCodeInput";
 
 type PaymentMethodType = "card" | "cash" | "transfer" | "wallet";
@@ -163,6 +173,8 @@ export default function CheckoutPage() {
   // Estados para selección de tarjeta y banco
   const [selectedCardType, setSelectedCardType] = useState<string>("");
   const [selectedBank, setSelectedBank] = useState<string>("");
+  /** Clave "cuotas:recargo" de la opción de financiación elegida */
+  const [selectedInstallmentKey, setSelectedInstallmentKey] = useState<string>("");
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [walletIsBlocked, setWalletIsBlocked] = useState<boolean>(false);
   const [walletLoading, setWalletLoading] = useState(false);
@@ -201,8 +213,13 @@ export default function CheckoutPage() {
     if (!selectedMethods.includes("card")) {
       setSelectedCardType("");
       setSelectedBank("");
+      setSelectedInstallmentKey("");
     }
   }, [selectedMethods]);
+
+  useEffect(() => {
+    setSelectedInstallmentKey("");
+  }, [selectedCardType, selectedBank]);
 
   // Check cart and initialize
   useEffect(() => {
@@ -764,7 +781,22 @@ export default function CheckoutPage() {
       }
     }
 
-    // Los campos de tarjeta ya no se validan porque siempre se abona al recibir
+    if (
+      payableSubtotalVal > 0.01 &&
+      selectedMethods.includes("card") &&
+      Object.keys(cardBankData).length > 0
+    ) {
+      if (!selectedCardType.trim()) {
+        newErrors.card_installment = "Seleccioná el tipo de tarjeta";
+      } else if (!selectedBank.trim()) {
+        newErrors.card_installment = "Seleccioná el banco";
+      } else {
+        const bankInstallments = cardBankData[selectedCardType]?.[selectedBank] ?? [];
+        if (bankInstallments.length > 0 && !selectedInstallmentKey) {
+          newErrors.card_installment = "Seleccioná la cantidad de cuotas";
+        }
+      }
+    }
 
     if (isPaisCatalog && !isThirdPartyTransport && cart.length > 0) {
       const sel = addresses.find((a) => a.id === selectedAddressId);
@@ -1035,8 +1067,9 @@ export default function CheckoutPage() {
               
               const totalWithShipping = subtotalAfterCoupon + shippingCost;
               
-              // Información de métodos de pago (solo tarjeta en este caso)
-              const paymentInfo = `\n\n*Método de pago:* Tarjeta (completarás la venta por WhatsApp)`;
+              const paymentInfo = cardPaymentObservationsText
+                ? `\n\n*Método de pago:* Tarjeta (completarás la venta por WhatsApp)\n${cardPaymentObservationsText}`
+                : `\n\n*Método de pago:* Tarjeta (completarás la venta por WhatsApp)`;
               
               // Información de dirección
               const addressText = addressData.additional_info 
@@ -1246,7 +1279,10 @@ ${addressText}${provinceName ? `, ${provinceName}` : ""}`;
               } else {
                 paymentInfo = "\n\n*Método de pago:* Abonar al recibir";
               }
-              
+              if (cardPaymentObservationsText) {
+                paymentInfo += `\n${cardPaymentObservationsText}`;
+              }
+
               // Información de dirección
               const addressText = addressData.additional_info 
                 ? `${addressData.street} ${addressData.number}, ${addressData.city}, ${addressData.postal_code}${addressData.additional_info ? ` (${addressData.additional_info})` : ''}`
@@ -1310,7 +1346,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
           method: "wallet",
           amount: walletCreditApplied,
           processed: true,
-          medios_pago_id: 3,
+          medios_pago_id: CRM_MEDIOS_PAGO_BILLETERA,
         });
       }
 
@@ -1323,9 +1359,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
             amount = payableSubtotal;
           }
           let processed = false;
-          let mediosPagoId = 1;
-          if (method === "card") mediosPagoId = 2;
-          else if (method === "transfer") mediosPagoId = 4;
+          const mediosPagoId = crmMediosPagoIdForCheckoutMethod(method);
           paymentMethodsArray.push({
             method,
             amount,
@@ -1370,7 +1404,10 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
           quantity: item.quantity,
           price: getItemUnitPrice(item),
         })),
-        observations: "",
+        observations: cardPaymentObservationsText,
+        ...(cardPaymentDetailsPayload && {
+          card_payment_details: cardPaymentDetailsPayload,
+        }),
         ...(referralCode.trim() && {
           referral_code: referralCode.trim().toUpperCase(),
         }),
@@ -1453,6 +1490,27 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
   // Función helper para obtener el precio de un item del carrito
   // Si hay precio calculado según localidad, usarlo; sino usar el precio guardado
   const checkoutPriceKind = checkoutPaymentPriceKind(selectedMethods);
+
+  const selectedInstallment = selectedInstallmentKey
+    ? parseInstallmentOptionKey(selectedInstallmentKey)
+    : null;
+
+  const cardPaymentObservationsText =
+    selectedMethods.includes("card")
+      ? buildCardPaymentObservations(
+          cardTypes,
+          selectedCardType,
+          selectedBank,
+          selectedInstallment,
+        )
+      : "";
+
+  const cardPaymentDetailsPayload = buildCardPaymentDetailsPayload(
+    cardTypes,
+    selectedCardType,
+    selectedBank,
+    selectedInstallment,
+  );
 
   const getItemPrice = (item: typeof cart[0]): number => {
     const product = productsWithPrices[item.id];
@@ -3437,9 +3495,14 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                 {hasCardPayment && (
                   <div className="mt-6 pt-6 border-t border-gray-200">
                     <div className="mb-4">
-                      <h3 className="text-base font-semibold text-gray-900 mb-2">Ver cuotas y bancos</h3>
-                      <p className="text-sm text-gray-600">Consulta las opciones de financiación disponibles</p>
+                      <h3 className="text-base font-semibold text-gray-900 mb-2">Tarjeta, banco y cuotas</h3>
+                      <p className="text-sm text-gray-600">
+                        Elegí cómo vas a financiar el pago con tarjeta. Se guardará en tu pedido y en las observaciones del sistema.
+                      </p>
                     </div>
+                    {errors.card_installment && (
+                      <p className="text-red-500 text-sm mb-3">{errors.card_installment}</p>
+                    )}
                     
                     {/* Datos de cuotas y bancos desde API */}
                     {(() => {
@@ -3482,6 +3545,14 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                               onChange={(e) => {
                                 setSelectedCardType(e.target.value);
                                 setSelectedBank("");
+                                setSelectedInstallmentKey("");
+                                if (errors.card_installment) {
+                                  setErrors((prev) => {
+                                    const next = { ...prev };
+                                    delete next.card_installment;
+                                    return next;
+                                  });
+                                }
                               }}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-[#00C1A7] focus:border-[#00C1A7] bg-white"
                             >
@@ -3502,7 +3573,17 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                               </label>
                               <select
                                 value={selectedBank}
-                                onChange={(e) => setSelectedBank(e.target.value)}
+                                onChange={(e) => {
+                                  setSelectedBank(e.target.value);
+                                  setSelectedInstallmentKey("");
+                                  if (errors.card_installment) {
+                                    setErrors((prev) => {
+                                      const next = { ...prev };
+                                      delete next.card_installment;
+                                      return next;
+                                    });
+                                  }
+                                }}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-[#00C1A7] focus:border-[#00C1A7] bg-white"
                               >
                                 <option value="">Selecciona un banco</option>
@@ -3519,18 +3600,34 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                           {selectedCardType && selectedBank && installments.length > 0 && (
                             <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
                               <h4 className="text-sm font-semibold text-gray-900 mb-3">
-                                Opciones de cuotas disponibles
+                                Elegí las cuotas
                               </h4>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 {installments.map((inst, index) => {
-                                  const recargoAmount = (baseAmount * inst.recargoPorcentaje) / 100;
-                                  const totalAmount = baseAmount + recargoAmount;
-                                  const cuotaAmount = totalAmount / inst.cuotas;
-                                  
+                                  const totalAmount = baseAmount;
+                                  const cuotaAmount = baseAmount / inst.cuotas;
+                                  const optionKey = installmentOptionKey(inst);
+                                  const isSelected = selectedInstallmentKey === optionKey;
+
                                   return (
-                                    <div
-                                      key={index}
-                                      className="bg-white p-3 rounded-lg border border-gray-200 text-center"
+                                    <button
+                                      key={optionKey || index}
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedInstallmentKey(optionKey);
+                                        if (errors.card_installment) {
+                                          setErrors((prev) => {
+                                            const next = { ...prev };
+                                            delete next.card_installment;
+                                            return next;
+                                          });
+                                        }
+                                      }}
+                                      className={`bg-white p-3 rounded-lg border text-center transition-colors ${
+                                        isSelected
+                                          ? "border-[#00C1A7] ring-2 ring-[#00C1A7]/30 shadow-sm"
+                                          : "border-gray-200 hover:border-gray-300"
+                                      }`}
                                     >
                                       <p className="text-base font-semibold text-gray-900 tabular-nums leading-snug">
                                         {inst.cuotas}{" "}
@@ -3540,10 +3637,15 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                                       <p className="text-xs text-gray-500 mt-1.5 font-normal tabular-nums">
                                         Total: {formatPrice(totalAmount)}
                                       </p>
-                                    </div>
+                                    </button>
                                   );
                                 })}
                               </div>
+                              {selectedInstallment && cardPaymentObservationsText && (
+                                <p className="text-xs text-gray-600 mt-3">
+                                  Seleccionado: {cardPaymentObservationsText}
+                                </p>
+                              )}
                             </div>
                           )}
                         </div>

@@ -3968,6 +3968,14 @@ export async function createOrder(orderData: {
     holder_dni: string;
   };
   observations?: string;
+  /** Tarjeta / banco / cuotas elegidos en checkout (el backend arma observaciones si no vienen en observations) */
+  card_payment_details?: {
+    card_type_code: string;
+    card_type_name: string;
+    bank_name: string;
+    installments: number;
+    surcharge_percent: number;
+  };
   /** Cupón validado en checkout (el backend recalcula el descuento; no confiar solo en el cliente) */
   coupon_code?: string;
 }): Promise<any> {
