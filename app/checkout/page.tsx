@@ -36,9 +36,6 @@ import {
   ArrowRightLeft,
   Trash2,
   Minus,
-  Mail,
-  Eye,
-  EyeOff,
   AlertCircle,
 } from "lucide-react";
 import {
@@ -82,7 +79,7 @@ function normalizeArPostalCode(raw: string | undefined | null): string | null {
 }
 
 export default function CheckoutPage() {
-  const { user, isAuthenticated, register, login, updateUser } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { cart, removeFromCart, updateCartQuantity } = useCart();
   const { locality, selectAddress } = useLocality();
   const router = useRouter();
@@ -105,32 +102,6 @@ export default function CheckoutPage() {
   const [viacargoQuoteError, setViacargoQuoteError] = useState<string | null>(null);
   const [viacargoCotizarLoading, setViacargoCotizarLoading] = useState(false);
 
-  // Registration and verification states
-  const [showRegistration, setShowRegistration] = useState(false);
-  const [registrationData, setRegistrationData] = useState({
-    email: "",
-    password: "",
-    confirmPassword: "",
-    first_name: "",
-    last_name: "",
-    phone: "",
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [registrationLoading, setRegistrationLoading] = useState(false);
-  const [registrationError, setRegistrationError] = useState("");
-  const [verificationEmailSent, setVerificationEmailSent] = useState(false);
-  const [resendVerificationLoading, setResendVerificationLoading] = useState(false);
-  
-  // Login states
-  const [showLogin, setShowLogin] = useState(false);
-  const [loginData, setLoginData] = useState({
-    email: "",
-    password: "",
-  });
-  const [showLoginPassword, setShowLoginPassword] = useState(false);
-  const [loginLoading, setLoginLoading] = useState(false);
-  const [loginError, setLoginError] = useState("");
 
   // Form data
   const [formData, setFormData] = useState({
@@ -253,10 +224,9 @@ export default function CheckoutPage() {
       return () => clearTimeout(timer);
     }
     
-    // Permitir ver el checkout sin estar autenticado
-    // Solo mostrar formulario de registro si no está autenticado
+    // Mostrar formulario de dirección cuando no está autenticado (sin direcciones guardadas)
     if (!isAuthenticated) {
-      setShowRegistration(false); // No mostrar formulario de registro automáticamente
+      setShowAddressForm(true);
     }
     
     setLoading(false);
@@ -524,6 +494,58 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAddressId, addresses.length]);
 
+  // Auto-guardar dirección cuando todos los campos requeridos estén completos
+  const autoSaveTriggeredRef = useRef(false);
+  useEffect(() => {
+    if (!showAddressForm || autoSaveTriggeredRef.current || savingCheckoutAddress) return;
+
+    const addressComplete =
+      addressForm.full_name.trim() &&
+      addressForm.phone.trim() &&
+      addressForm.street.trim() &&
+      addressForm.number.trim() &&
+      addressForm.postal_code.length >= 4 &&
+      addressForm.city.trim() &&
+      addressForm.province_id;
+
+    const personalComplete =
+      formData.email.trim() &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) &&
+      formData.first_name.trim() &&
+      formData.last_name.trim();
+
+    if (!addressComplete || !personalComplete) return;
+
+    const timeoutId = setTimeout(() => {
+      if (autoSaveTriggeredRef.current || savingCheckoutAddress) return;
+      autoSaveTriggeredRef.current = true;
+      void handleSaveAddress();
+    }, 1200);
+
+    return () => clearTimeout(timeoutId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    showAddressForm,
+    savingCheckoutAddress,
+    addressForm.full_name,
+    addressForm.phone,
+    addressForm.street,
+    addressForm.number,
+    addressForm.postal_code,
+    addressForm.city,
+    addressForm.province_id,
+    formData.email,
+    formData.first_name,
+    formData.last_name,
+  ]);
+
+  // Resetear el flag si el usuario vuelve a abrir el formulario
+  useEffect(() => {
+    if (showAddressForm) {
+      autoSaveTriggeredRef.current = false;
+    }
+  }, [showAddressForm]);
+
   // Load card types and bank data
   useEffect(() => {
     const loadCardData = async () => {
@@ -553,12 +575,16 @@ export default function CheckoutPage() {
     try {
       const data = await getUserAddresses();
       setAddresses(data);
-      // Select default address if exists
-      const defaultAddress = data.find((addr) => addr.is_default);
-      if (defaultAddress) {
-        setSelectedAddressId(defaultAddress.id);
-      } else if (data.length > 0) {
-        setSelectedAddressId(data[0].id);
+      if (data.length === 0) {
+        // Sin direcciones: mostrar el formulario para agregar una
+        setShowAddressForm(true);
+      } else {
+        const defaultAddress = data.find((addr) => addr.is_default);
+        if (defaultAddress) {
+          setSelectedAddressId(defaultAddress.id);
+        } else {
+          setSelectedAddressId(data[0].id);
+        }
       }
     } catch (error) {
       console.error("Error loading addresses:", error);
@@ -800,6 +826,39 @@ export default function CheckoutPage() {
     saveAddressInFlightRef.current = true;
     setSavingCheckoutAddress(true);
     try {
+      if (!isAuthenticated) {
+        if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+          setErrors({ email: "Ingresá un email válido para crear tu cuenta" });
+          return false;
+        }
+        if (!formData.first_name.trim() || !formData.last_name.trim()) {
+          setErrors({ first_name: !formData.first_name.trim() ? "El nombre es obligatorio" : "", last_name: !formData.last_name.trim() ? "El apellido es obligatorio" : "" });
+          return false;
+        }
+        const autoRegResponse = await fetch("/api/auth/auto-register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: formData.email,
+            first_name: formData.first_name,
+            last_name: formData.last_name,
+            phone: formData.phone || undefined,
+          }),
+        });
+        const autoRegResult = await autoRegResponse.json();
+        if (!autoRegResponse.ok || !autoRegResult.success) {
+          if (autoRegResult.email_exists) {
+            setErrors({ email: "Ya tenés una cuenta con este email. Por favor, iniciá sesión desde el menú antes de continuar." });
+          } else {
+            setErrors({ address: autoRegResult.error || "Error al crear la cuenta" });
+          }
+          return false;
+        }
+        const { user: newUser, token: newToken } = autoRegResult.data;
+        localStorage.setItem("user_token", newToken);
+        localStorage.setItem("user_data", JSON.stringify(newUser));
+        window.dispatchEvent(new CustomEvent("authStateChanged", { detail: { user: newUser, token: newToken } }));
+      }
       const newAddress = await createUserAddress({
         full_name: addressForm.full_name,
         phone: addressForm.phone,
@@ -847,9 +906,15 @@ export default function CheckoutPage() {
     }
 
     if (isPaisCatalog && !isThirdPartyTransport) {
-      const selAddr = addresses.find((addr) => addr.id === selectedAddressId);
-      const cpOk = normalizeArPostalCode(selAddr?.postal_code);
-      if (!locality?.id || shippingLocalityError || !selAddr || !cpOk) {
+      const postalCodeRaw = showAddressForm
+        ? addressForm.postal_code
+        : addresses.find((addr) => addr.id === selectedAddressId)?.postal_code;
+      const cpOk = normalizeArPostalCode(postalCodeRaw);
+      if (showAddressForm) {
+        setErrors({ address: "Guardá la dirección antes de continuar" });
+        return;
+      }
+      if (!locality?.id || shippingLocalityError || !cpOk) {
         setErrors({ address: "Ingresá un código postal válido en la dirección de envío" });
         return;
       }
@@ -871,7 +936,7 @@ export default function CheckoutPage() {
 
     setSubmitting(true);
     try {
-      // If showing address form, save it first
+      // If showing address form, save it first (also handles auto-register if not authenticated)
       if (showAddressForm) {
         const saved = await handleSaveAddress();
         if (!saved) {
@@ -1634,15 +1699,23 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
       setViacargoCotizarLoading(false);
       return;
     }
-    if (!locality?.id || shippingLocalityError) {
+    if (!locality?.id) {
       setViacargoQuoteTotal(null);
       setViacargoQuoteError(null);
       setViacargoCotizarLoading(false);
       return;
     }
-    const addr = addresses.find((a) => a.id === selectedAddressId);
-    const cp = normalizeArPostalCode(addr?.postal_code);
-    if (!addr || !cp) {
+    // When using the address form, shippingLocalityError reflects IP vs saved-address mismatch — irrelevant here
+    if (!showAddressForm && shippingLocalityError) {
+      setViacargoQuoteTotal(null);
+      setViacargoQuoteError(null);
+      setViacargoCotizarLoading(false);
+      return;
+    }
+    const cp = showAddressForm
+      ? normalizeArPostalCode(addressForm.postal_code)
+      : normalizeArPostalCode(addresses.find((a) => a.id === selectedAddressId)?.postal_code);
+    if (!cp) {
       setViacargoQuoteTotal(null);
       setViacargoQuoteError(null);
       return;
@@ -1707,6 +1780,8 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
     addresses,
     cart,
     subtotalAfterCoupon,
+    showAddressForm,
+    addressForm.postal_code,
   ]);
 
   // Calcular costo de envío: tercerizado fijo, catálogo País = cotización Vía Cargo
@@ -2018,178 +2093,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
     });
   };
 
-  const handleRegistration = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setRegistrationError("");
-
-    if (registrationData.password !== registrationData.confirmPassword) {
-      setRegistrationError("Las contraseñas no coinciden");
-      return;
-    }
-
-    if (registrationData.password.length < 6) {
-      setRegistrationError("La contraseña debe tener al menos 6 caracteres");
-      return;
-    }
-
-    setRegistrationLoading(true);
-    try {
-      // Llamar al registro directamente sin usar el método del contexto que redirige
-      const response = await fetch(`/api/auth/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: registrationData.email,
-          password: registrationData.password,
-          first_name: registrationData.first_name,
-          last_name: registrationData.last_name,
-          phone: registrationData.phone || undefined,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || "Error al registrarse");
-      }
-
-      const { user: userData, token: userToken } = result.data;
-      
-      // Guardar en localStorage
-      localStorage.setItem("user_token", userToken);
-      localStorage.setItem("user_data", JSON.stringify(userData));
-      
-      // Disparar evento personalizado para que el AuthContext se actualice automáticamente
-      window.dispatchEvent(new CustomEvent('authStateChanged', { 
-        detail: { user: userData, token: userToken } 
-      }));
-      
-      setShowRegistration(false);
-      setShowLogin(false);
-      setVerificationEmailSent(true);
-      
-      // Pequeño delay para asegurar que el contexto se actualice antes de cargar datos
-      setTimeout(() => {
-        // Reload addresses and wallet balance after registration
-        loadAddresses();
-        loadWalletBalance();
-      }, 200);
-    } catch (err: any) {
-      setRegistrationError(err.message || "Error al registrarse");
-    } finally {
-      setRegistrationLoading(false);
-    }
-  };
-
-  const handleResendVerification = async () => {
-    setResendVerificationLoading(true);
-    try {
-      const token = localStorage.getItem("user_token");
-      if (!token) {
-        throw new Error("Debes iniciar sesión para reenviar el email");
-      }
-
-      const response = await fetch(`/api/auth/resend-verification`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || "Error al reenviar el email");
-      }
-
-      setVerificationEmailSent(true);
-    } catch (err: any) {
-      setRegistrationError(err.message || "Error al reenviar el email de verificación");
-    } finally {
-      setResendVerificationLoading(false);
-    }
-  };
-
-  const handleCheckVerification = async () => {
-    setRegistrationError("");
-    try {
-      const token = localStorage.getItem("user_token");
-      if (!token) {
-        throw new Error("No hay sesión activa");
-      }
-
-      const response = await fetch(`/api/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success && data.data?.email_verified) {
-        updateUser({ email_verified: true });
-        setVerificationEmailSent(false);
-        setRegistrationError("");
-        // Reload addresses and wallet balance now that user is verified
-        if (isAuthenticated) {
-          loadAddresses();
-          loadWalletBalance();
-        }
-      } else {
-        setRegistrationError("Tu email aún no está verificado. Por favor, revisa tu correo y haz clic en el enlace de verificación.");
-      }
-    } catch (err: any) {
-      setRegistrationError(err.message || "Error al verificar el estado");
-    }
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError("");
-    setLoginLoading(true);
-
-    try {
-      // Llamar al login directamente sin usar el método del contexto que redirige
-      const response = await fetch(`/api/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email: loginData.email, password: loginData.password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || "Error al iniciar sesión");
-      }
-
-      const { user: userData, token: userToken } = data.data;
-      
-      // Guardar en localStorage
-      localStorage.setItem("user_token", userToken);
-      localStorage.setItem("user_data", JSON.stringify(userData));
-      
-      // Disparar evento personalizado para que el AuthContext se actualice inmediatamente
-      window.dispatchEvent(new CustomEvent('authStateChanged', { 
-        detail: { user: userData, token: userToken } 
-      }));
-      
-      setShowLogin(false);
-      setLoginData({ email: "", password: "" });
-      
-      // Cargar datos inmediatamente (el contexto ya se actualizó con el evento)
-      loadAddresses();
-      loadWalletBalance();
-    } catch (err: any) {
-      setLoginError(err.message || "Error al iniciar sesión");
-    } finally {
-      setLoginLoading(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -2200,8 +2103,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
   }
 
   const selectedAddress = addresses.find((addr) => addr.id === selectedAddressId);
-  const needsEmailVerification = !!(isAuthenticated && user && !user.email_verified);
-
   const couponFields = (
     <>
       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -2272,335 +2173,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
       <main className="flex-1 container mx-auto px-4 py-6 md:py-8 lg:py-12">
         <div className="max-w-6xl mx-auto">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 md:mb-8">Checkout</h1>
-
-          {/* Login/Register Banner - Show if not authenticated */}
-          {!isAuthenticated && (
-            <div className="bg-blue-50 border border-blue-200 rounded-[14px] p-4 md:p-6 mb-6">
-              <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-                <div className="flex items-start gap-3 flex-1">
-                  <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <AlertCircle className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-base font-semibold text-gray-900 mb-1">
-                      Inicia sesión o crea una cuenta para finalizar tu compra
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      Necesitas estar registrado para completar tu pedido. Puedes iniciar sesión o crear una cuenta desde aquí.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowLogin(true);
-                      setShowRegistration(false);
-                    }}
-                    className="px-4 py-2 border border-[#00C1A7] text-[#00C1A7] rounded-lg hover:bg-[#00C1A7] hover:text-white transition-colors flex items-center justify-center gap-2 text-sm font-medium"
-                  >
-                    Iniciar sesión
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowRegistration(true);
-                      setShowLogin(false);
-                    }}
-                    className="px-4 py-2 bg-[#00C1A7] text-white rounded-lg hover:bg-[#00A892] transition-colors flex items-center justify-center gap-2 text-sm font-medium"
-                  >
-                    Crear cuenta
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Login Form */}
-          {!isAuthenticated && showLogin && (
-            <div className="bg-white border border-gray-200 rounded-[14px] p-6 md:p-8 mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg md:text-xl font-semibold text-gray-900">Iniciar sesión</h2>
-                <button
-                  type="button"
-                  onClick={() => setShowLogin(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  ✕
-                </button>
-              </div>
-              <form onSubmit={handleLogin} className="space-y-4">
-                {loginError && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-red-700">{loginError}</p>
-                  </div>
-                )}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={loginData.email}
-                    onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Contraseña <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showLoginPassword ? "text" : "password"}
-                      required
-                      value={loginData.password}
-                      onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowLoginPassword(!showLoginPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showLoginPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowLogin(false);
-                      setShowRegistration(true);
-                    }}
-                    className="text-sm text-[#00C1A7] hover:text-[#00A892]"
-                  >
-                    ¿No tienes cuenta? Regístrate
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loginLoading}
-                    className="px-6 py-2 bg-[#00C1A7] text-white rounded-lg hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {loginLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Iniciando sesión...
-                      </>
-                    ) : (
-                      "Iniciar sesión"
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* Registration Form */}
-          {!isAuthenticated && showRegistration && (
-            <div className="bg-white border border-gray-200 rounded-[14px] p-6 md:p-8 mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg md:text-xl font-semibold text-gray-900">Crear cuenta</h2>
-                <button
-                  type="button"
-                  onClick={() => setShowRegistration(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  ✕
-                </button>
-              </div>
-              <form onSubmit={handleRegistration} className="space-y-4">
-                {registrationError && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-red-700">{registrationError}</p>
-                  </div>
-                )}
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Nombre <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={registrationData.first_name}
-                      onChange={(e) => setRegistrationData({ ...registrationData, first_name: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Apellido <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={registrationData.last_name}
-                      onChange={(e) => setRegistrationData({ ...registrationData, last_name: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={registrationData.email}
-                    onChange={(e) => setRegistrationData({ ...registrationData, email: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Teléfono
-                  </label>
-                  <input
-                    type="tel"
-                    value={registrationData.phone}
-                    onChange={(e) => setRegistrationData({ ...registrationData, phone: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Contraseña <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      required
-                      value={registrationData.password}
-                      onChange={(e) => setRegistrationData({ ...registrationData, password: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Confirmar contraseña <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showConfirmPassword ? "text" : "password"}
-                      required
-                      value={registrationData.confirmPassword}
-                      onChange={(e) => setRegistrationData({ ...registrationData, confirmPassword: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowRegistration(false);
-                      setShowLogin(true);
-                    }}
-                    className="text-sm text-[#00C1A7] hover:text-[#00A892]"
-                  >
-                    ¿Ya tienes cuenta? Inicia sesión
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={registrationLoading}
-                    className="px-6 py-2 bg-[#00C1A7] text-white rounded-lg hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {registrationLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Creando cuenta...
-                      </>
-                    ) : (
-                      "Crear cuenta"
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* Email Verification Banner */}
-          {needsEmailVerification && (
-            <div className="bg-amber-50 border border-amber-200 rounded-[14px] p-4 md:p-6 mb-6">
-              {registrationError && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-3 mb-4">
-                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-700">{registrationError}</p>
-                </div>
-              )}
-              {verificationEmailSent && !registrationError && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-start gap-3 mb-4">
-                  <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-green-700">Email de verificación enviado. Revisa tu bandeja de entrada.</p>
-                </div>
-              )}
-              <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-                <div className="flex items-start gap-3 flex-1">
-                  <div className="flex-shrink-0 w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                    <Mail className="w-5 h-5 text-amber-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-base font-semibold text-gray-900 mb-1">
-                      Verifica tu email para finalizar la compra
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      Hemos enviado un email de verificación a <strong>{user?.email}</strong>. 
-                      Por favor, revisa tu bandeja de entrada y haz clic en el enlace para verificar tu cuenta.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-                  <button
-                    type="button"
-                    onClick={handleResendVerification}
-                    disabled={resendVerificationLoading}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
-                  >
-                    {resendVerificationLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Reenviando...
-                      </>
-                    ) : (
-                      <>
-                        <Mail className="w-4 h-4" />
-                        Reenviar email
-                      </>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCheckVerification}
-                    className="px-4 py-2 bg-[#00C1A7] text-white rounded-lg hover:bg-[#00A892] transition-colors flex items-center justify-center gap-2 text-sm"
-                  >
-                    <Check className="w-4 h-4" />
-                    Ya verifiqué mi email
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
             {/* Left Column - Form */}
@@ -2759,13 +2331,19 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                     <input
                       type="email"
                       value={formData.email}
-                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      onChange={(e) => !isAuthenticated && handleInputChange("email", e.target.value)}
+                      readOnly={isAuthenticated}
                       className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 ${
                         errors.email ? "border-red-500" : "border-gray-300"
-                      }`}
+                      } ${isAuthenticated ? "bg-gray-50 cursor-default" : ""}`}
                     />
                     {errors.email && (
                       <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+                    )}
+                    {!isAuthenticated && !errors.email && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Al completar la compra crearemos una cuenta con este email y recibirás tu contraseña por correo.
+                      </p>
                     )}
                   </div>
 
@@ -3646,16 +3224,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
 
                 {/* Botón Finalizar compra: solo en responsive (móvil/tablet), al final del formulario */}
                 <div className="lg:hidden mt-6 pt-6 border-t border-gray-200">
-                  {!isAuthenticated && (
-                    <p className="text-blue-600 text-xs md:text-sm mb-3 text-center">
-                      Inicia sesión o crea una cuenta para finalizar la compra
-                    </p>
-                  )}
-                  {needsEmailVerification && (
-                    <p className="text-amber-600 text-xs md:text-sm mb-3 text-center">
-                      Verifica tu email para poder finalizar la compra
-                    </p>
-                  )}
                   {/* Aviso de que se abonará al recibir */}
                   <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <div className="flex items-start gap-2">
@@ -3668,12 +3236,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                   </div>
                   <button
                     type="submit"
-                    disabled={
-                      submitting ||
-                      needsEmailVerification ||
-                      !isAuthenticated ||
-                      paisViacargoBloqueaFinalizar
-                    }
+                    disabled={submitting || paisViacargoBloqueaFinalizar}
                     className="w-full bg-[#00C1A7] text-white py-3 px-6 rounded-lg font-semibold text-base hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {submitting ? (
@@ -3681,10 +3244,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                         <Loader2 className="w-5 h-5 animate-spin" />
                         Procesando...
                       </>
-                    ) : !isAuthenticated ? (
-                      "Inicia sesión para continuar"
-                    ) : needsEmailVerification ? (
-                      "Verifica tu email para continuar"
                     ) : (
                       "Finalizar compra"
                     )}
@@ -3901,16 +3460,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                   ) : null;
                 })()}
                 
-                {!isAuthenticated && (
-                  <p className="text-blue-600 text-xs md:text-sm mt-3 md:mt-4 text-center">
-                    Inicia sesión o crea una cuenta para finalizar la compra
-                  </p>
-                )}
-                {needsEmailVerification && (
-                  <p className="text-amber-600 text-xs md:text-sm mt-3 md:mt-4 text-center">
-                    Verifica tu email para poder finalizar la compra
-                  </p>
-                )}
                 {/* Aviso de que se abonará al recibir - Desktop */}
                 <div className="hidden lg:block mt-4 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-start gap-2">
@@ -3924,12 +3473,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                 {/* Botón Finalizar compra: solo en desktop (lg+) */}
                 <button
                   type="submit"
-                  disabled={
-                    submitting ||
-                    needsEmailVerification ||
-                    !isAuthenticated ||
-                    paisViacargoBloqueaFinalizar
-                  }
+                  disabled={submitting || paisViacargoBloqueaFinalizar}
                   className="hidden lg:flex w-full mt-4 md:mt-6 bg-[#00C1A7] text-white py-2.5 md:py-3 px-4 md:px-6 rounded-lg font-semibold text-sm md:text-base hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed items-center justify-center gap-2"
                 >
                   {submitting ? (
@@ -3937,10 +3481,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                       <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
                       Procesando...
                     </>
-                  ) : !isAuthenticated ? (
-                    "Inicia sesión para continuar"
-                  ) : needsEmailVerification ? (
-                    "Verifica tu email para continuar"
                   ) : (
                     "Finalizar compra"
                   )}
