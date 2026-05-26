@@ -72,7 +72,12 @@ export default function BancosTarjetasPage() {
     // Ordenar las cuotas dentro de cada grupo
     Object.keys(grouped).forEach(cardTypeId => {
       Object.keys(grouped[cardTypeId]).forEach(bankId => {
-        grouped[cardTypeId][bankId].sort((a, b) => a.installments - b.installments);
+        grouped[cardTypeId][bankId].sort((a, b) => {
+          if (a.display_order !== b.display_order) {
+            return a.display_order - b.display_order;
+          }
+          return a.installments - b.installments;
+        });
       });
     });
     

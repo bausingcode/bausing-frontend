@@ -6423,6 +6423,7 @@ export interface CardBankData {
     [bankName: string]: {
       cuotas: number;
       recargoPorcentaje: number;
+      displayOrder?: number;
     }[];
   };
 }

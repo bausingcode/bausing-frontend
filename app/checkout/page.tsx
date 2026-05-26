@@ -47,8 +47,14 @@ import {
 import {
   buildCardPaymentDetailsPayload,
   buildCardPaymentObservations,
+  calculateInstallmentAmounts,
+  computePayableWithInstallmentSurcharge,
+  formatInstallmentCuotasLabel,
+  formatInstallmentCuotasSelectedLabel,
   installmentOptionKey,
   parseInstallmentOptionKey,
+  paymentMethodAmountWithInstallment,
+  sortInstallmentOptions,
 } from "@/lib/cardPaymentObservations";
 import {
   CRM_MEDIOS_PAGO_BILLETERA,
@@ -760,6 +766,20 @@ export default function CheckoutPage() {
         ? Math.min(walletBalance, subtotalVal)
         : 0;
     const payableSubtotalVal = Math.max(0, subtotalVal - walletCreditAppliedVal);
+    const installmentForValidation = selectedInstallmentKey
+      ? parseInstallmentOptionKey(selectedInstallmentKey)
+      : null;
+    const isMultiForValidation =
+      enableMultiPayment && selectedMethods.length > 1;
+    const payableTotalVal = computePayableWithInstallmentSurcharge(
+      payableSubtotalVal,
+      {
+        hasCardPayment: selectedMethods.includes("card"),
+        cardPaymentAmount: methodAmounts["card"] || 0,
+        isMultiPayment: isMultiForValidation,
+        installment: installmentForValidation,
+      },
+    );
 
     if (payableSubtotalVal > 0.01) {
       if (selectedMethods.length === 0) {
@@ -770,10 +790,16 @@ export default function CheckoutPage() {
           "Solo puedes seleccionar un método de pago. Activa 'Combinar métodos' para usar múltiples métodos.";
       }
       if (enableMultiPayment && selectedMethods.length > 1) {
-        const totalPago = selectedMethods.reduce((sum, m) => sum + (methodAmounts[m] || 0), 0);
-        const diff = Math.abs(totalPago - payableSubtotalVal);
+        const totalPago = selectedMethods.reduce((sum, m) => {
+          const base = methodAmounts[m] || 0;
+          return (
+            sum +
+            paymentMethodAmountWithInstallment(m, base, installmentForValidation)
+          );
+        }, 0);
+        const diff = Math.abs(totalPago - payableTotalVal);
         if (diff > 0.01) {
-          newErrors.payment_method = `La suma de los montos ($${totalPago.toFixed(2)}) no coincide con lo que falta pagar ($${payableSubtotalVal.toFixed(2)})`;
+          newErrors.payment_method = `La suma de los montos ($${totalPago.toFixed(2)}) no coincide con lo que falta pagar ($${payableTotalVal.toFixed(2)})`;
         }
         for (const m of selectedMethods) {
           if (!methodAmounts[m] || methodAmounts[m] < 1) {
@@ -1107,8 +1133,6 @@ export default function CheckoutPage() {
                 return `• ${item.name} x${item.quantity} - $${itemPrice.toLocaleString('es-AR')} ($${unitPrice.toLocaleString('es-AR')} c/u)`;
               }).join('\n');
               
-              const totalWithShipping = subtotalAfterCoupon + shippingCost;
-              
               const paymentInfo = cardPaymentObservationsText
                 ? `\n\n*Método de pago:* Tarjeta (completarás la venta por WhatsApp)\n${cardPaymentObservationsText}`
                 : `\n\n*Método de pago:* Tarjeta (completarás la venta por WhatsApp)`;
@@ -1134,7 +1158,7 @@ ${cartItems}
 *RESUMEN:*
 ${couponDiscount > 0.01 ? `Subtotal: $${subtotal.toLocaleString('es-AR')}\nDescuento cupón: −$${couponDiscount.toLocaleString('es-AR')}\n` : ""}Subtotal productos: $${subtotalAfterCoupon.toLocaleString('es-AR')}
 ${shippingCost > 0 ? `Envío: $${shippingCost.toLocaleString('es-AR')}` : 'Envío: Gratis'}
-*Total: $${totalWithShipping.toLocaleString('es-AR')}*${paymentInfo}
+*Total: $${finalTotal.toLocaleString('es-AR')}*${paymentInfo}
 
 *DATOS DEL CLIENTE:*
 Nombre: ${formData.first_name} ${formData.last_name}
@@ -1190,8 +1214,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                 })
                 .join("\n");
 
-              const totalWithShipping = subtotalAfterCoupon + shippingCost;
-
               let paymentInfo = "";
               const payLines: string[] = [];
               if (walletCreditApplied > 0.01) {
@@ -1207,9 +1229,14 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                       : method === "transfer"
                         ? "Transferencia (completar por WhatsApp)"
                         : "Efectivo";
-                  const amount = isMultiPayment
+                  const base = isMultiPayment
                     ? methodAmounts[method] || 0
                     : payableSubtotal;
+                  const amount = paymentMethodAmountWithInstallment(
+                    method,
+                    base,
+                    selectedInstallment,
+                  );
                   payLines.push(
                     `  - ${methodName}: $${amount.toLocaleString("es-AR")}`,
                   );
@@ -1230,6 +1257,8 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                     ? provinces.find((p) => p.id === addressData.province_id)?.name || ""
                     : "";
 
+              const totalWithShippingWa = finalTotal;
+
               const message = `Hola! Quiero realizar el siguiente pedido:
 
 *PRODUCTOS:*
@@ -1238,7 +1267,7 @@ ${cartItems}
 *RESUMEN:*
 ${couponDiscount > 0.01 ? `Subtotal: $${subtotal.toLocaleString("es-AR")}\nDescuento cupón: −$${couponDiscount.toLocaleString("es-AR")}\n` : ""}Subtotal productos: $${subtotalAfterCoupon.toLocaleString("es-AR")}
 ${shippingCost > 0 ? `Envío: $${shippingCost.toLocaleString("es-AR")}` : "Envío: Gratis"}
-*Total: $${totalWithShipping.toLocaleString("es-AR")}*${paymentInfo}
+*Total: $${totalWithShippingWa.toLocaleString("es-AR")}*${paymentInfo}
 
 *DATOS DEL CLIENTE:*
 Nombre: ${formData.first_name} ${formData.last_name}
@@ -1291,8 +1320,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ""}`;
                 return `• ${item.name} x${item.quantity} - $${itemPrice.toLocaleString('es-AR')} ($${unitPrice.toLocaleString('es-AR')} c/u)`;
               }).join('\n');
               
-              const totalWithShipping = subtotalAfterCoupon + shippingCost;
-              
               let paymentInfo = "";
               const payLinesPais: string[] = [];
               if (walletCreditApplied > 0.01) {
@@ -1308,9 +1335,14 @@ ${addressText}${provinceName ? `, ${provinceName}` : ""}`;
                       : method === "transfer"
                         ? "Transferencia"
                         : "Efectivo";
-                  const amount = isMultiPayment
+                  const base = isMultiPayment
                     ? methodAmounts[method] || 0
                     : payableSubtotal;
+                  const amount = paymentMethodAmountWithInstallment(
+                    method,
+                    base,
+                    selectedInstallment,
+                  );
                   payLinesPais.push(
                     `  - ${methodName}: $${amount.toLocaleString("es-AR")}`,
                   );
@@ -1337,6 +1369,8 @@ ${addressText}${provinceName ? `, ${provinceName}` : ""}`;
                   ? provinces.find(p => p.id === addressData.province_id)?.name || ''
                   : '';
               
+              const totalWithShippingPais = finalTotal;
+
               // Construir mensaje completo
               const message = `Hola! Quiero realizar el siguiente pedido:
 
@@ -1346,7 +1380,7 @@ ${cartItems}
 *RESUMEN:*
 ${couponDiscount > 0.01 ? `Subtotal: $${subtotal.toLocaleString('es-AR')}\nDescuento cupón: −$${couponDiscount.toLocaleString('es-AR')}\n` : ""}Subtotal productos: $${subtotalAfterCoupon.toLocaleString('es-AR')}
 ${shippingCost > 0 ? `Envío: $${shippingCost.toLocaleString('es-AR')}` : 'Envío: Gratis'}
-*Total: $${totalWithShipping.toLocaleString('es-AR')}*${paymentInfo}
+*Total: $${totalWithShippingPais.toLocaleString('es-AR')}*${paymentInfo}
 
 *DATOS DEL CLIENTE:*
 Nombre: ${formData.first_name} ${formData.last_name}
@@ -1394,12 +1428,14 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
 
       if (payableSubtotal > 0.01) {
         for (const method of selectedMethods) {
-          let amount: number;
-          if (isMultiPayment) {
-            amount = methodAmounts[method] || 0;
-          } else {
-            amount = payableSubtotal;
-          }
+          const base = isMultiPayment
+            ? methodAmounts[method] || 0
+            : payableSubtotal;
+          const amount = paymentMethodAmountWithInstallment(
+            method,
+            base,
+            selectedInstallment,
+          );
           let processed = false;
           const mediosPagoId = crmMediosPagoIdForCheckoutMethod(method);
           paymentMethodsArray.push({
@@ -1866,11 +1902,34 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
   const getMethodAmount = (method: PaymentMethodType): number => methodAmounts[method] || 0;
   const cardPaymentAmount = getMethodAmount("card");
   const walletPaymentAmount = walletCreditApplied;
-  const totalAssigned = selectedMethods.reduce((sum, m) => sum + getMethodAmount(m), 0);
-  const remainingToAssign = Math.max(0, payableSubtotal - totalAssigned);
+  const getEffectiveMethodAmount = (method: PaymentMethodType): number =>
+    paymentMethodAmountWithInstallment(
+      method,
+      getMethodAmount(method),
+      selectedInstallment,
+    );
+  const totalAssigned = selectedMethods.reduce(
+    (sum, m) => sum + getEffectiveMethodAmount(m),
+    0,
+  );
+  const payableTotal = computePayableWithInstallmentSurcharge(payableSubtotal, {
+    hasCardPayment,
+    cardPaymentAmount,
+    isMultiPayment,
+    installment: selectedInstallment,
+  });
+  const remainingToAssign = Math.max(0, payableTotal - totalAssigned);
   const walletDiscount = walletCreditApplied;
-  const remainingAfterWallet = payableSubtotal;
-  const finalTotal = Math.max(0, payableSubtotal + shippingCost);
+  const remainingAfterWallet = payableTotal;
+  const finalTotal = Math.max(0, payableTotal + shippingCost);
+
+  const cardFinancingBaseAmount = isMultiPayment
+    ? cardPaymentAmount
+    : payableSubtotal;
+  const selectedInstallmentAmounts =
+    hasCardPayment && selectedInstallment
+      ? calculateInstallmentAmounts(cardFinancingBaseAmount, selectedInstallment)
+      : null;
 
   // Auto-fill montos respecto a lo que falta pagar (subtotal − billetera)
   useEffect(() => {
@@ -2994,8 +3053,8 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                   <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-gray-600">Total asignado:</span>
-                      <span className={`font-semibold ${Math.abs(totalAssigned - payableSubtotal) < 0.01 ? 'text-green-600' : 'text-amber-600'}`}>
-                        {formatPrice(totalAssigned)} / {formatPrice(payableSubtotal)}
+                      <span className={`font-semibold ${Math.abs(totalAssigned - payableTotal) < 0.01 ? 'text-green-600' : 'text-amber-600'}`}>
+                        {formatPrice(totalAssigned)} / {formatPrice(payableTotal)}
                       </span>
                     </div>
                     {remainingToAssign > 0.01 && (
@@ -3003,12 +3062,12 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                         Falta asignar {formatPrice(remainingToAssign)} para cubrir lo pendiente
                       </p>
                     )}
-                    {totalAssigned > payableSubtotal + 0.01 && (
+                    {totalAssigned > payableTotal + 0.01 && (
                       <p className="text-xs text-red-600 mt-1">
-                        El monto asignado excede lo pendiente en {formatPrice(totalAssigned - payableSubtotal)}
+                        El monto asignado excede lo pendiente en {formatPrice(totalAssigned - payableTotal)}
                       </p>
                     )}
-                    {Math.abs(totalAssigned - payableSubtotal) <= 0.01 && (
+                    {Math.abs(totalAssigned - payableTotal) <= 0.01 && (
                       <p className="text-xs text-green-600 mt-1">
                         ✓ El monto a abonar está cubierto correctamente
                       </p>
@@ -3047,7 +3106,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
 
                       const getInstallments = (cardType: string, bank: string) => {
                         if (!cardType || !bank || !cardData[cardType]?.[bank]) return [];
-                        return cardData[cardType][bank];
+                        return sortInstallmentOptions(cardData[cardType][bank]);
                       };
 
                       const banks = getBanks(selectedCardType);
@@ -3129,8 +3188,8 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                               </h4>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 {installments.map((inst, index) => {
-                                  const totalAmount = baseAmount;
-                                  const cuotaAmount = baseAmount / inst.cuotas;
+                                  const { totalAmount, cuotaAmount } =
+                                    calculateInstallmentAmounts(baseAmount, inst);
                                   const optionKey = installmentOptionKey(inst);
                                   const isSelected = selectedInstallmentKey === optionKey;
 
@@ -3166,9 +3225,9 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                                   );
                                 })}
                               </div>
-                              {selectedInstallment && cardPaymentObservationsText && (
+                              {selectedInstallment && (
                                 <p className="text-xs text-gray-600 mt-3">
-                                  Seleccionado: {cardPaymentObservationsText}
+                                  {formatInstallmentCuotasSelectedLabel(selectedInstallment.cuotas)}
                                 </p>
                               )}
                             </div>
@@ -3326,13 +3385,36 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                       {selectedMethods.map((method) => (
                         <div key={method} className="flex justify-between items-center">
                           <span className="text-xs font-medium text-gray-500">
-                            {method === "card" ? "Tarjeta" : method === "cash" ? "Efectivo" : "Transferencia"}
+                            {method === "card"
+                              ? selectedInstallment
+                                ? `Tarjeta (${formatInstallmentCuotasLabel(selectedInstallment.cuotas)})`
+                                : "Tarjeta"
+                              : method === "cash"
+                                ? "Efectivo"
+                                : "Transferencia"}
                           </span>
                           <span className="text-xs font-semibold text-gray-600">
-                            {formatPrice(methodAmounts[method] || 0)}
+                            {formatPrice(getEffectiveMethodAmount(method))}
                           </span>
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {hasCardPayment && selectedInstallment && (
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="text-sm font-medium text-gray-700">Cuotas</span>
+                      <div className="text-right">
+                        <span className="text-sm font-semibold text-gray-900">
+                          {formatInstallmentCuotasLabel(selectedInstallment.cuotas)}
+                        </span>
+                        {selectedInstallmentAmounts && (
+                          <p className="text-xs text-gray-500 mt-0.5 tabular-nums">
+                            {selectedInstallment.cuotas === 1 ? "Cuota de" : "Cuotas de"}{" "}
+                            {formatPrice(selectedInstallmentAmounts.cuotaAmount)}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   )}
 

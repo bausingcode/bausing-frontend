@@ -5,6 +5,22 @@ export type SelectedCardInstallment = {
   recargoPorcentaje: number;
 };
 
+export type CardInstallmentOption = SelectedCardInstallment & {
+  displayOrder?: number;
+};
+
+/** Mismo criterio que admin/back: display_order y luego cantidad de cuotas. */
+export function sortInstallmentOptions<T extends CardInstallmentOption>(
+  options: T[],
+): T[] {
+  return [...options].sort((a, b) => {
+    const orderA = a.displayOrder ?? 0;
+    const orderB = b.displayOrder ?? 0;
+    if (orderA !== orderB) return orderA - orderB;
+    return a.cuotas - b.cuotas;
+  });
+}
+
 export type CardPaymentDetailsPayload = {
   card_type_code: string;
   card_type_name: string;
@@ -12,6 +28,63 @@ export type CardPaymentDetailsPayload = {
   installments: number;
   surcharge_percent: number;
 };
+
+/** Monto a abonar incluyendo recargo de financiación en la parte con tarjeta. */
+export function computePayableWithInstallmentSurcharge(
+  payableSubtotal: number,
+  options: {
+    hasCardPayment: boolean;
+    cardPaymentAmount: number;
+    isMultiPayment: boolean;
+    installment: SelectedCardInstallment | null;
+  },
+): number {
+  const { hasCardPayment, cardPaymentAmount, isMultiPayment, installment } = options;
+  if (!hasCardPayment || !installment || installment.recargoPorcentaje <= 0) {
+    return payableSubtotal;
+  }
+  const cardBase = isMultiPayment ? cardPaymentAmount : payableSubtotal;
+  if (cardBase <= 0.01) return payableSubtotal;
+  const { totalAmount: cardWithSurcharge } = calculateInstallmentAmounts(cardBase, installment);
+  const nonCard = isMultiPayment ? Math.max(0, payableSubtotal - cardBase) : 0;
+  return nonCard + cardWithSurcharge;
+}
+
+/** Aplica recargo de cuotas al monto base de un método (solo tarjeta). */
+export function paymentMethodAmountWithInstallment(
+  method: string,
+  baseAmount: number,
+  installment: SelectedCardInstallment | null,
+): number {
+  if (method !== "card" || !installment) return baseAmount;
+  return calculateInstallmentAmounts(baseAmount, installment).totalAmount;
+}
+
+/** Monto total con recargo y valor por cuota (misma fórmula que el checkout). */
+export function calculateInstallmentAmounts(
+  baseAmount: number,
+  installment: Pick<SelectedCardInstallment, "cuotas" | "recargoPorcentaje">,
+): { totalAmount: number; cuotaAmount: number } {
+  const safeBase = Number.isFinite(baseAmount) && baseAmount > 0 ? baseAmount : 0;
+  const recargo =
+    Number.isFinite(installment.recargoPorcentaje) && installment.recargoPorcentaje > 0
+      ? installment.recargoPorcentaje
+      : 0;
+  const cuotas =
+    Number.isFinite(installment.cuotas) && installment.cuotas > 0 ? installment.cuotas : 1;
+  const totalAmount = safeBase * (1 + recargo / 100);
+  const cuotaAmount = totalAmount / cuotas;
+  return { totalAmount, cuotaAmount };
+}
+
+export function formatInstallmentCuotasLabel(cuotas: number): string {
+  return cuotas === 1 ? "1 cuota" : `${cuotas} cuotas`;
+}
+
+export function formatInstallmentCuotasSelectedLabel(cuotas: number): string {
+  const label = formatInstallmentCuotasLabel(cuotas);
+  return cuotas === 1 ? `${label} seleccionada` : `${label} seleccionadas`;
+}
 
 export function installmentOptionKey(inst: SelectedCardInstallment): string {
   return `${inst.cuotas}:${inst.recargoPorcentaje}`;
