@@ -31,13 +31,23 @@ export default function VentaDetailOverlay({
 
   return (
     <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        className={`fixed inset-0 bg-black/30 z-[99] ${
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+        style={{ transition: 'opacity 350ms cubic-bezier(0.32, 0.72, 0, 1)' }}
+      />
+
       {/* Overlay Panel */}
       <div
-        className={`fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[100] transform transition-transform duration-300 ease-out ${
-          isOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        className="fixed top-0 right-0 h-full w-full bg-white z-[100]"
         style={{
-          boxShadow: '-4px 0 24px rgba(0, 0, 0, 0.15)',
+          maxWidth: '480px',
+          boxShadow: '-4px 0 32px rgba(0, 0, 0, 0.18)',
+          transition: 'transform 350ms cubic-bezier(0.32, 0.72, 0, 1)',
+          transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
         }}
       >
         <div className="h-full flex flex-col">

@@ -137,10 +137,10 @@ export default function VentasPedidos() {
     setIsOverlayOpen(true);
   };
 
-  // Cerrar overlay
+  // Cerrar overlay — espera que termine la animación antes de desmontar
   const handleCloseOverlay = () => {
     setIsOverlayOpen(false);
-    setSelectedVenta(null);
+    setTimeout(() => setSelectedVenta(null), 350);
   };
 
   // Manejar cambio de búsqueda con debounce

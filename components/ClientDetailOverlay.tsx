@@ -87,10 +87,11 @@ export default function ClientDetailOverlay({
       
       {/* Overlay Panel */}
       <div
-        className={`fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-[100] transform transition-transform duration-300 ease-out ${
+        className={`fixed top-0 right-0 h-full w-full bg-white shadow-2xl z-[100] transform transition-transform duration-300 ease-out ${
           isClosing ? "translate-x-full" : "translate-x-0"
         }`}
         style={{
+          maxWidth: '480px',
           boxShadow: '-4px 0 24px rgba(0, 0, 0, 0.15)',
         }}
       >

@@ -824,7 +824,7 @@ export default function BancosTarjetasPage() {
 
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-black/20 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-[14px] p-6 max-w-md w-full mx-4 shadow-xl">
             <h2 className="text-xl font-bold text-gray-900 mb-4">
               Crear {activeTab === "card-types" ? "Tipo de Tarjeta" : activeTab === "banks" ? "Banco" : "Cuota"}
