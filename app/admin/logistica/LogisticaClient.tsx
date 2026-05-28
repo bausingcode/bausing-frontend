@@ -495,7 +495,7 @@ export default function LogisticaClient({ initialVentas, diasEstimados: initialD
 
       {/* Overlay de detalles del pedido */}
       {selectedPedido && (
-        <div className="fixed inset-0 z-50 flex justify-end">
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/50">
           <div className="bg-white w-full max-w-2xl h-full shadow-2xl overflow-y-auto animate-slideInRight">
             {/* Header del overlay */}
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">

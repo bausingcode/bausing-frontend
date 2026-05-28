@@ -282,7 +282,7 @@ export default async function Home() {
 
           {/* Desktop ancho (1291px+): columna 300px + tres productos */}
           <div className="hidden min-[1291px]:grid min-[1291px]:grid-cols-[300px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-4 xl:gap-6 items-start">
-            <div className="w-[300px] h-[400px] shrink-0 overflow-hidden rounded-xl bg-neutral-100">
+            <div className="w-[300px] h-[450px] shrink-0 overflow-hidden rounded-xl bg-neutral-100">
               {descuentazosBanner ? (
                 <img
                   src={wsrvLoader({ src: descuentazosBanner.image_url, width: 600 })}

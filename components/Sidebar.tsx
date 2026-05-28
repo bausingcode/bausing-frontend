@@ -6,12 +6,25 @@ import NavLink from "./NavLink";
 import { LogOut, Home, ShoppingCart, Users, CreditCard, Package, Truck, BarChart3, UserCog, Settings, Tag, User, ChevronDown, Image, FileText, Calendar, Mail, Star, PackageX, AlertTriangle, UserPlus, HelpCircle, Gift, TicketPercent, ShoppingBag } from "lucide-react";
 import { getCurrentAdminUser, AdminUser } from "@/lib/api";
 
+const SECTIONS = ["comercio", "catalogo", "contenido", "operaciones", "configuracion"] as const;
+type Section = typeof SECTIONS[number];
+
 export default function Sidebar() {
   const router = useRouter();
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState<Set<Section>>(new Set());
   const navRef = useRef<HTMLElement>(null);
+
+  const toggleSection = (section: Section) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(section)) next.delete(section);
+      else next.add(section);
+      return next;
+    });
+  };
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
@@ -109,7 +122,7 @@ export default function Sidebar() {
       </div>
 
       {/* Tarjeta del menú de navegación con datos de usuario */}
-      <div className="bg-white rounded-[14px] px-5 py-6 text-[14.5px] flex flex-col max-h-[calc(100vh-127px)]">
+      <div className="bg-white rounded-[14px] px-5 py-6 text-[14.5px] flex flex-col h-[calc(100vh-127px)]">
         {/* Datos del usuario */}
         <div className="flex items-center justify-between pb-4 border-b border-gray-200 mb-4 flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -138,211 +151,145 @@ export default function Sidebar() {
 
         {/* Menú de navegación con scroll */}
         <div className="relative flex-1 pb-2 overflow-hidden min-h-0">
-          <nav 
-            ref={navRef} 
+          <nav
+            ref={navRef}
             className="h-full overflow-y-auto pr-2 scrollbar-hide"
             style={{ maxHeight: '100%' }}
           >
-            <ul className="space-y-2.5 pb-2">
+            <ul className="pb-2 space-y-0.5">
+              {/* Inicio */}
               <li key="inicio">
-                <NavLink
-                  href="/admin"
-                  icon={<Home className="w-5 h-5" />}
-                >
-                  Inicio
-                </NavLink>
+                <NavLink href="/admin" icon={<Home className="w-5 h-5" />}>Inicio</NavLink>
               </li>
-              <li key="ventas">
-                <NavLink
-                  href="/admin/ventas"
-                  icon={<ShoppingCart className="w-5 h-5" />}
+
+              {/* Comercio */}
+              <li key="section-comercio" className="pt-4">
+                <button
+                  onClick={() => toggleSection("comercio")}
+                  className="w-full flex items-center justify-between px-3 pb-1 cursor-pointer group"
                 >
-                  Ventas
-                </NavLink>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 group-hover:text-gray-500 transition-colors">Comercio</span>
+                  <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform duration-200 ${collapsedSections.has("comercio") ? "-rotate-90" : ""}`} />
+                </button>
+                <div
+                  className="grid"
+                  style={{
+                    gridTemplateRows: collapsedSections.has("comercio") ? "0fr" : "1fr",
+                    transition: "grid-template-rows 250ms ease",
+                  }}
+                >
+                  <ul className="overflow-hidden space-y-0.5">
+                    <li key="ventas"><NavLink href="/admin/ventas" icon={<ShoppingCart className="w-5 h-5" />}>Ventas</NavLink></li>
+                    <li key="ordenes-fallidas"><NavLink href="/admin/ordenes-fallidas" icon={<AlertTriangle className="w-5 h-5" />}>Órdenes Fallidas</NavLink></li>
+                    <li key="clientes"><NavLink href="/admin/clientes" icon={<Users className="w-5 h-5" />}>Clientes</NavLink></li>
+                    <li key="metricas"><NavLink href="/admin/metricas" icon={<BarChart3 className="w-5 h-5" />}>Métricas</NavLink></li>
+                    <li key="metricas-usuarios"><NavLink href="/admin/metricas-usuarios" icon={<BarChart3 className="w-5 h-5" />}>Métricas Usuarios</NavLink></li>
+                  </ul>
+                </div>
               </li>
-              <li key="ordenes-fallidas">
-                <NavLink
-                  href="/admin/ordenes-fallidas"
-                  icon={<AlertTriangle className="w-5 h-5" />}
+
+              {/* Catálogo */}
+              <li key="section-catalogo" className="pt-4">
+                <button
+                  onClick={() => toggleSection("catalogo")}
+                  className="w-full flex items-center justify-between px-3 pb-1 cursor-pointer group"
                 >
-                  Órdenes Fallidas
-                </NavLink>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 group-hover:text-gray-500 transition-colors">Catálogo</span>
+                  <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform duration-200 ${collapsedSections.has("catalogo") ? "-rotate-90" : ""}`} />
+                </button>
+                <div
+                  className="grid"
+                  style={{
+                    gridTemplateRows: collapsedSections.has("catalogo") ? "0fr" : "1fr",
+                    transition: "grid-template-rows 250ms ease",
+                  }}
+                >
+                  <ul className="overflow-hidden space-y-0.5">
+                    <li key="productos"><NavLink href="/admin/productos" icon={<Package className="w-5 h-5" />}>Productos</NavLink></li>
+                    <li key="completa-compra"><NavLink href="/admin/completa-compra" icon={<ShoppingBag className="w-5 h-5" />}>Completa tu compra</NavLink></li>
+                    <li key="distribucion-inicio"><NavLink href="/admin/distribucion-inicio" icon={<Package className="w-5 h-5" />}>Distribución Inicio</NavLink></li>
+                    <li key="club-beneficios"><NavLink href="/admin/club-beneficios" icon={<Gift className="w-5 h-5" />}>Club Beneficios</NavLink></li>
+                    <li key="cupones"><NavLink href="/admin/cupones" icon={<TicketPercent className="w-5 h-5" />}>Cupones</NavLink></li>
+                    <li key="promos"><NavLink href="/admin/promos" icon={<Tag className="w-5 h-5" />}>Promos</NavLink></li>
+                  </ul>
+                </div>
               </li>
-              <li key="clientes">
-                <NavLink
-                  href="/admin/clientes"
-                  icon={<Users className="w-5 h-5" />}
+
+              {/* Contenido */}
+              <li key="section-contenido" className="pt-4">
+                <button
+                  onClick={() => toggleSection("contenido")}
+                  className="w-full flex items-center justify-between px-3 pb-1 cursor-pointer group"
                 >
-                  Clientes
-                </NavLink>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 group-hover:text-gray-500 transition-colors">Contenido</span>
+                  <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform duration-200 ${collapsedSections.has("contenido") ? "-rotate-90" : ""}`} />
+                </button>
+                <div
+                  className="grid"
+                  style={{
+                    gridTemplateRows: collapsedSections.has("contenido") ? "0fr" : "1fr",
+                    transition: "grid-template-rows 250ms ease",
+                  }}
+                >
+                  <ul className="overflow-hidden space-y-0.5">
+                    <li key="imagenes"><NavLink href="/admin/imagenes" icon={<Image className="w-5 h-5" />}>Imágenes</NavLink></li>
+                    <li key="blog"><NavLink href="/admin/blog" icon={<FileText className="w-5 h-5" />}>Blog</NavLink></li>
+                    <li key="preguntas-frecuentes"><NavLink href="/admin/preguntas-frecuentes" icon={<HelpCircle className="w-5 h-5" />}>Preguntas Frecuentes</NavLink></li>
+                    <li key="eventos"><NavLink href="/admin/eventos" icon={<Calendar className="w-5 h-5" />}>Eventos</NavLink></li>
+                    <li key="mensajes"><NavLink href="/admin/mensajes" icon={<Mail className="w-5 h-5" />}>Mensajes</NavLink></li>
+                    <li key="resenas"><NavLink href="/admin/resenas" icon={<Star className="w-5 h-5" />}>Reseñas</NavLink></li>
+                  </ul>
+                </div>
               </li>
-              <li key="metricas">
-                <NavLink
-                  href="/admin/metricas"
-                  icon={<BarChart3 className="w-5 h-5" />}
+
+              {/* Operaciones */}
+              <li key="section-operaciones" className="pt-4">
+                <button
+                  onClick={() => toggleSection("operaciones")}
+                  className="w-full flex items-center justify-between px-3 pb-1 cursor-pointer group"
                 >
-                  Métricas
-                </NavLink>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 group-hover:text-gray-500 transition-colors">Operaciones</span>
+                  <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform duration-200 ${collapsedSections.has("operaciones") ? "-rotate-90" : ""}`} />
+                </button>
+                <div
+                  className="grid"
+                  style={{
+                    gridTemplateRows: collapsedSections.has("operaciones") ? "0fr" : "1fr",
+                    transition: "grid-template-rows 250ms ease",
+                  }}
+                >
+                  <ul className="overflow-hidden space-y-0.5">
+                    <li key="logistica"><NavLink href="/admin/logistica" icon={<Truck className="w-5 h-5" />}>Logística</NavLink></li>
+                    <li key="envios"><NavLink href="/admin/envios" icon={<Truck className="w-5 h-5" />}>Envíos</NavLink></li>
+                    <li key="zonas-entrega"><NavLink href="/admin/zonas-entrega" icon={<PackageX className="w-5 h-5" />}>Transporte Tercerizado</NavLink></li>
+                    <li key="billetera"><NavLink href="/admin/billetera" icon={<CreditCard className="w-5 h-5" />}>Billetera Bausing</NavLink></li>
+                    <li key="referidos"><NavLink href="/admin/referidos" icon={<UserPlus className="w-5 h-5" />}>Referidos</NavLink></li>
+                  </ul>
+                </div>
               </li>
-              <li key="billetera">
-                <NavLink
-                  href="/admin/billetera"
-                  icon={<CreditCard className="w-5 h-5" />}
+
+              {/* Configuración */}
+              <li key="section-config" className="pt-4">
+                <button
+                  onClick={() => toggleSection("configuracion")}
+                  className="w-full flex items-center justify-between px-3 pb-1 cursor-pointer group"
                 >
-                  Billetera Bausing
-                </NavLink>
-              </li>
-              <li key="referidos">
-                <NavLink
-                  href="/admin/referidos"
-                  icon={<UserPlus className="w-5 h-5" />}
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 group-hover:text-gray-500 transition-colors">Configuración</span>
+                  <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform duration-200 ${collapsedSections.has("configuracion") ? "-rotate-90" : ""}`} />
+                </button>
+                <div
+                  className="grid"
+                  style={{
+                    gridTemplateRows: collapsedSections.has("configuracion") ? "0fr" : "1fr",
+                    transition: "grid-template-rows 250ms ease",
+                  }}
                 >
-                  Referidos
-                </NavLink>
-              </li>
-              <li key="productos">
-                <NavLink
-                  href="/admin/productos"
-                  icon={<Package className="w-5 h-5" />}
-                >
-                  Productos
-                </NavLink>
-              </li>
-              <li key="completa-compra">
-                <NavLink
-                  href="/admin/completa-compra"
-                  icon={<ShoppingBag className="w-5 h-5" />}
-                >
-                  Completa tu compra
-                </NavLink>
-              </li>
-              <li key="distribucion-inicio">
-                <NavLink
-                  href="/admin/distribucion-inicio"
-                  icon={<Package className="w-5 h-5" />}
-                >
-                  Distribución Inicio
-                </NavLink>
-              </li>
-              <li key="club-beneficios">
-                <NavLink
-                  href="/admin/club-beneficios"
-                  icon={<Gift className="w-5 h-5" />}
-                >
-                  Club Beneficios
-                </NavLink>
-              </li>
-              <li key="cupones">
-                <NavLink
-                  href="/admin/cupones"
-                  icon={<TicketPercent className="w-5 h-5" />}
-                >
-                  Cupones
-                </NavLink>
-              </li>
-              <li key="imagenes">
-                <NavLink
-                  href="/admin/imagenes"
-                  icon={<Image className="w-5 h-5" />}
-                >
-                  Imágenes
-                </NavLink>
-              </li>
-              <li key="blog">
-                <NavLink
-                  href="/admin/blog"
-                  icon={<FileText className="w-5 h-5" />}
-                >
-                  Blog
-                </NavLink>
-              </li>
-              <li key="preguntas-frecuentes">
-                <NavLink
-                  href="/admin/preguntas-frecuentes"
-                  icon={<HelpCircle className="w-5 h-5" />}
-                >
-                  Preguntas frecuentes
-                </NavLink>
-              </li>
-              <li key="promos">
-                <NavLink
-                  href="/admin/promos"
-                  icon={<Tag className="w-5 h-5" />}
-                >
-                  Promos
-                </NavLink>
-              </li>
-              <li key="eventos">
-                <NavLink
-                  href="/admin/eventos"
-                  icon={<Calendar className="w-5 h-5" />}
-                >
-                  Eventos
-                </NavLink>
-              </li>
-              <li key="mensajes">
-                <NavLink
-                  href="/admin/mensajes"
-                  icon={<Mail className="w-5 h-5" />}
-                >
-                  Mensajes
-                </NavLink>
-              </li>
-              <li key="resenas">
-                <NavLink
-                  href="/admin/resenas"
-                  icon={<Star className="w-5 h-5" />}
-                >
-                  Reseñas
-                </NavLink>
-              </li>
-              <li key="logistica">
-                <NavLink
-                  href="/admin/logistica"
-                  icon={<Truck className="w-5 h-5" />}
-                >
-                  Logística
-                </NavLink>
-              </li>
-              <li key="zonas-entrega">
-                <NavLink
-                  href="/admin/zonas-entrega"
-                  icon={<PackageX className="w-5 h-5" />}
-                >
-                  Transporte Tercerizado
-                </NavLink>
-              </li>
-              {/* <li key="reportes">
-                <NavLink
-                  href="/admin/reportes"
-                  icon={<BarChart3 className="w-5 h-5" />}
-                >
-                  Reportes (X)
-                </NavLink>
-              </li> */}
-              <li key="usuarios">
-                <NavLink
-                  href="/admin/usuarios"
-                  icon={<UserCog className="w-5 h-5" />}
-                >
-                  Usuarios 
-                </NavLink>
-              </li>
-              <li key="bancos-tarjetas">
-                <NavLink
-                  href="/admin/bancos-tarjetas"
-                  icon={<CreditCard className="w-5 h-5" />}
-                >
-                  Bancos y Tarjetas
-                </NavLink>
-              </li>
-              <li key="configuracion">
-                <NavLink
-                  href="/admin/configuracion"
-                  icon={<Settings className="w-5 h-5" />}
-                >
-                  Configuración
-                </NavLink>
+                  <ul className="overflow-hidden space-y-0.5">
+                    <li key="bancos-tarjetas"><NavLink href="/admin/bancos-tarjetas" icon={<CreditCard className="w-5 h-5" />}>Bancos y Tarjetas</NavLink></li>
+                    <li key="usuarios"><NavLink href="/admin/usuarios" icon={<UserCog className="w-5 h-5" />}>Usuarios</NavLink></li>
+                    <li key="configuracion"><NavLink href="/admin/configuracion" icon={<Settings className="w-5 h-5" />}>Configuración</NavLink></li>
+                  </ul>
+                </div>
               </li>
             </ul>
           </nav>
