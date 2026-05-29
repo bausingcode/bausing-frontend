@@ -3077,23 +3077,14 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
 
                 {/* Cuotas y Bancos - Solo cuando se selecciona tarjeta */}
                 {hasCardPayment && (
-                  <div className="mt-6 pt-6 border-t border-gray-200">
-                    <div className="mb-4">
-                      <h3 className="text-base font-semibold text-gray-900 mb-2">Tarjeta, banco y cuotas</h3>
-                      <p className="text-sm text-gray-600">
-                        Elegí cómo vas a financiar el pago con tarjeta. Se guardará en tu pedido y en las observaciones del sistema.
-                      </p>
-                    </div>
+                  <div className="mt-6 pt-5 border-t border-gray-200 space-y-4">
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 space-y-4">
+                    <h3 className="text-sm font-semibold text-gray-800">Tarjeta, banco y cuotas</h3>
                     {errors.card_installment && (
-                      <p className="text-red-500 text-sm mb-3">{errors.card_installment}</p>
+                      <p className="text-red-500 text-sm">{errors.card_installment}</p>
                     )}
-                    
-                    {/* Datos de cuotas y bancos desde API */}
                     {(() => {
-                      // Usar datos de la API
                       const cardData = cardBankData;
-
-                      // Convertir cardTypes a formato para el select
                       const cardTypesOptions = cardTypes.map((ct: CardType) => ({
                         value: ct.code,
                         label: ct.name,
@@ -3111,66 +3102,86 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
 
                       const banks = getBanks(selectedCardType);
                       const installments = getInstallments(selectedCardType, selectedBank);
-                      
-                      // Calcular el monto base (subtotal o monto de tarjeta si es multi-pago)
                       const baseAmount = isMultiPayment
                         ? methodAmounts["card"] || 0
                         : payableSubtotal;
 
+                      const clearCardError = () => {
+                        if (errors.card_installment) {
+                          setErrors((prev) => {
+                            const next = { ...prev };
+                            delete next.card_installment;
+                            return next;
+                          });
+                        }
+                      };
+
                       return (
                         <div className="space-y-4">
-                          {/* Select de Tipo de Tarjeta */}
+                          {/* Tipo de tarjeta */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Tipo de tarjeta
+                            <label className="block text-sm text-gray-600 mb-2">
+                              Tipo de tarjeta <span className="text-red-400">*</span>
                             </label>
-                            <select
-                              value={selectedCardType}
-                              onChange={(e) => {
-                                setSelectedCardType(e.target.value);
-                                setSelectedBank("");
-                                setSelectedInstallmentKey("");
-                                if (errors.card_installment) {
-                                  setErrors((prev) => {
-                                    const next = { ...prev };
-                                    delete next.card_installment;
-                                    return next;
-                                  });
-                                }
-                              }}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-[#00C1A7] focus:border-[#00C1A7] bg-white"
-                            >
-                              <option value="">Selecciona un tipo de tarjeta</option>
-                              {cardTypesOptions.map((type) => (
-                                <option key={type.value} value={type.value}>
-                                  {type.label}
-                                </option>
-                              ))}
-                            </select>
+                            {cardTypesOptions.length > 0 && cardTypesOptions.length <= 6 ? (
+                              <div className="flex flex-wrap gap-2">
+                                {cardTypesOptions.map((type) => (
+                                  <button
+                                    key={type.value}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedCardType(type.value);
+                                      setSelectedBank("");
+                                      setSelectedInstallmentKey("");
+                                      clearCardError();
+                                    }}
+                                    className={`px-3 py-1.5 rounded-md border text-sm transition-colors ${
+                                      selectedCardType === type.value
+                                        ? "border-[#00C1A7] bg-[#00C1A7]/10 text-[#00C1A7] font-medium"
+                                        : "border-gray-200 text-gray-700 hover:border-gray-300"
+                                    }`}
+                                  >
+                                    {type.label}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <select
+                                value={selectedCardType}
+                                onChange={(e) => {
+                                  setSelectedCardType(e.target.value);
+                                  setSelectedBank("");
+                                  setSelectedInstallmentKey("");
+                                  clearCardError();
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-[#00C1A7] focus:border-[#00C1A7] bg-white"
+                              >
+                                <option value="">Seleccioná un tipo de tarjeta</option>
+                                {cardTypesOptions.map((type) => (
+                                  <option key={type.value} value={type.value}>
+                                    {type.label}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
                           </div>
 
-                          {/* Select de Banco */}
+                          {/* Banco */}
                           {selectedCardType && (
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Banco
+                              <label className="block text-sm text-gray-600 mb-2">
+                                Banco <span className="text-red-400">*</span>
                               </label>
                               <select
                                 value={selectedBank}
                                 onChange={(e) => {
                                   setSelectedBank(e.target.value);
                                   setSelectedInstallmentKey("");
-                                  if (errors.card_installment) {
-                                    setErrors((prev) => {
-                                      const next = { ...prev };
-                                      delete next.card_installment;
-                                      return next;
-                                    });
-                                  }
+                                  clearCardError();
                                 }}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-[#00C1A7] focus:border-[#00C1A7] bg-white"
                               >
-                                <option value="">Selecciona un banco</option>
+                                <option value="">Seleccioná tu banco</option>
                                 {banks.map((bank) => (
                                   <option key={bank} value={bank}>
                                     {bank}
@@ -3180,13 +3191,13 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                             </div>
                           )}
 
-                          {/* Mostrar Cuotas con precios */}
+                          {/* Cuotas */}
                           {selectedCardType && selectedBank && installments.length > 0 && (
-                            <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                              <h4 className="text-sm font-semibold text-gray-900 mb-3">
-                                Elegí las cuotas
-                              </h4>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div>
+                              <label className="block text-sm text-gray-600 mb-2">
+                                Cuotas <span className="text-red-400">*</span>
+                              </label>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                                 {installments.map((inst, index) => {
                                   const { totalAmount, cuotaAmount } =
                                     calculateInstallmentAmounts(baseAmount, inst);
@@ -3199,42 +3210,32 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                                       type="button"
                                       onClick={() => {
                                         setSelectedInstallmentKey(optionKey);
-                                        if (errors.card_installment) {
-                                          setErrors((prev) => {
-                                            const next = { ...prev };
-                                            delete next.card_installment;
-                                            return next;
-                                          });
-                                        }
+                                        clearCardError();
                                       }}
-                                      className={`bg-white p-3 rounded-lg border text-center transition-colors ${
+                                      className={`p-3 rounded-lg border text-center transition-colors ${
                                         isSelected
-                                          ? "border-[#00C1A7] ring-2 ring-[#00C1A7]/30 shadow-sm"
-                                          : "border-gray-200 hover:border-gray-300"
+                                          ? "border-[#00C1A7] bg-[#00C1A7]/10 shadow-sm"
+                                          : "border-gray-200 bg-white hover:border-gray-300"
                                       }`}
                                     >
-                                      <p className="text-base font-semibold text-gray-900 tabular-nums leading-snug">
-                                        {inst.cuotas}{" "}
-                                        {inst.cuotas === 1 ? "cuota de" : "cuotas de"}{" "}
-                                        {formatPrice(cuotaAmount)}
+                                      <p className={`text-sm font-semibold tabular-nums ${isSelected ? "text-[#00C1A7]" : "text-gray-900"}`}>
+                                        {inst.cuotas === 1
+                                          ? `1 cuota de ${formatPrice(cuotaAmount)}`
+                                          : `${inst.cuotas} x ${formatPrice(cuotaAmount)}`}
                                       </p>
-                                      <p className="text-xs text-gray-500 mt-1.5 font-normal tabular-nums">
-                                        Total: {formatPrice(totalAmount)}
+                                      <p className="text-xs text-gray-400 mt-0.5 tabular-nums">
+                                        Total {formatPrice(totalAmount)}
                                       </p>
                                     </button>
                                   );
                                 })}
                               </div>
-                              {selectedInstallment && (
-                                <p className="text-xs text-gray-600 mt-3">
-                                  {formatInstallmentCuotasSelectedLabel(selectedInstallment.cuotas)}
-                                </p>
-                              )}
                             </div>
                           )}
                         </div>
                       );
                     })()}
+                    </div>
                   </div>
                 )}
 
