@@ -2602,7 +2602,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                 )}
 
                 {showAddressForm ? (
-                  <div className="space-y-4" autoComplete="off">
+                  <div className="space-y-4">
                     <div>
                       <h3 className="text-sm font-semibold text-gray-900 mb-1">
                         {editingAddressId ? "Editar dirección" : "Nueva dirección"}
