@@ -184,6 +184,8 @@ export default function CheckoutPage() {
   const priceLoadSeqRef = useRef(0);
   const shippingCheckSeqRef = useRef(0);
   const selectedAddressIdRef = useRef<string | null>(null);
+  const lastAddressIdRef = useRef<string | null>(null);
+  const isDetectingLocalityRef = useRef(false);
   /** true mientras syncLocalityForAddress carga precios/envío (evita carrera con useEffect de precios) */
   const addressSyncInProgressRef = useRef(false);
 
