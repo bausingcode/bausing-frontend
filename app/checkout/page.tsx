@@ -88,7 +88,7 @@ function normalizeArPostalCode(raw: string | undefined | null): string | null {
 export default function CheckoutPage() {
   const { user, isAuthenticated } = useAuth();
   const { cart, removeFromCart, updateCartQuantity } = useCart();
-  const { locality, selectAddress, isLoading: localityLoading } = useLocality();
+  const { locality, selectAddress, isLoading: localityLoading, error: localityError } = useLocality();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -542,7 +542,7 @@ export default function CheckoutPage() {
         if (!detected?.id) {
           setErrors((prev) => ({
             ...prev,
-            address: "No se pudo detectar la localidad para esta dirección",
+            address: localityError || "No se pudo detectar la localidad para esta dirección",
           }));
           setProductsWithPrices({});
           setLoadingPrices(false);
