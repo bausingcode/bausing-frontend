@@ -1904,12 +1904,19 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
             body: JSON.stringify(requestBody),
             signal: ac.signal,
           });
-          const data = await res.json();
           if (ac.signal.aborted) return;
-          if (!data.success) {
+          let data: any = null;
+          try {
+            data = await res.json();
+          } catch {
+            // nginx devolvió HTML (504/502 de gateway) — no es JSON
+          }
+          if (!res.ok || !data?.success) {
             setViacargoQuoteTotal(null);
             setViacargoQuoteError(
-              typeof data.error === "string" ? data.error : "No se pudo calcular el envío",
+              typeof data?.error === "string"
+                ? data.error
+                : "Este código postal no tiene envío disponible.",
             );
             return;
           }
@@ -3502,9 +3509,13 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                   {/* Subtotal */}
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-gray-700">Subtotal</span>
-                    <span className="text-sm font-semibold text-gray-900">
-                      {formatPrice(subtotal)}
-                    </span>
+                    {loadingPrices ? (
+                      <span className="inline-block h-4 w-20 rounded-md bg-gray-200 animate-pulse" />
+                    ) : (
+                      <span className="text-sm font-semibold text-gray-900">
+                        {formatPrice(subtotal)}
+                      </span>
+                    )}
                   </div>
                   {couponDiscount > 0.01 && (
                     <div className="flex justify-between items-center">
@@ -3616,9 +3627,13 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                   <div className="border-t border-gray-200 pt-4 mt-4">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-base md:text-lg font-semibold text-gray-900">Total</span>
-                      <span className="text-lg md:text-xl font-bold text-gray-900">
-                        {formatPrice(finalTotal)}
-                      </span>
+                      {loadingPrices ? (
+                        <span className="inline-block h-6 w-24 rounded-md bg-gray-200 animate-pulse" />
+                      ) : (
+                        <span className="text-lg md:text-xl font-bold text-gray-900">
+                          {formatPrice(finalTotal)}
+                        </span>
+                      )}
                     </div>
                     {hasWalletPayment && walletDiscount > 0 && remainingAfterWallet > 0 && (
                       <p className="text-xs text-gray-500 mt-2">
