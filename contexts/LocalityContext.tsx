@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useLayoutEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useRef, ReactNode } from "react";
 import { Address } from "@/lib/api";
 
 export interface Locality {
@@ -19,9 +19,9 @@ interface LocalityContextType {
   detectLocality: (
     simulatedIp?: string,
     addressId?: string,
-    options?: { background?: boolean },
+    options?: { background?: boolean; selectSeq?: number },
   ) => Promise<void>;
-  selectAddress: (addressId: string) => Promise<void>;
+  selectAddress: (addressId: string) => Promise<Locality | null>;
   clearAddressSelection: () => void;
 }
 
@@ -51,6 +51,57 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
   const [requiresAddressSelection, setRequiresAddressSelection] = useState(false);
   const [availableAddresses, setAvailableAddresses] = useState<Address[]>([]);
   const [updateKey, setUpdateKey] = useState(0); // Key para forzar actualizaciones
+  /** Ignora respuestas de selectAddress si el usuario eligió otra dirección después */
+  const addressSelectSeqRef = useRef(0);
+  /** Última localidad confirmada por detect-locality (para devolverla desde selectAddress) */
+  const lastCommittedLocalityRef = useRef<Locality | null>(null);
+
+  type LocalityWithZone = Locality & {
+    crm_zone_id?: string;
+    is_third_party_transport?: boolean;
+    shipping_price?: number | null;
+  };
+
+  const isStaleAddressSelect = (selectSeq?: number) =>
+    selectSeq !== undefined && selectSeq !== addressSelectSeqRef.current;
+
+  const commitDetectedLocality = (
+    detectedLocality: Locality,
+    extras: {
+      crm_zone_id?: string;
+      is_third_party_transport?: boolean;
+      shipping_price?: number | null;
+    },
+    options?: { selectSeq?: number; addressId?: string },
+  ): LocalityWithZone | null => {
+    if (isStaleAddressSelect(options?.selectSeq)) {
+      return null;
+    }
+    setRequiresAddressSelection(false);
+    setAvailableAddresses([]);
+
+    const localityWithZone: LocalityWithZone = { ...detectedLocality };
+    if (extras.crm_zone_id) {
+      localityWithZone.crm_zone_id = extras.crm_zone_id;
+    }
+    localityWithZone.is_third_party_transport = !!extras.is_third_party_transport;
+    if (extras.is_third_party_transport && extras.shipping_price != null) {
+      localityWithZone.shipping_price = extras.shipping_price;
+    } else {
+      delete localityWithZone.shipping_price;
+    }
+
+    setLocalityState(localityWithZone);
+    setUpdateKey((prev) => prev + 1);
+    localStorage.setItem(STORAGE_KEY_LOCALITY, JSON.stringify(localityWithZone));
+    window.dispatchEvent(
+      new CustomEvent("localityChanged", {
+        detail: { locality: localityWithZone, addressId: options?.addressId },
+      }),
+    );
+    lastCommittedLocalityRef.current = localityWithZone;
+    return localityWithZone;
+  };
 
   // Obtener token de autenticación
   const getAuthToken = () => {
@@ -144,7 +195,7 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
   const detectLocality = async (
     simulatedIp?: string,
     addressId?: string,
-    options?: { background?: boolean },
+    options?: { background?: boolean; selectSeq?: number },
   ) => {
     // Si se proporciona una IP simulada, usarla (solo para debug/testing)
     // Si no se proporciona, usar la IP real del request (sin parámetros)
@@ -223,40 +274,23 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
             if (savedResponse.ok) {
               const savedData = await savedResponse.json();
               if (savedData.success && savedData.data?.locality) {
-                const detectedLocality = savedData.data.locality;
-                const crmZoneId = savedData.data.crm_zone_id;
-                const tp = !!savedData.data.is_third_party_transport;
                 const sp =
                   savedData.data.shipping_price !== undefined &&
                   savedData.data.shipping_price !== null
                     ? savedData.data.shipping_price
                     : null;
-                
-                setRequiresAddressSelection(false);
-                setAvailableAddresses([]);
-                
-                const localityWithZone = { ...detectedLocality } as Locality & {
-                  crm_zone_id?: string;
-                  is_third_party_transport?: boolean;
-                  shipping_price?: number | null;
-                };
-                if (crmZoneId) {
-                  localityWithZone.crm_zone_id = crmZoneId;
+                commitDetectedLocality(
+                  savedData.data.locality,
+                  {
+                    crm_zone_id: savedData.data.crm_zone_id,
+                    is_third_party_transport: !!savedData.data.is_third_party_transport,
+                    shipping_price: sp,
+                  },
+                  { selectSeq: options?.selectSeq, addressId: savedAddressId },
+                );
+                if (!background && !isStaleAddressSelect(options?.selectSeq)) {
+                  setIsLoading(false);
                 }
-                localityWithZone.is_third_party_transport = tp;
-                if (tp && sp !== null) {
-                  localityWithZone.shipping_price = sp;
-                } else {
-                  delete localityWithZone.shipping_price;
-                }
-                setLocalityState(localityWithZone);
-                setUpdateKey(prev => prev + 1);
-                localStorage.setItem("bausing_locality", JSON.stringify(localityWithZone));
-                
-                window.dispatchEvent(new CustomEvent('localityChanged', { 
-                  detail: { locality: localityWithZone } 
-                }));
-                setIsLoading(false);
                 return;
               }
             }
@@ -282,44 +316,20 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
       
       if (data.success && data.data?.locality) {
         const detectedLocality = data.data.locality;
-        const crmZoneId = data.data.crm_zone_id;
-        const isThirdPartyTransport = !!data.data.is_third_party_transport;
         const shippingPrice =
           data.data.shipping_price !== undefined && data.data.shipping_price !== null
             ? data.data.shipping_price
             : null;
         console.log("[LocalityContext] Localidad detectada:", detectedLocality);
-        console.log("[LocalityContext] Zona de entrega detectada:", crmZoneId);
-        console.log("[LocalityContext] Transporte tercerizado:", isThirdPartyTransport);
-        console.log("[LocalityContext] Precio de envío:", shippingPrice);
-        
-        // Limpiar estado de selección de dirección
-        setRequiresAddressSelection(false);
-        setAvailableAddresses([]);
-        
-        const localityWithZone = { ...detectedLocality } as Locality & {
-          crm_zone_id?: string;
-          is_third_party_transport?: boolean;
-          shipping_price?: number | null;
-        };
-        if (crmZoneId) {
-          localityWithZone.crm_zone_id = crmZoneId;
-        }
-        localityWithZone.is_third_party_transport = isThirdPartyTransport;
-        if (isThirdPartyTransport && shippingPrice !== null) {
-          localityWithZone.shipping_price = shippingPrice;
-        } else {
-          delete localityWithZone.shipping_price;
-        }
-        setLocalityState(localityWithZone);
-        setUpdateKey(prev => prev + 1);
-        localStorage.setItem("bausing_locality", JSON.stringify(localityWithZone));
-        console.log("[LocalityContext] Localidad guardada en localStorage:", detectedLocality.id);
-        
-        // Disparar evento personalizado
-        window.dispatchEvent(new CustomEvent('localityChanged', { 
-          detail: { locality: localityWithZone } 
-        }));
+        commitDetectedLocality(
+          detectedLocality,
+          {
+            crm_zone_id: data.data.crm_zone_id,
+            is_third_party_transport: !!data.data.is_third_party_transport,
+            shipping_price: shippingPrice,
+          },
+          { selectSeq: options?.selectSeq, addressId },
+        );
       } else {
         const errorMsg = data.error || "No se encontró una localidad para tu ubicación";
         console.error("[LocalityContext] Error en respuesta:", errorMsg);
@@ -331,25 +341,35 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
       setError(err instanceof Error ? err.message : "Error desconocido");
       throw err; // Re-lanzar el error para que el componente pueda manejarlo
     } finally {
-      if (!background) {
+      if (!background && !isStaleAddressSelect(options?.selectSeq)) {
         setIsLoading(false);
       }
     }
   };
 
-  const selectAddress = async (addressId: string) => {
-    console.log("[LocalityContext] Seleccionando dirección:", addressId);
+  const selectAddress = async (addressId: string): Promise<Locality | null> => {
+    const seq = ++addressSelectSeqRef.current;
+    console.log("[LocalityContext] Seleccionando dirección:", addressId, "seq:", seq);
     setIsLoading(true);
     setError(null);
+    lastCommittedLocalityRef.current = null;
     try {
-      // Guardar la dirección seleccionada en localStorage
       saveAddressId(addressId);
-      await detectLocality(undefined, addressId);
+      await detectLocality(undefined, addressId, { selectSeq: seq });
+      if (isStaleAddressSelect(seq)) {
+        return null;
+      }
+      return lastCommittedLocalityRef.current;
     } catch (err) {
-      console.error("[LocalityContext] Error al seleccionar dirección:", err);
-      setError(err instanceof Error ? err.message : "Error al seleccionar dirección");
+      if (!isStaleAddressSelect(seq)) {
+        console.error("[LocalityContext] Error al seleccionar dirección:", err);
+        setError(err instanceof Error ? err.message : "Error al seleccionar dirección");
+      }
+      return null;
     } finally {
-      setIsLoading(false);
+      if (seq === addressSelectSeqRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 

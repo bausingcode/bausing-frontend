@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -10,6 +10,7 @@ import { useLocality } from "@/contexts/LocalityContext";
 import {
   getUserAddresses,
   createUserAddress,
+  updateUserAddress,
   getUserWalletBalance,
   fetchProductsPrices,
   getDocTypes,
@@ -87,7 +88,7 @@ function normalizeArPostalCode(raw: string | undefined | null): string | null {
 export default function CheckoutPage() {
   const { user, isAuthenticated } = useAuth();
   const { cart, removeFromCart, updateCartQuantity } = useCart();
-  const { locality, selectAddress } = useLocality();
+  const { locality, selectAddress, isLoading: localityLoading } = useLocality();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -95,6 +96,7 @@ export default function CheckoutPage() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [savingCheckoutAddress, setSavingCheckoutAddress] = useState(false);
   const saveAddressInFlightRef = useRef(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
@@ -177,6 +179,13 @@ export default function CheckoutPage() {
   const [shippingQuoteLoading, setShippingQuoteLoading] = useState(false);
   /** Evita duplicar fetch para la misma localidad + dirección de envío */
   const lastShippingContextKeyRef = useRef<string | null>(null);
+  /** Invalida respuestas de detect-locality / precios si el usuario cambió de dirección */
+  const localityRequestIdRef = useRef(0);
+  const priceLoadSeqRef = useRef(0);
+  const shippingCheckSeqRef = useRef(0);
+  const selectedAddressIdRef = useRef<string | null>(null);
+  /** true mientras syncLocalityForAddress carga precios/envío (evita carrera con useEffect de precios) */
+  const addressSyncInProgressRef = useRef(false);
 
   useEffect(() => {
     setAppliedCoupon(null);
@@ -285,154 +294,27 @@ export default function CheckoutPage() {
     }
   }, [isAuthenticated, user]);
 
-  // Check if active catalog is "pais" and check for third party transport
-  useEffect(() => {
-    const checkPaisCatalog = async () => {
-      if (!locality?.id) {
-        setIsPaisCatalog(false);
-        setIsThirdPartyTransport(false);
-        setConfiguredShippingPrice(null);
-        setShippingLocalityError(false);
-        setShippingQuoteLoading(false);
-        lastShippingContextKeyRef.current = null;
-        return;
-      }
-
-      const shippingContextKey = `${locality.id}:${selectedAddressId ?? ""}`;
-      if (lastShippingContextKeyRef.current === shippingContextKey) {
-        setShippingQuoteLoading(false);
-        return;
-      }
-
-      const fetchForContextKey = shippingContextKey;
-      lastShippingContextKeyRef.current = shippingContextKey;
-      setShippingLocalityError(false);
-      setShippingQuoteLoading(true);
-      // No mostrar envío de la localidad anterior: hasta el API puede ser incorrecto usar localStorage
-      setIsPaisCatalog(false);
-      setIsThirdPartyTransport(false);
-      setConfiguredShippingPrice(null);
-
-      try {
-        // Leer localStorage solo para comparar con el servidor (no hidratar precio / tercerizado en UI)
-        const savedLocality = localStorage.getItem("bausing_locality");
-        let localIsThirdParty = false;
-        let localShippingPrice: number | null = null;
-        
-        if (savedLocality) {
-          const parsedLocality = JSON.parse(savedLocality);
-
-          if (parsedLocality.id === locality.id) {
-            if (parsedLocality.is_third_party_transport !== undefined) {
-              localIsThirdParty = parsedLocality.is_third_party_transport;
-              localShippingPrice = parsedLocality.shipping_price !== undefined && parsedLocality.shipping_price !== null 
-                ? parsedLocality.shipping_price 
-                : null;
-            }
-          }
-        }
-
-        // Misma fuente que LocalityContext: con address_id + token si hay, no solo IP genérica
-        const detectParams = new URLSearchParams();
-        if (selectedAddressId) {
-          detectParams.set("address_id", selectedAddressId);
-        }
-        const detectQuery = detectParams.toString();
-        const detectUrl = detectQuery ? `/api/detect-locality?${detectQuery}` : "/api/detect-locality";
-        const detectHeaders: HeadersInit = { "Content-Type": "application/json" };
-        if (typeof window !== "undefined") {
-          const token = localStorage.getItem("user_token");
-          if (token) {
-            detectHeaders["Authorization"] = `Bearer ${token}`;
-          }
-        }
-        const detectResponse = await fetch(detectUrl, {
-          method: "GET",
-          headers: detectHeaders,
-        });
-        
-        if (detectResponse.ok) {
-          const detectData = await detectResponse.json();
-
-          if (!detectData.success || !detectData.data) {
-            setShippingLocalityError(true);
-          }
-          
-          if (detectData.success && detectData.data) {
-            const detectedLid = detectData.data.locality?.id;
-            if (detectedLid && detectedLid !== locality.id) {
-              setShippingLocalityError(true);
-            }
-            // Verificar catalog
-            if (detectData.data.catalog?.id === PAIS_CATALOG_ID || 
-                (detectData.data.locality?.id && detectData.data.locality.id === locality.id)) {
-              const catalogResponse = await fetch(`/api/localities/${locality.id}/catalog`, {
-                method: "GET",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-              });
-              
-              if (!catalogResponse.ok) {
-                setShippingLocalityError(true);
-              } else {
-                const catalogData = await catalogResponse.json();
-                if (!catalogData.success) {
-                  setShippingLocalityError(true);
-                }
-                if (catalogData.success && catalogData.data?.catalog_id) {
-                  setIsPaisCatalog(catalogData.data.catalog_id === PAIS_CATALOG_ID);
-                }
-              }
-            }
-            
-            // Actualizar transporte tercerizado desde la respuesta del servidor
-            // El servidor ahora siempre retorna is_third_party_transport, pero por seguridad verificamos
-            const serverIsThirdParty = detectData.data.is_third_party_transport !== undefined 
-              ? detectData.data.is_third_party_transport 
-              : localIsThirdParty; // Si no está en la respuesta, mantener el valor de localStorage
-            const serverShippingPrice = detectData.data.shipping_price !== undefined && detectData.data.shipping_price !== null 
-              ? detectData.data.shipping_price 
-              : null;
-
-            if (detectData.data.is_third_party_transport !== undefined) {
-              setIsThirdPartyTransport(serverIsThirdParty);
-              setConfiguredShippingPrice(serverShippingPrice);
-            }
-          }
-        } else {
-          setShippingLocalityError(true);
-        }
-      } catch (error) {
-        console.error("Error checking pais catalog and third party transport:", error);
-        setIsPaisCatalog(false);
-        setIsThirdPartyTransport(false);
-        setConfiguredShippingPrice(null);
-        setShippingLocalityError(true);
-      } finally {
-        if (fetchForContextKey === lastShippingContextKeyRef.current) {
-          setShippingQuoteLoading(false);
-        }
-      }
-    };
-
-    checkPaisCatalog();
-  }, [locality?.id, selectedAddressId]);
-
-  // Load product prices based on locality
-  useEffect(() => {
-    const loadProductPrices = async () => {
-      if (cart.length === 0 || !locality?.id) {
+  const loadCheckoutProductPrices = useCallback(
+    async (localityId: string, requestId: number) => {
+      if (cart.length === 0) {
         setProductsWithPrices({});
+        setLoadingPrices(false);
         return;
       }
 
+      const loadId = ++priceLoadSeqRef.current;
       setLoadingPrices(true);
+
       try {
-        const productIds = cart.map(item => item.id);
-        const pricesData = await fetchProductsPrices(productIds, locality.id);
-        
-        // Convert prices data to Product-like objects for calculateProductPrice
+        const productIds = cart.map((item) => item.id);
+        const pricesData = await fetchProductsPrices(productIds, localityId);
+        if (
+          requestId !== localityRequestIdRef.current ||
+          loadId !== priceLoadSeqRef.current
+        ) {
+          return;
+        }
+
         const productsMap: Record<string, Product> = {};
         cart.forEach((item) => {
           const priceData = pricesData[item.id];
@@ -444,113 +326,268 @@ export default function CheckoutPage() {
             );
           }
         });
-        
         setProductsWithPrices(productsMap);
       } catch (error) {
         console.error("Error loading product prices:", error);
+        if (
+          requestId === localityRequestIdRef.current &&
+          loadId === priceLoadSeqRef.current
+        ) {
+          setProductsWithPrices({});
+        }
       } finally {
-        setLoadingPrices(false);
-      }
-    };
-
-    loadProductPrices();
-  }, [cart, locality?.id]);
-
-  // Detect locality and recalculate prices when address changes
-  // Usar useRef para evitar llamadas duplicadas
-  const lastAddressIdRef = useRef<string | null>(null);
-  const isDetectingLocalityRef = useRef(false);
-  
-  useEffect(() => {
-    // No ejecutar si:
-    // 1. La orden ya se completó
-    // 2. Se está procesando una orden
-    // 3. Ya se está detectando la localidad
-    // 4. No hay dirección seleccionada o direcciones cargadas
-    // 5. La dirección no cambió realmente
-    if (
-      orderCompleted ||
-      submitting ||
-      isDetectingLocalityRef.current ||
-      !selectedAddressId ||
-      addresses.length === 0 ||
-      lastAddressIdRef.current === selectedAddressId
-    ) {
-      return;
-    }
-
-    const handleAddressChange = async () => {
-      if (selectedAddressId && addresses.length > 0) {
-        isDetectingLocalityRef.current = true;
-        lastAddressIdRef.current = selectedAddressId;
-        try {
-          await selectAddress(selectedAddressId);
-          // Los precios se recalcularán automáticamente cuando cambie locality?.id
-        } catch (error) {
-          console.error("Error al detectar localidad para la dirección:", error);
-          // Resetear el ref en caso de error para permitir reintentos
-          lastAddressIdRef.current = null;
-        } finally {
-          isDetectingLocalityRef.current = false;
+        if (
+          requestId === localityRequestIdRef.current &&
+          loadId === priceLoadSeqRef.current
+        ) {
+          setLoadingPrices(false);
         }
       }
-    };
+    },
+    [cart],
+  );
 
-    handleAddressChange();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAddressId, addresses.length]);
+  const refreshCheckoutShipping = useCallback(
+    async (
+      localityId: string,
+      addressId: string | null,
+      checkoutRequestId: number,
+    ) => {
+      const runId = ++shippingCheckSeqRef.current;
+      const isCurrentRun = () =>
+        runId === shippingCheckSeqRef.current &&
+        checkoutRequestId === localityRequestIdRef.current;
 
-  // Auto-guardar dirección cuando todos los campos requeridos estén completos
-  const autoSaveTriggeredRef = useRef(false);
+      const shippingContextKey = `${localityId}:${addressId ?? ""}`;
+      if (lastShippingContextKeyRef.current === shippingContextKey) {
+        setShippingQuoteLoading(false);
+        return;
+      }
+
+      const fetchForContextKey = shippingContextKey;
+      lastShippingContextKeyRef.current = shippingContextKey;
+      setShippingLocalityError(false);
+      setShippingQuoteLoading(true);
+      setIsPaisCatalog(false);
+      setIsThirdPartyTransport(false);
+      setConfiguredShippingPrice(null);
+      setViacargoQuoteTotal(null);
+      setViacargoQuoteError(null);
+
+      try {
+        const savedLocality = localStorage.getItem("bausing_locality");
+        let localIsThirdParty = false;
+
+        if (savedLocality) {
+          const parsedLocality = JSON.parse(savedLocality);
+          if (parsedLocality.id === localityId) {
+            if (parsedLocality.is_third_party_transport !== undefined) {
+              localIsThirdParty = parsedLocality.is_third_party_transport;
+            }
+          }
+        }
+
+        const detectParams = new URLSearchParams();
+        if (addressId) {
+          detectParams.set("address_id", addressId);
+        }
+        const detectQuery = detectParams.toString();
+        const detectUrl = detectQuery
+          ? `/api/detect-locality?${detectQuery}`
+          : "/api/detect-locality";
+        const detectHeaders: HeadersInit = { "Content-Type": "application/json" };
+        if (typeof window !== "undefined") {
+          const token = localStorage.getItem("user_token");
+          if (token) {
+            detectHeaders["Authorization"] = `Bearer ${token}`;
+          }
+        }
+        const detectResponse = await fetch(detectUrl, {
+          method: "GET",
+          headers: detectHeaders,
+        });
+
+        if (detectResponse.ok) {
+          const detectData = await detectResponse.json();
+          if (!isCurrentRun()) return;
+
+          if (!detectData.success || !detectData.data) {
+            setShippingLocalityError(true);
+          }
+
+          if (detectData.success && detectData.data) {
+            const detectedLid = detectData.data.locality?.id;
+            if (detectedLid && detectedLid !== localityId && !addressId) {
+              setShippingLocalityError(true);
+            }
+            if (
+              detectData.data.catalog?.id === PAIS_CATALOG_ID ||
+              (detectData.data.locality?.id &&
+                detectData.data.locality.id === localityId)
+            ) {
+              const catalogResponse = await fetch(
+                `/api/localities/${localityId}/catalog`,
+                {
+                  method: "GET",
+                  headers: { "Content-Type": "application/json" },
+                },
+              );
+              if (!isCurrentRun()) return;
+
+              if (!catalogResponse.ok) {
+                setShippingLocalityError(true);
+              } else {
+                const catalogData = await catalogResponse.json();
+                if (!isCurrentRun()) return;
+                if (!catalogData.success) {
+                  setShippingLocalityError(true);
+                }
+                if (catalogData.success && catalogData.data?.catalog_id) {
+                  setIsPaisCatalog(
+                    catalogData.data.catalog_id === PAIS_CATALOG_ID,
+                  );
+                }
+              }
+            }
+
+            if (!isCurrentRun()) return;
+            const serverIsThirdParty =
+              detectData.data.is_third_party_transport !== undefined
+                ? detectData.data.is_third_party_transport
+                : localIsThirdParty;
+            const serverShippingPrice =
+              detectData.data.shipping_price !== undefined &&
+              detectData.data.shipping_price !== null
+                ? detectData.data.shipping_price
+                : null;
+
+            if (detectData.data.is_third_party_transport !== undefined) {
+              setIsThirdPartyTransport(serverIsThirdParty);
+              setConfiguredShippingPrice(serverShippingPrice);
+            }
+          }
+        } else {
+          setShippingLocalityError(true);
+        }
+      } catch (error) {
+        console.error("Error checking pais catalog and third party transport:", error);
+        if (!isCurrentRun()) return;
+        setIsPaisCatalog(false);
+        setIsThirdPartyTransport(false);
+        setConfiguredShippingPrice(null);
+        setShippingLocalityError(true);
+      } finally {
+        if (
+          fetchForContextKey === lastShippingContextKeyRef.current &&
+          isCurrentRun()
+        ) {
+          setShippingQuoteLoading(false);
+        }
+      }
+    },
+    [PAIS_CATALOG_ID],
+  );
+
+  // Catálogo/envío cuando cambia localidad sin pasar por sync (p. ej. detección por IP)
   useEffect(() => {
-    if (!showAddressForm || autoSaveTriggeredRef.current || savingCheckoutAddress) return;
-
-    const addressComplete =
-      addressForm.full_name.trim() &&
-      addressForm.phone.trim() &&
-      addressForm.street.trim() &&
-      addressForm.number.trim() &&
-      addressForm.postal_code.length >= 4 &&
-      addressForm.city.trim() &&
-      addressForm.province_id;
-
-    const personalComplete =
-      formData.email.trim() &&
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) &&
-      formData.first_name.trim() &&
-      formData.last_name.trim();
-
-    if (!addressComplete || !personalComplete) return;
-
-    const timeoutId = setTimeout(() => {
-      if (autoSaveTriggeredRef.current || savingCheckoutAddress) return;
-      autoSaveTriggeredRef.current = true;
-      void handleSaveAddress();
-    }, 1200);
-
-    return () => clearTimeout(timeoutId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    showAddressForm,
-    savingCheckoutAddress,
-    addressForm.full_name,
-    addressForm.phone,
-    addressForm.street,
-    addressForm.number,
-    addressForm.postal_code,
-    addressForm.city,
-    addressForm.province_id,
-    formData.email,
-    formData.first_name,
-    formData.last_name,
-  ]);
-
-  // Resetear el flag si el usuario vuelve a abrir el formulario
-  useEffect(() => {
-    if (showAddressForm) {
-      autoSaveTriggeredRef.current = false;
+    if (addressSyncInProgressRef.current) return;
+    if (!locality?.id) {
+      setIsPaisCatalog(false);
+      setIsThirdPartyTransport(false);
+      setConfiguredShippingPrice(null);
+      setShippingLocalityError(false);
+      setShippingQuoteLoading(false);
+      lastShippingContextKeyRef.current = null;
+      return;
     }
-  }, [showAddressForm]);
+    void refreshCheckoutShipping(
+      locality.id,
+      selectedAddressId,
+      localityRequestIdRef.current,
+    );
+  }, [locality?.id, selectedAddressId, refreshCheckoutShipping]);
+
+  // Precios por carrito / localidad (no durante sync de dirección — ahí carga syncLocalityForAddress)
+  useEffect(() => {
+    if (addressSyncInProgressRef.current) return;
+    const localityId = locality?.id;
+    if (cart.length === 0 || !localityId) {
+      setProductsWithPrices({});
+      setLoadingPrices(false);
+      return;
+    }
+    void loadCheckoutProductPrices(localityId, localityRequestIdRef.current);
+  }, [cart, locality?.id, loadCheckoutProductPrices]);
+
+  const syncLocalityForAddress = useCallback(
+    async (addressId: string) => {
+      if (!addressId || orderCompleted || submitting) return;
+      const requestId = ++localityRequestIdRef.current;
+      addressSyncInProgressRef.current = true;
+      lastShippingContextKeyRef.current = null;
+      setShippingLocalityError(false);
+      setIsPaisCatalog(false);
+      setIsThirdPartyTransport(false);
+      setConfiguredShippingPrice(null);
+      setViacargoQuoteTotal(null);
+      setViacargoQuoteError(null);
+      setLoadingPrices(true);
+
+      try {
+        const detected = await selectAddress(addressId);
+        if (requestId !== localityRequestIdRef.current) return;
+
+        if (!detected?.id) {
+          setErrors((prev) => ({
+            ...prev,
+            address: "No se pudo detectar la localidad para esta dirección",
+          }));
+          setProductsWithPrices({});
+          setLoadingPrices(false);
+          return;
+        }
+
+        await loadCheckoutProductPrices(detected.id, requestId);
+        if (requestId !== localityRequestIdRef.current) return;
+
+        await refreshCheckoutShipping(detected.id, addressId, requestId);
+      } catch (error) {
+        console.error("Error al detectar localidad para la dirección:", error);
+        if (requestId === localityRequestIdRef.current) {
+          setErrors((prev) => ({
+            ...prev,
+            address: "No se pudo detectar la localidad para esta dirección",
+          }));
+          setProductsWithPrices({});
+          setLoadingPrices(false);
+        }
+      } finally {
+        if (requestId === localityRequestIdRef.current) {
+          addressSyncInProgressRef.current = false;
+        }
+      }
+    },
+    [
+      orderCompleted,
+      submitting,
+      selectAddress,
+      loadCheckoutProductPrices,
+      refreshCheckoutShipping,
+    ],
+  );
+
+  const handleCheckoutAddressSelect = useCallback(
+    (addressId: string) => {
+      selectedAddressIdRef.current = addressId;
+      setSelectedAddressId(addressId);
+      void syncLocalityForAddress(addressId);
+    },
+    [syncLocalityForAddress],
+  );
+
+  useEffect(() => {
+    selectedAddressIdRef.current = selectedAddressId;
+  }, [selectedAddressId]);
 
   // Load card types and bank data
   useEffect(() => {
@@ -586,11 +623,10 @@ export default function CheckoutPage() {
         setShowAddressForm(true);
       } else {
         const defaultAddress = data.find((addr) => addr.is_default);
-        if (defaultAddress) {
-          setSelectedAddressId(defaultAddress.id);
-        } else {
-          setSelectedAddressId(data[0].id);
-        }
+        const initialAddressId = defaultAddress?.id ?? data[0].id;
+        selectedAddressIdRef.current = initialAddressId;
+        setSelectedAddressId(initialAddressId);
+        await syncLocalityForAddress(initialAddressId);
       }
     } catch (error) {
       console.error("Error loading addresses:", error);
@@ -695,6 +731,101 @@ export default function CheckoutPage() {
     setAddressForm((prev) => ({ ...prev, [field]: v }));
   };
 
+  const emptyAddressForm = () => ({
+    street: "",
+    number: "",
+    postal_code: "",
+    additional_info: "",
+    full_name: "",
+    phone: "",
+    city: "",
+    province_id: "",
+  });
+
+  const closeAddressForm = () => {
+    setShowAddressForm(false);
+    setEditingAddressId(null);
+    setAddressForm(emptyAddressForm());
+  };
+
+  const openNewAddressForm = () => {
+    setEditingAddressId(null);
+    setAddressForm(emptyAddressForm());
+    setShowAddressForm(true);
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.address;
+      delete next.address_full_name;
+      delete next.address_phone;
+      delete next.address_street;
+      delete next.address_number;
+      delete next.address_postal_code;
+      delete next.address_city;
+      delete next.address_province;
+      return next;
+    });
+  };
+
+  const openEditAddressForm = (address: Address) => {
+    setEditingAddressId(address.id);
+    if (selectedAddressId !== address.id) {
+      handleCheckoutAddressSelect(address.id);
+    } else {
+      setSelectedAddressId(address.id);
+    }
+    setAddressForm({
+      street: address.street,
+      number: address.number,
+      postal_code: address.postal_code,
+      additional_info: address.additional_info || "",
+      full_name: address.full_name,
+      phone: address.phone,
+      city: address.city,
+      province_id: address.province_id || "",
+    });
+    setShowAddressForm(true);
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.address;
+      delete next.address_full_name;
+      delete next.address_phone;
+      delete next.address_street;
+      delete next.address_number;
+      delete next.address_postal_code;
+      delete next.address_city;
+      delete next.address_province;
+      return next;
+    });
+  };
+
+  const collectAddressFormErrors = (): Record<string, string> => {
+    const addressErrors: Record<string, string> = {};
+    if (!addressForm.full_name.trim()) {
+      addressErrors.address_full_name = "El nombre completo del destinatario es obligatorio";
+    }
+    if (!addressForm.phone.trim()) {
+      addressErrors.address_phone = "El teléfono del destinatario es obligatorio";
+    }
+    if (!addressForm.street.trim()) {
+      addressErrors.address_street = "La calle es obligatoria";
+    }
+    if (!addressForm.number.trim()) {
+      addressErrors.address_number = "El número es obligatorio";
+    }
+    if (!addressForm.postal_code.trim()) {
+      addressErrors.address_postal_code = "El código postal es obligatorio";
+    } else if (addressForm.postal_code.length < 4) {
+      addressErrors.address_postal_code = "Ingresá al menos 4 dígitos del código postal";
+    }
+    if (!addressForm.city.trim()) {
+      addressErrors.address_city = "La ciudad es obligatoria";
+    }
+    if (!addressForm.province_id) {
+      addressErrors.address_province = "La provincia es obligatoria";
+    }
+    return addressErrors;
+  };
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -729,29 +860,7 @@ export default function CheckoutPage() {
       newErrors.address = "Debes seleccionar o agregar una dirección";
     }
     if (showAddressForm) {
-      if (!addressForm.full_name.trim()) {
-        newErrors.address_full_name = "El nombre completo del destinatario es obligatorio";
-      }
-      if (!addressForm.phone.trim()) {
-        newErrors.address_phone = "El teléfono del destinatario es obligatorio";
-      }
-      if (!addressForm.street.trim()) {
-        newErrors.address_street = "La calle es obligatoria";
-      }
-      if (!addressForm.number.trim()) {
-        newErrors.address_number = "El número es obligatorio";
-      }
-      if (!addressForm.postal_code.trim()) {
-        newErrors.address_postal_code = "El código postal es obligatorio";
-      } else if (addressForm.postal_code.length < 4) {
-        newErrors.address_postal_code = "Ingresá al menos 4 dígitos del código postal";
-      }
-      if (!addressForm.city.trim()) {
-        newErrors.address_city = "La ciudad es obligatoria";
-      }
-      if (!addressForm.province_id) {
-        newErrors.address_province = "La provincia es obligatoria";
-      }
+      Object.assign(newErrors, collectAddressFormErrors());
     }
     const subtotalValRaw = calculateTotal();
     const subtotalVal = Math.max(
@@ -849,6 +958,13 @@ export default function CheckoutPage() {
     if (saveAddressInFlightRef.current) {
       return false;
     }
+
+    const addressFieldErrors = collectAddressFormErrors();
+    if (Object.keys(addressFieldErrors).length > 0) {
+      setErrors((prev) => ({ ...prev, ...addressFieldErrors }));
+      return false;
+    }
+
     saveAddressInFlightRef.current = true;
     setSavingCheckoutAddress(true);
     try {
@@ -885,30 +1001,37 @@ export default function CheckoutPage() {
         localStorage.setItem("user_data", JSON.stringify(newUser));
         window.dispatchEvent(new CustomEvent("authStateChanged", { detail: { user: newUser, token: newToken } }));
       }
-      const newAddress = await createUserAddress({
-        full_name: addressForm.full_name,
-        phone: addressForm.phone,
-        street: addressForm.street,
-        number: addressForm.number,
-        additional_info: addressForm.additional_info || undefined,
-        postal_code: addressForm.postal_code,
-        city: addressForm.city,
+      const payload = {
+        full_name: addressForm.full_name.trim(),
+        phone: addressForm.phone.trim(),
+        street: addressForm.street.trim(),
+        number: addressForm.number.trim(),
+        additional_info: addressForm.additional_info.trim() || undefined,
+        postal_code: addressForm.postal_code.trim(),
+        city: addressForm.city.trim(),
         province_id: addressForm.province_id,
-        is_default: addresses.length === 0,
-      });
-      setAddresses((prev) => [...prev, newAddress]);
-      setSelectedAddressId(newAddress.id);
-      setShowAddressForm(false);
-      setAddressForm({
-        street: "",
-        number: "",
-        postal_code: "",
-        additional_info: "",
-        full_name: "",
-        phone: "",
-        city: "",
-        province_id: "",
-      });
+      };
+
+      let savedAddressId: string;
+      if (editingAddressId) {
+        const updatedAddress = await updateUserAddress(editingAddressId, payload);
+        setAddresses((prev) =>
+          prev.map((addr) => (addr.id === editingAddressId ? updatedAddress : addr)),
+        );
+        savedAddressId = updatedAddress.id;
+        setSelectedAddressId(savedAddressId);
+      } else {
+        const newAddress = await createUserAddress({
+          ...payload,
+          is_default: addresses.length === 0,
+        });
+        setAddresses((prev) => [...prev, newAddress]);
+        savedAddressId = newAddress.id;
+        setSelectedAddressId(savedAddressId);
+      }
+
+      closeAddressForm();
+      await syncLocalityForAddress(savedAddressId);
       return true;
     } catch (error: any) {
       setErrors({ address: error?.message || "Error al guardar la dirección" });
@@ -1822,13 +1945,20 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
 
   // Calcular costo de envío: tercerizado fijo, catálogo País = cotización Vía Cargo
   const selectedAddressForShipping = addresses.find((addr) => addr.id === selectedAddressId);
-  const paisPostalOk = normalizeArPostalCode(selectedAddressForShipping?.postal_code);
+  const paisPostalOk = normalizeArPostalCode(
+    showAddressForm
+      ? addressForm.postal_code
+      : selectedAddressForShipping?.postal_code,
+  );
   const localityShippingProblem =
-    !locality?.id ||
-    shippingLocalityError ||
-    (isPaisCatalog &&
-      !isThirdPartyTransport &&
-      (!selectedAddressForShipping || !paisPostalOk));
+    !localityLoading &&
+    (!locality?.id ||
+      shippingLocalityError ||
+      (isPaisCatalog &&
+        !isThirdPartyTransport &&
+        (showAddressForm
+          ? !normalizeArPostalCode(addressForm.postal_code)
+          : !selectedAddressForShipping || !paisPostalOk)));
   let shippingCost = 0;
   if (isThirdPartyTransport && configuredShippingPrice !== null) {
     shippingCost = configuredShippingPrice;
@@ -1843,9 +1973,11 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
     cart.length > 0 &&
     !(
       Boolean(locality?.id) &&
+      !localityLoading &&
       !shippingLocalityError &&
-      Boolean(selectedAddressForShipping) &&
-      Boolean(paisPostalOk) &&
+      (showAddressForm
+        ? Boolean(normalizeArPostalCode(addressForm.postal_code))
+        : Boolean(selectedAddressForShipping) && Boolean(paisPostalOk)) &&
       !viacargoCotizarLoading &&
       !viacargoQuoteError &&
       viacargoQuoteTotal !== null
@@ -2448,7 +2580,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                   {!showAddressForm && (
                     <button
                       type="button"
-                      onClick={() => setShowAddressForm(true)}
+                      onClick={openNewAddressForm}
                       className="flex items-center gap-2 text-sm text-[#00C1A7] hover:text-[#00A892] transition-colors"
                     >
                       <Plus className="w-4 h-4" />
@@ -2460,13 +2592,22 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                 {errors.address && (
                   <p className="text-red-500 text-sm mb-4">{errors.address}</p>
                 )}
+                {(localityLoading || loadingPrices) && !showAddressForm && (
+                  <p className="text-sm text-gray-500 mb-4 flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
+                    Actualizando precios según tu dirección…
+                  </p>
+                )}
 
                 {showAddressForm ? (
-                  <div className="space-y-4">
+                  <div className="space-y-4" autoComplete="off">
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-4">
-                        Información del destinatario
+                      <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                        {editingAddressId ? "Editar dirección" : "Nueva dirección"}
                       </h3>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Información del destinatario
+                      </p>
                       <div className="grid md:grid-cols-2 gap-4 mb-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -2595,6 +2736,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                         <select
                           value={addressForm.province_id || ""}
                           onChange={(e) => handleAddressInputChange("province_id", e.target.value)}
+                          autoComplete="off"
                           className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 ${
                             errors.address_province ? "border-red-500" : "border-gray-300"
                           }`}
@@ -2615,19 +2757,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                     <div className="flex gap-3 pt-4">
                       <button
                         type="button"
-                        onClick={() => {
-                          setShowAddressForm(false);
-                          setAddressForm({
-                            street: "",
-                            number: "",
-                            postal_code: "",
-                            additional_info: "",
-                            full_name: "",
-                            phone: "",
-                            city: "",
-                            province_id: "",
-                          });
-                        }}
+                        onClick={closeAddressForm}
                         disabled={savingCheckoutAddress}
                         className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -2644,7 +2774,11 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                         {savingCheckoutAddress && (
                           <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
                         )}
-                        {savingCheckoutAddress ? "Guardando…" : "Guardar dirección"}
+                        {savingCheckoutAddress
+                          ? "Guardando…"
+                          : editingAddressId
+                            ? "Guardar cambios"
+                            : "Guardar dirección"}
                       </button>
                     </div>
                   </div>
@@ -2658,7 +2792,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                         <p className="text-gray-500 mb-4">No tienes direcciones guardadas</p>
                         <button
                           type="button"
-                          onClick={() => setShowAddressForm(true)}
+                          onClick={openNewAddressForm}
                           className="text-[#00C1A7] hover:text-[#00A892] font-medium"
                         >
                           Agregar dirección
@@ -2679,7 +2813,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                             name="address"
                             value={address.id}
                             checked={selectedAddressId === address.id}
-                            onChange={(e) => setSelectedAddressId(e.target.value)}
+                            onChange={(e) => handleCheckoutAddressSelect(e.target.value)}
                             className="mt-1"
                           />
                           <div className="flex-1">
@@ -2704,6 +2838,17 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                             <p className="text-sm text-gray-500 mt-1">
                               Tel: {address.phone}
                             </p>
+                            <button
+                              type="button"
+                              className="mt-2 text-sm font-medium text-[#00C1A7] hover:text-[#00A892]"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                openEditAddressForm(address);
+                              }}
+                            >
+                              Editar
+                            </button>
                           </div>
                           {selectedAddressId === address.id && (
                             <Check className="w-5 h-5 text-[#00C1A7]" />
