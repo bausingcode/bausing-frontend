@@ -250,26 +250,32 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
       // Verificar si requiere selección de dirección
       if (data.success && data.data?.requires_address_selection) {
         console.log("[LocalityContext] Se requiere selección de dirección");
-        
+
+        // Si se proporcionó un addressId explícito, no mostrar el modal global —
+        // el componente que llamó ya tiene su propia UI de selección.
+        if (addressId) {
+          if (!background && !isStaleAddressSelect(options?.selectSeq)) {
+            setIsLoading(false);
+          }
+          return;
+        }
+
         // Verificar si hay una dirección guardada en localStorage
         const savedAddressId = getSavedAddressId();
         const addresses = data.data.addresses || [];
-        
-        if (savedAddressId && !addressId) {
-          // Solo usar dirección guardada si no se proporcionó un addressId explícito
+
+        if (savedAddressId) {
           // Verificar si la dirección guardada todavía existe en la lista
           const savedAddress = addresses.find((addr: Address) => addr.id === savedAddressId);
           if (savedAddress) {
             console.log("[LocalityContext] Usando dirección guardada automáticamente:", savedAddressId);
-            // Usar la dirección guardada automáticamente
-            // Hacer una nueva llamada con el addressId guardado
             const newUrl = `/api/detect-locality?address_id=${encodeURIComponent(savedAddressId)}`;
             const token = getAuthToken();
             const headers: HeadersInit = { "Content-Type": "application/json" };
             if (token) {
               headers["Authorization"] = `Bearer ${token}`;
             }
-            
+
             const savedResponse = await fetch(newUrl, { method: "GET", headers });
             if (savedResponse.ok) {
               const savedData = await savedResponse.json();
@@ -301,17 +307,13 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
               localStorage.removeItem("bausing_selected_address_id");
             }
           }
-        } else if (savedAddressId && addressId) {
-          // Si se proporcionó un addressId explícito y hay uno guardado, actualizar el timestamp
-          // Esto actualiza la fecha de expiración cuando el usuario selecciona manualmente
-          saveAddressId(addressId);
         }
-        
-        // Si no hay dirección guardada o ya no existe, mostrar modal
+
+        // Sin dirección guardada válida: mostrar modal de selección
         setRequiresAddressSelection(true);
         setAvailableAddresses(addresses);
         setIsLoading(false);
-        return; // No lanzar error, solo mostrar modal
+        return;
       }
       
       if (data.success && data.data?.locality) {
