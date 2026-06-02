@@ -3450,7 +3450,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                   </div>
                   <button
                     type="submit"
-                    disabled={submitting || paisViacargoBloqueaFinalizar}
+                    disabled={submitting || paisViacargoBloqueaFinalizar || loadingPrices || shippingQuoteLoading}
                     className="w-full bg-[#00C1A7] text-white py-3 px-6 rounded-lg font-semibold text-base hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {submitting ? (
@@ -3724,7 +3724,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                 {/* Botón Finalizar compra: solo en desktop (lg+) */}
                 <button
                   type="submit"
-                  disabled={submitting || paisViacargoBloqueaFinalizar}
+                  disabled={submitting || paisViacargoBloqueaFinalizar || loadingPrices || shippingQuoteLoading}
                   className="hidden lg:flex w-full mt-4 md:mt-6 bg-[#00C1A7] text-white py-2.5 md:py-3 px-4 md:px-6 rounded-lg font-semibold text-sm md:text-base hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed items-center justify-center gap-2"
                 >
                   {submitting ? (
