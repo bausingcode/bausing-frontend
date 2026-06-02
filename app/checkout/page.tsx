@@ -3581,7 +3581,13 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-gray-700">Envío</span>
                     <span className="text-sm font-semibold text-gray-900">
-                      {isThirdPartyTransport ? (
+                      {loadingPrices ? (
+                        <span
+                          className="inline-block align-middle h-5 min-w-[5rem] rounded-md bg-gray-200 animate-pulse ml-auto"
+                          aria-busy="true"
+                          aria-label="Calculando costo de envío"
+                        />
+                      ) : isThirdPartyTransport ? (
                         configuredShippingPrice !== null ? (
                           formatPrice(configuredShippingPrice)
                         ) : localityShippingProblem ? (
