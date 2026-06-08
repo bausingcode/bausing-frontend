@@ -915,13 +915,6 @@ export default function ProductDetailPageClient({
   const priceInfoForTaxes = calculateProductPrice(tempProductForTaxes, 1);
   const priceWithoutTaxes = hasPrice ? priceInfoForTaxes.currentPriceValue * 0.79 : 0;
 
-  const heroUrl = product.images[currentImageIndex]?.url?.trim();
-  const heroUsesNextImage =
-    Boolean(heroUrl && /^https?:\/\//i.test(heroUrl));
-  const heroAlt = product.images[currentImageIndex]?.alt || product.name;
-  const heroImgSrcFallback = heroUrl
-    ? wsrvLoader({ src: heroUrl, width: 800 })
-    : PRODUCT_IMAGE_PLACEHOLDER;
 
   // Función helper para verificar si una variante es del tipo "Atributo" con opción "Default"
   const isDefaultAttributeVariant = (variant: any): boolean => {
@@ -1035,30 +1028,46 @@ export default function ProductDetailPageClient({
           <div className="relative flex lg:col-span-4">
             <div className="relative w-full h-[300px] sm:h-[400px] lg:h-[520px] rounded-[10px] overflow-hidden bg-gray-100">
               <>
-                {heroUsesNextImage ? (
-                  <Image
-                    src={heroUrl!}
-                    alt={heroAlt}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 56vw"
-                    priority={currentImageIndex === 0}
-                    fetchPriority={currentImageIndex === 0 ? "high" : "low"}
-                  />
-                ) : (
-                  <img
-                    src={heroImgSrcFallback}
-                    alt={heroAlt}
-                    className="w-full h-full object-cover"
-                    style={{ objectFit: "cover" }}
-                    fetchPriority={currentImageIndex === 0 ? "high" : "low"}
-                    onError={(e) => {
-                      const el = e.currentTarget;
-                      el.onerror = null;
-                      el.src = PRODUCT_IMAGE_PLACEHOLDER;
-                    }}
-                  />
-                )}
+                {product.images.map((image, index) => {
+                  const imgUrl = image?.url?.trim();
+                  const imgAlt = image?.alt || product.name;
+                  const isActive = index === currentImageIndex;
+                  const usesNextImage = Boolean(imgUrl && /^https?:\/\//i.test(imgUrl));
+                  const imgSrc = imgUrl
+                    ? wsrvLoader({ src: imgUrl, width: 800 })
+                    : PRODUCT_IMAGE_PLACEHOLDER;
+                  return (
+                    <div
+                      key={index}
+                      className={`absolute inset-0 transition-opacity duration-200 ${isActive ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+                    >
+                      {usesNextImage ? (
+                        <Image
+                          src={imgUrl!}
+                          alt={imgAlt}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 56vw"
+                          priority={index === 0}
+                          fetchPriority={index === 0 ? "high" : "auto"}
+                        />
+                      ) : (
+                        <img
+                          src={imgSrc}
+                          alt={imgAlt}
+                          className="w-full h-full object-cover"
+                          style={{ objectFit: "cover" }}
+                          fetchPriority={index === 0 ? "high" : "auto"}
+                          onError={(e) => {
+                            const el = e.currentTarget;
+                            el.onerror = null;
+                            el.src = PRODUCT_IMAGE_PLACEHOLDER;
+                          }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
 
                 {product.images.length > 1 && (
                   <>
