@@ -7,9 +7,11 @@ import {
   createAdminCoupon,
   deleteAdminCoupon,
   fetchAdminCoupons,
+  fetchProducts,
   updateAdminCoupon,
   type AdminCoupon,
   type AdminCouponsScope,
+  type Product,
 } from "@/lib/api";
 
 const emptyForm = {
@@ -21,6 +23,9 @@ const emptyForm = {
   valid_until: "",
   is_active: true,
   club_beneficios_only: false,
+  /** "general" | "club" | "product" — derivado de club_beneficios_only y product_id */
+  scope: "general" as "general" | "club" | "product",
+  product_id: "" as string,
 };
 
 type CouponFormState = typeof emptyForm;
@@ -44,6 +49,9 @@ function isoToDatetimeLocal(iso: string | null): string {
 }
 
 function couponToForm(c: AdminCoupon): CouponFormState {
+  let scope: "general" | "club" | "product" = "general";
+  if (c.product_id) scope = "product";
+  else if (c.club_beneficios_only) scope = "club";
   return {
     code: c.code,
     discount_type: c.discount_type,
@@ -53,6 +61,8 @@ function couponToForm(c: AdminCoupon): CouponFormState {
     valid_until: isoToDatetimeLocal(c.valid_until),
     is_active: c.is_active,
     club_beneficios_only: c.club_beneficios_only,
+    scope,
+    product_id: c.product_id ?? "",
   };
 }
 
@@ -105,9 +115,13 @@ function TableSkeleton() {
 function CouponFields({
   form,
   setForm,
+  products,
+  productsLoading,
 }: {
   form: CouponFormState;
   setForm: React.Dispatch<React.SetStateAction<CouponFormState>>;
+  products: Product[];
+  productsLoading: boolean;
 }) {
   return (
     <>
@@ -122,22 +136,55 @@ function CouponFields({
           placeholder="Ej: VERANO26"
         />
       </div>
+
       <div>
         <label className={labelClass}>Alcance</label>
         <select
-          value={form.club_beneficios_only ? "club" : "general"}
-          onChange={(ev) =>
+          value={form.scope}
+          onChange={(ev) => {
+            const scope = ev.target.value as "general" | "club" | "product";
             setForm((f) => ({
               ...f,
-              club_beneficios_only: ev.target.value === "club",
-            }))
-          }
+              scope,
+              club_beneficios_only: scope === "club",
+              product_id: scope !== "product" ? "" : f.product_id,
+            }));
+          }}
           className={fieldClass}
         >
           <option value="general">General — todo el catálogo</option>
           <option value="club">Solo Club Beneficios</option>
+          <option value="product">Producto específico</option>
         </select>
       </div>
+
+      {form.scope === "product" && (
+        <div>
+          <label className={labelClass}>Producto</label>
+          {productsLoading ? (
+            <div className="flex h-10 items-center gap-2 text-sm text-gray-500">
+              <Loader2 className="h-4 w-4 animate-spin" /> Cargando productos…
+            </div>
+          ) : (
+            <select
+              required
+              value={form.product_id}
+              onChange={(ev) =>
+                setForm((f) => ({ ...f, product_id: ev.target.value }))
+              }
+              className={fieldClass}
+            >
+              <option value="">— Seleccioná un producto —</option>
+              {products.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className={labelClass}>Tipo</label>
@@ -171,6 +218,7 @@ function CouponFields({
           />
         </div>
       </div>
+
       <div>
         <label className={labelClass}>Usos máximos</label>
         <p className="mb-1.5 text-xs text-gray-600">Vacío = usos ilimitados</p>
@@ -183,6 +231,7 @@ function CouponFields({
           placeholder="Ej: 100"
         />
       </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className={labelClass}>Válido desde</label>
@@ -209,6 +258,7 @@ function CouponFields({
           />
         </div>
       </div>
+
       <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-900">
         <input
           type="checkbox"
@@ -237,6 +287,9 @@ function submitFormPayload(form: CouponFormState) {
     }
     maxUses = m;
   }
+  if (form.scope === "product" && !form.product_id) {
+    throw new Error("Seleccioná un producto para el cupón");
+  }
   return {
     code: form.code.trim(),
     discount_type: form.discount_type,
@@ -245,7 +298,8 @@ function submitFormPayload(form: CouponFormState) {
     valid_from: form.valid_from.trim() ? form.valid_from.trim() : null,
     valid_until: form.valid_until.trim() ? form.valid_until.trim() : null,
     is_active: form.is_active,
-    club_beneficios_only: form.club_beneficios_only,
+    club_beneficios_only: form.scope === "club",
+    product_id: form.scope === "product" ? form.product_id : null,
   };
 }
 
@@ -257,12 +311,23 @@ export default function CuponesClient() {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
 
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+
   const [editing, setEditing] = useState<AdminCoupon | null>(null);
   const [editForm, setEditForm] = useState<CouponFormState>(emptyForm);
   const [editSaving, setEditSaving] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<AdminCoupon | null>(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
+
+  useEffect(() => {
+    setProductsLoading(true);
+    fetchProducts({ per_page: 500, is_active: true })
+      .then((res) => setProducts(res.products))
+      .catch(() => setProducts([]))
+      .finally(() => setProductsLoading(false));
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -346,14 +411,18 @@ export default function CuponesClient() {
     return `$${c.discount_value.toLocaleString("es-AR")}`;
   };
 
-  const scopeLabel = (c: AdminCoupon) =>
-    c.club_beneficios_only ? "Club" : "General";
+  const scopeLabel = (c: AdminCoupon) => {
+    if (c.product_id) {
+      return c.product_name ? `Producto: ${c.product_name}` : "Producto específico";
+    }
+    return c.club_beneficios_only ? "Club" : "General";
+  };
 
   return (
     <div>
       <PageHeader
         title="Cupones de descuento"
-        description="Cupones generales para el catálogo, o exclusivos del Club Beneficios (el checkout debe validar el alcance)."
+        description="Cupones generales para el catálogo, exclusivos del Club Beneficios, o válidos para un producto específico."
         icon={<TicketPercent className="w-5 h-5" />}
       />
 
@@ -370,7 +439,12 @@ export default function CuponesClient() {
             Nuevo cupón
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <CouponFields form={form} setForm={setForm} />
+            <CouponFields
+              form={form}
+              setForm={setForm}
+              products={products}
+              productsLoading={productsLoading}
+            />
             <button type="submit" disabled={saving} className={`w-full ${btnPrimary}`}>
               {saving ? "Guardando…" : "Crear cupón"}
             </button>
@@ -426,7 +500,11 @@ export default function CuponesClient() {
                   {coupons.map((c) => (
                     <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50/80">
                       <td className="py-2 pr-3 font-mono text-gray-900">{c.code}</td>
-                      <td className="py-2 pr-3 text-gray-700">{scopeLabel(c)}</td>
+                      <td className="py-2 pr-3 text-gray-700 max-w-[180px]">
+                        <span className="block truncate" title={scopeLabel(c)}>
+                          {scopeLabel(c)}
+                        </span>
+                      </td>
                       <td className="py-2 pr-3 text-gray-700">{formatDiscount(c)}</td>
                       <td className="py-2 pr-3 text-gray-800">
                         {c.max_uses != null
@@ -495,7 +573,12 @@ export default function CuponesClient() {
               </button>
             </div>
             <div className="space-y-4">
-              <CouponFields form={editForm} setForm={setEditForm} />
+              <CouponFields
+                form={editForm}
+                setForm={setEditForm}
+                products={products}
+                productsLoading={productsLoading}
+              />
             </div>
             <div className="mt-6 flex justify-end gap-2">
               <button

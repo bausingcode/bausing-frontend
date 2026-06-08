@@ -3628,6 +3628,11 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                       )}
                     </span>
                   </div>
+                  {isPaisCatalog && viacargoQuoteTotal !== null && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      * Precio estimado. Modalidad de entrega: retiro en sucursal Viacargo.
+                    </p>
+                  )}
 
                   {/* Total */}
                   <div className="border-t border-gray-200 pt-4 mt-4">

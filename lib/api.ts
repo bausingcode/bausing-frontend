@@ -6038,6 +6038,9 @@ export interface AdminCoupon {
   valid_until: string | null;
   is_active: boolean;
   club_beneficios_only: boolean;
+  /** null = aplica a todo el catálogo; UUID = solo ese producto */
+  product_id: string | null;
+  product_name?: string | null;
   created_at: string | null;
 }
 
@@ -6091,6 +6094,8 @@ export type CreateAdminCouponInput = {
   is_active?: boolean;
   /** false = cupón general; true = solo productos Club Beneficios */
   club_beneficios_only?: boolean;
+  /** null = aplica a todo el catálogo; UUID = solo ese producto */
+  product_id?: string | null;
 };
 
 export type UpdateAdminCouponInput = CreateAdminCouponInput;
@@ -6174,6 +6179,7 @@ export type CouponPreviewResult = {
   code: string;
   discount_amount: number;
   club_beneficios_only: boolean;
+  product_id: string | null;
   discount_type: string;
   discount_value: number;
 };
