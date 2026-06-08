@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/PageHeader";
-import { TicketPercent, Plus, Pencil, Trash2, X, Loader2 } from "lucide-react";
+import { TicketPercent, Plus, Pencil, Trash2, X, Loader2, Search, Package } from "lucide-react";
 import {
   createAdminCoupon,
   deleteAdminCoupon,
@@ -112,6 +112,122 @@ function TableSkeleton() {
   );
 }
 
+function ProductSearchCombobox({
+  products,
+  loading,
+  value,
+  onChange,
+}: {
+  products: Product[];
+  loading: boolean;
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const selected = products.find((p) => p.id === value) ?? null;
+
+  const filtered = query.trim()
+    ? products.filter((p) =>
+        p.name.toLowerCase().includes(query.trim().toLowerCase())
+      )
+    : products;
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleSelect = (p: Product) => {
+    onChange(p.id);
+    setOpen(false);
+    setQuery("");
+  };
+
+  const handleClear = () => {
+    onChange("");
+    setQuery("");
+    setOpen(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-10 items-center gap-2 text-sm text-gray-500">
+        <Loader2 className="h-4 w-4 animate-spin" /> Cargando productos…
+      </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      {selected ? (
+        <div className="flex items-center gap-2 rounded-[10px] border border-[#00C1A7] bg-[#00C1A7]/5 px-3 py-2">
+          <Package className="h-4 w-4 shrink-0 text-[#00A896]" />
+          <span className="flex-1 truncate text-sm font-medium text-gray-900">
+            {selected.name}
+          </span>
+          <button
+            type="button"
+            onClick={handleClear}
+            className="shrink-0 rounded p-0.5 text-gray-500 hover:bg-gray-200 hover:text-gray-800 transition-colors"
+            aria-label="Quitar producto"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ) : (
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setOpen(true);
+            }}
+            onFocus={() => setOpen(true)}
+            placeholder="Buscar producto…"
+            className="w-full rounded-[10px] border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#00C1A7] focus:outline-none focus:ring-1 focus:ring-[#00C1A7]"
+          />
+        </div>
+      )}
+
+      {open && !selected && (
+        <div className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-[10px] border border-gray-200 bg-white shadow-lg">
+          {filtered.length === 0 ? (
+            <p className="px-3 py-3 text-sm text-gray-500">
+              Sin resultados para &ldquo;{query}&rdquo;
+            </p>
+          ) : (
+            filtered.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleSelect(p);
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-gray-800 hover:bg-[#00C1A7]/10 hover:text-gray-900 transition-colors"
+              >
+                <Package className="h-4 w-4 shrink-0 text-gray-400" />
+                <span className="truncate">{p.name}</span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CouponFields({
   form,
   setForm,
@@ -161,27 +277,12 @@ function CouponFields({
       {form.scope === "product" && (
         <div>
           <label className={labelClass}>Producto</label>
-          {productsLoading ? (
-            <div className="flex h-10 items-center gap-2 text-sm text-gray-500">
-              <Loader2 className="h-4 w-4 animate-spin" /> Cargando productos…
-            </div>
-          ) : (
-            <select
-              required
-              value={form.product_id}
-              onChange={(ev) =>
-                setForm((f) => ({ ...f, product_id: ev.target.value }))
-              }
-              className={fieldClass}
-            >
-              <option value="">— Seleccioná un producto —</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          )}
+          <ProductSearchCombobox
+            products={products}
+            loading={productsLoading}
+            value={form.product_id}
+            onChange={(id) => setForm((f) => ({ ...f, product_id: id }))}
+          />
         </div>
       )}
 
