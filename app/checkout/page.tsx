@@ -404,6 +404,14 @@ export default function CheckoutPage() {
             detectHeaders["Authorization"] = `Bearer ${token}`;
           }
         }
+
+        // Disparar ambas requests en paralelo: detect-locality ya tiene shipping_price e
+        // is_third_party_transport; el catalog check también se necesita y su URL se conoce
+        // de antemano (localityId viene como parámetro), así que no hay motivo para esperarlo.
+        const catalogFetchPromise = fetch(`/api/localities/${localityId}/catalog`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
         const detectResponse = await fetch(detectUrl, {
           method: "GET",
           headers: detectHeaders,
@@ -427,13 +435,8 @@ export default function CheckoutPage() {
               (detectData.data.locality?.id &&
                 detectData.data.locality.id === localityId)
             ) {
-              const catalogResponse = await fetch(
-                `/api/localities/${localityId}/catalog`,
-                {
-                  method: "GET",
-                  headers: { "Content-Type": "application/json" },
-                },
-              );
+              // La respuesta ya está en vuelo desde antes — solo await el resultado
+              const catalogResponse = await catalogFetchPromise;
               if (!isCurrentRun()) return;
 
               if (!catalogResponse.ok) {
@@ -549,10 +552,11 @@ export default function CheckoutPage() {
           return;
         }
 
-        await loadCheckoutProductPrices(detected.id, requestId);
-        if (requestId !== localityRequestIdRef.current) return;
-
-        await refreshCheckoutShipping(detected.id, addressId, requestId);
+        // Precios y shipping son independientes entre sí — ambos solo necesitan detected.id
+        await Promise.all([
+          loadCheckoutProductPrices(detected.id, requestId),
+          refreshCheckoutShipping(detected.id, addressId, requestId),
+        ]);
       } catch (error) {
         console.error("Error al detectar localidad para la dirección:", error);
         if (requestId === localityRequestIdRef.current) {
@@ -3623,6 +3627,12 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                         ) : (
                           <span className="text-gray-400 text-xs">Calculando...</span>
                         )
+                      ) : shippingQuoteLoading ? (
+                        <span
+                          className="inline-block align-middle h-5 min-w-[5rem] rounded-md bg-gray-200 animate-pulse ml-auto"
+                          aria-busy="true"
+                          aria-label="Calculando costo de envío"
+                        />
                       ) : (
                         <span className="text-green-600 text-xs">Envío gratis</span>
                       )}
