@@ -6026,6 +6026,18 @@ export async function fetchClubBeneficiosQuick(): Promise<Product[]> {
   }
 }
 
+/** Regla de descuento por categoría/subcategoría para un cupón Club Beneficios */
+export interface CouponCategoryDiscount {
+  id?: string;
+  coupon_id?: string;
+  /** null = solo subcategoría */
+  category_id: string | null;
+  /** null = aplica a toda la categoría */
+  subcategory_id: string | null;
+  /** Porcentaje de descuento (ej: 10 = 10%) */
+  discount_value: number;
+}
+
 /** Cupones admin (generales y/o solo Club Beneficios) */
 export interface AdminCoupon {
   id: string;
@@ -6042,6 +6054,8 @@ export interface AdminCoupon {
   product_id: string | null;
   product_name?: string | null;
   created_at: string | null;
+  /** Reglas de descuento por categoría (solo para cupones club + percentage) */
+  category_discounts?: CouponCategoryDiscount[];
 }
 
 export interface AdminCouponsListResponse {
@@ -6096,6 +6110,12 @@ export type CreateAdminCouponInput = {
   club_beneficios_only?: boolean;
   /** null = aplica a todo el catálogo; UUID = solo ese producto */
   product_id?: string | null;
+  /** Reglas de descuento por categoría (solo para cupones club + percentage) */
+  category_discounts?: Array<{
+    category_id: string | null;
+    subcategory_id: string | null;
+    discount_value: number;
+  }>;
 };
 
 export type UpdateAdminCouponInput = CreateAdminCouponInput;
@@ -6182,6 +6202,7 @@ export type CouponPreviewResult = {
   product_id: string | null;
   discount_type: string;
   discount_value: number;
+  has_category_discounts?: boolean;
 };
 
 /** Vista previa del descuento (misma lógica que el servidor al crear la orden) */

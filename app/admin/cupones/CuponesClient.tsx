@@ -2,17 +2,28 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/PageHeader";
-import { TicketPercent, Plus, Pencil, Trash2, X, Loader2, Search, Package } from "lucide-react";
+import { TicketPercent, Plus, Pencil, Trash2, X, Loader2, Search, Package, Tag } from "lucide-react";
 import {
   createAdminCoupon,
   deleteAdminCoupon,
   fetchAdminCoupons,
+  fetchCategories,
   fetchProducts,
   updateAdminCoupon,
   type AdminCoupon,
   type AdminCouponsScope,
+  type Category,
   type Product,
 } from "@/lib/api";
+
+// ─── Tipos internos ────────────────────────────────────────────────────────────
+
+type CatDiscountRule = {
+  tempId: string;
+  category_id: string;   // empty = no seleccionada
+  subcategory_id: string; // empty = toda la categoría
+  discount_value: string | number;
+};
 
 const emptyForm = {
   code: "",
@@ -23,12 +34,14 @@ const emptyForm = {
   valid_until: "",
   is_active: true,
   club_beneficios_only: false,
-  /** "general" | "club" | "product" — derivado de club_beneficios_only y product_id */
   scope: "general" as "general" | "club" | "product",
   product_id: "" as string,
+  category_discounts: [] as CatDiscountRule[],
 };
 
 type CouponFormState = typeof emptyForm;
+
+// ─── Estilos comunes ──────────────────────────────────────────────────────────
 
 const btnPrimary =
   "rounded-[10px] bg-[#00C1A7] px-4 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity";
@@ -40,6 +53,8 @@ const fieldClass =
   "w-full rounded-[10px] border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-[#00C1A7] focus:outline-none focus:ring-1 focus:ring-[#00C1A7]";
 const labelClass = "mb-1 block text-sm font-medium text-gray-800";
 
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
 function isoToDatetimeLocal(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -48,10 +63,20 @@ function isoToDatetimeLocal(iso: string | null): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function makeTempId(): string {
+  return Math.random().toString(36).slice(2);
+}
+
 function couponToForm(c: AdminCoupon): CouponFormState {
   let scope: "general" | "club" | "product" = "general";
   if (c.product_id) scope = "product";
   else if (c.club_beneficios_only) scope = "club";
+  const catDiscounts: CatDiscountRule[] = (c.category_discounts ?? []).map((cd) => ({
+    tempId: makeTempId(),
+    category_id: cd.category_id ?? "",
+    subcategory_id: cd.subcategory_id ?? "",
+    discount_value: cd.discount_value,
+  }));
   return {
     code: c.code,
     discount_type: c.discount_type,
@@ -63,8 +88,11 @@ function couponToForm(c: AdminCoupon): CouponFormState {
     club_beneficios_only: c.club_beneficios_only,
     scope,
     product_id: c.product_id ?? "",
+    category_discounts: catDiscounts,
   };
 }
+
+// ─── Skeleton ──────────────────────────────────────────────────────────────────
 
 function TableSkeleton() {
   return (
@@ -83,21 +111,11 @@ function TableSkeleton() {
         <tbody className="animate-pulse">
           {Array.from({ length: 8 }).map((_, i) => (
             <tr key={i} className="border-b border-gray-100">
-              <td className="py-3 pr-3">
-                <div className="h-4 w-28 rounded bg-gray-200" />
-              </td>
-              <td className="py-3 pr-3">
-                <div className="h-4 w-16 rounded bg-gray-200" />
-              </td>
-              <td className="py-3 pr-3">
-                <div className="h-4 w-20 rounded bg-gray-200" />
-              </td>
-              <td className="py-3 pr-3">
-                <div className="h-4 w-14 rounded bg-gray-200" />
-              </td>
-              <td className="py-3 pr-3">
-                <div className="h-6 w-16 rounded-full bg-gray-200" />
-              </td>
+              <td className="py-3 pr-3"><div className="h-4 w-28 rounded bg-gray-200" /></td>
+              <td className="py-3 pr-3"><div className="h-4 w-16 rounded bg-gray-200" /></td>
+              <td className="py-3 pr-3"><div className="h-4 w-20 rounded bg-gray-200" /></td>
+              <td className="py-3 pr-3"><div className="h-4 w-14 rounded bg-gray-200" /></td>
+              <td className="py-3 pr-3"><div className="h-6 w-16 rounded-full bg-gray-200" /></td>
               <td className="py-3">
                 <div className="flex gap-1">
                   <div className="h-8 w-8 rounded-[6px] bg-gray-200" />
@@ -111,6 +129,8 @@ function TableSkeleton() {
     </div>
   );
 }
+
+// ─── Buscador de productos ────────────────────────────────────────────────────
 
 function ProductSearchCombobox({
   products,
@@ -128,11 +148,8 @@ function ProductSearchCombobox({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const selected = products.find((p) => p.id === value) ?? null;
-
   const filtered = query.trim()
-    ? products.filter((p) =>
-        p.name.toLowerCase().includes(query.trim().toLowerCase())
-      )
+    ? products.filter((p) => p.name.toLowerCase().includes(query.trim().toLowerCase()))
     : products;
 
   useEffect(() => {
@@ -145,18 +162,6 @@ function ProductSearchCombobox({
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
-
-  const handleSelect = (p: Product) => {
-    onChange(p.id);
-    setOpen(false);
-    setQuery("");
-  };
-
-  const handleClear = () => {
-    onChange("");
-    setQuery("");
-    setOpen(false);
-  };
 
   if (loading) {
     return (
@@ -171,12 +176,10 @@ function ProductSearchCombobox({
       {selected ? (
         <div className="flex items-center gap-2 rounded-[10px] border border-[#00C1A7] bg-[#00C1A7]/5 px-3 py-2">
           <Package className="h-4 w-4 shrink-0 text-[#00A896]" />
-          <span className="flex-1 truncate text-sm font-medium text-gray-900">
-            {selected.name}
-          </span>
+          <span className="flex-1 truncate text-sm font-medium text-gray-900">{selected.name}</span>
           <button
             type="button"
-            onClick={handleClear}
+            onClick={() => { onChange(""); setQuery(""); setOpen(false); }}
             className="shrink-0 rounded p-0.5 text-gray-500 hover:bg-gray-200 hover:text-gray-800 transition-colors"
             aria-label="Quitar producto"
           >
@@ -189,32 +192,23 @@ function ProductSearchCombobox({
           <input
             type="text"
             value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setOpen(true);
-            }}
+            onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
             onFocus={() => setOpen(true)}
             placeholder="Buscar producto…"
             className="w-full rounded-[10px] border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#00C1A7] focus:outline-none focus:ring-1 focus:ring-[#00C1A7]"
           />
         </div>
       )}
-
       {open && !selected && (
         <div className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-[10px] border border-gray-200 bg-white shadow-lg">
           {filtered.length === 0 ? (
-            <p className="px-3 py-3 text-sm text-gray-500">
-              Sin resultados para &ldquo;{query}&rdquo;
-            </p>
+            <p className="px-3 py-3 text-sm text-gray-500">Sin resultados para &ldquo;{query}&rdquo;</p>
           ) : (
             filtered.map((p) => (
               <button
                 key={p.id}
                 type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  handleSelect(p);
-                }}
+                onMouseDown={(e) => { e.preventDefault(); onChange(p.id); setOpen(false); setQuery(""); }}
                 className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-gray-800 hover:bg-[#00C1A7]/10 hover:text-gray-900 transition-colors"
               >
                 <Package className="h-4 w-4 shrink-0 text-gray-400" />
@@ -228,17 +222,152 @@ function ProductSearchCombobox({
   );
 }
 
+// ─── Editor de descuentos por categoría ──────────────────────────────────────
+
+function CategoryDiscountsEditor({
+  rules,
+  onChange,
+  allCategories,
+}: {
+  rules: CatDiscountRule[];
+  onChange: (rules: CatDiscountRule[]) => void;
+  allCategories: Category[];
+}) {
+  const topLevel = allCategories.filter((c) => !c.parent_id);
+
+  const addRule = () => {
+    onChange([...rules, { tempId: makeTempId(), category_id: "", subcategory_id: "", discount_value: "" }]);
+  };
+
+  const removeRule = (tempId: string) => {
+    onChange(rules.filter((r) => r.tempId !== tempId));
+  };
+
+  const updateRule = (tempId: string, patch: Partial<CatDiscountRule>) => {
+    onChange(rules.map((r) => r.tempId === tempId ? { ...r, ...patch } : r));
+  };
+
+  return (
+    <div className="rounded-[10px] border border-dashed border-[#00C1A7]/50 bg-[#00C1A7]/5 p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Tag className="h-4 w-4 text-[#00A890]" />
+          <span className="text-sm font-medium text-gray-800">Descuentos por categoría</span>
+          <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600">opcional</span>
+        </div>
+        <button
+          type="button"
+          onClick={addRule}
+          className="flex items-center gap-1.5 rounded-[8px] border border-[#00C1A7] px-2.5 py-1.5 text-xs font-medium text-[#00A890] hover:bg-[#00C1A7]/10 transition-colors"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Agregar categoría
+        </button>
+      </div>
+
+      <p className="text-xs text-gray-500 leading-relaxed">
+        Porcentajes distintos según categoría o subcategoría. La subcategoría toma precedencia.
+        Los productos sin coincidencia usarán el <strong>descuento predeterminado</strong> de arriba.
+      </p>
+
+      {rules.length === 0 ? (
+        <p className="text-xs text-gray-400 italic">Sin reglas configuradas — se aplicará el descuento predeterminado a todos los productos Club.</p>
+      ) : (
+        <div className="space-y-2">
+          {rules.map((rule) => {
+            const subCategories = rule.category_id
+              ? allCategories.filter((c) => c.parent_id === rule.category_id)
+              : [];
+            return (
+              <div key={rule.tempId} className="flex flex-wrap items-start gap-2 rounded-[8px] border border-gray-200 bg-white p-3">
+                {/* Categoría */}
+                <div className="flex-1 min-w-[140px]">
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Categoría</label>
+                  <select
+                    value={rule.category_id}
+                    onChange={(e) => updateRule(rule.tempId, { category_id: e.target.value, subcategory_id: "" })}
+                    className="w-full rounded-[8px] border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 focus:border-[#00C1A7] focus:outline-none focus:ring-1 focus:ring-[#00C1A7]"
+                  >
+                    <option value="">Seleccionar…</option>
+                    {topLevel.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Subcategoría */}
+                <div className="flex-1 min-w-[140px]">
+                  <label className="mb-1 block text-xs font-medium text-gray-600">
+                    Subcategoría <span className="text-gray-400">(opcional)</span>
+                  </label>
+                  <select
+                    value={rule.subcategory_id}
+                    onChange={(e) => updateRule(rule.tempId, { subcategory_id: e.target.value })}
+                    disabled={!rule.category_id || subCategories.length === 0}
+                    className="w-full rounded-[8px] border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 focus:border-[#00C1A7] focus:outline-none focus:ring-1 focus:ring-[#00C1A7] disabled:bg-gray-50 disabled:text-gray-400"
+                  >
+                    <option value="">Toda la categoría</option>
+                    {subCategories.map((sub) => (
+                      <option key={sub.id} value={sub.id}>{sub.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Descuento */}
+                <div className="w-24">
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Descuento (%)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    max="100"
+                    value={rule.discount_value}
+                    onChange={(e) => updateRule(rule.tempId, { discount_value: e.target.value })}
+                    placeholder="ej: 10"
+                    className="w-full rounded-[8px] border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 focus:border-[#00C1A7] focus:outline-none focus:ring-1 focus:ring-[#00C1A7]"
+                  />
+                </div>
+
+                {/* Eliminar */}
+                <div className="flex items-end pb-0.5">
+                  <button
+                    type="button"
+                    onClick={() => removeRule(rule.tempId)}
+                    className="mt-5 rounded-[6px] p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                    aria-label="Eliminar regla"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Campos del formulario de cupón ──────────────────────────────────────────
+
 function CouponFields({
   form,
   setForm,
   products,
   productsLoading,
+  allCategories,
+  categoriesLoading,
 }: {
   form: CouponFormState;
   setForm: React.Dispatch<React.SetStateAction<CouponFormState>>;
   products: Product[];
   productsLoading: boolean;
+  allCategories: Category[];
+  categoriesLoading: boolean;
 }) {
+  const showCategoryDiscounts =
+    form.scope === "club" && form.discount_type === "percentage";
+
   return (
     <>
       <div>
@@ -264,6 +393,7 @@ function CouponFields({
               scope,
               club_beneficios_only: scope === "club",
               product_id: scope !== "product" ? "" : f.product_id,
+              category_discounts: scope !== "club" ? [] : f.category_discounts,
             }));
           }}
           className={fieldClass}
@@ -295,6 +425,7 @@ function CouponFields({
               setForm((f) => ({
                 ...f,
                 discount_type: ev.target.value as "percentage" | "fixed",
+                category_discounts: ev.target.value !== "percentage" ? [] : f.category_discounts,
               }))
             }
             className={fieldClass}
@@ -304,21 +435,40 @@ function CouponFields({
           </select>
         </div>
         <div>
-          <label className={labelClass}>Valor</label>
+          <label className={labelClass}>
+            {showCategoryDiscounts && form.category_discounts.length > 0
+              ? "Descuento predeterminado (%)"
+              : "Valor"}
+          </label>
           <input
             required
             type="number"
             step="0.01"
             min="0.01"
             value={form.discount_value}
-            onChange={(ev) =>
-              setForm((f) => ({ ...f, discount_value: ev.target.value }))
-            }
+            onChange={(ev) => setForm((f) => ({ ...f, discount_value: ev.target.value }))}
             className={fieldClass}
             placeholder="Ej: 10 o 15.5"
           />
         </div>
       </div>
+
+      {/* Sección de descuentos por categoría — solo para club + porcentaje */}
+      {showCategoryDiscounts && (
+        <div>
+          {categoriesLoading ? (
+            <div className="flex items-center gap-2 text-sm text-gray-500 py-2">
+              <Loader2 className="h-4 w-4 animate-spin" /> Cargando categorías…
+            </div>
+          ) : (
+            <CategoryDiscountsEditor
+              rules={form.category_discounts}
+              onChange={(rules) => setForm((f) => ({ ...f, category_discounts: rules }))}
+              allCategories={allCategories}
+            />
+          )}
+        </div>
+      )}
 
       <div>
         <label className={labelClass}>Usos máximos</label>
@@ -340,9 +490,7 @@ function CouponFields({
           <input
             type="datetime-local"
             value={form.valid_from}
-            onChange={(ev) =>
-              setForm((f) => ({ ...f, valid_from: ev.target.value }))
-            }
+            onChange={(ev) => setForm((f) => ({ ...f, valid_from: ev.target.value }))}
             className={fieldClass}
           />
         </div>
@@ -352,9 +500,7 @@ function CouponFields({
           <input
             type="datetime-local"
             value={form.valid_until}
-            onChange={(ev) =>
-              setForm((f) => ({ ...f, valid_until: ev.target.value }))
-            }
+            onChange={(ev) => setForm((f) => ({ ...f, valid_until: ev.target.value }))}
             className={fieldClass}
           />
         </div>
@@ -364,9 +510,7 @@ function CouponFields({
         <input
           type="checkbox"
           checked={form.is_active}
-          onChange={(ev) =>
-            setForm((f) => ({ ...f, is_active: ev.target.checked }))
-          }
+          onChange={(ev) => setForm((f) => ({ ...f, is_active: ev.target.checked }))}
           className="h-4 w-4 rounded"
         />
         Activo
@@ -374,6 +518,8 @@ function CouponFields({
     </>
   );
 }
+
+// ─── Build payload ────────────────────────────────────────────────────────────
 
 function submitFormPayload(form: CouponFormState) {
   const dv = Number(form.discount_value);
@@ -391,6 +537,29 @@ function submitFormPayload(form: CouponFormState) {
   if (form.scope === "product" && !form.product_id) {
     throw new Error("Seleccioná un producto para el cupón");
   }
+
+  // Validar y construir category_discounts
+  const isClubPercentage = form.scope === "club" && form.discount_type === "percentage";
+  let categoryDiscounts: Array<{ category_id: string | null; subcategory_id: string | null; discount_value: number }> = [];
+
+  if (isClubPercentage && form.category_discounts.length > 0) {
+    for (let i = 0; i < form.category_discounts.length; i++) {
+      const rule = form.category_discounts[i];
+      if (!rule.category_id && !rule.subcategory_id) {
+        throw new Error(`Regla ${i + 1}: seleccioná al menos una categoría`);
+      }
+      const val = Number(rule.discount_value);
+      if (!Number.isFinite(val) || val <= 0 || val > 100) {
+        throw new Error(`Regla ${i + 1}: el descuento debe estar entre 0 y 100`);
+      }
+      categoryDiscounts.push({
+        category_id: rule.category_id || null,
+        subcategory_id: rule.subcategory_id || null,
+        discount_value: val,
+      });
+    }
+  }
+
   return {
     code: form.code.trim(),
     discount_type: form.discount_type,
@@ -401,8 +570,11 @@ function submitFormPayload(form: CouponFormState) {
     is_active: form.is_active,
     club_beneficios_only: form.scope === "club",
     product_id: form.scope === "product" ? form.product_id : null,
+    ...(isClubPercentage ? { category_discounts: categoryDiscounts } : {}),
   };
 }
+
+// ─── Componente principal ──────────────────────────────────────────────────────
 
 export default function CuponesClient() {
   const [listScope, setListScope] = useState<AdminCouponsScope>("all");
@@ -415,6 +587,9 @@ export default function CuponesClient() {
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
 
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+
   const [editing, setEditing] = useState<AdminCoupon | null>(null);
   const [editForm, setEditForm] = useState<CouponFormState>(emptyForm);
   const [editSaving, setEditSaving] = useState(false);
@@ -422,12 +597,19 @@ export default function CuponesClient() {
   const [deleteTarget, setDeleteTarget] = useState<AdminCoupon | null>(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
 
+  // Cargar productos y categorías al montar
   useEffect(() => {
     setProductsLoading(true);
     fetchProducts({ per_page: 500, is_active: true })
       .then((res) => setProducts(res.products))
       .catch(() => setProducts([]))
       .finally(() => setProductsLoading(false));
+
+    setCategoriesLoading(true);
+    fetchCategories()
+      .then((cats) => setAllCategories(cats))
+      .catch(() => setAllCategories([]))
+      .finally(() => setCategoriesLoading(false));
   }, []);
 
   const load = useCallback(async () => {
@@ -454,9 +636,7 @@ export default function CuponesClient() {
     setError(null);
   };
 
-  const closeEdit = () => {
-    setEditing(null);
-  };
+  const closeEdit = () => setEditing(null);
 
   const handleEditSave = async () => {
     if (!editing) return;
@@ -506,16 +686,16 @@ export default function CuponesClient() {
   };
 
   const formatDiscount = (c: AdminCoupon) => {
-    if (c.discount_type === "percentage") {
-      return `${c.discount_value}%`;
-    }
-    return `$${c.discount_value.toLocaleString("es-AR")}`;
+    const base =
+      c.discount_type === "percentage"
+        ? `${c.discount_value}%`
+        : `$${c.discount_value.toLocaleString("es-AR")}`;
+    const hasCatRules = (c.category_discounts?.length ?? 0) > 0;
+    return hasCatRules ? `${base} + por categoría` : base;
   };
 
   const scopeLabel = (c: AdminCoupon) => {
-    if (c.product_id) {
-      return c.product_name ? `Producto: ${c.product_name}` : "Producto específico";
-    }
+    if (c.product_id) return c.product_name ? `Producto: ${c.product_name}` : "Producto específico";
     return c.club_beneficios_only ? "Club" : "General";
   };
 
@@ -545,6 +725,8 @@ export default function CuponesClient() {
               setForm={setForm}
               products={products}
               productsLoading={productsLoading}
+              allCategories={allCategories}
+              categoriesLoading={categoriesLoading}
             />
             <button type="submit" disabled={saving} className={`w-full ${btnPrimary}`}>
               {saving ? "Guardando…" : "Crear cupón"}
@@ -571,9 +753,7 @@ export default function CuponesClient() {
                   type="button"
                   onClick={() => setListScope(opt.id)}
                   disabled={loading}
-                  className={
-                    listScope === opt.id ? btnSecondaryActive : btnSecondary
-                  }
+                  className={listScope === opt.id ? btnSecondaryActive : btnSecondary}
                 >
                   {opt.label}
                 </button>
@@ -602,24 +782,19 @@ export default function CuponesClient() {
                     <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50/80">
                       <td className="py-2 pr-3 font-mono text-gray-900">{c.code}</td>
                       <td className="py-2 pr-3 text-gray-700 max-w-[180px]">
-                        <span className="block truncate" title={scopeLabel(c)}>
-                          {scopeLabel(c)}
-                        </span>
+                        <span className="block truncate" title={scopeLabel(c)}>{scopeLabel(c)}</span>
                       </td>
-                      <td className="py-2 pr-3 text-gray-700">{formatDiscount(c)}</td>
+                      <td className="py-2 pr-3 text-gray-700">
+                        <span className="block">{formatDiscount(c)}</span>
+                      </td>
                       <td className="py-2 pr-3 text-gray-800">
-                        {c.max_uses != null
-                          ? `${c.uses_count} / ${c.max_uses}`
-                          : `${c.uses_count} / ∞`}
+                        {c.max_uses != null ? `${c.uses_count} / ${c.max_uses}` : `${c.uses_count} / ∞`}
                       </td>
                       <td className="py-2 pr-3">
-                        <span
-                          className={
-                            c.is_active
-                              ? "rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800"
-                              : "rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
-                          }
-                        >
+                        <span className={c.is_active
+                          ? "rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800"
+                          : "rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
+                        }>
                           {c.is_active ? "Activo" : "Inactivo"}
                         </span>
                       </td>
@@ -652,6 +827,7 @@ export default function CuponesClient() {
         </section>
       </div>
 
+      {/* Modal editar */}
       {editing ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div
@@ -679,14 +855,12 @@ export default function CuponesClient() {
                 setForm={setEditForm}
                 products={products}
                 productsLoading={productsLoading}
+                allCategories={allCategories}
+                categoriesLoading={categoriesLoading}
               />
             </div>
             <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={closeEdit}
-                className={`${btnSecondary} px-4 py-2`}
-              >
+              <button type="button" onClick={closeEdit} className={`${btnSecondary} px-4 py-2`}>
                 Cancelar
               </button>
               <button
@@ -695,9 +869,7 @@ export default function CuponesClient() {
                 disabled={editSaving}
                 className={`inline-flex items-center justify-center gap-2 px-6 py-2 ${btnPrimary}`}
               >
-                {editSaving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : null}
+                {editSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Guardar
               </button>
             </div>
@@ -705,12 +877,11 @@ export default function CuponesClient() {
         </div>
       ) : null}
 
+      {/* Modal eliminar */}
       {deleteTarget ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-[14px] border border-gray-200 bg-white p-6 shadow-xl">
-            <h3 className="mb-2 text-lg font-semibold text-gray-900">
-              ¿Eliminar este cupón?
-            </h3>
+            <h3 className="mb-2 text-lg font-semibold text-gray-900">¿Eliminar este cupón?</h3>
             <p className="mb-6 font-mono text-sm text-gray-800">{deleteTarget.code}</p>
             <p className="mb-6 text-sm text-gray-600">
               Esta acción no se puede deshacer. Si el cupón ya se usó en pedidos, considerá desactivarlo en lugar de borrarlo.
@@ -730,9 +901,7 @@ export default function CuponesClient() {
                 disabled={deleteSaving}
                 className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-red-200 bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
               >
-                {deleteSaving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : null}
+                {deleteSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Eliminar
               </button>
             </div>
