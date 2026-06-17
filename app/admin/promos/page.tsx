@@ -318,9 +318,10 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
     end_at: "",
     is_active: true,
     allows_wallet: true,
-    applies_to: "all" as "all" | "product" | "category",
+    applies_to: "all" as "all" | "product" | "products" | "category",
     selected_category_id: "",
     selected_product_id: "",
+    selected_product_ids: [] as string[],
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -329,6 +330,8 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
   const [loadingData, setLoadingData] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const [multiProductSearchQuery, setMultiProductSearchQuery] = useState("");
+  const [showMultiProductDropdown, setShowMultiProductDropdown] = useState(false);
   
   // Separar categorías principales y subcategorías
   const mainCategories = categories.filter((cat) => !cat.parent_id);
@@ -368,10 +371,12 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
               applies_to: "all",
               selected_category_id: "",
               selected_product_id: "",
+              selected_product_ids: [],
             });
             setProductSearchQuery("");
+            setMultiProductSearchQuery("");
           }
-          
+
           const [catsData, prodsData] = await Promise.all([
             fetchCategories(true),
             fetchProducts({ is_active: true, per_page: 1000 })
@@ -383,11 +388,17 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
           if (promo) {
             const startDate = new Date(promo.start_at);
             const endDate = new Date(promo.end_at);
-            const appliesTo = promo.applicability?.[0]?.applies_to || "all";
+            const productApplicabilities = promo.applicability?.filter(a => a.applies_to === "product") || [];
             const selectedCatId = promo.applicability?.find(a => a.applies_to === "category")?.category_id || "";
-            const selectedProdId = promo.applicability?.find(a => a.applies_to === "product")?.product_id || "";
-            
-            // Obtener nombre del producto si hay uno seleccionado
+
+            let appliesTo: "all" | "product" | "products" | "category" = "all";
+            if (promo.applicability?.[0]?.applies_to === "category") appliesTo = "category";
+            else if (productApplicabilities.length === 1) appliesTo = "product";
+            else if (productApplicabilities.length > 1) appliesTo = "products";
+
+            const selectedProdId = productApplicabilities.length === 1 ? productApplicabilities[0].product_id || "" : "";
+            const selectedProdIds = productApplicabilities.length > 1 ? productApplicabilities.map(a => a.product_id || "").filter(Boolean) : [];
+
             let productName = "";
             if (selectedProdId) {
               const selectedProduct = prodsData.products.find(p => p.id === selectedProdId);
@@ -407,11 +418,13 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
               end_at: new Date(endDate.getTime() - endDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16),
               is_active: promo.is_active,
               allows_wallet: promo.allows_wallet,
-              applies_to: appliesTo as any,
+              applies_to: appliesTo,
               selected_category_id: selectedCatId || "",
-              selected_product_id: selectedProdId || "",
+              selected_product_id: selectedProdId,
+              selected_product_ids: selectedProdIds,
             });
             setProductSearchQuery(productName);
+            setMultiProductSearchQuery("");
           } else {
             // Reset form para creación
             setFormData({
@@ -430,8 +443,10 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
               applies_to: "all",
               selected_category_id: "",
               selected_product_id: "",
+              selected_product_ids: [],
             });
             setProductSearchQuery("");
+            setMultiProductSearchQuery("");
           }
         } catch (err) {
           console.error("Error loading data:", err);
@@ -483,6 +498,10 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
         applicability.push({ applies_to: "category", category_id: formData.selected_category_id });
       } else if (formData.applies_to === "product" && formData.selected_product_id) {
         applicability.push({ applies_to: "product", product_id: formData.selected_product_id });
+      } else if (formData.applies_to === "products" && formData.selected_product_ids.length > 0) {
+        formData.selected_product_ids.forEach(id => {
+          applicability.push({ applies_to: "product", product_id: id });
+        });
       }
 
       if (applicability.length === 0) {
@@ -560,9 +579,12 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
         applies_to: "all",
         selected_category_id: "",
         selected_product_id: "",
+        selected_product_ids: [],
       });
       setProductSearchQuery("");
       setShowProductDropdown(false);
+      setMultiProductSearchQuery("");
+      setShowMultiProductDropdown(false);
       onSuccess();
     } catch (err: any) {
       setError(err.message || "Error al crear la promoción");
@@ -834,9 +856,11 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
               <select
                 value={formData.applies_to}
                 onChange={(e) => {
-                  setFormData({ ...formData, applies_to: e.target.value as any, selected_category_id: "", selected_product_id: "" });
+                  setFormData({ ...formData, applies_to: e.target.value as any, selected_category_id: "", selected_product_id: "", selected_product_ids: [] });
                   setProductSearchQuery("");
                   setShowProductDropdown(false);
+                  setMultiProductSearchQuery("");
+                  setShowMultiProductDropdown(false);
                 }}
                 className={inputClass}
                 required
@@ -844,6 +868,7 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
                 <option value="all">Todos los productos</option>
                 <option value="category">Categoría específica</option>
                 <option value="product">Producto específico</option>
+                <option value="products">Varios productos</option>
               </select>
             </div>
 
@@ -909,11 +934,11 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
                       </button>
                     )}
                   </div>
-                  
+
                   {showProductDropdown && (
                     <>
-                      <div 
-                        className="fixed inset-0 z-10" 
+                      <div
+                        className="fixed inset-0 z-10"
                         onClick={() => setShowProductDropdown(false)}
                       />
                       <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -921,7 +946,7 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
                           const filteredProducts = products.filter((prod) =>
                             prod.name.toLowerCase().includes(productSearchQuery.toLowerCase())
                           );
-                          
+
                           if (filteredProducts.length === 0) {
                             return (
                               <div className="px-3 py-2 text-sm text-gray-500">
@@ -929,7 +954,7 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
                               </div>
                             );
                           }
-                          
+
                           return filteredProducts.map((prod) => (
                             <button
                               key={prod.id}
@@ -951,10 +976,128 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
                     </>
                   )}
                 </div>
-                
+
                 {formData.selected_product_id && (
                   <p className="mt-2 text-sm text-gray-500">
                     Seleccionado: <span className="font-medium text-gray-700">{products.find(p => p.id === formData.selected_product_id)?.name}</span>
+                  </p>
+                )}
+              </div>
+            )}
+
+            {formData.applies_to === "products" && (
+              <div>
+                <label className={labelClass}>
+                  Productos <span className="text-red-500">*</span>
+                </label>
+
+                {/* Chips de productos seleccionados */}
+                {formData.selected_product_ids.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                    {formData.selected_product_ids.map((id) => {
+                      const prod = products.find(p => p.id === id);
+                      return (
+                        <span
+                          key={id}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-blue-200 text-blue-800 text-sm font-medium rounded-full shadow-sm"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+                          <span className="max-w-[180px] truncate">{prod?.name || id}</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFormData({
+                                ...formData,
+                                selected_product_ids: formData.selected_product_ids.filter(pid => pid !== id),
+                              })
+                            }
+                            className="ml-0.5 text-blue-400 hover:text-blue-700 transition-colors cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </span>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, selected_product_ids: [] })}
+                      className="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-red-500 transition-colors cursor-pointer"
+                    >
+                      <X className="w-3 h-3" /> Limpiar todo
+                    </button>
+                  </div>
+                )}
+
+                {/* Buscador */}
+                <div className="relative">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Buscar y agregar productos..."
+                      value={multiProductSearchQuery}
+                      onChange={(e) => {
+                        setMultiProductSearchQuery(e.target.value);
+                        setShowMultiProductDropdown(true);
+                      }}
+                      onFocus={() => setShowMultiProductDropdown(true)}
+                      className={inputClass + " pl-10 pr-4"}
+                    />
+                  </div>
+
+                  {showMultiProductDropdown && multiProductSearchQuery.trim() && (
+                    (() => {
+                      const filtered = products.filter(
+                        (prod) =>
+                          prod.name.toLowerCase().includes(multiProductSearchQuery.toLowerCase()) &&
+                          !formData.selected_product_ids.includes(prod.id)
+                      );
+
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="mt-1 px-4 py-6 text-center text-sm text-gray-400 border border-gray-200 rounded-xl bg-white">
+                            <Search className="w-5 h-5 mx-auto mb-1 opacity-40" />
+                            No se encontraron productos
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="mt-1 border border-gray-200 rounded-xl bg-white overflow-y-auto max-h-48 divide-y divide-gray-50">
+                          {filtered.map((prod) => (
+                            <button
+                              key={prod.id}
+                              type="button"
+                              onClick={() => {
+                                setFormData({
+                                  ...formData,
+                                  selected_product_ids: [...formData.selected_product_ids, prod.id],
+                                });
+                                setMultiProductSearchQuery("");
+                                setShowMultiProductDropdown(false);
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-blue-50 transition-colors group cursor-pointer"
+                            >
+                              <span className="w-6 h-6 rounded-full border-2 border-gray-200 group-hover:border-blue-400 transition-colors flex items-center justify-center shrink-0">
+                                <Plus className="w-3 h-3 text-gray-300 group-hover:text-blue-500 transition-colors" />
+                              </span>
+                              <span className="text-gray-800 group-hover:text-blue-700 font-medium truncate">
+                                {prod.name}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()
+                  )}
+                </div>
+
+                {formData.selected_product_ids.length === 0 && (
+                  <p className="mt-2 text-xs text-gray-400">Buscá y seleccioná los productos a los que aplica esta promo.</p>
+                )}
+                {formData.selected_product_ids.length > 0 && (
+                  <p className="mt-2 text-xs text-gray-500 font-medium">
+                    {formData.selected_product_ids.length} producto{formData.selected_product_ids.length !== 1 ? "s" : ""} seleccionado{formData.selected_product_ids.length !== 1 ? "s" : ""}
                   </p>
                 )}
               </div>

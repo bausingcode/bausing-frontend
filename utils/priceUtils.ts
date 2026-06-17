@@ -349,6 +349,13 @@ export function calculateProductPrice(
       (product.promos && product.promos.length > 0
         ? getPromoLabel(product.promos as any, context)
         : undefined);
+  } else if (promoCalculation.promoLabel) {
+    // promotional_message: sin descuento de precio pero con etiqueta informativa
+    discount = promoCalculation.promoLabel;
+    if (refTotal != null && refTotal > finalPrice + 0.005) {
+      originalPrice = formatPrice(refTotal);
+      outOriginalPriceValue = refTotal;
+    }
   } else if (refTotal != null) {
     originalPrice = formatPrice(refTotal);
     outOriginalPriceValue = refTotal;
