@@ -5,7 +5,7 @@
  */
 
 import { Product, fetchCatalogs, Catalog, fetchCatalogIdForLocality } from "@/lib/api";
-import { calculatePriceWithPromo, getPromoLabel, PromoCalculationResult } from "./promoUtils";
+import { calculatePriceWithPromo, getPromoLabel, getPromoBadgeColor, PromoCalculationResult } from "./promoUtils";
 
 // Cache para mapeo de localidad a catálogo (para evitar múltiples llamadas)
 let localityToCatalogCache: Map<string, string> | null = null;
@@ -102,6 +102,7 @@ export interface ProductPriceInfo {
   // Info adicional
   hasDiscount: boolean;
   promoCalculation?: PromoCalculationResult;
+  discountColor?: string;
 }
 
 export type PaymentPriceKind = "transfer" | "card";
@@ -389,6 +390,7 @@ export function calculateProductPrice(
     hasCardPrice: hasDistinctCardPrice,
     hasDiscount,
     promoCalculation,
+    discountColor: discount ? getPromoBadgeColor(product.promos as any) : undefined,
   };
 }
 

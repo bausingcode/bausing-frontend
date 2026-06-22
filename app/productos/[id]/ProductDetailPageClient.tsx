@@ -25,7 +25,7 @@ import {
   PRICE_UI_CARD_CAPTION,
   productCardPriceDisplayFromPriceInfo,
 } from "@/utils/priceUtils";
-import { getPromoLabel } from "@/utils/promoUtils";
+import { getPromoLabel, getPromoBadgeColor } from "@/utils/promoUtils";
 import { PRODUCT_BASIC_COLOR_LABEL } from "@/lib/productBasicColor";
 import {
   firmnessLabelToBarLevel,
@@ -1177,8 +1177,9 @@ export default function ProductDetailPageClient({
                         ? priceInfo.transferPriceValue
                         : priceInfo.currentPriceValue;
                       const priceWithoutTaxes = priceForTaxesBase * 0.79;
+                      const badgeColor = priceInfo.discountColor || getPromoBadgeColor(tempProduct.promos as any);
                       const promoBadge = shouldShowDiscount && discountLabel && (
-                        <span className="bg-[#00C1A7] text-white px-2 py-0.5 md:py-1 rounded-[4px] font-semibold text-xs md:text-sm shrink-0">
+                        <span className="text-white px-2 py-0.5 md:py-1 rounded-[4px] font-semibold text-xs md:text-sm shrink-0" style={{ backgroundColor: badgeColor }}>
                           {discountLabel}
                         </span>
                       );

@@ -91,6 +91,7 @@ function productToCardProps(product: Product, isPriceLoading: boolean = false) {
     currentPrice: cardFields.currentPrice || "",
     originalPrice: priceInfo.originalPrice || "",
     discount: priceInfo.discount,
+    discountColor: priceInfo.discountColor,
     priceNote: cardFields.priceNote,
     secondaryPrice: cardFields.secondaryPrice,
     secondaryPriceLabel: cardFields.secondaryPriceLabel,
@@ -208,6 +209,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
                 currentPrice={product.currentPrice}
                 originalPrice={product.originalPrice}
                 discount={product.discount}
+                discountColor={product.discountColor}
                 priceNote={product.priceNote}
                 secondaryPrice={product.secondaryPrice}
                 secondaryPriceLabel={product.secondaryPriceLabel}
@@ -238,6 +240,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
             currentPrice={product.currentPrice}
             originalPrice={product.originalPrice}
             discount={product.discount}
+            discountColor={product.discountColor}
             priceNote={product.priceNote}
             secondaryPrice={product.secondaryPrice}
             secondaryPriceLabel={product.secondaryPriceLabel}

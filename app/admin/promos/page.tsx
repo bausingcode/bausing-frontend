@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import PageHeader from "@/components/PageHeader";
 import { Edit, Trash2, CreditCard, X, Plus, Search, ChevronDown } from "lucide-react";
 import AutoResizeTextarea from "@/components/AutoResizeTextarea";
-import { fetchPromos, createPromo, updatePromo, deletePromo, type Promo, fetchCategories, fetchProducts, type Category, type Product } from "@/lib/api";
+import { fetchPromos, createPromo, updatePromo, deletePromo, type Promo, fetchCategories, fetchProducts, fetchProductsAllPages, type Category, type Product } from "@/lib/api";
 
 export default function Promos() {
   const [promotions, setPromotions] = useState<Promo[]>([]);
@@ -313,6 +313,7 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
     custom_message: "",
     home_message: "",
     product_view_message: "",
+    badge_color: "#00C1A7",
     extra_config: {} as Record<string, any>,
     start_at: "",
     end_at: "",
@@ -363,6 +364,7 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
               custom_message: "",
               home_message: "",
               product_view_message: "",
+              badge_color: "#00C1A7",
               extra_config: {},
               start_at: "",
               end_at: "",
@@ -379,7 +381,7 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
 
           const [catsData, prodsData] = await Promise.all([
             fetchCategories(true),
-            fetchProducts({ is_active: true, per_page: 1000 })
+            fetchProductsAllPages({ is_active: true })
           ]);
           setCategories(catsData);
           setProducts(prodsData.products);
@@ -413,6 +415,7 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
               custom_message: promo.extra_config?.custom_message || "",
               home_message: promo.extra_config?.home_message || "",
               product_view_message: promo.extra_config?.product_view_message || "",
+              badge_color: promo.extra_config?.badge_color || "#00C1A7",
               extra_config: promo.extra_config || {},
               start_at: new Date(startDate.getTime() - startDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16),
               end_at: new Date(endDate.getTime() - endDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16),
@@ -435,6 +438,7 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
               custom_message: "",
               home_message: "",
               product_view_message: "",
+              badge_color: "#00C1A7",
               extra_config: {},
               start_at: "",
               end_at: "",
@@ -545,6 +549,11 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
           extraConfig.product_view_message = formData.product_view_message.trim();
         }
       }
+
+      // Guardar color del cartel si es distinto al default
+      if (formData.badge_color && formData.badge_color !== "#00C1A7") {
+        extraConfig.badge_color = formData.badge_color;
+      }
       
       // Si es una edición, siempre enviar extra_config para asegurar que se actualice correctamente
       // Si está vacío, enviar {} para limpiar el custom_message existente
@@ -571,6 +580,7 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
         custom_message: "",
         home_message: "",
         product_view_message: "",
+        badge_color: "#00C1A7",
         extra_config: {},
         start_at: "",
         end_at: "",
@@ -795,6 +805,31 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
                 />
               </div>
             )}
+
+            <div>
+              <label className={labelClass}>Color del cartel</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={formData.badge_color}
+                  onChange={(e) => setFormData({ ...formData, badge_color: e.target.value })}
+                  className="h-10 w-14 cursor-pointer rounded border border-gray-300 p-0.5"
+                />
+                <span
+                  className="px-3 py-1 rounded-[4px] text-sm font-semibold text-white"
+                  style={{ backgroundColor: formData.badge_color }}
+                >
+                  Vista previa
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, badge_color: "#00C1A7" })}
+                  className="text-xs text-gray-500 underline hover:text-gray-700"
+                >
+                  Restablecer
+                </button>
+              </div>
+            </div>
 
             <div>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Vigencia</p>

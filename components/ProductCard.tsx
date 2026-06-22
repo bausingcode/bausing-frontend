@@ -16,6 +16,7 @@ interface ProductCardProps {
   currentPrice: string;
   originalPrice?: string;
   discount?: string;
+  discountColor?: string;
   /** Leyenda sobre el precio principal (ej. efectivo / transferencia) */
   priceNote?: string;
   /** Precio secundario (ej. precio de lista) en texto pequeño */
@@ -37,6 +38,7 @@ export default function ProductCard({
   currentPrice,
   originalPrice,
   discount,
+  discountColor,
   priceNote,
   secondaryPrice,
   secondaryPriceLabel,
@@ -157,9 +159,10 @@ export default function ProductCard({
         )}
         {discount && (
           <div
-            className={`absolute z-10 w-fit max-w-[calc(100%-1rem)] bg-[#00C1A7] px-2 py-1 text-left text-xs font-semibold leading-snug text-white rounded-[4px] ${
+            className={`absolute z-10 w-fit max-w-[calc(100%-1rem)] px-2 py-1 text-left text-xs font-semibold leading-snug text-white rounded-[4px] ${
               outOfStock ? "top-10 left-2 md:top-2 md:left-auto md:right-2" : "top-2 left-2 md:left-auto md:right-2"
             }`}
+            style={{ backgroundColor: discountColor || "#00C1A7" }}
           >
             {discount}
           </div>

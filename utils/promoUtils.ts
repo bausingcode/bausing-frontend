@@ -171,3 +171,15 @@ export function getPromoLabel(promos?: Promo[], context: 'home' | 'catalog' | 'p
       return "OFERTA";
   }
 }
+
+export const DEFAULT_BADGE_COLOR = "#00C1A7";
+
+export function getPromoBadgeColor(promos?: Promo[]): string {
+  if (!promos || promos.length === 0) return DEFAULT_BADGE_COLOR;
+  const promo = promos[0];
+  const now = new Date();
+  if (!promo.is_active || now < new Date(promo.start_at) || now > new Date(promo.end_at)) {
+    return DEFAULT_BADGE_COLOR;
+  }
+  return promo.extra_config?.badge_color || DEFAULT_BADGE_COLOR;
+}
