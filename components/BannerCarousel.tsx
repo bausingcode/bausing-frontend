@@ -215,11 +215,19 @@ export default function BannerCarousel({
       {/* Móvil: hero con image_url_mobile; ancho 100vw, relleno con object-cover (sin letterboxing). */}
       {hasMobileExclusiveHero ? (
         <section
-          className="relative ml-[calc(50%-50dvw)] w-[100dvw] max-w-[100dvw] overflow-hidden bg-[#0f0f0f] md:hidden"
+          className="relative overflow-hidden bg-[#0f0f0f] md:hidden"
           style={
             activeMobileDims
-              ? { aspectRatio: `${activeMobileDims.w} / ${activeMobileDims.h}` }
+              ? {
+                  marginLeft: "calc(50% - 50dvw)",
+                  width: "100dvw",
+                  maxWidth: "100dvw",
+                  aspectRatio: `${activeMobileDims.w} / ${activeMobileDims.h}`,
+                }
               : {
+                  marginLeft: "calc(50% - 50dvw)",
+                  width: "100dvw",
+                  maxWidth: "100dvw",
                   /* Hasta conocer el ratio real: caja ancha tipo móvil; object-cover evita franjas laterales */
                   aspectRatio: "9 / 16",
                   maxHeight: "min(92svh, 720px)",
@@ -333,7 +341,10 @@ export default function BannerCarousel({
           )}
         </section>
       ) : (
-        <section className="relative ml-[calc(50%-50dvw)] w-[100dvw] max-w-[100dvw] overflow-hidden bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0f0f0f] max-md:h-[clamp(140px,24svh,260px)] md:hidden">
+        <section
+          className="relative overflow-hidden bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0f0f0f] max-md:h-[clamp(140px,24svh,260px)] md:hidden"
+          style={{ marginLeft: "calc(50% - 50dvw)", width: "100dvw", maxWidth: "100dvw" }}
+        >
           <MobileHeroChrome />
           <div className="absolute inset-0 min-w-0 z-[1]">
             {slides.map((slide, index) => {
