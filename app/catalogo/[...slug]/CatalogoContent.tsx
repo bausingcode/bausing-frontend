@@ -18,6 +18,7 @@ import { ChevronDown, Minus, Plus, SlidersHorizontal, X } from "lucide-react";
 import {
   calculateProductPrice,
   productCardPriceDisplayFromPriceInfo,
+  productListingPriceForSort,
 } from "@/utils/priceUtils";
 
 /** Default 21 = 7 filas de 3 columnas; el resto múltiplos de 3. */
@@ -1513,6 +1514,15 @@ export default function CatalogoContent({
           }
 
           const filtered = applyCatalogClientFilters(allProducts, priceRange, selectedFilters);
+
+          if (sortBy === "price_asc" || sortBy === "price_desc") {
+            filtered.sort((a, b) => {
+              const aPrice = productListingPriceForSort(a);
+              const bPrice = productListingPriceForSort(b);
+              return sortBy === "price_asc" ? aPrice - bPrice : bPrice - aPrice;
+            });
+          }
+
           const filteredTotal = filtered.length;
           const filteredTotalPages = Math.max(1, Math.ceil(filteredTotal / perPage));
           const safePage = Math.min(page, filteredTotalPages);
