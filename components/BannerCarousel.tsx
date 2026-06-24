@@ -72,6 +72,9 @@ export default function BannerCarousel({
   const [desktopIndex, setDesktopIndex] = useState(0);
   const [mobileIndex, setMobileIndex] = useState(0);
   const [fallbackMobileIndex, setFallbackMobileIndex] = useState(0);
+  const [mobileImgDimsByHeroId, setMobileImgDimsByHeroId] = useState<
+    Record<string, { w: number; h: number }>
+  >({});
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const fallbackVideoRefs = useRef<(HTMLVideoElement | null)[]>([]);
 
@@ -180,6 +183,22 @@ export default function BannerCarousel({
     });
   }, [fallbackMobileIndex, hasMobileExclusiveHero, slides]);
 
+  // Pre-fetch first mobile slide dims so the section is sized correctly on initial render
+  useEffect(() => {
+    if (mobileSlides.length === 0) return;
+    const first = mobileSlides[0];
+    if (mobileImgDimsByHeroId[first.heroId]) return;
+    const img = new Image();
+    img.onload = () => {
+      if (!img.naturalWidth || !img.naturalHeight) return;
+      setMobileImgDimsByHeroId((prev) =>
+        prev[first.heroId] ? prev : { ...prev, [first.heroId]: { w: img.naturalWidth, h: img.naturalHeight } }
+      );
+    };
+    img.src = wsrvLoader({ src: first.urlMobile!, width: MOBILE_HERO_EXPORT_WIDTH });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (slides.length === 0) return null;
 
   const showDesktopOverlay =
@@ -201,13 +220,20 @@ export default function BannerCarousel({
       (fallbackOverlay.subtitle || "").trim() ||
       ((fallbackOverlay.cta_text || "").trim() && (fallbackOverlay.cta_link || "").trim()));
 
+  const activeMobileHeroId = mobileSlides[mobileIndex]?.heroId;
+  const activeMobileDims = activeMobileHeroId ? mobileImgDimsByHeroId[activeMobileHeroId] : undefined;
+
   return (
     <>
       {/* Móvil: hero con image_url_mobile; ancho 100vw, relleno con object-cover (sin letterboxing). */}
       {hasMobileExclusiveHero ? (
         <section
           className="relative left-1/2 w-[100dvw] max-w-[100dvw] -translate-x-1/2 overflow-hidden bg-[#0f0f0f] md:hidden"
-          style={{ height: "min(92svh, 720px)" }}
+          style={
+            activeMobileDims
+              ? { aspectRatio: `${activeMobileDims.w} / ${activeMobileDims.h}` }
+              : { aspectRatio: "9 / 16", maxHeight: "min(92svh, 720px)" }
+          }
         >
           <MobileHeroChrome />
           <div className="absolute inset-0 z-[1] min-h-0 min-w-0">
@@ -225,6 +251,15 @@ export default function BannerCarousel({
                     alt={slide.alt}
                     className="h-full w-full min-h-0 object-cover object-center"
                     loading={index === 0 ? "eager" : "lazy"}
+                    onLoad={(e) => {
+                      const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+                      if (!w || !h) return;
+                      setMobileImgDimsByHeroId((prev) =>
+                        prev[slide.heroId]?.w === w && prev[slide.heroId]?.h === h
+                          ? prev
+                          : { ...prev, [slide.heroId]: { w, h } }
+                      );
+                    }}
                   />
                 </div>
               );
