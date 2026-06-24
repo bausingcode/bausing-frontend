@@ -26,8 +26,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es-AR" className={`${dmSans.variable} bg-white overflow-x-hidden`}>
-      <body className={`${dmSans.className} bg-white`}>
+    <html lang="es-AR" className={`${dmSans.variable} bg-white`}>
+      <body className={`${dmSans.className} bg-white overflow-x-hidden`}>
         <SeoJsonLd />
         <AuthProvider>
           <LocalityProvider>
