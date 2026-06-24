@@ -183,19 +183,21 @@ export default function BannerCarousel({
     });
   }, [fallbackMobileIndex, hasMobileExclusiveHero, slides]);
 
-  // Pre-fetch first mobile slide dims so the section is sized correctly on initial render
+  // Restore cached dims from localStorage so the section is sized correctly from the first paint
   useEffect(() => {
     if (mobileSlides.length === 0) return;
-    const first = mobileSlides[0];
-    if (mobileImgDimsByHeroId[first.heroId]) return;
-    const img = new Image();
-    img.onload = () => {
-      if (!img.naturalWidth || !img.naturalHeight) return;
-      setMobileImgDimsByHeroId((prev) =>
-        prev[first.heroId] ? prev : { ...prev, [first.heroId]: { w: img.naturalWidth, h: img.naturalHeight } }
-      );
-    };
-    img.src = wsrvLoader({ src: first.urlMobile!, width: MOBILE_HERO_EXPORT_WIDTH });
+    setMobileImgDimsByHeroId((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const slide of mobileSlides) {
+        if (next[slide.heroId]) continue;
+        try {
+          const raw = localStorage.getItem(`bsh-${slide.heroId}`);
+          if (raw) { next[slide.heroId] = JSON.parse(raw); changed = true; }
+        } catch { /* ignore */ }
+      }
+      return changed ? next : prev;
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -254,6 +256,7 @@ export default function BannerCarousel({
                     onLoad={(e) => {
                       const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
                       if (!w || !h) return;
+                      try { localStorage.setItem(`bsh-${slide.heroId}`, JSON.stringify({ w, h })); } catch { /* ignore */ }
                       setMobileImgDimsByHeroId((prev) =>
                         prev[slide.heroId]?.w === w && prev[slide.heroId]?.h === h
                           ? prev
