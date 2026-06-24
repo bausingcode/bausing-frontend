@@ -19,15 +19,16 @@ export default function VideoSection({ videoData }: VideoSectionProps) {
         <div className="relative rounded-[10px] md:rounded-xl overflow-hidden w-full aspect-[16/9] md:aspect-[21/9] lg:aspect-[24/9]">
           {/* Video */}
           <video
-            src={videoData.image_url}
             className="absolute inset-0 w-full h-full object-cover"
             autoPlay
             loop
             muted
             playsInline
-            controls={false}
+            preload="auto"
             style={{ pointerEvents: "none" }}
-          />
+          >
+            <source src={videoData.image_url} type="video/mp4" />
+          </video>
 
           {/* Overlay */}
           {(videoData.title || videoData.subtitle || videoData.cta_text) && (
