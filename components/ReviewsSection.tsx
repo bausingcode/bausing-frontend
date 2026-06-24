@@ -154,8 +154,8 @@ export default function ReviewsSection() {
                 ))}
               </div>
               <span className="text-gray-600 text-sm">
-                <span className="md:hidden">+1.350 reseñas</span>
-                <span className="hidden md:inline">+1.350 reseñas en Google</span>
+                <span className="md:hidden">+1.550 reseñas</span>
+                <span className="hidden md:inline">+1.550 reseñas en Google</span>
               </span>
             </div>
           </div>

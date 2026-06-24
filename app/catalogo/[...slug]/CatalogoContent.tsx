@@ -1618,6 +1618,7 @@ export default function CatalogoContent({
       currentPrice: cardFields.currentPrice,
       originalPrice: priceInfo.originalPrice,
       discount: priceInfo.discount,
+      discountColor: priceInfo.discountColor,
       priceNote: cardFields.priceNote,
       secondaryPrice: cardFields.secondaryPrice,
       secondaryPriceLabel: cardFields.secondaryPriceLabel,

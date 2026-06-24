@@ -73,6 +73,7 @@ export default function ProductsWithLocality({
       currentPrice: cardFields.currentPrice,
       originalPrice: priceInfo.originalPrice,
       discount: priceInfo.discount,
+      discountColor: priceInfo.discountColor,
       priceNote: cardFields.priceNote,
       secondaryPrice: cardFields.secondaryPrice,
       secondaryPriceLabel: cardFields.secondaryPriceLabel,
@@ -124,6 +125,7 @@ export default function ProductsWithLocality({
             currentPrice={props.currentPrice}
             originalPrice={props.originalPrice}
             discount={props.discount}
+            discountColor={props.discountColor}
             priceNote={props.priceNote}
             secondaryPrice={props.secondaryPrice}
             secondaryPriceLabel={props.secondaryPriceLabel}

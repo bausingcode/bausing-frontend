@@ -27,7 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es-AR" className={`${dmSans.variable} bg-white`}>
-      <body className={`${dmSans.className} bg-white`}>
+      <body className={`${dmSans.className} bg-white overflow-x-hidden`}>
         <SeoJsonLd />
         <AuthProvider>
           <LocalityProvider>

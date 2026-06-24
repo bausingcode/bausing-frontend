@@ -165,7 +165,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
         {[...Array(skeletonCount)].map((_, index) => (
           <div 
             key={index} 
-            className={`relative group block animate-pulse flex-shrink-0 snap-start w-[calc((100vw-1rem-1.5rem-0.75rem)/2)] md:w-auto min-w-0 ${section === "discounts" && index >= 2 ? 'hidden md:block' : ''}`}
+            className={`relative group block animate-pulse flex-shrink-0 snap-start w-[calc((100dvw-1rem-1.5rem-0.75rem)/2)] md:w-auto min-w-0 ${section === "discounts" && index >= 2 ? 'hidden md:block' : ''}`}
           >
             <div className="relative w-full rounded-[10px] overflow-hidden bg-gray-200 aspect-square md:aspect-auto md:h-80" />
             <div className="pt-3">
@@ -198,7 +198,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
         {products.map((product, index) => (
           <div 
             key={`${product.id}-${index}-${locality?.id || 'no-locality'}`} 
-            className="bg-white p-2 md:p-4 rounded-lg md:rounded-[20px] h-full cursor-pointer flex-shrink-0 snap-start w-[calc((100vw-1rem-1.5rem-0.75rem)/2)] md:w-auto md:block min-w-0"
+            className="bg-white p-2 md:p-4 rounded-lg md:rounded-[20px] h-full cursor-pointer flex-shrink-0 snap-start w-[calc((100dvw-1rem-1.5rem-0.75rem)/2)] md:w-auto md:block min-w-0"
           >
             <div className="h-full flex flex-col min-w-0 w-full">
               <ProductCard
@@ -230,7 +230,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
       {products.map((product, index) => (
         <div
           key={`${product.id}-${index}-${locality?.id || 'no-locality'}`}
-          className="flex-shrink-0 snap-start w-[calc((100vw-2rem-1rem-0.75rem)/2)] md:w-auto min-w-0"
+          className="flex-shrink-0 snap-start w-[calc((100dvw-2rem-1rem-0.75rem)/2)] md:w-auto min-w-0"
         >
           <ProductCard
             id={product.id}
