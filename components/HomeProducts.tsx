@@ -88,7 +88,7 @@ function productToCardProps(product: Product, isPriceLoading: boolean = false) {
     image,
     alt: product.name,
     name: product.name,
-    currentPrice: cardFields.currentPrice || "",
+    currentPrice: priceInfo.transferPriceValue > 0 ? cardFields.currentPrice : "",
     originalPrice: priceInfo.originalPrice || "",
     discount: priceInfo.discount,
     discountColor: priceInfo.discountColor,

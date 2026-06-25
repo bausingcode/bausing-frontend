@@ -381,7 +381,7 @@ function CreatePromoModal({ isOpen, onClose, onSuccess, promo }: { isOpen: boole
 
           const [catsData, prodsData] = await Promise.all([
             fetchCategories(true),
-            fetchProductsAllPages({ is_active: true })
+            fetchProductsAllPages({ is_active: true, require_crm_product_id: true })
           ]);
           setCategories(catsData);
           setProducts(prodsData.products);

@@ -126,12 +126,14 @@ export default function CatalogoContent({
     const priceInfo = calculateProductPrice(product, 1);
     const cardFields = productCardPriceDisplayFromPriceInfo(priceInfo);
 
+    const hasPrice = priceInfo.transferPriceValue > 0;
+
     return {
       id: product.id,
       image,
       alt: product.name,
       name: product.name,
-      currentPrice: cardFields.currentPrice,
+      currentPrice: hasPrice ? cardFields.currentPrice : "",
       originalPrice: priceInfo.originalPrice,
       discount: priceInfo.discount,
       discountColor: priceInfo.discountColor,
