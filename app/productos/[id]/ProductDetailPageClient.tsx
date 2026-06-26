@@ -41,6 +41,7 @@ interface SimilarProduct {
   currentPrice: string;
   originalPrice?: string;
   discount?: string;
+  discountColor?: string;
   priceNote?: string;
   secondaryPrice?: string;
   secondaryPriceLabel?: string;
@@ -408,6 +409,7 @@ export default function ProductDetailPageClient({
               currentPrice: cardFields.currentPrice,
               originalPrice: priceInfo.originalPrice,
               discount: priceInfo.discount,
+              discountColor: priceInfo.discountColor,
               priceNote: cardFields.priceNote,
               secondaryPrice: cardFields.secondaryPrice,
               secondaryPriceLabel: cardFields.secondaryPriceLabel,
@@ -1984,6 +1986,7 @@ export default function ProductDetailPageClient({
                     currentPrice={similarProduct.currentPrice}
                     originalPrice={similarProduct.originalPrice || ""}
                     discount={similarProduct.discount}
+                    discountColor={similarProduct.discountColor}
                     priceNote={similarProduct.priceNote}
                     secondaryPrice={similarProduct.secondaryPrice}
                     secondaryPriceLabel={similarProduct.secondaryPriceLabel}
