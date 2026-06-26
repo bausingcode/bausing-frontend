@@ -458,7 +458,7 @@ export default function ClubBeneficiosContent({ initialProducts }: Props) {
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState("created_at_desc");
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const [perPage, setPerPage] = useState(20);
+  const [perPage, setPerPage] = useState(21);
   const [showPerPageMenu, setShowPerPageMenu] = useState(false);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
@@ -818,7 +818,7 @@ export default function ClubBeneficiosContent({ initialProducts }: Props) {
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setShowPerPageMenu(false)} />
                     <div className="absolute top-full left-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-20 min-w-[180px]">
-                      {[20, 50, 100].map((value) => (
+                      {[21, 50, 100].map((value) => (
                         <button key={value} onClick={() => { setPerPage(value); setShowPerPageMenu(false); setPage(1); }}
                           className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${perPage === value ? "bg-gray-50 font-medium text-[#00C1A7]" : "text-gray-700"}`}>
                           {value} por página
