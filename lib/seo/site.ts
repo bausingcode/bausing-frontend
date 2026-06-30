@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const SITE_NAME = "Bausing";
 
 export const SITE_TAGLINE =
-  "Colchones, sommiers y descanso con envío a domicilio. Encontrá tu modelo ideal y comprá online con cuotas.";
+  "Encontrá colchones y sommiers en Córdoba con precio directo de fábrica, calidad de hotel, envíos gratis y pago recién al recibir el producto.";
 
 export const SITE_KEYWORDS = [
   "Bausing",
@@ -82,7 +82,7 @@ export function rootMetadata(): Metadata {
   return {
     metadataBase: new URL(base),
     title: {
-      default: titleWithBrand(SITE_NAME),
+      default: "Colchones en Córdoba | Directo de fábrica, envíos gratis y pago al recibir | Bausing",
       template: `%s | ${SITE_NAME}`,
     },
     description: SITE_TAGLINE,
@@ -100,7 +100,7 @@ export function rootMetadata(): Metadata {
       type: "website",
       locale: "es_AR",
       siteName: SITE_NAME,
-      title: titleWithBrand("Inicio"),
+      title: "Colchones en Córdoba | Directo de fábrica, envíos gratis y pago al recibir | Bausing",
       description: SITE_TAGLINE,
       url: base,
       images: [
@@ -114,7 +114,7 @@ export function rootMetadata(): Metadata {
     },
     twitter: {
       card: "summary",
-      title: titleWithBrand("Inicio"),
+      title: "Colchones en Córdoba | Directo de fábrica, envíos gratis y pago al recibir | Bausing",
       description: SITE_TAGLINE,
       images: [OG_IMAGE_URL],
     },
