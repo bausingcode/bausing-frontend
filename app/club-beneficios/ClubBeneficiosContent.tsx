@@ -399,6 +399,8 @@ function mergePrices(products: Product[], pricesData: Record<string, any>): Prod
       ...p,
       min_price: priceInfo.min_price,
       max_price: priceInfo.max_price,
+      min_transfer_price: priceInfo.min_transfer_price ?? undefined,
+      max_transfer_price: priceInfo.max_transfer_price ?? undefined,
       min_card_price: priceInfo.min_card_price,
       max_card_price: priceInfo.max_card_price,
       show_transfer_price_highlight: priceInfo.show_transfer_price_highlight,
