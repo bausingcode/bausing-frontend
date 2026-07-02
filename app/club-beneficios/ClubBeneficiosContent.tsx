@@ -10,7 +10,6 @@ import { useLocality } from "@/contexts/LocalityContext";
 import { ChevronDown, Minus, Plus, SlidersHorizontal, X } from "lucide-react";
 import {
   calculateProductPrice,
-  productCardPriceDisplayFromPriceInfo,
   productHasPositiveListPrice,
   productListingPriceForSort,
 } from "@/utils/priceUtils";
@@ -434,17 +433,18 @@ function productToCardProps(product: Product, isPriceLoading: boolean) {
 
   const productWithPromos = { ...product, promos: Array.isArray(product.promos) ? product.promos : [] };
   const priceInfo = calculateProductPrice(productWithPromos, 1);
-  const cardFields = productCardPriceDisplayFromPriceInfo(priceInfo);
+
+  const listPrice = priceInfo.hasCardPrice ? priceInfo.cardPrice! : priceInfo.currentPrice;
 
   return {
     id: product.id, image, alt: product.name, name: product.name,
-    currentPrice: cardFields.currentPrice || "",
-    originalPrice: priceInfo.originalPrice || "",
-    discount: priceInfo.discount,
-    discountColor: priceInfo.discountColor,
-    priceNote: cardFields.priceNote,
-    secondaryPrice: cardFields.secondaryPrice,
-    secondaryPriceLabel: cardFields.secondaryPriceLabel,
+    currentPrice: listPrice || "",
+    originalPrice: undefined,
+    discount: undefined,
+    discountColor: undefined,
+    priceNote: undefined,
+    secondaryPrice: undefined,
+    secondaryPriceLabel: undefined,
     isPriceLoading: false,
     outOfStock,
   };
