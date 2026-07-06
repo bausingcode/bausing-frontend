@@ -17,11 +17,24 @@ export const SITE_KEYWORDS = [
 
 /**
  * Canonical site URL for metadata, OG tags and sitemap.
- * Set NEXT_PUBLIC_SITE_URL in production (e.g. https://bausing.com).
+ * Prefer custom domain over *.vercel.app preview URLs.
  */
 export function getSiteUrl(): string {
-  const env = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
-  if (env) return env;
+  const candidates = [
+    process.env.NEXT_PUBLIC_SITE_URL,
+    process.env.NEXT_PUBLIC_FRONTEND_URL,
+  ]
+    .map((value) => value?.trim().replace(/\/$/, ""))
+    .filter(Boolean) as string[];
+
+  const customDomain = candidates.find(
+    (url) => !url.includes("localhost") && !url.includes("vercel.app")
+  );
+  if (customDomain) return customDomain;
+
+  const anyConfigured = candidates.find((url) => !url.includes("localhost"));
+  if (anyConfigured) return anyConfigured;
+
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL.replace(/\/$/, "")}`;
   }
@@ -77,10 +90,12 @@ export const OG_IMAGE_WIDTH = 1200;
 export const OG_IMAGE_HEIGHT = 630;
 
 export function rootMetadata(ogImage?: {
-  url: string;
-  width: number;
-  height: number;
-  alt: string;
+  url: string | URL;
+  width?: number;
+  height?: number;
+  alt?: string;
+  secureUrl?: string | URL;
+  type?: string;
 }): Metadata {
   const base = getSiteUrl();
   const image = ogImage ?? {
@@ -88,7 +103,14 @@ export function rootMetadata(ogImage?: {
     width: OG_IMAGE_WIDTH,
     height: OG_IMAGE_HEIGHT,
     alt: `${SITE_NAME} — colchones y descanso`,
+    type: "image/jpeg",
   };
+  const imageUrl =
+    typeof image.url === "string"
+      ? image.url.startsWith("http")
+        ? image.url
+        : absoluteUrl(image.url)
+      : image.url.toString();
   return {
     metadataBase: new URL(base),
     title: {
@@ -115,12 +137,12 @@ export function rootMetadata(ogImage?: {
       url: base,
       images: [
         {
-          url: image.url.startsWith("http") ? image.url : absoluteUrl(image.url),
-          secureUrl: image.url.startsWith("http") ? image.url : absoluteUrl(image.url),
+          url: imageUrl,
+          secureUrl: imageUrl,
           width: image.width,
           height: image.height,
-          alt: image.alt,
-          type: "image/jpeg",
+          alt: image.alt ?? `${SITE_NAME} — colchones y descanso`,
+          type: image.type ?? "image/jpeg",
         },
       ],
     },
@@ -128,7 +150,7 @@ export function rootMetadata(ogImage?: {
       card: "summary_large_image",
       title: "Colchones en Córdoba | Directo de fábrica, envíos gratis y pago al recibir | Bausing",
       description: SITE_TAGLINE,
-      images: [image.url.startsWith("http") ? image.url : absoluteUrl(image.url)],
+      images: [imageUrl],
     },
     robots: {
       index: true,

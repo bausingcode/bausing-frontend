@@ -2,19 +2,26 @@ import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { fetchActiveEvent } from "@/lib/api";
+import { buildPageOpenGraph, buildPageTwitter } from "@/lib/seo/openGraph";
 import { getSiteUrl, titleWithBrand } from "@/lib/seo/site";
+
+const url = `${getSiteUrl()}/programa-de-referidos`;
+const title = titleWithBrand("Programa de Referidos");
+const description =
+  "Recomendá Bausing y ganá Pesos Bausing. Compartí tu código único con amigos y familiares y acumulá créditos para usar en tus próximas compras.";
+const ogDescription =
+  "Recomendá Bausing y ganá Pesos Bausing. Compartí tu código único y acumulá créditos para tus compras.";
 
 export const metadata: Metadata = {
   title: "Programa de Referidos",
-  description:
-    "Recomendá Bausing y ganá Pesos Bausing. Compartí tu código único con amigos y familiares y acumulá créditos para usar en tus próximas compras.",
-  alternates: { canonical: `${getSiteUrl()}/programa-de-referidos` },
-  openGraph: {
-    title: titleWithBrand("Programa de Referidos"),
-    description:
-      "Recomendá Bausing y ganá Pesos Bausing. Compartí tu código único y acumulá créditos para tus compras.",
-    url: `${getSiteUrl()}/programa-de-referidos`,
-  },
+  description,
+  alternates: { canonical: url },
+  openGraph: buildPageOpenGraph({
+    title,
+    description: ogDescription,
+    url,
+  }),
+  twitter: buildPageTwitter({ title, description: ogDescription }),
 };
 
 export default async function ProgramaReferidosPage() {

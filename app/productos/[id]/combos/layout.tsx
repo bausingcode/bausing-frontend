@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildPageOpenGraph, buildPageTwitter } from "@/lib/seo/openGraph";
 import { getProductForSeo } from "@/lib/seo/productFetch";
 import { getSiteUrl, SITE_NAME } from "@/lib/seo/site";
 
@@ -22,18 +23,15 @@ export async function generateMetadata({
     title: { absolute: titleText },
     description,
     alternates: { canonical: url },
-    openGraph: {
-      type: "website",
-      locale: "es_AR",
+    openGraph: buildPageOpenGraph({
+      title: titleText,
+      description,
       url,
+    }),
+    twitter: buildPageTwitter({
       title: titleText,
       description,
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: titleText,
-      description,
-    },
+    }),
   };
 }
 

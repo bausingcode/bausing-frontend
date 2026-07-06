@@ -7,6 +7,7 @@ import {
 } from "@/lib/seo/product";
 import { getProductForSeo } from "@/lib/seo/productFetch";
 import { getDefaultOgImage } from "@/lib/seo/homeHeroOgImage";
+import { buildPageTwitter } from "@/lib/seo/openGraph";
 import { absoluteUrl, getSiteUrl } from "@/lib/seo/site";
 import ProductStructuredData from "./ProductStructuredData";
 
@@ -33,14 +34,7 @@ export async function generateMetadata({
   const defaultOgImage = primaryImage ? null : await getDefaultOgImage();
   const ogImages = primaryImage
     ? [{ url: absoluteUrl(primaryImage), alt: product.name }]
-    : [
-        {
-          url: defaultOgImage!.url,
-          width: defaultOgImage!.width,
-          height: defaultOgImage!.height,
-          alt: defaultOgImage!.alt,
-        },
-      ];
+    : [defaultOgImage!];
   const twitterImages = primaryImage
     ? [absoluteUrl(primaryImage)]
     : [defaultOgImage!.url];
@@ -58,12 +52,11 @@ export async function generateMetadata({
       description,
       images: ogImages,
     },
-    twitter: {
-      card: primaryImage ? "summary_large_image" : "summary",
+    twitter: buildPageTwitter({
       title: titleText,
       description,
       images: twitterImages,
-    },
+    }),
   };
 }
 

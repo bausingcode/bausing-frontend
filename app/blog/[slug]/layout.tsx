@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import { fetchBlogPostBySlug } from "@/lib/api";
 import {
+  buildPageOpenGraph,
+  buildPageTwitter,
+  defaultOgImageEntry,
+} from "@/lib/seo/openGraph";
+import {
   absoluteUrl,
   getSiteUrl,
   stripHtml,
@@ -32,26 +37,29 @@ export async function generateMetadata({
       ?.image_url;
 
   const url = `${getSiteUrl()}/blog/${post.slug}`;
+  const title = post.meta_title || titleWithBrand(post.title);
+  const imageUrl = image ? absoluteUrl(image) : null;
 
   return {
     title: post.meta_title ? { absolute: post.meta_title } : post.title,
     description,
     alternates: { canonical: url },
-    openGraph: {
+    openGraph: buildPageOpenGraph({
       type: "article",
-      title: post.meta_title || titleWithBrand(post.title),
+      title,
       description,
       url,
       publishedTime: post.published_at,
       modifiedTime: post.updated_at,
-      images: image ? [{ url: absoluteUrl(image) }] : undefined,
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: post.meta_title || titleWithBrand(post.title),
+      images: imageUrl
+        ? [{ url: imageUrl, alt: post.title }]
+        : [defaultOgImageEntry()],
+    }),
+    twitter: buildPageTwitter({
+      title,
       description,
-      images: image ? [absoluteUrl(image)] : undefined,
-    },
+      images: imageUrl ? [imageUrl] : undefined,
+    }),
   };
 }
 

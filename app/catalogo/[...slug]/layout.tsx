@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildPageOpenGraph, buildPageTwitter } from "@/lib/seo/openGraph";
 import { getSiteUrl, titleCaseWords, titleWithBrand } from "@/lib/seo/site";
 
 export async function generateMetadata({
@@ -13,15 +14,14 @@ export async function generateMetadata({
     .join(" · ");
   const path = `/catalogo/${slug.join("/")}`;
   const description = `Productos de ${label} en Bausing: colchones y descanso con envío y cuotas.`;
+  const url = `${getSiteUrl()}${path}`;
+  const title = titleWithBrand(`${label} — Catálogo`);
   return {
     title: `${label} — Catálogo`,
     description,
-    alternates: { canonical: `${getSiteUrl()}${path}` },
-    openGraph: {
-      title: titleWithBrand(`${label} — Catálogo`),
-      description,
-      url: `${getSiteUrl()}${path}`,
-    },
+    alternates: { canonical: url },
+    openGraph: buildPageOpenGraph({ title, description, url }),
+    twitter: buildPageTwitter({ title, description }),
   };
 }
 

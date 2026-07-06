@@ -1,21 +1,8 @@
 import { isHeroVideoUrl } from "@/lib/heroMedia";
 import type { HeroImage } from "@/lib/api";
-import {
-  absoluteUrl,
-  getSiteUrl,
-  OG_IMAGE_HEIGHT,
-  OG_IMAGE_URL,
-  OG_IMAGE_WIDTH,
-  SITE_NAME,
-} from "@/lib/seo/site";
 import { backendOriginFromEnv } from "@/lib/backendOrigin";
-
-export type DefaultOgImage = {
-  url: string;
-  width: number;
-  height: number;
-  alt: string;
-};
+import { defaultOgImageEntry } from "@/lib/seo/openGraph";
+import { absoluteUrl, OG_IMAGE_URL } from "@/lib/seo/site";
 
 async function fetchHomeHeroes(): Promise<HeroImage[]> {
   const params = new URLSearchParams({
@@ -72,31 +59,13 @@ export async function getHomeHeroMobileOgImageUrl(): Promise<string | null> {
   return source ? absoluteUrl(source) : null;
 }
 
-export async function getDefaultOgImage(): Promise<DefaultOgImage> {
-  const heroes = await fetchHomeHeroes();
-  const hero = heroes.find(
-    (item) =>
-      Boolean(item.image_url_mobile?.trim()) && !isHeroVideoUrl(item.image_url)
-  ) ?? heroes.find((item) => !isHeroVideoUrl(item.image_url));
+export async function getDefaultOgImage() {
+  return defaultOgImageEntry();
+}
 
-  const alt = `${SITE_NAME} — colchones y descanso`;
-  const base = getSiteUrl();
-
-  if (hero) {
-    return {
-      url: `${base}/api/og-image?v=${encodeURIComponent(hero.id)}`,
-      width: 720,
-      height: 1280,
-      alt,
-    };
-  }
-
-  return {
-    url: `${base}/api/og-image?v=fallback`,
-    width: OG_IMAGE_WIDTH,
-    height: OG_IMAGE_HEIGHT,
-    alt,
-  };
+export function toOgCrawlerImageUrl(sourceUrl: string): string {
+  const absolute = absoluteUrl(sourceUrl);
+  return `https://wsrv.nl/?url=${encodeURIComponent(absolute)}&w=720&output=jpg&q=85&n=1`;
 }
 
 export async function resolveOgImageBytes(): Promise<{
@@ -107,11 +76,12 @@ export async function resolveOgImageBytes(): Promise<{
   if (!source) return null;
 
   try {
-    const response = await fetch(source, { next: { revalidate: 300 } });
+    const response = await fetch(toOgCrawlerImageUrl(source), {
+      next: { revalidate: 300 },
+    });
     if (!response.ok) return null;
     const bytes = await response.arrayBuffer();
-    const contentType = response.headers.get("content-type") || "image/jpeg";
-    return { bytes, contentType };
+    return { bytes, contentType: "image/jpeg" };
   } catch {
     return null;
   }

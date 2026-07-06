@@ -2,19 +2,26 @@ import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { fetchActiveEvent } from "@/lib/api";
+import { buildPageOpenGraph, buildPageTwitter } from "@/lib/seo/openGraph";
 import { getSiteUrl, titleWithBrand } from "@/lib/seo/site";
+
+const url = `${getSiteUrl()}/programa-de-creadores`;
+const title = titleWithBrand("Programa de Creadores");
+const description =
+  "Creá contenido mostrando productos Bausing y generá ingresos. No hace falta ser influencer, solo ganas de crear y compartir.";
+const ogDescription =
+  "Creá contenido mostrando productos Bausing y generá ingresos. No hace falta ser influencer.";
 
 export const metadata: Metadata = {
   title: "Programa de Creadores",
-  description:
-    "Creá contenido mostrando productos Bausing y generá ingresos. No hace falta ser influencer, solo ganas de crear y compartir.",
-  alternates: { canonical: `${getSiteUrl()}/programa-de-creadores` },
-  openGraph: {
-    title: titleWithBrand("Programa de Creadores"),
-    description:
-      "Creá contenido mostrando productos Bausing y generá ingresos. No hace falta ser influencer.",
-    url: `${getSiteUrl()}/programa-de-creadores`,
-  },
+  description,
+  alternates: { canonical: url },
+  openGraph: buildPageOpenGraph({
+    title,
+    description: ogDescription,
+    url,
+  }),
+  twitter: buildPageTwitter({ title, description: ogDescription }),
 };
 
 const WHATSAPP_NUMBER = "5493518737683";

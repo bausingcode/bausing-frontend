@@ -9,7 +9,9 @@ import { HomepageDistributionProvider } from "@/contexts/HomepageDistributionCon
 import LocalityDebugBar from "@/components/LocalityDebugBar";
 import LocalityAddressSelector from "@/components/LocalityAddressSelector";
 import SeoJsonLd from "@/components/SeoJsonLd";
-import { getDefaultOgImage } from "@/lib/seo/homeHeroOgImage";
+import {
+  defaultOgImageEntry,
+} from "@/lib/seo/openGraph";
 import { rootMetadata } from "@/lib/seo/site";
 
 const dmSans = DM_Sans({
@@ -20,8 +22,7 @@ const dmSans = DM_Sans({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const ogImage = await getDefaultOgImage();
-  return rootMetadata(ogImage);
+  return rootMetadata(defaultOgImageEntry());
 }
 
 export default function RootLayout({

@@ -29,6 +29,10 @@ import InfoBannerCarousel from "@/components/InfoBannerCarousel";
 import ProductCarousel from "@/components/ProductCarousel";
 import VideoSection from "@/components/VideoSection";
 import {
+  buildPageOpenGraph,
+  buildPageTwitter,
+} from "@/lib/seo/openGraph";
+import {
   getSiteUrl,
   SITE_TAGLINE,
   titleWithBrand,
@@ -40,20 +44,24 @@ const Footer = dynamic(() => import("@/components/Footer"), {
   ssr: true,
 });
 
-export const metadata: Metadata = {
-  title: "Inicio",
-  description: SITE_TAGLINE,
-  alternates: { canonical: `${getSiteUrl()}/` },
-  openGraph: {
-    title: titleWithBrand("Inicio"),
+export async function generateMetadata(): Promise<Metadata> {
+  const url = getSiteUrl();
+  const title = titleWithBrand("Inicio");
+  return {
+    title: "Inicio",
     description: SITE_TAGLINE,
-    url: getSiteUrl(),
-  },
-  twitter: {
-    title: titleWithBrand("Inicio"),
-    description: SITE_TAGLINE,
-  },
-};
+    alternates: { canonical: `${url}/` },
+    openGraph: buildPageOpenGraph({
+      title,
+      description: SITE_TAGLINE,
+      url,
+    }),
+    twitter: buildPageTwitter({
+      title,
+      description: SITE_TAGLINE,
+    }),
+  };
+}
 
 export default async function Home() {
   let heroImages: HeroImage[] = [];

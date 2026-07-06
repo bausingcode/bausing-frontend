@@ -3,22 +3,29 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { ChevronDown } from "lucide-react";
 import { fetchPublicFaqItems, fetchActiveEvent } from "@/lib/api";
+import { buildPageOpenGraph, buildPageTwitter } from "@/lib/seo/openGraph";
 import {
   getSiteUrl,
   titleWithBrand,
 } from "@/lib/seo/site";
 
+const url = `${getSiteUrl()}/preguntas-frecuentes`;
+const title = titleWithBrand("Preguntas frecuentes");
+const description =
+  "Respondemos las dudas más comunes sobre envíos, pagos, garantía y productos Bausing.";
+const ogDescription =
+  "Respondemos las dudas más comunes sobre envíos, pagos, garantía y productos.";
+
 export const metadata: Metadata = {
   title: "Preguntas frecuentes",
-  description:
-    "Respondemos las dudas más comunes sobre envíos, pagos, garantía y productos Bausing.",
-  alternates: { canonical: `${getSiteUrl()}/preguntas-frecuentes` },
-  openGraph: {
-    title: titleWithBrand("Preguntas frecuentes"),
-    description:
-      "Respondemos las dudas más comunes sobre envíos, pagos, garantía y productos.",
-    url: `${getSiteUrl()}/preguntas-frecuentes`,
-  },
+  description,
+  alternates: { canonical: url },
+  openGraph: buildPageOpenGraph({
+    title,
+    description: ogDescription,
+    url,
+  }),
+  twitter: buildPageTwitter({ title, description: ogDescription }),
 };
 
 export default async function PreguntasFrecuentesPage() {
