@@ -5,7 +5,7 @@ import { Search, SlidersHorizontal, Eye, Loader2, Package, RefreshCw, ChevronLef
 import PageHeader from "@/components/PageHeader";
 import DateRangePicker from "@/components/DateRangePicker";
 import VentaDetailOverlay from "@/components/VentaDetailOverlay";
-import { fetchVentas, Venta } from "@/lib/api";
+import { fetchVentas, deleteVenta, Venta } from "@/lib/api";
 
 export default function VentasPedidos() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -141,6 +141,11 @@ export default function VentasPedidos() {
   const handleCloseOverlay = () => {
     setIsOverlayOpen(false);
     setTimeout(() => setSelectedVenta(null), 350);
+  };
+
+  const handleDeleteVenta = async (ventaId: number) => {
+    await deleteVenta(ventaId);
+    await loadVentas();
   };
 
   // Manejar cambio de búsqueda con debounce
@@ -415,6 +420,7 @@ export default function VentasPedidos() {
           venta={selectedVenta}
           isOpen={isOverlayOpen}
           onClose={handleCloseOverlay}
+          onDelete={handleDeleteVenta}
         />
       )}
     </div>

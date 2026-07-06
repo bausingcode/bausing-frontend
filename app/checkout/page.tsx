@@ -188,6 +188,8 @@ export default function CheckoutPage() {
   const isDetectingLocalityRef = useRef(false);
   /** true mientras syncLocalityForAddress carga precios/envío (evita carrera con useEffect de precios) */
   const addressSyncInProgressRef = useRef(false);
+  /** Ref síncrono para bloquear doble submit antes del re-render */
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     setAppliedCoupon(null);
@@ -1050,7 +1052,9 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    if (isSubmittingRef.current) return;
+
     // Limpiar errores previos
     setErrors({});
     
@@ -1089,6 +1093,7 @@ export default function CheckoutPage() {
       }
     }
 
+    isSubmittingRef.current = true;
     setSubmitting(true);
     try {
       // If showing address form, save it first (also handles auto-register if not authenticated)
@@ -1681,6 +1686,13 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
         errorMessage = "La localidad ingresada no se encontró. Por favor, verifica que la localidad sea correcta.";
       }
       
+      // Detectar error de teléfono inválido para WhatsApp (validación CRM)
+      if (errorMessage.toLowerCase().includes("mensajer") && errorMessage.toLowerCase().includes("whatsapp") ||
+          errorMessage.toLowerCase().includes("cliente_telefono") ||
+          errorMessage.toLowerCase().includes("formato inv") && errorMessage.toLowerCase().includes("tel")) {
+        errorMessage = "Ingresá un teléfono válido";
+      }
+
       // Detectar errores de pago rechazado (pero no tratar in_process como error)
       if (errorMessage.includes("rejected") || (errorMessage.includes("El pago fue") && !errorMessage.includes("in_process") && !errorMessage.includes("pending_contingency"))) {
         errorMessage = "El pago fue rechazado. Por favor, verifica los datos de tu tarjeta o intenta con otra tarjeta.";
@@ -1690,6 +1702,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
       // NO redirigir cuando hay un error - mantener al usuario en la página de checkout
       // NO limpiar el carrito cuando hay un error
     } finally {
+      isSubmittingRef.current = false;
       setSubmitting(false);
     }
   };

@@ -1,20 +1,26 @@
 "use client";
 
-import { X } from "lucide-react";
+import { useState } from "react";
+import { X, Trash2, AlertTriangle, Loader2 } from "lucide-react";
 import { Venta } from "@/lib/api";
 
 interface VentaDetailOverlayProps {
   venta: Venta;
   isOpen: boolean;
   onClose: () => void;
+  onDelete?: (ventaId: number) => Promise<void>;
 }
 
 export default function VentaDetailOverlay({
   venta,
   isOpen,
   onClose,
+  onDelete,
 }: VentaDetailOverlayProps) {
-  // Formatear monto
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const formatMonto = (monto: number): string => {
     return new Intl.NumberFormat('es-AR', {
       style: 'currency',
@@ -23,10 +29,24 @@ export default function VentaDetailOverlay({
     }).format(monto);
   };
 
-  // Capitalizar primera letra
   const capitalize = (str: string): string => {
     if (!str) return "";
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!onDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await onDelete(venta.id);
+      setShowConfirm(false);
+      onClose();
+    } catch (err: any) {
+      setDeleteError(err?.message || "Error al eliminar la venta");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -56,12 +76,23 @@ export default function VentaDetailOverlay({
             <h2 className="text-xl font-semibold text-gray-900">
               Detalles de la Venta
             </h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-            >
-              <X className="w-6 h-6" />
-            </button>
+            <div className="flex items-center gap-2">
+              {onDelete && (
+                <button
+                  onClick={() => { setShowConfirm(true); setDeleteError(null); }}
+                  className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                  title="Eliminar venta"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="p-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
           </div>
 
           {/* Content */}
@@ -252,7 +283,65 @@ export default function VentaDetailOverlay({
           </div>
         </div>
       </div>
+
+      {/* Modal de confirmación de eliminación */}
+      {showConfirm && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => { if (!deleting) setShowConfirm(false); }}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex flex-col items-center text-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  ¿Eliminar esta venta?
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Se eliminará permanentemente la venta{" "}
+                  <span className="font-medium text-gray-700">
+                    {venta.numero_comprobante || `#${venta.id}`}
+                  </span>{" "}
+                  de {venta.cliente_nombre}. Esta acción no se puede deshacer.
+                </p>
+              </div>
+
+              {deleteError && (
+                <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 w-full text-left">
+                  {deleteError}
+                </p>
+              )}
+
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => { setShowConfirm(false); setDeleteError(null); }}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {deleting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Eliminando...
+                    </>
+                  ) : (
+                    "Sí, eliminar"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
-

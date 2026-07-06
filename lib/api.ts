@@ -3998,9 +3998,16 @@ export async function createOrder(orderData: {
       throw new Error(`Error al crear orden: ${response.status} ${response.statusText}. ${text}`);
     }
     const data = await response.json();
-    if (!response.ok) {
-      console.error("Response not OK. Error:", data.error || data.message);
-      throw new Error(data.error || data.message || `Error al crear orden: ${response.status}`);
+    if (!response.ok || data.status === false) {
+      let errMsg = data.error || data.message || `Error al crear orden: ${response.status}`;
+      if (data.errors && typeof data.errors === "object") {
+        const fieldDetails = Object.values(data.errors)
+          .flat()
+          .join(", ");
+        if (fieldDetails) errMsg += `: ${fieldDetails}`;
+      }
+      console.error("Error al crear orden:", errMsg, data);
+      throw new Error(errMsg);
     }
     // Retornar tanto data.data como los campos adicionales como mercadopago
     const result = data.data || data;
@@ -4353,6 +4360,18 @@ export async function fetchVentas(params?: VentasPaginationParams): Promise<Vent
         pages: 0
       }
     };
+  }
+}
+
+export async function deleteVenta(crmOrderId: number): Promise<void> {
+  const url = `/api/admin/orders/${crmOrderId}`;
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  const data = await response.json();
+  if (!response.ok || !data.success) {
+    throw new Error(data.error || "Error al eliminar la venta");
   }
 }
 
