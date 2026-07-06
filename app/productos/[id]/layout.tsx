@@ -6,14 +6,8 @@ import {
   productPrimaryImageUrl,
 } from "@/lib/seo/product";
 import { getProductForSeo } from "@/lib/seo/productFetch";
-import {
-  absoluteUrl,
-  getSiteUrl,
-  OG_IMAGE_URL,
-  OG_IMAGE_WIDTH,
-  OG_IMAGE_HEIGHT,
-  SITE_NAME,
-} from "@/lib/seo/site";
+import { getDefaultOgImage } from "@/lib/seo/homeHeroOgImage";
+import { absoluteUrl, getSiteUrl } from "@/lib/seo/site";
 import ProductStructuredData from "./ProductStructuredData";
 
 export async function generateMetadata({
@@ -36,12 +30,20 @@ export async function generateMetadata({
   const keywords = buildProductKeywords(product);
   const primaryImage = productPrimaryImageUrl(product);
   const url = `${getSiteUrl()}/productos/${id}`;
+  const defaultOgImage = primaryImage ? null : await getDefaultOgImage();
   const ogImages = primaryImage
     ? [{ url: absoluteUrl(primaryImage), alt: product.name }]
-    : [{ url: absoluteUrl(OG_IMAGE_URL), width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT, alt: SITE_NAME }];
+    : [
+        {
+          url: defaultOgImage!.url,
+          width: defaultOgImage!.width,
+          height: defaultOgImage!.height,
+          alt: defaultOgImage!.alt,
+        },
+      ];
   const twitterImages = primaryImage
     ? [absoluteUrl(primaryImage)]
-    : [absoluteUrl(OG_IMAGE_URL)];
+    : [defaultOgImage!.url];
 
   return {
     title: { absolute: titleText },

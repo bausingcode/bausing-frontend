@@ -71,14 +71,24 @@ export function titleCaseWords(text: string): string {
 
 const FAVICON_PATH = "/images/logo/favicon.png";
 
-// Separate URL for og:image so WhatsApp/social scrapers get the updated version.
-// Bump the version query string whenever the logo file changes to bust stale caches.
+// Fallback estático si el hero del home no está disponible al generar metadata.
 export const OG_IMAGE_URL = "/images/logo/og-image.png?v=3";
 export const OG_IMAGE_WIDTH = 1200;
 export const OG_IMAGE_HEIGHT = 630;
 
-export function rootMetadata(): Metadata {
+export function rootMetadata(ogImage?: {
+  url: string;
+  width: number;
+  height: number;
+  alt: string;
+}): Metadata {
   const base = getSiteUrl();
+  const image = ogImage ?? {
+    url: absoluteUrl(OG_IMAGE_URL),
+    width: OG_IMAGE_WIDTH,
+    height: OG_IMAGE_HEIGHT,
+    alt: `${SITE_NAME} — colchones y descanso`,
+  };
   return {
     metadataBase: new URL(base),
     title: {
@@ -105,18 +115,18 @@ export function rootMetadata(): Metadata {
       url: base,
       images: [
         {
-          url: OG_IMAGE_URL,
-          width: OG_IMAGE_WIDTH,
-          height: OG_IMAGE_HEIGHT,
-          alt: `${SITE_NAME} — colchones y descanso`,
+          url: image.url,
+          width: image.width,
+          height: image.height,
+          alt: image.alt,
         },
       ],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title: "Colchones en Córdoba | Directo de fábrica, envíos gratis y pago al recibir | Bausing",
       description: SITE_TAGLINE,
-      images: [OG_IMAGE_URL],
+      images: [image.url],
     },
     robots: {
       index: true,

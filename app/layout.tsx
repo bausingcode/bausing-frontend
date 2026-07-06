@@ -9,6 +9,7 @@ import { HomepageDistributionProvider } from "@/contexts/HomepageDistributionCon
 import LocalityDebugBar from "@/components/LocalityDebugBar";
 import LocalityAddressSelector from "@/components/LocalityAddressSelector";
 import SeoJsonLd from "@/components/SeoJsonLd";
+import { getDefaultOgImage } from "@/lib/seo/homeHeroOgImage";
 import { rootMetadata } from "@/lib/seo/site";
 
 const dmSans = DM_Sans({
@@ -18,7 +19,10 @@ const dmSans = DM_Sans({
   display: "swap",
 });
 
-export const metadata: Metadata = rootMetadata();
+export async function generateMetadata(): Promise<Metadata> {
+  const ogImage = await getDefaultOgImage();
+  return rootMetadata(ogImage);
+}
 
 export default function RootLayout({
   children,
