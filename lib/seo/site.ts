@@ -115,10 +115,12 @@ export function rootMetadata(ogImage?: {
       url: base,
       images: [
         {
-          url: image.url,
+          url: image.url.startsWith("http") ? image.url : absoluteUrl(image.url),
+          secureUrl: image.url.startsWith("http") ? image.url : absoluteUrl(image.url),
           width: image.width,
           height: image.height,
           alt: image.alt,
+          type: "image/jpeg",
         },
       ],
     },
@@ -126,7 +128,7 @@ export function rootMetadata(ogImage?: {
       card: "summary_large_image",
       title: "Colchones en Córdoba | Directo de fábrica, envíos gratis y pago al recibir | Bausing",
       description: SITE_TAGLINE,
-      images: [image.url],
+      images: [image.url.startsWith("http") ? image.url : absoluteUrl(image.url)],
     },
     robots: {
       index: true,

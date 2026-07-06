@@ -181,15 +181,13 @@ export default function Footer() {
               href="https://qr.afip.gob.ar/?qr=9JoX-GlIZcP2Y65SmmINzQ,,"
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 border-0"
+              className="shrink-0 block h-[52px] w-[52px] border-0 bg-contain bg-center bg-no-repeat md:h-[60px] md:w-[60px]"
+              style={{
+                backgroundImage:
+                  "url(https://www.afip.gob.ar/images/f960/DATAWEB.jpg)",
+              }}
               aria-label="Comprobante fiscal electrónico AFIP"
-            >
-              <img
-                src="https://www.afip.gob.ar/images/f960/DATAWEB.jpg"
-                alt="AFIP — Información fiscal del contribuyente"
-                className="h-auto w-[52px] border-0 md:w-[60px]"
-              />
-            </a>
+            />
             <p className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-xs text-gray-700 md:text-sm">
               <span>&copy; {currentYear} BAUSING. Todos los derechos reservados.</span>
               <span className="text-gray-400 select-none" aria-hidden>
