@@ -124,5 +124,8 @@ export function rootMetadata(): Metadata {
       googleBot: { index: true, follow: true },
     },
     category: "shopping",
+    other: {
+      "p:domain_verify": "8b20c1e38e2c7ee765c5e9a75833d354",
+    },
   };
 }
