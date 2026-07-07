@@ -1125,12 +1125,10 @@ export default function CheckoutPage() {
           }
         : selectedAddress!; // We know it's not undefined because of the check above
 
-      // Detectar localidad por IP (igual que al entrar a la página)
-      // El backend siempre retornará una localidad (incluso si es el fallback 39acf5ca-28d1-4300-b009-07c675c45073)
-      let crmZoneId: number | undefined = undefined;
+      // Obtener catalogId para el pedido (la zona CRM la deriva el backend desde la ciudad de entrega)
       let catalogId: string | undefined = undefined;
       const PAIS_CATALOG_ID = "8335e521-f25a-4f92-8f59-c4439671ef26";
-      
+
       try {
         const localityResponse = await fetch("/api/detect-locality", {
           method: "GET",
@@ -1138,7 +1136,7 @@ export default function CheckoutPage() {
             "Content-Type": "application/json",
           },
         });
-        
+
         if (localityResponse.ok) {
           const localityData = await localityResponse.json();
           if (localityData.success && localityData.data) {
@@ -1162,57 +1160,45 @@ export default function CheckoutPage() {
                 /* catalog not required for order flow to continue */
               }
             }
-            if (localityData.data.crm_zone_id) {
-              crmZoneId = localityData.data.crm_zone_id;
-            } else {
+            if (!catalogId) {
               try {
                 const savedLocality = localStorage.getItem("bausing_locality");
                 if (savedLocality) {
                   const parsedLocality = JSON.parse(savedLocality);
-                  if (parsedLocality.crm_zone_id) {
-                    crmZoneId = parsedLocality.crm_zone_id;
-                  }
-                  if (!catalogId && parsedLocality.catalog_id) {
+                  if (parsedLocality.catalog_id) {
                     catalogId = parsedLocality.catalog_id;
                   }
                 }
               } catch (localStorageError) {
-                console.error("Error al obtener zona de entrega del localStorage:", localStorageError);
+                console.error("Error al obtener catalog del localStorage:", localStorageError);
               }
             }
           }
         } else {
-          console.error("Error en respuesta de detect-locality:", localityResponse.status, localityResponse.statusText);
           try {
             const savedLocality = localStorage.getItem("bausing_locality");
             if (savedLocality) {
               const parsedLocality = JSON.parse(savedLocality);
-              if (parsedLocality.crm_zone_id) {
-                crmZoneId = parsedLocality.crm_zone_id;
-              }
               if (parsedLocality.catalog_id) {
                 catalogId = parsedLocality.catalog_id;
               }
             }
           } catch (localStorageError) {
-            console.error("Error al obtener zona de entrega del localStorage:", localStorageError);
+            console.error("Error al obtener catalog del localStorage:", localStorageError);
           }
         }
       } catch (error) {
-        console.error("Error al detectar localidad por IP:", error);
+        console.error("Error al detectar localidad:", error);
         try {
           const savedLocality = localStorage.getItem("bausing_locality");
           if (savedLocality) {
             const parsedLocality = JSON.parse(savedLocality);
-            if (parsedLocality.crm_zone_id) {
-              crmZoneId = parsedLocality.crm_zone_id;
-            }
             if (parsedLocality.catalog_id) {
               catalogId = parsedLocality.catalog_id;
             }
           }
         } catch (localStorageError) {
-          console.error("Error al obtener zona de entrega del localStorage:", localStorageError);
+          console.error("Error al obtener catalog del localStorage:", localStorageError);
         }
       }
       
@@ -1600,9 +1586,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
         payment_method: primaryMethod,
         pay_on_delivery: payOnDelivery,
         crm_sale_type_id: DEFAULT_CRM_SALE_TYPE_ID,
-        ...(crmZoneId && {
-          crm_zone_id: crmZoneId,
-        }),
         total: finalTotal,
         // Multi-payment: enviar array de métodos de pago con montos
         payment_methods: paymentMethodsArray,

@@ -4247,6 +4247,8 @@ export interface Venta {
   pagos_procesados: any[]; // Pagos procesados
   created_at: string;
   updated_at: string;
+  user_phone?: string | null;
+  address_phone?: string | null;
 }
 
 export interface VentasResponse {
