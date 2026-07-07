@@ -1125,80 +1125,57 @@ export default function CheckoutPage() {
           }
         : selectedAddress!; // We know it's not undefined because of the check above
 
-      // Obtener catalogId para el pedido (la zona CRM la deriva el backend desde la ciudad de entrega)
+      // Leer crm_zone_id y catalogId desde localStorage (ya fue calculado correctamente por LocalityContext)
+      let crmZoneId: number | undefined = undefined;
       let catalogId: string | undefined = undefined;
       const PAIS_CATALOG_ID = "8335e521-f25a-4f92-8f59-c4439671ef26";
 
       try {
-        const localityResponse = await fetch("/api/detect-locality", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (localityResponse.ok) {
-          const localityData = await localityResponse.json();
-          if (localityData.success && localityData.data) {
-            if (localityData.data.catalog?.id) {
-              catalogId = localityData.data.catalog.id;
-            } else if (localityData.data.locality?.id) {
-              try {
-                const catalogResponse = await fetch(`/api/localities/${localityData.data.locality.id}/catalog`, {
-                  method: "GET",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                });
-                if (catalogResponse.ok) {
-                  const catalogData = await catalogResponse.json();
-                  if (catalogData.success && catalogData.data?.catalog_id) {
-                    catalogId = catalogData.data.catalog_id;
-                  }
-                }
-              } catch {
-                /* catalog not required for order flow to continue */
-              }
-            }
-            if (!catalogId) {
-              try {
-                const savedLocality = localStorage.getItem("bausing_locality");
-                if (savedLocality) {
-                  const parsedLocality = JSON.parse(savedLocality);
-                  if (parsedLocality.catalog_id) {
-                    catalogId = parsedLocality.catalog_id;
-                  }
-                }
-              } catch (localStorageError) {
-                console.error("Error al obtener catalog del localStorage:", localStorageError);
-              }
-            }
-          }
-        } else {
-          try {
-            const savedLocality = localStorage.getItem("bausing_locality");
-            if (savedLocality) {
-              const parsedLocality = JSON.parse(savedLocality);
-              if (parsedLocality.catalog_id) {
-                catalogId = parsedLocality.catalog_id;
-              }
-            }
-          } catch (localStorageError) {
-            console.error("Error al obtener catalog del localStorage:", localStorageError);
-          }
+        const savedLocality = localStorage.getItem("bausing_locality");
+        if (savedLocality) {
+          const parsedLocality = JSON.parse(savedLocality);
+          if (parsedLocality.crm_zone_id) crmZoneId = parsedLocality.crm_zone_id;
+          if (parsedLocality.catalog_id) catalogId = parsedLocality.catalog_id;
         }
-      } catch (error) {
-        console.error("Error al detectar localidad:", error);
+      } catch {
+        /* non-fatal */
+      }
+
+      // Obtener catalogId desde detect-locality si no está en localStorage
+      if (!catalogId) {
         try {
-          const savedLocality = localStorage.getItem("bausing_locality");
-          if (savedLocality) {
-            const parsedLocality = JSON.parse(savedLocality);
-            if (parsedLocality.catalog_id) {
-              catalogId = parsedLocality.catalog_id;
+          const localityResponse = await fetch("/api/detect-locality", {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+          });
+          if (localityResponse.ok) {
+            const localityData = await localityResponse.json();
+            if (localityData.success && localityData.data) {
+              if (!crmZoneId && localityData.data.crm_zone_id) {
+                crmZoneId = localityData.data.crm_zone_id;
+              }
+              if (localityData.data.catalog?.id) {
+                catalogId = localityData.data.catalog.id;
+              } else if (localityData.data.locality?.id) {
+                try {
+                  const catalogResponse = await fetch(`/api/localities/${localityData.data.locality.id}/catalog`, {
+                    method: "GET",
+                    headers: { "Content-Type": "application/json" },
+                  });
+                  if (catalogResponse.ok) {
+                    const catalogData = await catalogResponse.json();
+                    if (catalogData.success && catalogData.data?.catalog_id) {
+                      catalogId = catalogData.data.catalog_id;
+                    }
+                  }
+                } catch {
+                  /* catalog not required for order flow to continue */
+                }
+              }
             }
           }
-        } catch (localStorageError) {
-          console.error("Error al obtener catalog del localStorage:", localStorageError);
+        } catch {
+          /* non-fatal */
         }
       }
       
@@ -1586,6 +1563,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
         payment_method: primaryMethod,
         pay_on_delivery: payOnDelivery,
         crm_sale_type_id: DEFAULT_CRM_SALE_TYPE_ID,
+        ...(crmZoneId && { crm_zone_id: crmZoneId }),
         total: finalTotal,
         // Multi-payment: enviar array de métodos de pago con montos
         payment_methods: paymentMethodsArray,
@@ -1665,7 +1643,8 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
       
       // Detectar error de localidad no encontrada
       if (errorMessage.includes("No se pudo obtener crm_zone_id para la localidad") ||
-          errorMessage.includes("no se encontró") && errorMessage.includes("localidad")) {
+          (errorMessage.includes("no se encontró") && errorMessage.includes("localidad")) ||
+          errorMessage.includes("zona de entrega para")) {
         errorMessage = "La localidad ingresada no se encontró. Por favor, verifica que la localidad sea correcta.";
       }
       
