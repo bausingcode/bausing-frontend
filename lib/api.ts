@@ -2946,6 +2946,19 @@ export interface User {
     balance: number;
     is_blocked: boolean;
   };
+  total_orders?: number;
+  total_spent?: number;
+  last_order_date?: string | null;
+}
+
+export interface CustomersResponse {
+  users: User[];
+  pagination: {
+    page: number;
+    per_page: number;
+    total: number;
+    total_pages: number;
+  };
 }
 
 export interface LoginResponse {
@@ -3120,23 +3133,34 @@ export async function getCurrentUser(): Promise<User | null> {
 /**
  * Fetch all regular users (customers) - Admin only
  */
-export async function fetchCustomers(cookieHeader?: string | null): Promise<User[]> {
-  const url = typeof window === "undefined"
-    ? `${BACKEND_URL}/admin/customers`
-    : `/api/admin/customers`;
-  
-  const headers = typeof window === "undefined" 
+export async function fetchCustomers(
+  params?: { page?: number; per_page?: number; search?: string },
+  cookieHeader?: string | null
+): Promise<CustomersResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+  if (params?.search) queryParams.append('search', params.search);
+
+  const qs = queryParams.toString();
+  const base = typeof window === "undefined" ? `${BACKEND_URL}/admin/customers` : `/api/admin/customers`;
+  const url = qs ? `${base}?${qs}` : base;
+
+  const headers = typeof window === "undefined"
     ? getAuthHeadersServer(cookieHeader)
     : getAuthHeaders();
-  
+
   const response = await fetch(url, { headers, cache: "no-store" });
-  
+
   if (!response.ok) {
     throw new Error(`Failed to fetch customers: ${response.statusText}`);
   }
-  
+
   const data = await response.json();
-  return data.success ? data.data : [];
+  return {
+    users: data.data ?? [],
+    pagination: data.pagination ?? { page: 1, per_page: 30, total: 0, total_pages: 1 },
+  };
 }
 
 /**

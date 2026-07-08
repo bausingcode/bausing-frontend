@@ -11,6 +11,7 @@ interface Client {
   email: string;
   localidad: string;
   compras: number;
+  totalGastado?: string;
   ultimaCompra: string;
   saldoBilletera: string;
   estado: string;
