@@ -72,7 +72,7 @@ const generateReviews = (): Review[] => {
 
 const reviews = generateReviews();
 
-export default function ReviewsSection() {
+export default function ReviewsSection({ reviewCount = 1550 }: { reviewCount?: number }) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollContentRef = useRef<HTMLDivElement>(null);
 
@@ -154,8 +154,8 @@ export default function ReviewsSection() {
                 ))}
               </div>
               <span className="text-gray-600 text-sm">
-                <span className="md:hidden">+1.550 reseñas</span>
-                <span className="hidden md:inline">+1.550 reseñas en Google</span>
+                <span className="md:hidden">+{reviewCount.toLocaleString('es-AR')} reseñas</span>
+                <span className="hidden md:inline">+{reviewCount.toLocaleString('es-AR')} reseñas en Google</span>
               </span>
             </div>
           </div>

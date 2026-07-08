@@ -2,9 +2,11 @@
 
 import dynamic from "next/dynamic";
 
-const ReviewsSection = dynamic(() => import("@/components/ReviewsSection"), {
+const ReviewsSectionInner = dynamic(() => import("@/components/ReviewsSection"), {
   loading: () => <div className="py-16 bg-[#FAFAFA]" />,
-  ssr: false, // Lazy load en el cliente
+  ssr: false,
 });
 
-export default ReviewsSection;
+export default function ReviewsSectionLazy({ reviewCount }: { reviewCount?: number }) {
+  return <ReviewsSectionInner reviewCount={reviewCount} />;
+}

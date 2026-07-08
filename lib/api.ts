@@ -1741,6 +1741,7 @@ export interface GeneralSettings {
   facebookUrl?: string;
   tiktokUrl?: string;
   precioPorKm?: number;
+  cantidadResenas?: number;
 }
 
 export interface AppSettings {
@@ -1806,6 +1807,7 @@ export async function getAppSettings(): Promise<AppSettings> {
       facebookUrl: settings.general?.facebook_url || "",
       tiktokUrl: settings.general?.tiktok_url || "",
       precioPorKm: settings.general?.price_per_km || 105,
+      cantidadResenas: settings.general?.review_count !== undefined ? settings.general.review_count : 1550,
     },
   };
 }
@@ -2052,6 +2054,24 @@ export async function getFooterData(): Promise<FooterData> {
   }
   
   return data.data;
+}
+
+/**
+ * Get review count shown on home (public - no auth required)
+ */
+export async function fetchPublicReviewCount(): Promise<number> {
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:5050';
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/settings/public/review-count`
+    : `/api/settings/public/review-count`;
+  try {
+    const response = await fetch(url, { next: { revalidate: 300 } });
+    if (!response.ok) return 1550;
+    const data = await response.json();
+    return data.success && typeof data.review_count === 'number' ? data.review_count : 1550;
+  } catch {
+    return 1550;
+  }
 }
 
 // Dashboard Stats API

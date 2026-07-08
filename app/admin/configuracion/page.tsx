@@ -52,6 +52,7 @@ export default function Configuracion() {
     instagramUrl: "",
     facebookUrl: "",
     tiktokUrl: "",
+    cantidadResenas: "",
   });
 
   // Estados originales para comparar cambios
@@ -102,6 +103,7 @@ export default function Configuracion() {
         instagramUrl: settings.general?.instagramUrl || "",
         facebookUrl: settings.general?.facebookUrl || "",
         tiktokUrl: settings.general?.tiktokUrl || "",
+        cantidadResenas: settings.general?.cantidadResenas !== undefined ? String(settings.general.cantidadResenas) : "",
       };
 
       // Establecer valores actuales y originales (son iguales al cargar)
@@ -190,6 +192,9 @@ export default function Configuracion() {
       generalData.instagramUrl = general.instagramUrl;
       generalData.facebookUrl = general.facebookUrl;
       generalData.tiktokUrl = general.tiktokUrl;
+      if (general.cantidadResenas && !isNaN(parseFloat(general.cantidadResenas))) {
+        generalData.cantidadResenas = parseInt(general.cantidadResenas, 10);
+      }
 
       // Guardar cada sección
       await updateWalletSettings(walletData);
@@ -409,6 +414,27 @@ export default function Configuracion() {
               />
               <p className="text-sm text-gray-500 mt-1">
                 Dirección que se mostrará en el footer del sitio
+              </p>
+            </div>
+
+            {/* Cantidad de reseñas */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Cantidad de reseñas mostrada en el home
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={general.cantidadResenas}
+                onChange={(e) => {
+                  const validated = handleNumberChange(e.target.value, 0);
+                  setGeneral({ ...general, cantidadResenas: validated });
+                }}
+                className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                placeholder="Ej: 1550"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Número que aparece como "+N reseñas en Google" en la sección de reseñas
               </p>
             </div>
 

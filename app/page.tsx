@@ -18,7 +18,7 @@ import BannerCarousel from "@/components/BannerCarousel";
 import Navbar from "@/components/Navbar";
 import dynamic from "next/dynamic";
 import wsrvLoader from "@/lib/wsrvLoader";
-import { fetchHeroImages, HeroImage, fetchActiveEvent } from "@/lib/api";
+import { fetchHeroImages, HeroImage, fetchActiveEvent, fetchPublicReviewCount } from "@/lib/api";
 import HomeProducts from "@/components/HomeProducts";
 import ReviewsSectionLazy from "@/components/ReviewsSectionLazy";
 import InfoCarousel from "@/components/InfoCarousel";
@@ -69,12 +69,15 @@ export default async function Home() {
   let descuentazosBanner: HeroImage | null = null;
   let videoData: HeroImage | null = null;
   let activeEvent = null;
+  let reviewCount = 1550;
 
   try {
-    const [allHeroImages, fetchedEvent] = await Promise.all([
+    const [allHeroImages, fetchedEvent, fetchedReviewCount] = await Promise.all([
       fetchHeroImages(undefined, true).catch(() => [] as HeroImage[]),
       fetchActiveEvent().catch(() => null),
+      fetchPublicReviewCount().catch(() => 1550),
     ]);
+    reviewCount = fetchedReviewCount;
 
     heroImages = allHeroImages.filter((img) => img.position === 1);
     infoBanners = allHeroImages.filter((img) => img.position === 2);
@@ -452,7 +455,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <ReviewsSectionLazy />
+      <ReviewsSectionLazy reviewCount={reviewCount} />
 
       <NewsletterSection />
 
