@@ -420,7 +420,7 @@ export default function Configuracion() {
             {/* Cantidad de reseñas */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Cantidad de reseñas mostrada en el home
+                N° de reseñas en Google
               </label>
               <input
                 type="number"
@@ -434,7 +434,7 @@ export default function Configuracion() {
                 placeholder="Ej: 1550"
               />
               <p className="text-sm text-gray-500 mt-1">
-                Número que aparece como "+N reseñas en Google" en la sección de reseñas
+                Se muestra en la sección de reseñas del home
               </p>
             </div>
 

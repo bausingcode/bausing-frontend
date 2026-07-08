@@ -581,6 +581,10 @@ interface NavbarProps {
 
 export default function Navbar({ event }: NavbarProps = {}) {
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [showArrepentimiento, setShowArrepentimiento] = useState(false);
+
+  const ARREPENTIMIENTO_PHONE = "+54 9 3512 44-9293";
+  const ARREPENTIMIENTO_WA = "5493512449293";
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
   const [hoveredSubcategory, setHoveredSubcategory] = useState<string | null>(null);
   const [previousCategory, setPreviousCategory] = useState<string | null>(null);
@@ -1237,6 +1241,16 @@ export default function Navbar({ event }: NavbarProps = {}) {
                 >
                   <span>Local</span>
                 </a>
+              </div>
+
+              {/* Botón de arrepentimiento */}
+              <div className="border-t border-gray-200 mt-4 pt-4 pb-2">
+                <button
+                  onClick={() => { setIsMobileMenuOpen(false); setShowArrepentimiento(true); }}
+                  className="w-full text-sm text-white bg-[#00C1A7] hover:bg-[#00A892] rounded-full px-4 py-2.5 transition-colors font-medium"
+                >
+                  Botón de arrepentimiento
+                </button>
               </div>
             </div>
           </div>
@@ -2444,7 +2458,48 @@ export default function Navbar({ event }: NavbarProps = {}) {
 
       {/* Cart Overlay */}
         <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
-        
+
+      {/* Modal de arrepentimiento */}
+      {showArrepentimiento && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 px-4"
+          onClick={() => setShowArrepentimiento(false)}
+        >
+          <div
+            className="bg-white rounded-[14px] border border-gray-200 shadow-xl w-full max-w-sm p-6 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowArrepentimiento(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Cerrar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-base font-semibold text-gray-900 mb-2">
+              Botón de arrepentimiento
+            </h2>
+            <p className="text-sm text-gray-600 mb-5 leading-relaxed">
+              Si te arrepentiste de una compra, podés contactarnos para solicitar la cancelación o devolución.
+            </p>
+            <a
+              href={`https://wa.me/${ARREPENTIMIENTO_WA}?text=Hola%2C%20quiero%20ejercer%20el%20bot%C3%B3n%20de%20arrepentimiento%20por%20una%20compra.`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center w-full bg-[#00C1A7] hover:bg-[#00A892] text-white text-sm font-medium py-2.5 rounded-lg transition-colors mb-3"
+            >
+              Contactar por WhatsApp
+            </a>
+            <a
+              href={`tel:${ARREPENTIMIENTO_PHONE.replace(/\s/g, "")}`}
+              className="flex items-center justify-center w-full border border-gray-200 text-gray-700 text-sm font-medium py-2.5 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              {ARREPENTIMIENTO_PHONE}
+            </a>
+          </div>
+        </div>
+      )}
+
       </>
     );
 }
