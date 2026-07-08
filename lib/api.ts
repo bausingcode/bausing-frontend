@@ -2384,6 +2384,8 @@ export async function getUsersMetrics(
     page?: number;
     per_page?: number;
     search?: string;
+    sort_by?: string;
+    sort_order?: 'asc' | 'desc';
   },
   cookieHeader?: string | null
 ): Promise<UsersMetricsResponse> {
@@ -2391,6 +2393,8 @@ export async function getUsersMetrics(
   if (params?.page) queryParams.append('page', params.page.toString());
   if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
   if (params?.search) queryParams.append('search', params.search);
+  if (params?.sort_by) queryParams.append('sort_by', params.sort_by);
+  if (params?.sort_order) queryParams.append('sort_order', params.sort_order);
   
   const url = typeof window === "undefined"
     ? `${BACKEND_URL}/admin/users/metrics?${queryParams.toString()}`
