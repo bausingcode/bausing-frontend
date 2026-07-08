@@ -17,13 +17,6 @@ const SORT_OPTIONS: { value: SortField; label: string }[] = [
   { value: "user_created_at",   label: "Fecha de registro" },
 ];
 
-function spendTier(spent: number): { label: string; className: string } {
-  if (spent >= 500_000) return { label: "VIP",    className: "bg-purple-100 text-purple-700" };
-  if (spent >= 100_000) return { label: "Gold",   className: "bg-yellow-100 text-yellow-700" };
-  if (spent >= 30_000)  return { label: "Silver", className: "bg-blue-100 text-blue-700" };
-  if (spent > 0)        return { label: "Nuevo",  className: "bg-green-100 text-green-700" };
-  return                       { label: "Sin compras", className: "bg-gray-100 text-gray-500" };
-}
 
 export default function MetricasUsuarios() {
   const [usersMetrics, setUsersMetrics] = useState<UserMetrics[]>([]);
@@ -219,9 +212,6 @@ export default function MetricasUsuarios() {
                     <th className="px-5 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                       Usuario
                     </th>
-                    <th className="px-5 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                      Segmento
-                    </th>
                     <th
                       className="px-5 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-800 select-none"
                       onClick={() => handleSort("completed_orders")}
@@ -252,18 +242,11 @@ export default function MetricasUsuarios() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {usersMetrics.map((user) => {
-                    const tier = spendTier(user.purchases.total_spent);
-                    return (
+                  {usersMetrics.map((user) => (
                       <tr key={user.user_id} className="hover:bg-gray-50/60 transition-colors">
                         <td className="px-5 py-3.5">
                           <div className="text-sm font-medium text-gray-900 leading-tight">{user.user_name}</div>
                           <div className="text-xs text-gray-400 mt-0.5">{user.user_email}</div>
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${tier.className}`}>
-                            {tier.label}
-                          </span>
                         </td>
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-1.5">
@@ -307,8 +290,7 @@ export default function MetricasUsuarios() {
                           </Link>
                         </td>
                       </tr>
-                    );
-                  })}
+                  ))}
                 </tbody>
               </table>
             </div>
