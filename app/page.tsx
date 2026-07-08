@@ -35,7 +35,6 @@ import {
 import {
   getSiteUrl,
   SITE_TAGLINE,
-  titleWithBrand,
 } from "@/lib/seo/site";
 import NewsletterSection from "@/components/NewsletterSection";
 
@@ -44,20 +43,22 @@ const Footer = dynamic(() => import("@/components/Footer"), {
   ssr: true,
 });
 
+const HOME_TITLE =
+  "Colchones en Córdoba | Directo de fábrica, envíos gratis y pago al recibir | Bausing";
+
 export async function generateMetadata(): Promise<Metadata> {
   const url = getSiteUrl();
-  const title = titleWithBrand("Inicio");
   return {
-    title: "Inicio",
+    title: { absolute: HOME_TITLE },
     description: SITE_TAGLINE,
     alternates: { canonical: `${url}/` },
     openGraph: buildPageOpenGraph({
-      title,
+      title: HOME_TITLE,
       description: SITE_TAGLINE,
       url,
     }),
     twitter: buildPageTwitter({
-      title,
+      title: HOME_TITLE,
       description: SITE_TAGLINE,
     }),
   };

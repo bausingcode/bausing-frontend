@@ -11,6 +11,7 @@ export default function SeoJsonLd() {
         name: SITE_NAME,
         url: base,
         logo: `${base}/images/logo/favicon.png`,
+        image: `${base}/api/og-image`,
       },
       {
         "@type": "WebSite",
