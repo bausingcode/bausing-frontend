@@ -260,8 +260,7 @@ export default function Sidebar() {
                 >
                   <ul className="overflow-hidden space-y-0.5">
                     <li key="logistica"><NavLink href="/admin/logistica" icon={<Truck className="w-5 h-5" />}>Logística</NavLink></li>
-                    <li key="envios"><NavLink href="/admin/envios" icon={<Truck className="w-5 h-5" />}>Envíos</NavLink></li>
-                    <li key="zonas-entrega"><NavLink href="/admin/zonas-entrega" icon={<PackageX className="w-5 h-5" />}>Transporte Tercerizado</NavLink></li>
+                    <li key="zonas-entrega"><NavLink href="/admin/zonas-entrega" icon={<PackageX className="w-5 h-5" />}>Zonas de Entrega</NavLink></li>
                     <li key="billetera"><NavLink href="/admin/billetera" icon={<CreditCard className="w-5 h-5" />}>Billetera Bausing</NavLink></li>
                     <li key="referidos"><NavLink href="/admin/referidos" icon={<UserPlus className="w-5 h-5" />}>Referidos</NavLink></li>
                   </ul>

@@ -6769,6 +6769,8 @@ export interface ZoneLocality {
   locality_name?: string;
   is_third_party_transport: boolean;
   shipping_price: number | null;
+  catalog_id?: string | null;
+  catalog_name?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -6868,6 +6870,53 @@ export async function bulkUpdateZoneLocalities(
   
   const data = await response.json();
   return data.success ? { data: data.data, errors: data.errors } : { data: [] };
+}
+
+export async function deleteDeliveryZone(crmZoneId: number): Promise<{ localities_removed: string[]; localities_kept: string[] }> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/delivery-zones/${crmZoneId}`
+    : `/api/admin/delivery-zones/${crmZoneId}`;
+
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to delete delivery zone: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  if (!data.success) {
+    throw new Error(data.error || "Failed to delete delivery zone");
+  }
+  return {
+    localities_removed: data.localities_removed || [],
+    localities_kept: data.localities_kept || [],
+  };
+}
+
+export async function setLocalityCatalog(localityId: string, catalogId: string): Promise<void> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/localities/${localityId}/catalog`
+    : `/api/localities/${localityId}/catalog`;
+
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ catalog_id: catalogId }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to set locality catalog: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  if (!data.success) {
+    throw new Error(data.error || "Failed to set locality catalog");
+  }
 }
 
 // Failed Orders Retry Queue API
