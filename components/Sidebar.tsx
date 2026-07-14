@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import NavLink from "./NavLink";
-import { LogOut, Home, ShoppingCart, Users, CreditCard, Package, Truck, BarChart3, UserCog, Settings, Tag, User, ChevronDown, Image, FileText, Calendar, Mail, Star, PackageX, AlertTriangle, UserPlus, HelpCircle, Gift, TicketPercent, ShoppingBag, Clock } from "lucide-react";
+import { LogOut, Home, ShoppingCart, Users, CreditCard, Package, Truck, BarChart3, UserCog, Settings, Tag, User, ChevronDown, Image, FileText, Calendar, Mail, Star, PackageX, AlertTriangle, UserPlus, HelpCircle, Gift, TicketPercent, ShoppingBag, Clock, Box } from "lucide-react";
 import { getCurrentAdminUser, AdminUser } from "@/lib/api";
 
 const SECTIONS = ["comercio", "catalogo", "contenido", "operaciones", "configuracion"] as const;
@@ -261,6 +261,7 @@ export default function Sidebar() {
                   <ul className="overflow-hidden space-y-0.5">
                     <li key="logistica"><NavLink href="/admin/logistica" icon={<Truck className="w-5 h-5" />}>Logística</NavLink></li>
                     <li key="zonas-entrega"><NavLink href="/admin/zonas-entrega" icon={<PackageX className="w-5 h-5" />}>Zonas de Entrega</NavLink></li>
+                    <li key="transporte-tercerizado"><NavLink href="/admin/transporte-tercerizado" icon={<Box className="w-5 h-5" />}>Transporte Tercerizado</NavLink></li>
                     <li key="dias-entrega"><NavLink href="/admin/dias-entrega" icon={<Clock className="w-5 h-5" />}>Días Estimados de Entrega</NavLink></li>
                     <li key="billetera"><NavLink href="/admin/billetera" icon={<CreditCard className="w-5 h-5" />}>Billetera Bausing</NavLink></li>
                     <li key="referidos"><NavLink href="/admin/referidos" icon={<UserPlus className="w-5 h-5" />}>Referidos</NavLink></li>
