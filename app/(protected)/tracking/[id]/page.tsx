@@ -13,7 +13,7 @@ import {
   ArrowLeft,
   CheckCircle,
 } from "lucide-react";
-import { getUserOrder, type Order } from "@/lib/api";
+import { getUserOrder, formatEstimatedDelivery, type Order } from "@/lib/api";
 
 const statusConfig = {
   purple: {
@@ -427,6 +427,19 @@ export default function TrackingPage() {
             </div>
           </div>
         </div>
+
+        {/* Entrega estimada */}
+        {formatEstimatedDelivery(order) && (
+          <div className="bg-white rounded-[12px] md:rounded-[14px] border border-gray-200 p-4 md:p-6">
+            <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-gray-600 shrink-0" />
+              Entrega Estimada
+            </h2>
+            <p className="text-sm md:text-base text-gray-600">
+              {formatEstimatedDelivery(order)}
+            </p>
+          </div>
+        )}
 
         {/* Dirección de Entrega */}
         {order.shipping_address && (

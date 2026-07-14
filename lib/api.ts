@@ -189,6 +189,8 @@ export interface Catalog {
   id: string;
   name: string;
   description?: string;
+  estimated_delivery_days_min?: number | null;
+  estimated_delivery_days_max?: number | null;
   created_at?: string;
   updated_at?: string;
   localities?: Locality[];
@@ -299,7 +301,7 @@ export async function createCatalog(catalog: { name: string; description?: strin
 /**
  * Update a catalog
  */
-export async function updateCatalog(catalogId: string, catalog: { name?: string; description?: string }, cookieHeader?: string | null): Promise<Catalog | null> {
+export async function updateCatalog(catalogId: string, catalog: { name?: string; description?: string; estimated_delivery_days_min?: number | null; estimated_delivery_days_max?: number | null }, cookieHeader?: string | null): Promise<Catalog | null> {
   const url = typeof window === "undefined"
     ? `${BACKEND_URL}/catalogs/${catalogId}`
     : `/api/catalogs/${catalogId}`;
@@ -4791,8 +4793,18 @@ export interface Order {
   items: OrderItem[];
   tracking_number?: string;
   tracking_url?: string;
+  estimated_delivery_days_min?: number | null;
+  estimated_delivery_days_max?: number | null;
   created_at: string;
   updated_at: string;
+}
+
+export function formatEstimatedDelivery(order: Pick<Order, "estimated_delivery_days_min" | "estimated_delivery_days_max">): string | null {
+  const { estimated_delivery_days_min: min, estimated_delivery_days_max: max } = order;
+  if (min == null && max == null) return null;
+  if (min != null && max != null && min !== max) return `${min} a ${max} días hábiles`;
+  const day = max ?? min;
+  return day === 1 ? "1 día hábil" : `${day} días hábiles`;
 }
 
 export interface OrdersResponse {

@@ -6,13 +6,14 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { CheckCircle2, Package, Home, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { getUserOrder } from "@/lib/api";
+import { getUserOrder, formatEstimatedDelivery } from "@/lib/api";
 
 function CheckoutSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderId = searchParams.get("order_id");
   const [receiptNumber, setReceiptNumber] = useState<string | null>(null);
+  const [estimatedDelivery, setEstimatedDelivery] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,6 +27,9 @@ function CheckoutSuccessContent() {
         const order = await getUserOrder(orderId);
         if (order && order.order_number) {
           setReceiptNumber(order.order_number);
+        }
+        if (order) {
+          setEstimatedDelivery(formatEstimatedDelivery(order));
         }
       } catch (error) {
         console.error("Error al obtener detalles de la orden:", error);
@@ -63,6 +67,12 @@ function CheckoutSuccessContent() {
           <div className="mb-6 p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-600 mb-1">Número de pedido</p>
             <p className="text-lg font-semibold text-gray-900">{receiptNumber}</p>
+            {estimatedDelivery && (
+              <>
+                <p className="text-sm text-gray-600 mt-3 mb-1">Entrega estimada</p>
+                <p className="text-base font-medium text-gray-900">{estimatedDelivery}</p>
+              </>
+            )}
           </div>
         ) : null}
 
