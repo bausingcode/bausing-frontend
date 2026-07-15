@@ -76,12 +76,10 @@ export default function MercadoPagoCardForm({
           return;
         }
 
-        console.log("Inicializando MercadoPago con publicKey:", publicKey);
         mpInstanceRef.current = new window.MercadoPago(publicKey, {
           locale: "es-AR",
         });
         setMpInitialized(true);
-        console.log("✅ MercadoPago inicializado");
       } catch (error: any) {
         console.error("Error al inicializar MercadoPago:", error);
         if (mounted) {
@@ -145,7 +143,6 @@ export default function MercadoPagoCardForm({
     
     // Prevenir reinicialización si ya está montado
     if (cardPaymentBrickControllerRef.current) {
-      console.log("✅ Brick ya está inicializado, saltando reinicialización");
       return;
     }
 
@@ -154,35 +151,23 @@ export default function MercadoPagoCardForm({
     try {
       // Verificar que el contenedor esté en el DOM
       if (!brickContainerRef.current || !brickContainerRef.current.isConnected) {
-        console.log("⏳ Esperando a que el contenedor esté en el DOM...");
         return;
       }
 
       // Verificar que el contenedor tenga dimensiones (está renderizado)
       const rect = brickContainerRef.current.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) {
-        console.log("⏳ Esperando a que el contenedor tenga dimensiones...");
         return;
       }
 
       // Verificar que no se haya inicializado ya
       if (cardPaymentBrickControllerRef.current) {
-        console.log("✅ Brick ya está inicializado");
         if (loading) {
           setLoading(false);
           if (onReady) onReady();
         }
         return;
       }
-
-      console.log("🔧 Inicializando Card Payment Brick con amount:", amount);
-      console.log("🔍 Estado del contenedor:", {
-        exists: !!brickContainerRef.current,
-        isConnected: brickContainerRef.current?.isConnected,
-        width: rect.width,
-        height: rect.height,
-        id: brickContainerRef.current?.id
-      });
 
       // Inicializar el Brick según documentación oficial
       const bricksBuilder = mpInstanceRef.current.bricks();
@@ -207,17 +192,12 @@ export default function MercadoPagoCardForm({
         },
         callbacks: {
           onReady: () => {
-            console.log("✅ Card Payment Brick listo");
             if (mounted) {
               setLoading(false);
               if (onReadyRef.current) onReadyRef.current();
             }
           },
           onSubmit: (cardFormData: any) => {
-            console.log("📝 [Brick] Datos del formulario recibidos (completo):", JSON.stringify(cardFormData, null, 2));
-            console.log("📝 [Brick] Tipo de cardFormData:", typeof cardFormData);
-            console.log("📝 [Brick] Keys en cardFormData:", Object.keys(cardFormData || {}));
-            
             if (mounted) {
               setProcessing(true);
             }
@@ -241,21 +221,6 @@ export default function MercadoPagoCardForm({
 
                 if (!token) {
                   throw new Error("No se pudo generar el token de la tarjeta");
-                }
-
-                console.log("✅ [Brick] Token generado:", token);
-                console.log("✅ [Brick] Cuotas:", installments);
-                console.log("✅ [Brick] Payment Method ID:", payment_method_id);
-                console.log("✅ [Brick] Issuer ID:", issuer_id);
-                console.log("✅ [Brick] Cardholder Name:", cardholderName, "(tipo:", typeof cardholderName, ")");
-                console.log("✅ [Brick] Cardholder Email:", cardholderEmail, "(tipo:", typeof cardholderEmail, ")");
-                console.log("✅ [Brick] Identification Type:", identificationType, "(tipo:", typeof identificationType, ")");
-                console.log("✅ [Brick] Identification Number:", identificationNumber, "(tipo:", typeof identificationNumber, ")");
-                
-                // Verificar si los datos del cardholder están presentes
-                if (!cardholderName && !cardholderEmail && !identificationType && !identificationNumber) {
-                  console.warn("⚠️ [Brick] ADVERTENCIA: No se recibieron datos del cardholder del Brick");
-                  console.warn("⚠️ [Brick] Esto puede ser normal si el email se pasó en la inicialización");
                 }
 
                 // Preparar datos del cardholder para enviar al backend
@@ -314,7 +279,6 @@ export default function MercadoPagoCardForm({
         'cardPaymentBrick_container',
         settings
       );
-      console.log("✅ Card Payment Brick inicializado");
       previousAmountRef.current = amount;
     } catch (error: any) {
       console.error("❌ Error al inicializar el Brick:", error);
@@ -339,8 +303,6 @@ export default function MercadoPagoCardForm({
       const timeoutId = setTimeout(() => {
         // Verificar nuevamente que el amount siga siendo diferente y válido
         if (Math.abs(previousAmountRef.current - amount) > 0.01 && amount > 0) {
-          console.log(`🔄 Amount cambió de ${previousAmountRef.current} a ${amount}, reinicializando brick...`);
-          
           // Desmontar el brick existente
           try {
             if (cardPaymentBrickControllerRef.current) {
@@ -348,9 +310,9 @@ export default function MercadoPagoCardForm({
               cardPaymentBrickControllerRef.current = null;
             }
           } catch (e) {
-            console.log("⚠️ Error al desmontar brick anterior:", e);
+            console.error("⚠️ Error al desmontar brick anterior:", e);
           }
-          
+
           // Limpiar el contenedor
           if (brickContainerRef.current) {
             brickContainerRef.current.innerHTML = '';
@@ -386,7 +348,6 @@ export default function MercadoPagoCardForm({
     
     // Prevenir reinicialización si ya está montado
     if (cardPaymentBrickControllerRef.current) {
-      console.log("✅ Brick ya está inicializado, saltando reinicialización");
       return;
     }
 
@@ -458,8 +419,6 @@ export default function MercadoPagoCardForm({
         }
 
         try {
-          console.log("🔵 Disparando submit del Brick desde botón Finalizar compra...");
-          
           const container = brickContainerRef.current;
           if (!container) {
             throw new Error("El contenedor del Brick no está disponible");
@@ -503,7 +462,6 @@ export default function MercadoPagoCardForm({
           }
           
           if (submitButton) {
-            console.log("✅ Encontrado botón de submit del Brick, haciendo click...");
             // Hacer click en el botón del Brick
             // El Brick procesará el formulario y llamará a onSubmit
             submitButton.click();

@@ -31,7 +31,6 @@ export default function Sidebar() {
       try {
         const user = await getCurrentAdminUser();
         setAdminUser(user);
-        console.log(user);
       } catch (error) {
         console.error("Error fetching admin user:", error);
       } finally {

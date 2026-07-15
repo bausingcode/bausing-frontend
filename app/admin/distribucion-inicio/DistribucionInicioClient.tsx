@@ -12,7 +12,6 @@ import {
   HomepageDistributionItem,
   fetchProducts,
   Product,
-  getAdminToken,
 } from "@/lib/api";
 import { calculateProductPrice } from "@/utils/priceUtils";
 import wsrvLoader from "@/lib/wsrvLoader";
@@ -20,39 +19,6 @@ import {
   firstProductImageUrl,
   PRODUCT_IMAGE_PLACEHOLDER,
 } from "@/lib/productImagePlaceholder";
-
-/** Filtrá la consola por: Distribución inicio */
-const DBG = "[Distribución inicio página]";
-
-function debugSummarizeGrid(
-  label: string,
-  grid: HomepageDistribution | null,
-  productById: Map<string, Product>
-): void {
-  if (!grid) {
-    console.log(DBG, label, "→ grid null");
-    return;
-  }
-  const keys = ["featured", "discounts", "mattresses", "complete_purchase"] as const;
-  for (const k of keys) {
-    const row = grid[k];
-    const cells = row.map((item, idx) => {
-      const pid = item?.product_id ?? null;
-      const hasEmbedded = !!item?.product;
-      const fromCatalog = pid ? !!productById.get(pid) : false;
-      const resolved =
-        item?.product ?? (pid ? productById.get(pid) ?? null : null);
-      return {
-        i: idx,
-        pid,
-        embedded: hasEmbedded,
-        inCatalog: fromCatalog,
-        showAs: resolved?.name ?? "(vacío)",
-      };
-    });
-    console.log(DBG, label, k, cells);
-  }
-}
 
 interface ProductCardProps {
   product: Product | null;
@@ -474,37 +440,6 @@ export default function DistribucionInicioClient() {
   };
 
   useEffect(() => {
-    const token = getAdminToken();
-    console.log(DBG, "— estado —", {
-      adminView,
-      hasUnpublishedChanges,
-      loadError,
-      isLoading,
-      isLoadingProducts,
-      productsEnCatalogo: products.length,
-      adminTokenPresente: !!token,
-      adminTokenLength: token?.length ?? 0,
-    });
-    debugSummarizeGrid("draft (state)", distribution, productById);
-    debugSummarizeGrid("published (state)", publishedGrid, productById);
-    const active =
-      adminView === "draft"
-        ? distribution
-        : publishedGrid ?? distribution;
-    debugSummarizeGrid("grilla activa (UI)", active, productById);
-  }, [
-    distribution,
-    publishedGrid,
-    products,
-    adminView,
-    hasUnpublishedChanges,
-    loadError,
-    isLoading,
-    isLoadingProducts,
-    productById,
-  ]);
-
-  useEffect(() => {
     // Cargar distribución y productos al montar el componente
     const loadData = async () => {
       await Promise.all([
@@ -557,7 +492,6 @@ export default function DistribucionInicioClient() {
       }
 
       setProducts(allProducts);
-      console.log(DBG, "catálogo cargado", { total: allProducts.length });
     } catch (error) {
       console.error("Error loading products:", error);
     } finally {

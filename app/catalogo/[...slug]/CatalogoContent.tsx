@@ -139,17 +139,6 @@ function isColchonStyleCatalogCategory(name: string | null | undefined): boolean
 const CATEGORY_OPTION_ID_UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Log de filtro Tecnología / colchón (siempre activo) */
-function debugCatalogoTecnologia(msg: string, data?: unknown) {
-  if (data !== undefined) {
-    // eslint-disable-next-line no-console
-    console.log(`[catálogo][Tecnología] ${msg}`, data);
-  } else {
-    // eslint-disable-next-line no-console
-    console.log(`[catálogo][Tecnología] ${msg}`);
-  }
-}
-
 /**
  * Misma clave lógica para cada campo: en la DB suelen venir con mayúsculas como
  * "Resortes Pocket", "Espuma de alta densidad", etc. — comparación case-insensitive.
@@ -358,28 +347,9 @@ function applyCatalogClientFilters(
   for (const [filterKey, selectedValues] of Object.entries(technicalFilters)) {
     if (selectedValues.length === 0) continue;
     if (filterKey === "colchon-tecnologia") {
-      debugCatalogoTecnologia("aplicar filtro", { selectedValues, productosAntes: out.length });
-      out.slice(0, 4).forEach((p) => {
-        const blob = combinedEstructuraRellenoSearchBlob(p);
-        const perValue = selectedValues.map((v) => ({
-          value: v,
-          match: productMatchesEstructuraRellenoFilterValue(p, v),
-        }));
-        debugCatalogoTecnologia("muestra producto", {
-          id: p.id,
-          name: p.name,
-          filling_type: p.filling_type,
-          category_option_value: p.category_option_value,
-          blobNormalizado: blob,
-          perValue,
-          pasa: perValue.some((x) => x.match),
-        });
-      });
-      const before = out.length;
       out = out.filter((product) =>
         selectedValues.some((value) => productMatchesEstructuraRellenoFilterValue(product, value))
       );
-      debugCatalogoTecnologia("resultado", { productosDespues: out.length, filtradoDesde: before });
     }
     if (filterKey === CATALOGO_BASIC_COLOR_FILTER_ID) {
       out = out.filter((product) =>
@@ -1499,16 +1469,8 @@ export default function CatalogoContent({
           let allProducts: Product[];
           if (catalogProductPoolRef.current?.key === poolKey) {
             allProducts = catalogProductPoolRef.current.products;
-            debugCatalogoTecnologia("usando pool en caché (sin refetch red)", { productos: allProducts.length });
           } else {
-            const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
             const { products } = await fetchProductsAllPages(baseParams, { concurrency: 3 });
-            const ms =
-              (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0;
-            debugCatalogoTecnologia("red: pool completo para filtros (hojas en lotes de 3 request paralelos)", {
-              productos: products.length,
-              ms: Math.round(ms),
-            });
             catalogProductPoolRef.current = { key: poolKey, products };
             allProducts = products;
           }

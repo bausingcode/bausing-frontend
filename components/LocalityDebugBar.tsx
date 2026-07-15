@@ -21,7 +21,6 @@ export default function LocalityDebugBar() {
           const parsedLocality = JSON.parse(savedLocality);
           // Si hay una localidad guardada y es diferente a la actual, actualizarla
           if (parsedLocality && (!locality || parsedLocality.id !== locality.id)) {
-            console.log("[LocalityDebugBar] Sincronizando localidad desde localStorage:", parsedLocality);
             setLocality(parsedLocality);
           }
         } catch (e) {
@@ -73,22 +72,17 @@ export default function LocalityDebugBar() {
   };
 
   const handleSelectLocality = async (selectedLocality: Locality) => {
-    console.log("[LocalityDebugBar] Seleccionando localidad:", selectedLocality);
-    
     // Cerrar el panel primero para que se vea el cambio en el botón
     setIsOpen(false);
-    
+
     // Actualizar el contexto (esto actualiza el estado inmediatamente y dispara eventos)
     // El contexto ya guarda en localStorage y dispara el evento 'localityChanged'
     setLocality(selectedLocality);
-    
-    console.log("[LocalityDebugBar] Localidad actualizada sin recargar página:", selectedLocality.name);
   };
 
   const handleAutoDetect = async () => {
     try {
       await detectLocality();
-      console.log("[LocalityDebugBar] Localidad auto-detectada sin recargar página");
     } catch (error) {
       console.error("[LocalityDebugBar] Error en auto-detección:", error);
     }
@@ -100,9 +94,7 @@ export default function LocalityDebugBar() {
       return;
     }
     try {
-      console.log("[LocalityDebugBar] Detectando localidad con IP:", simulatedIp.trim());
       await detectLocality(simulatedIp.trim());
-      console.log("[LocalityDebugBar] Localidad detectada con IP sin recargar página:", simulatedIp.trim());
     } catch (error) {
       console.error("[LocalityDebugBar] Error detectando localidad con IP:", error);
       alert(`Error al detectar localidad: ${error instanceof Error ? error.message : 'Error desconocido'}`);
@@ -234,7 +226,6 @@ export default function LocalityDebugBar() {
               onClick={() => {
                 setLocality(null);
                 setIsOpen(false);
-                console.log("[LocalityDebugBar] Localidad limpiada sin recargar página");
               }}
               className="w-full mt-4 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
             >

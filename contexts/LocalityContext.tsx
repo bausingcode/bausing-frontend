@@ -128,7 +128,6 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
         
         if (now - savedTimestamp > oneDayInMs) {
           // La dirección ha expirado, limpiar
-          console.log("[LocalityContext] Dirección guardada ha expirado (más de 24 horas)");
           localStorage.removeItem("bausing_selected_address_id");
           return null;
         }
@@ -152,7 +151,6 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
         timestamp: Date.now()
       };
       localStorage.setItem("bausing_selected_address_id", JSON.stringify(data));
-      console.log("[LocalityContext] Dirección guardada en localStorage:", addressId, "con timestamp:", data.timestamp);
     }
   };
 
@@ -167,14 +165,11 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
 
   // Verificar IP real al entrar a la página (sin simulación)
   useEffect(() => {
-    console.log("[LocalityContext] Verificando IP real al entrar a la página (sin simulación)");
-
     const hadStoredLocality = Boolean(readLocalityFromStorage());
-    
+
     // Verificar si hay una dirección guardada
     const savedAddressId = getSavedAddressId();
     if (savedAddressId) {
-      console.log("[LocalityContext] Usando dirección guardada:", savedAddressId);
       detectLocality(undefined, savedAddressId, { background: hadStoredLocality }).catch((err) => {
         console.error("[LocalityContext] Error al usar dirección guardada:", err);
         // Si falla, intentar sin dirección guardada
@@ -210,18 +205,13 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
       let url = "/api/detect-locality";
       if (simulatedIp) {
         url += `?ip=${encodeURIComponent(simulatedIp)}`;
-        console.log("[LocalityContext] Simulando IP:", simulatedIp);
-      } else {
-        console.log("[LocalityContext] Verificando IP real del request (sin simulación)");
       }
-      
+
       // Agregar address_id si se proporciona
       if (addressId) {
         url += `${simulatedIp ? '&' : '?'}address_id=${encodeURIComponent(addressId)}`;
       }
 
-      console.log("[LocalityContext] Haciendo request a:", url);
-      
       // Incluir token de autenticación si está disponible
       const headers: HeadersInit = {
         "Content-Type": "application/json",
@@ -237,20 +227,15 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
         headers,
       });
 
-      console.log("[LocalityContext] Response status:", response.status, response.statusText);
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `No se pudo detectar la localidad: ${response.statusText}`);
       }
 
       const data = await response.json();
-      console.log("[LocalityContext] Response data:", data);
-      
+
       // Verificar si requiere selección de dirección
       if (data.success && data.data?.requires_address_selection) {
-        console.log("[LocalityContext] Se requiere selección de dirección");
-
         // Si se proporcionó un addressId explícito, no mostrar el modal global —
         // el componente que llamó ya tiene su propia UI de selección.
         if (addressId) {
@@ -268,7 +253,6 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
           // Verificar si la dirección guardada todavía existe en la lista
           const savedAddress = addresses.find((addr: Address) => addr.id === savedAddressId);
           if (savedAddress) {
-            console.log("[LocalityContext] Usando dirección guardada automáticamente:", savedAddressId);
             const newUrl = `/api/detect-locality?address_id=${encodeURIComponent(savedAddressId)}`;
             const token = getAuthToken();
             const headers: HeadersInit = { "Content-Type": "application/json" };
@@ -302,7 +286,6 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
             }
           } else {
             // La dirección guardada ya no existe, limpiar
-            console.log("[LocalityContext] Dirección guardada ya no existe, limpiando");
             if (typeof window !== "undefined") {
               localStorage.removeItem("bausing_selected_address_id");
             }
@@ -322,7 +305,6 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
           data.data.shipping_price !== undefined && data.data.shipping_price !== null
             ? data.data.shipping_price
             : null;
-        console.log("[LocalityContext] Localidad detectada:", detectedLocality);
         commitDetectedLocality(
           detectedLocality,
           {
@@ -351,7 +333,6 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
 
   const selectAddress = async (addressId: string): Promise<Locality | null> => {
     const seq = ++addressSelectSeqRef.current;
-    console.log("[LocalityContext] Seleccionando dirección:", addressId, "seq:", seq);
     setIsLoading(true);
     setError(null);
     lastCommittedLocalityRef.current = null;
@@ -381,7 +362,6 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
   };
 
   const setLocality = (newLocality: Locality | null) => {
-    console.log("[LocalityContext] Cambiando localidad:", newLocality);
     const updatedLocality = newLocality ? { ...newLocality } : null;
     if (updatedLocality) {
       delete (updatedLocality as Locality & { is_third_party_transport?: boolean }).is_third_party_transport;
@@ -391,21 +371,14 @@ export function LocalityProvider({ children }: { children: ReactNode }) {
     setUpdateKey(prev => prev + 1); // Incrementar key para forzar actualización
     if (newLocality) {
       localStorage.setItem("bausing_locality", JSON.stringify(updatedLocality));
-      console.log("[LocalityContext] Localidad guardada en localStorage:", newLocality.id);
     } else {
       localStorage.removeItem("bausing_locality");
-      console.log("[LocalityContext] Localidad eliminada de localStorage");
     }
     // Disparar evento personalizado para notificar a otros componentes
-    window.dispatchEvent(new CustomEvent('localityChanged', { 
-      detail: { locality: updatedLocality } 
+    window.dispatchEvent(new CustomEvent('localityChanged', {
+      detail: { locality: updatedLocality }
     }));
   };
-  
-  // Log cuando cambia la localidad
-  useEffect(() => {
-    console.log("[LocalityContext] Localidad actualizada:", locality?.id, locality?.name, "updateKey:", updateKey);
-  }, [locality?.id, updateKey]);
 
   return (
     <LocalityContext.Provider

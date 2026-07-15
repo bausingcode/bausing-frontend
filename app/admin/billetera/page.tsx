@@ -95,11 +95,9 @@ export default function BilleteraAdmin() {
     }
 
     try {
-      console.log("DEBUG: handleSearch - query:", searchQuery);
       setIsSearching(true);
       setError("");
       const results = await searchWalletCustomers(searchQuery.trim());
-      console.log("DEBUG: handleSearch - results:", results);
       setSearchResults(results);
     } catch (error: any) {
       console.error("DEBUG ERROR: Error searching customers:", error);
@@ -117,20 +115,15 @@ export default function BilleteraAdmin() {
   };
 
   const handleSelectCustomer = async (customer: WalletCustomer) => {
-    console.log("DEBUG: handleSelectCustomer - customer:", customer);
     setSelectedCustomer(customer);
     setIsLoadingSummary(true);
     setIsLoadingMovements(true);
-    
+
     try {
-      console.log("DEBUG: Loading wallet summary for customer:", customer.id);
       const summary = await getWalletSummary(customer.id);
-      console.log("DEBUG: Wallet summary loaded:", summary);
       setCustomerSummary(summary);
-      
-      console.log("DEBUG: Loading wallet movements for customer:", customer.id);
+
       const movementsResponse = await getCustomerWalletMovements(customer.id, 1, 50);
-      console.log("DEBUG: Wallet movements loaded:", movementsResponse);
       setCustomerMovements(movementsResponse.movements);
       setError("");
     } catch (error: any) {
@@ -240,9 +233,6 @@ export default function BilleteraAdmin() {
   const loadAllMovements = async () => {
     setIsLoadingAllMovements(true);
     try {
-      console.log("DEBUG: loadAllMovements - filters:", filters);
-      console.log("DEBUG: loadAllMovements - page:", movementsPage);
-      
       const response = await getAllWalletMovements({
         page: movementsPage,
         per_page: movementsPerPage,
@@ -251,9 +241,7 @@ export default function BilleteraAdmin() {
         start_date: filters.start_date || undefined,
         end_date: filters.end_date || undefined,
       });
-      
-      console.log("DEBUG: loadAllMovements - response:", response);
-      
+
       setAllMovements(response.movements);
       setMovementsTotal(response.pagination.total);
       setError("");
@@ -268,7 +256,6 @@ export default function BilleteraAdmin() {
 
   useEffect(() => {
     if (view === "control") {
-      console.log("DEBUG: useEffect - view changed to control, loading movements");
       loadAllMovements();
     }
   }, [view, movementsPage, filters]);
@@ -300,12 +287,10 @@ export default function BilleteraAdmin() {
   const loadAnomalies = async () => {
     setIsLoadingAnomalies(true);
     try {
-      console.log("DEBUG: loadAnomalies - starting");
       const data = await getWalletAnomalies({
         min_manual_adjustments: 5,
         min_amount: 10000,
       });
-      console.log("DEBUG: loadAnomalies - data:", data);
       setAnomalies(data);
       setError("");
     } catch (error: any) {
@@ -319,7 +304,6 @@ export default function BilleteraAdmin() {
 
   useEffect(() => {
     if (view === "anomalies") {
-      console.log("DEBUG: useEffect - view changed to anomalies, loading anomalies");
       loadAnomalies();
     }
   }, [view]);
