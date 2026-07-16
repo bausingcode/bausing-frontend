@@ -147,6 +147,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   const [viacargoAncho, setViacargoAncho] = useState("");
   const [viacargoProfundidad, setViacargoProfundidad] = useState("");
   const [viacargoPeso, setViacargoPeso] = useState("");
+  const [viacargoExtraPrice, setViacargoExtraPrice] = useState("");
 
   /** Electrodomésticos (modal: solo si "Mostrar campos específicos…") */
   const [smartScreenSize, setSmartScreenSize] = useState("");
@@ -422,6 +423,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setViacargoAncho("");
         setViacargoProfundidad("");
         setViacargoPeso("");
+        setViacargoExtraPrice("");
         setSmartScreenSize("");
         setSmartResolution("");
         setSmartTvTri("");
@@ -458,6 +460,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setViacargoAncho("");
         setViacargoProfundidad("");
         setViacargoPeso("");
+        setViacargoExtraPrice("");
         setSmartScreenSize("");
         setSmartResolution("");
         setSmartTvTri("");
@@ -579,6 +582,9 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         );
         setViacargoPeso(
           fullProduct.viacargo_weight_kg != null ? String(fullProduct.viacargo_weight_kg) : "",
+        );
+        setViacargoExtraPrice(
+          fullProduct.viacargo_extra_price != null ? String(fullProduct.viacargo_extra_price) : "",
         );
         setSmartScreenSize(fullProduct.smart_screen_size || "");
         setSmartResolution(fullProduct.smart_resolution || "");
@@ -1327,6 +1333,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 	          viacargo_width_cm: parseViacargoOptionalNumber(viacargoAncho),
 	          viacargo_depth_cm: parseViacargoOptionalNumber(viacargoProfundidad),
 	          viacargo_weight_kg: parseViacargoOptionalNumber(viacargoPeso),
+	          viacargo_extra_price: parseViacargoOptionalNumber(viacargoExtraPrice),
 	          ...(showApplianceFields
 	            ? {
 	                smart_screen_size: smartScreenSize.trim() || null,
@@ -1412,6 +1419,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 	          viacargo_width_cm: parseViacargoOptionalNumber(viacargoAncho),
 	          viacargo_depth_cm: parseViacargoOptionalNumber(viacargoProfundidad),
 	          viacargo_weight_kg: parseViacargoOptionalNumber(viacargoPeso),
+	          viacargo_extra_price: parseViacargoOptionalNumber(viacargoExtraPrice),
 	          ...applianceCreate,
 	        };
 
@@ -1471,6 +1479,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       setViacargoAncho("");
       setViacargoProfundidad("");
       setViacargoPeso("");
+      setViacargoExtraPrice("");
       setDisplayReferencePrice("");
       setImages([]);
       setImageFiles([]);
@@ -2012,6 +2021,20 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                               placeholder="Ej: 25,5"
                             />
                           </div>
+                        </div>
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Precio extra Viacargo ($)</label>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={viacargoExtraPrice}
+                            onChange={(e) => setViacargoExtraPrice(e.target.value)}
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                            placeholder="Ej: 500"
+                          />
+                          <p className="text-sm text-gray-500 mt-1">
+                            Se suma al costo de envío calculado por Viacargo en el checkout, por cada unidad comprada de este producto (opcional).
+                          </p>
                         </div>
                       </div>
 

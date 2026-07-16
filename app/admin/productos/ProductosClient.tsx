@@ -2189,7 +2189,9 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                             ((viewingProductData as any).viacargo_depth_cm != null &&
                               (viewingProductData as any).viacargo_depth_cm !== "") ||
                             ((viewingProductData as any).viacargo_weight_kg != null &&
-                              (viewingProductData as any).viacargo_weight_kg !== "")) && (
+                              (viewingProductData as any).viacargo_weight_kg !== "") ||
+                            ((viewingProductData as any).viacargo_extra_price != null &&
+                              (viewingProductData as any).viacargo_extra_price !== "")) && (
                             <div>
                               <span className="text-sm font-medium text-gray-600 block mb-2">Viacargo</span>
                               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
@@ -2219,6 +2221,13 @@ export default function ProductosClient({ initialCategories = [] }: ProductosCli
                                     <div className="flex justify-between">
                                       <span className="text-gray-600">Peso</span>
                                       <span className="text-sm text-gray-900">{(viewingProductData as any).viacargo_weight_kg} kg</span>
+                                    </div>
+                                  )}
+                                {(viewingProductData as any).viacargo_extra_price != null &&
+                                  (viewingProductData as any).viacargo_extra_price !== "" && (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">Precio extra</span>
+                                      <span className="text-gray-900">${(viewingProductData as any).viacargo_extra_price}</span>
                                     </div>
                                   )}
                               </div>

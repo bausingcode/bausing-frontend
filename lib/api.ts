@@ -475,6 +475,8 @@ export interface Product {
   viacargo_width_cm?: number | null;
   viacargo_depth_cm?: number | null;
   viacargo_weight_kg?: number | null;
+  /** Viacargo (admin): precio extra que se suma (por unidad) al costo de envío cotizado */
+  viacargo_extra_price?: number | null;
   /** Características electrodomésticos (admin) */
   smart_screen_size?: string | null;
   smart_resolution?: string | null;
@@ -1030,6 +1032,7 @@ export async function completeCrmProduct(
     viacargo_width_cm?: number | null;
     viacargo_depth_cm?: number | null;
     viacargo_weight_kg?: number | null;
+    viacargo_extra_price?: number | null;
     smart_screen_size?: string | null;
     smart_resolution?: string | null;
     smart_tv?: boolean | null;
@@ -1295,6 +1298,7 @@ export async function createCompleteProduct(productData: {
   viacargo_width_cm?: number | null;
   viacargo_depth_cm?: number | null;
   viacargo_weight_kg?: number | null;
+  viacargo_extra_price?: number | null;
   smart_screen_size?: string;
   smart_resolution?: string;
   smart_tv?: boolean;
