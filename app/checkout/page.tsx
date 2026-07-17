@@ -19,6 +19,7 @@ import {
   previewCouponCheckout,
   fetchCardTypes,
   fetchCardBankData,
+  formatEstimatedDelivery,
   type Address,
   type Product,
   type DocType,
@@ -160,6 +161,8 @@ export default function CheckoutPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isPaisCatalog, setIsPaisCatalog] = useState<boolean>(false);
   const PAIS_CATALOG_ID = "8335e521-f25a-4f92-8f59-c4439671ef26";
+  const [estimatedDeliveryDaysMin, setEstimatedDeliveryDaysMin] = useState<number | null>(null);
+  const [estimatedDeliveryDaysMax, setEstimatedDeliveryDaysMax] = useState<number | null>(null);
   const [referralCode, setReferralCode] = useState<string>("");
   const [referralCodeValidating, setReferralCodeValidating] = useState<boolean>(false);
   const [couponInput, setCouponInput] = useState("");
@@ -377,6 +380,8 @@ export default function CheckoutPage() {
       setConfiguredShippingPrice(null);
       setViacargoQuoteTotal(null);
       setViacargoQuoteError(null);
+      setEstimatedDeliveryDaysMin(null);
+      setEstimatedDeliveryDaysMax(null);
 
       try {
         const savedLocality = localStorage.getItem("bausing_locality");
@@ -452,6 +457,12 @@ export default function CheckoutPage() {
                 if (catalogData.success && catalogData.data?.catalog_id) {
                   setIsPaisCatalog(
                     catalogData.data.catalog_id === PAIS_CATALOG_ID,
+                  );
+                  setEstimatedDeliveryDaysMin(
+                    catalogData.data.estimated_delivery_days_min ?? null,
+                  );
+                  setEstimatedDeliveryDaysMax(
+                    catalogData.data.estimated_delivery_days_max ?? null,
                   );
                 }
               }
@@ -3618,6 +3629,18 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                       * Precio estimado. Modalidad de entrega: retiro en sucursal Viacargo.
                     </p>
                   )}
+                  {!shippingQuoteLoading && (() => {
+                    const estimatedDeliveryText = formatEstimatedDelivery({
+                      estimated_delivery_days_min: estimatedDeliveryDaysMin,
+                      estimated_delivery_days_max: estimatedDeliveryDaysMax,
+                    });
+                    if (!estimatedDeliveryText) return null;
+                    return (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Entrega estimada: {estimatedDeliveryText}
+                      </p>
+                    );
+                  })()}
 
                   {/* Total */}
                   <div className="border-t border-gray-200 pt-4 mt-4">
