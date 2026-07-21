@@ -191,6 +191,7 @@ export interface Catalog {
   description?: string;
   estimated_delivery_days_min?: number | null;
   estimated_delivery_days_max?: number | null;
+  accessories_shipping_price?: number | null;
   created_at?: string;
   updated_at?: string;
   localities?: Locality[];
@@ -301,7 +302,7 @@ export async function createCatalog(catalog: { name: string; description?: strin
 /**
  * Update a catalog
  */
-export async function updateCatalog(catalogId: string, catalog: { name?: string; description?: string; estimated_delivery_days_min?: number | null; estimated_delivery_days_max?: number | null }, cookieHeader?: string | null): Promise<Catalog | null> {
+export async function updateCatalog(catalogId: string, catalog: { name?: string; description?: string; estimated_delivery_days_min?: number | null; estimated_delivery_days_max?: number | null; accessories_shipping_price?: number | null }, cookieHeader?: string | null): Promise<Catalog | null> {
   const url = typeof window === "undefined"
     ? `${BACKEND_URL}/catalogs/${catalogId}`
     : `/api/catalogs/${catalogId}`;
@@ -6858,6 +6859,33 @@ export async function updateZoneLocality(
   const data = await response.json();
   if (!data.success) {
     throw new Error(data.error || "Failed to update zone locality");
+  }
+  return data.data;
+}
+
+export async function fetchAccessoriesShippingQuote(
+  productIds: string[],
+  catalogId: string | null,
+  signal?: AbortSignal,
+): Promise<{ applies: boolean; price: number | null }> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/settings/public/accessories-shipping-quote`
+    : `/api/settings/public/accessories-shipping-quote`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ product_ids: productIds, catalog_id: catalogId }),
+    signal,
+  });
+
+  if (!response.ok) {
+    return { applies: false, price: null };
+  }
+
+  const data = await response.json();
+  if (!data.success) {
+    return { applies: false, price: null };
   }
   return data.data;
 }

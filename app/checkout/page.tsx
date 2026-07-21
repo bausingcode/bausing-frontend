@@ -20,6 +20,7 @@ import {
   fetchCardTypes,
   fetchCardBankData,
   formatEstimatedDelivery,
+  fetchAccessoriesShippingQuote,
   type Address,
   type Product,
   type DocType,
@@ -110,6 +111,10 @@ export default function CheckoutPage() {
   const [viacargoQuoteTotal, setViacargoQuoteTotal] = useState<number | null>(null);
   const [viacargoQuoteError, setViacargoQuoteError] = useState<string | null>(null);
   const [viacargoCotizarLoading, setViacargoCotizarLoading] = useState(false);
+  /** Envío acordado para carritos 100% "Almohadas y accesorios" en zona local (no tercerizada, no Catálogo País) */
+  const [accessoriesShippingPrice, setAccessoriesShippingPrice] = useState<number | null>(null);
+  const [accessoriesShippingLoading, setAccessoriesShippingLoading] = useState(false);
+  const [currentCatalogId, setCurrentCatalogId] = useState<string | null>(null);
 
 
   // Form data
@@ -376,6 +381,7 @@ export default function CheckoutPage() {
       setShippingLocalityError(false);
       setShippingQuoteLoading(true);
       setIsPaisCatalog(false);
+      setCurrentCatalogId(null);
       setIsThirdPartyTransport(false);
       setConfiguredShippingPrice(null);
       setViacargoQuoteTotal(null);
@@ -458,6 +464,7 @@ export default function CheckoutPage() {
                   setIsPaisCatalog(
                     catalogData.data.catalog_id === PAIS_CATALOG_ID,
                   );
+                  setCurrentCatalogId(catalogData.data.catalog_id);
                   setEstimatedDeliveryDaysMin(
                     catalogData.data.estimated_delivery_days_min ?? null,
                   );
@@ -1942,6 +1949,36 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
     addressForm.postal_code,
   ]);
 
+  // Envío acordado para accesorios: solo zona local (no tercerizada, no Catálogo País), por catálogo
+  useEffect(() => {
+    if (isThirdPartyTransport || isPaisCatalog || !currentCatalogId || cart.length === 0) {
+      setAccessoriesShippingPrice(null);
+      setAccessoriesShippingLoading(false);
+      return;
+    }
+
+    const ac = new AbortController();
+    setAccessoriesShippingLoading(true);
+    (async () => {
+      try {
+        const result = await fetchAccessoriesShippingQuote(
+          cart.map((item) => item.id),
+          currentCatalogId,
+          ac.signal,
+        );
+        if (ac.signal.aborted) return;
+        setAccessoriesShippingPrice(result.applies ? result.price : null);
+      } catch (e) {
+        if (ac.signal.aborted) return;
+        setAccessoriesShippingPrice(null);
+      } finally {
+        if (!ac.signal.aborted) setAccessoriesShippingLoading(false);
+      }
+    })();
+
+    return () => ac.abort();
+  }, [isThirdPartyTransport, isPaisCatalog, currentCatalogId, cart]);
+
   // Calcular costo de envío: tercerizado fijo, catálogo País = cotización Vía Cargo
   const selectedAddressForShipping = addresses.find((addr) => addr.id === selectedAddressId);
   const paisPostalOk = normalizeArPostalCode(
@@ -1963,6 +2000,8 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
     shippingCost = configuredShippingPrice;
   } else if (isPaisCatalog && !isThirdPartyTransport && viacargoQuoteTotal !== null) {
     shippingCost = viacargoQuoteTotal;
+  } else if (!isThirdPartyTransport && !isPaisCatalog && accessoriesShippingPrice !== null) {
+    shippingCost = accessoriesShippingPrice;
   }
 
   /** Vía Cargo obligatorio: sin cotización OK (error, carga, o sin monto) no se puede finalizar. */
@@ -3613,12 +3652,14 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                         ) : (
                           <span className="text-gray-400 text-xs">Calculando...</span>
                         )
-                      ) : shippingQuoteLoading ? (
+                      ) : shippingQuoteLoading || accessoriesShippingLoading ? (
                         <span
                           className="inline-block align-middle h-5 min-w-[5rem] rounded-md bg-gray-200 animate-pulse ml-auto"
                           aria-busy="true"
                           aria-label="Calculando costo de envío"
                         />
+                      ) : accessoriesShippingPrice !== null ? (
+                        formatPrice(accessoriesShippingPrice)
                       ) : (
                         <span className="text-green-600 text-xs">Envío gratis</span>
                       )}
