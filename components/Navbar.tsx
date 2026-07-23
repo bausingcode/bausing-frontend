@@ -41,7 +41,8 @@ import {
   Menu,
   X,
   Users,
-  ChevronDown
+  ChevronDown,
+  Armchair
 } from "lucide-react";
 import Cart from "./Cart";
 import TopbarUpper from "./TopbarUpper";
@@ -50,7 +51,7 @@ import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchCategories, Category, type Event } from "@/lib/api";
 import { buildNavbarCategoryDataFromApi } from "@/lib/buildNavbarCategoryDataFromApi";
-import { BaulIcon, PillowIcon, RespaldoIcon, SheetsIcon } from "@/lib/navbarCustomIcons";
+import { BaulIcon, PillowIcon, RespaldoIcon, SheetsIcon, PlacardIcon, MesaDeLuzIcon, ComodaIcon } from "@/lib/navbarCustomIcons";
 
 // Icono de bajo mesada
 const BajoMesadaIcon = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
@@ -539,6 +540,42 @@ const categoriesData: Record<string, CategoryData> = {
     },
     imageUrl: "/images/home/4.png",
     imageAlt: "Electrodomésticos"
+  },
+
+  "Muebles": {
+    name: "Muebles",
+    columns: {
+      left: [
+        {
+          name: "Mesas de luz",
+          icon: MesaDeLuzIcon as LucideIcon,
+          iconSize: { width: '40px', height: '40px' },
+          href: "/catalogo/muebles/mesas-de-luz"
+        },
+        {
+          name: "Cómoda",
+          icon: ComodaIcon as LucideIcon,
+          iconSize: { width: '40px', height: '40px' },
+          href: "/catalogo/muebles/comodas"
+        }
+      ],
+      middle: [
+        {
+          name: "Sillón",
+          icon: Armchair,
+          iconSize: { width: '40px', height: '40px' },
+          href: "/catalogo/muebles/sillones"
+        },
+        {
+          name: "Placard",
+          icon: PlacardIcon as LucideIcon,
+          iconSize: { width: '40px', height: '40px' },
+          href: "/catalogo/muebles/placares"
+        }
+      ]
+    },
+    imageUrl: "/images/home/4.png",
+    imageAlt: "Muebles"
   }
 };
 

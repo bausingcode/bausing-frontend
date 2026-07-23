@@ -240,3 +240,71 @@ export function RespaldoIcon({ className, style }: NavbarSvgIconProps) {
     </svg>
   );
 }
+
+/** Placard — dos puertas con manijas, mismo estilo lineal que BaulIcon. */
+export function PlacardIcon({ className, style }: NavbarSvgIconProps) {
+  return (
+    <svg
+      className={className}
+      style={style}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="1.5" width="18" height="21" rx="1" />
+      <line x1="12" y1="1.5" x2="12" y2="22.5" />
+      <line x1="10" y1="11.5" x2="10" y2="13.5" strokeWidth={1.85} />
+      <line x1="14" y1="11.5" x2="14" y2="13.5" strokeWidth={1.85} />
+    </svg>
+  );
+}
+
+/** Mesa de luz — mueble bajo con cajón y patas cortas. */
+export function MesaDeLuzIcon({ className, style }: NavbarSvgIconProps) {
+  return (
+    <svg
+      className={className}
+      style={style}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="5" y="3.5" width="14" height="13" rx="1" />
+      <line x1="5" y1="10" x2="19" y2="10" />
+      <line x1="10.5" y1="6.75" x2="13.5" y2="6.75" strokeWidth={1.85} />
+      <line x1="7" y1="16.5" x2="7" y2="20.5" />
+      <line x1="17" y1="16.5" x2="17" y2="20.5" />
+    </svg>
+  );
+}
+
+/** Cómoda — mueble ancho de tres cajones y patas cortas. */
+export function ComodaIcon({ className, style }: NavbarSvgIconProps) {
+  return (
+    <svg
+      className={className}
+      style={style}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="2" y="3" width="20" height="15" rx="1" />
+      <line x1="2" y1="8" x2="22" y2="8" />
+      <line x1="2" y1="13" x2="22" y2="13" />
+      <line x1="10.5" y1="5.5" x2="13.5" y2="5.5" strokeWidth={1.85} />
+      <line x1="10.5" y1="10.5" x2="13.5" y2="10.5" strokeWidth={1.85} />
+      <line x1="10.5" y1="15.5" x2="13.5" y2="15.5" strokeWidth={1.85} />
+      <line x1="4" y1="18" x2="4" y2="21" />
+      <line x1="20" y1="18" x2="20" y2="21" />
+    </svg>
+  );
+}

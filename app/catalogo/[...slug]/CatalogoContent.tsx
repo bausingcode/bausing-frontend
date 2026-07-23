@@ -1202,7 +1202,7 @@ export default function CatalogoContent({
     if (!searchQuery && catalogBasicColorOptions.length > 0) {
       filters.push({
         id: CATALOGO_BASIC_COLOR_FILTER_ID,
-        title: "Color base",
+        title: "Color",
         defaultOpen: false,
         type: "checkbox" as const,
         options: catalogBasicColorOptions,

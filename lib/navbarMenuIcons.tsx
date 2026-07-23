@@ -1,8 +1,17 @@
 import { createElement } from "react";
 import type { LucideIcon } from "lucide-react";
-import { BaulIcon, PillowIcon, RespaldoIcon, SheetsIcon } from "@/lib/navbarCustomIcons";
+import {
+  BaulIcon,
+  PillowIcon,
+  RespaldoIcon,
+  SheetsIcon,
+  PlacardIcon,
+  MesaDeLuzIcon,
+  ComodaIcon,
+} from "@/lib/navbarCustomIcons";
 import {
   AirVent,
+  Armchair,
   Bed,
   BedDouble,
   Box,
@@ -33,6 +42,9 @@ const SheetsIconMenu = SheetsIcon as unknown as LucideIcon;
 const PillowIconMenu = PillowIcon as unknown as LucideIcon;
 const BaulIconMenu = BaulIcon as unknown as LucideIcon;
 const RespaldoIconMenu = RespaldoIcon as unknown as LucideIcon;
+const PlacardIconMenu = PlacardIcon as unknown as LucideIcon;
+const MesaDeLuzIconMenu = MesaDeLuzIcon as unknown as LucideIcon;
+const ComodaIconMenu = ComodaIcon as unknown as LucideIcon;
 
 const NAVBAR_ICON_MAP: Record<string, LucideIcon> = {
   Package,
@@ -64,6 +76,10 @@ const NAVBAR_ICON_MAP: Record<string, LucideIcon> = {
   PillowIcon: PillowIconMenu,
   BaulIcon: BaulIconMenu,
   RespaldoIcon: RespaldoIconMenu,
+  Armchair,
+  PlacardIcon: PlacardIconMenu,
+  MesaDeLuzIcon: MesaDeLuzIconMenu,
+  ComodaIcon: ComodaIconMenu,
 };
 
 export type NavbarMenuIconKey = keyof typeof NAVBAR_ICON_MAP;
@@ -99,6 +115,10 @@ const NAVBAR_ICON_LABELS_ES: Record<NavbarMenuIconKey, string> = {
   PillowIcon: "Almohadas",
   BaulIcon: "Baúl",
   RespaldoIcon: "Respaldo",
+  Armchair: "Sillón",
+  PlacardIcon: "Placard",
+  MesaDeLuzIcon: "Mesa de luz",
+  ComodaIcon: "Cómoda",
 };
 
 const COLCHONES_MENU_ICON_KEYS: NavbarMenuIconKey[] = ["CreditCard"];
@@ -109,10 +129,18 @@ const ACCESORIOS_MENU_ICON_KEYS: NavbarMenuIconKey[] = [
   "BaulIcon",
   "RespaldoIcon",
 ];
+/** Muebles — mismos íconos que el mega menú de "Muebles". */
+const MUEBLES_MENU_ICON_KEYS: NavbarMenuIconKey[] = [
+  "MesaDeLuzIcon",
+  "ComodaIcon",
+  "Armchair",
+  "PlacardIcon",
+];
 
 const MENU_ICON_PRIORITY: NavbarMenuIconKey[] = [
   ...COLCHONES_MENU_ICON_KEYS,
   ...ACCESORIOS_MENU_ICON_KEYS,
+  ...MUEBLES_MENU_ICON_KEYS,
 ];
 
 export const NAVBAR_MENU_ICON_OPTIONS: { value: NavbarMenuIconKey; label: string }[] = (() => {
