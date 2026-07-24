@@ -744,6 +744,9 @@ export default function CatalogoContent({
   const skipFirstProductFetch = useRef(initialProducts.length > 0);
   /** Catálogo sin filtrar (misma categoría/búsqueda/orden/localidad) para filtrar en cliente sin perder ítems por página */
   const catalogProductPoolRef = useRef<{ key: string; products: Product[] } | null>(null);
+  /** Descarta respuestas fuera de orden: al navegar entre categorías el efecto puede reactivarse
+   * antes de que la corrida anterior (aún sin filtro) resuelva, y esa respuesta stale pisaría el resultado filtrado. */
+  const productsLoadGenRef = useRef(0);
 
   // Resetear estado cuando cambia el slug (navegación del lado del cliente)
   useEffect(() => {
@@ -1435,6 +1438,7 @@ export default function CatalogoContent({
     }
 
     const loadProducts = async () => {
+      const gen = ++productsLoadGenRef.current;
       setLoading(true);
       try {
         const baseParams: Parameters<typeof fetchProducts>[0] = {
@@ -1490,11 +1494,13 @@ export default function CatalogoContent({
           const safePage = Math.min(page, filteredTotalPages);
           const paged = filtered.slice((safePage - 1) * perPage, safePage * perPage);
 
+          // Una corrida más nueva del efecto ya pudo resolver primero (p. ej. al navegar de
+          // categoría vía navbar); descartar esta respuesta stale evita que pise el resultado filtrado.
+          if (gen !== productsLoadGenRef.current) return;
           setProducts(paged);
           setTotalPages(filteredTotalPages);
           setProductsTotalCount(filteredTotal);
         } else {
-          catalogProductPoolRef.current = null;
           const result = await fetchProducts({
             ...baseParams,
             page,
@@ -1511,20 +1517,25 @@ export default function CatalogoContent({
                 }
               : {}),
           });
+          if (gen !== productsLoadGenRef.current) return;
+          catalogProductPoolRef.current = null;
           setProducts(result.products);
           setTotalPages(result.total_pages);
           setProductsTotalCount(result.total);
         }
       } catch (error) {
         console.error("Error loading products:", error);
+        if (gen !== productsLoadGenRef.current) return;
         catalogProductPoolRef.current = null;
         setProducts([]);
         setTotalPages(1);
         setProductsTotalCount(0);
       } finally {
-        setLoading(false);
-        // Tras cualquier carga real, no volver a "saltar" y dejar la grilla colgada de page=1.
-        skipFirstProductFetch.current = false;
+        if (gen === productsLoadGenRef.current) {
+          setLoading(false);
+          // Tras cualquier carga real, no volver a "saltar" y dejar la grilla colgada de page=1.
+          skipFirstProductFetch.current = false;
+        }
       }
     };
     

@@ -1,7 +1,22 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, Plus, ChevronRight, ChevronLeft, Trash2, ChevronDown, ChevronUp, ImagePlus } from "lucide-react";
+import { X, Plus, ChevronRight, ChevronLeft, Trash2, ChevronDown, ChevronUp, ImagePlus, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import AutoResizeTextarea from "@/components/AutoResizeTextarea";
 import { CrmProduct, CrmCombo, completeCrmProduct, uploadProductImageFile, fetchCatalogs, Catalog, createCompleteProduct, fetchProductById } from "@/lib/api";
 import {
@@ -111,6 +126,56 @@ interface CreateProductModalProps {
   crmProduct?: CrmProduct | CrmCombo | null;
 }
 
+function SortableImageThumb({
+  id,
+  imageUrl,
+  altText,
+  onRemove,
+}: {
+  id: string;
+  imageUrl: string;
+  altText?: string;
+  onRemove: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`relative group ${isDragging ? "opacity-60" : ""}`}
+    >
+      <img
+        src={imageUrl}
+        alt={altText || "Imagen del producto"}
+        className="w-full h-28 object-cover rounded-lg border border-gray-200 shadow-sm"
+      />
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className="absolute top-1.5 left-1.5 p-1.5 bg-white/90 text-gray-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white shadow-sm cursor-grab active:cursor-grabbing touch-none"
+        aria-label="Reordenar imagen"
+      >
+        <GripVertical className="w-3.5 h-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="absolute top-1.5 right-1.5 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-sm"
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
 export default function CreateProductModal({ isOpen, onClose, onSuccess, categories: propCategories = [], crmProduct }: CreateProductModalProps) {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   
@@ -167,6 +232,21 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   const fileInputRef = useRef<HTMLInputElement>(null);
   /** Evita doble envío (clics rápidos) que duplicaba filas en /products/complete. */
   const submitInProgressRef = useRef(false);
+
+  const imageSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  function handleImageDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setImages((prevImages) => {
+      const oldIndex = prevImages.findIndex((img) => img.image_url === active.id);
+      const newIndex = prevImages.findIndex((img) => img.image_url === over.id);
+      if (oldIndex === -1 || newIndex === -1) return prevImages;
+      return arrayMove(prevImages, oldIndex, newIndex).map((img, idx) => ({ ...img, position: idx }));
+    });
+  }
 
   // Step 2: Atributos (generados automáticamente según categoría, pero editables)
   const [attributes, setAttributes] = useState<Attribute[]>([]);
@@ -1623,26 +1703,30 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                 
                 {/* Imágenes existentes */}
                 {images.length > 0 && (
-                  <div className="grid grid-cols-4 gap-3 mb-4">
-                    {images.map((img, idx) => (
-                      <div key={idx} className="relative group">
-                        <img
-                          src={img.image_url}
-                          alt={img.alt_text || `Imagen ${idx + 1}`}
-                          className="w-full h-28 object-cover rounded-lg border border-gray-200 shadow-sm"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setImages((prevImages) => prevImages.filter((_, i) => i !== idx));
-                          }}
-                          className="absolute top-1.5 right-1.5 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-sm"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                  <>
+                    <p className="text-xs text-gray-400 mb-2">Arrastrá las imágenes para cambiar su orden.</p>
+                    <DndContext
+                      sensors={imageSensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleImageDragEnd}
+                    >
+                      <SortableContext items={images.map((img) => img.image_url)} strategy={rectSortingStrategy}>
+                        <div className="grid grid-cols-4 gap-3 mb-4">
+                          {images.map((img, idx) => (
+                            <SortableImageThumb
+                              key={img.image_url}
+                              id={img.image_url}
+                              imageUrl={img.image_url}
+                              altText={img.alt_text || `Imagen ${idx + 1}`}
+                              onRemove={() => {
+                                setImages((prevImages) => prevImages.filter((_, i) => i !== idx));
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </SortableContext>
+                    </DndContext>
+                  </>
                 )}
 
                 {/* Zona para agregar imágenes */}

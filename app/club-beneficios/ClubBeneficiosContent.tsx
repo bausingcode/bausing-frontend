@@ -35,6 +35,7 @@ const CLUB_CATEGORIES = [
   { key: "Colchones", label: "Colchones" },
   { key: "Sommiers", label: "Sommier" },
   { key: "Electrodomésticos", label: "Electro" },
+  { key: "Muebles", label: "Muebles" },
 ];
 
 /**
@@ -45,6 +46,25 @@ const CLUB_CATEGORY_BACKEND_NAMES: Record<string, string[]> = {
   Colchones: ["Colchones"],
   Sommiers: ["Sommier y colchón", "Sommiers"],
   Electrodomésticos: ["Electrodomésticos"],
+  Muebles: ["Muebles"],
+};
+
+const MUEBLES_TIPO_LABEL_BY_SLUG: Record<string, string> = {
+  "mesas-de-luz": "Mesas de Luz",
+  sillon: "Sillón",
+  comoda: "Cómoda",
+  placard: "Placard",
+};
+
+const MUEBLES_TIPO_OPTIONS: FilterGroup = {
+  title: "Tipo de mueble",
+  type: "checkbox",
+  options: [
+    { value: "mesas-de-luz", label: "Mesas de Luz" },
+    { value: "sillon", label: "Sillón" },
+    { value: "comoda", label: "Cómoda" },
+    { value: "placard", label: "Placard" },
+  ],
 };
 
 const COLCHON_TECNOLOGIA_OPTIONS: FilterGroup = {
@@ -194,6 +214,7 @@ const categoryFilters: Record<string, FilterGroup[]> = {
       ],
     },
   ],
+  Muebles: [MUEBLES_TIPO_OPTIONS],
 };
 
 function normalizeClubText(s: string): string {
@@ -358,6 +379,11 @@ function matchesElectroTipoClub(p: Product, slug: string): boolean {
   return false;
 }
 
+function matchesMuebleTipoClub(p: Product, slug: string): boolean {
+  const target = normalizeClubText(MUEBLES_TIPO_LABEL_BY_SLUG[slug] ?? slug);
+  return p.subcategories?.some((s) => normalizeClubText(s.subcategory_name ?? "") === target) ?? false;
+}
+
 function productMatchesClubFilterGroup(p: Product, groupTitle: string, value: string): boolean {
   switch (groupTitle) {
     case "Plazas":
@@ -374,6 +400,8 @@ function productMatchesClubFilterGroup(p: Product, groupTitle: string, value: st
       return matchesPesoPlazaClub(p, value);
     case "Tipo":
       return matchesElectroTipoClub(p, value);
+    case "Tipo de mueble":
+      return matchesMuebleTipoClub(p, value);
     default:
       return normalizeClubText(p.name).includes(normalizeClubText(value));
   }
