@@ -1605,6 +1605,11 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
         ...(appliedCoupon && {
           coupon_code: appliedCoupon.code,
         }),
+        // Costo de envío tercerizado: no está incluido en payment_methods[].amount,
+        // se manda aparte para que el backend lo agregue como renglón propio en el CRM.
+        ...(isThirdPartyTransport && shippingCost > 0 && {
+          shipping_cost: shippingCost,
+        }),
       };
 
 

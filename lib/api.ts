@@ -4033,6 +4033,8 @@ export async function createOrder(orderData: {
   };
   /** Cupón validado en checkout (el backend recalcula el descuento; no confiar solo en el cliente) */
   coupon_code?: string;
+  /** Costo de envío tercerizado, no incluido en payment_methods[].amount ni en items */
+  shipping_cost?: number;
 }): Promise<any> {
   // Para orders, necesitamos usar la URL completa porque el rewrite elimina /api
   // El backend tiene la ruta en /api/orders (blueprint con url_prefix='/api' + ruta '/orders')
