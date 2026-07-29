@@ -64,6 +64,11 @@ import {
   crmMediosPagoIdForCheckoutMethod,
 } from "@/lib/crmPaymentMethods";
 import { postalCodeDigitsOnly } from "@/utils/postalCodeInput";
+import {
+  trackContact,
+  trackInitiateCheckout,
+} from "@/lib/meta/track";
+import { META_CURRENCY, parseArsPrice } from "@/lib/meta/parsePrice";
 
 type PaymentMethodType = "card" | "cash" | "transfer" | "wallet";
 
@@ -115,6 +120,7 @@ export default function CheckoutPage() {
   const [accessoriesShippingPrice, setAccessoriesShippingPrice] = useState<number | null>(null);
   const [accessoriesShippingLoading, setAccessoriesShippingLoading] = useState(false);
   const [currentCatalogId, setCurrentCatalogId] = useState<string | null>(null);
+  const initiateCheckoutTrackedRef = useRef(false);
 
 
   // Form data
@@ -202,6 +208,33 @@ export default function CheckoutPage() {
   useEffect(() => {
     setAppliedCoupon(null);
     setCouponError("");
+  }, [cart]);
+
+  // Meta InitiateCheckout: al comenzar el proceso de compra
+  useEffect(() => {
+    if (initiateCheckoutTrackedRef.current) return;
+    if (cart.length === 0) return;
+
+    initiateCheckoutTrackedRef.current = true;
+    const content_ids = cart.map((item) => item.id);
+    const contents = cart.map((item) => ({
+      id: item.id,
+      quantity: item.quantity,
+      item_price: parseArsPrice(item.price),
+    }));
+    const value = contents.reduce(
+      (sum, item) => sum + (item.item_price || 0) * item.quantity,
+      0,
+    );
+    const num_items = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+    trackInitiateCheckout({
+      content_ids,
+      contents,
+      value,
+      currency: META_CURRENCY,
+      num_items,
+    });
   }, [cart]);
 
   // Resetear selecciones de tarjeta cuando se deselecciona
@@ -1289,6 +1322,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
               const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
               
               // Redirigir a WhatsApp - NO crear orden en CRM
+              trackContact();
               window.location.href = whatsappUrl;
               setSubmitting(false);
               return; // Este return evita que se ejecute el código de creación de orden
@@ -1396,6 +1430,7 @@ ${addressData.phone}
 ${addressText}${provinceName ? `, ${provinceName}` : ""}`;
 
               const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+              trackContact();
               window.location.href = whatsappUrl;
               setSubmitting(false);
               return;
@@ -1511,6 +1546,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
               const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
               
               // Redirigir a WhatsApp - NO crear orden en CRM
+              trackContact();
               window.location.href = whatsappUrl;
               setSubmitting(false);
               return; // Este return evita que se ejecute el código de creación de orden

@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { CheckCircle2, Package, Home, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { getUserOrder, formatEstimatedDelivery } from "@/lib/api";
+import { trackPurchase } from "@/lib/meta/track";
+import { META_CURRENCY } from "@/lib/meta/parsePrice";
 
 function CheckoutSuccessContent() {
   const router = useRouter();
@@ -15,6 +17,7 @@ function CheckoutSuccessContent() {
   const [receiptNumber, setReceiptNumber] = useState<string | null>(null);
   const [estimatedDelivery, setEstimatedDelivery] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const purchaseTrackedRef = useRef(false);
 
   useEffect(() => {
     const fetchOrderDetails = async () => {
@@ -30,6 +33,28 @@ function CheckoutSuccessContent() {
         }
         if (order) {
           setEstimatedDelivery(formatEstimatedDelivery(order));
+
+          if (!purchaseTrackedRef.current && order.items?.length) {
+            purchaseTrackedRef.current = true;
+            const content_ids = order.items.map((item) => item.product_id);
+            const contents = order.items.map((item) => ({
+              id: item.product_id,
+              quantity: item.quantity,
+              item_price: item.unit_price,
+            }));
+            const num_items = order.items.reduce(
+              (sum, item) => sum + item.quantity,
+              0,
+            );
+            trackPurchase({
+              order_id: order.id || orderId,
+              content_ids,
+              contents,
+              value: order.total_amount,
+              currency: META_CURRENCY,
+              num_items,
+            });
+          }
         }
       } catch (error) {
         console.error("Error al obtener detalles de la orden:", error);

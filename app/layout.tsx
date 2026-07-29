@@ -13,6 +13,12 @@ import {
   defaultOgImageEntry,
 } from "@/lib/seo/openGraph";
 import { rootMetadata } from "@/lib/seo/site";
+import {
+  GoogleTagManagerBody,
+  GoogleTagManagerHead,
+} from "@/components/analytics/GoogleTagManager";
+import MetaPixel from "@/components/analytics/MetaPixel";
+import AnalyticsClient from "@/components/analytics/AnalyticsClient";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -32,8 +38,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es-AR" className={`${dmSans.variable} bg-white`}>
+      <head>
+        <GoogleTagManagerHead />
+        <MetaPixel />
+      </head>
       <body className={`${dmSans.className} bg-white [overflow-x:clip]`}>
+        <GoogleTagManagerBody />
         <SeoJsonLd />
+        <AnalyticsClient />
         <AuthProvider>
           <LocalityProvider>
             <HomepageDistributionProvider>

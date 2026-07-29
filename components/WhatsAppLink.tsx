@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, ReactNode } from "react";
+import { trackContact } from "@/lib/meta/track";
 
 interface WhatsAppLinkProps {
   message: string;
@@ -39,6 +40,7 @@ export default function WhatsAppLink({ message, className, children }: WhatsAppL
       href={whatsappUrl}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={() => trackContact()}
       className={className}
     >
       {children}

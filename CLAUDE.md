@@ -20,9 +20,20 @@ NEXT_PUBLIC_BACKEND_URL   # Backend URL used client-side (rewrite target) and se
 BACKEND_URL               # Server-only override (preferred over NEXT_PUBLIC_BACKEND_URL server-side)
 CONSTRUCTION_MODE         # "true"/"1"/"yes" to enable under-construction mode
 CONSTRUCTION_PASSKEY      # Passkey to unlock construction mode via cookie
+NEXT_PUBLIC_META_PIXEL_ID # Meta Pixel ID (default: 4521599908061992)
+NEXT_PUBLIC_GTM_ID        # Google Tag Manager container (default: GTM-55S5J6RG)
+META_CAPI_ACCESS_TOKEN    # Server-only Meta Conversions API access token (required for CAPI)
+META_CAPI_TEST_EVENT_CODE # Optional Meta test_event_code for Events Manager testing
 ```
 
 `localhost` is automatically normalized to `127.0.0.1` in `lib/backendOrigin.ts` to avoid IPv6 resolution issues with Flask on `0.0.0.0:5050`.
+
+### Analytics (Meta Pixel + CAPI + GTM)
+
+- GTM + Meta Pixel base scripts live in `app/layout.tsx` (`components/analytics/`).
+- Client events + shared `event_id` for Pixel/CAPI dedupe: `lib/meta/track.ts`.
+- CAPI proxy (hashes PII, keeps access token server-side): `POST /api/meta/capi`.
+- Events: PageView (all pages), ViewContent (PDP), Search (navbar), Contact (WhatsApp clicks), AddToCart, InitiateCheckout, Purchase (confirmed order on `/checkout/success`).
 
 ## Architecture
 

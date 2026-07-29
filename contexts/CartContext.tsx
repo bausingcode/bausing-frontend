@@ -4,6 +4,8 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { useRouter } from "next/navigation";
 import { useAuth } from "./AuthContext";
 import { createCart, deleteCart } from "@/lib/api";
+import { trackAddToCart } from "@/lib/meta/track";
+import { META_CURRENCY, parseArsPrice } from "@/lib/meta/parsePrice";
 
 interface CartItem {
   id: string;
@@ -94,6 +96,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
         );
       }
       return [...prev, { ...item, quantity: 1 }];
+    });
+
+    trackAddToCart({
+      content_id: item.id,
+      content_name: item.name,
+      value: parseArsPrice(item.price),
+      currency: META_CURRENCY,
+      quantity: 1,
     });
     
     // Si es el primer artículo y el usuario está autenticado, crear el carrito en la DB

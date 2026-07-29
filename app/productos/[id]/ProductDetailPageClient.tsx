@@ -32,6 +32,9 @@ import {
   mapApiProductToPdp,
   type PdpProduct,
 } from "./pdpViewModel";
+import { trackViewContent } from "@/lib/meta/track";
+import { setMetaProductContext } from "@/lib/meta/productContext";
+import { META_CURRENCY, parseArsPrice } from "@/lib/meta/parsePrice";
 
 type Product = PdpProduct;
 
@@ -307,6 +310,7 @@ export default function ProductDetailPageClient({
 
   const productHydratedRef = useRef<Product | null>(product);
   productHydratedRef.current = product;
+  const viewContentTrackedForIdRef = useRef<string | null>(null);
 
   // Sincronizar estado de favorito cuando cambia en el contexto (solo cuando cambia favorites)
   useEffect(() => {
@@ -344,6 +348,38 @@ export default function ProductDetailPageClient({
       initializeCatalogCache(locality.id).catch(() => {});
     }
   }, [locality?.id]);
+
+  // Meta ViewContent: una vez por ficha de producto cargada
+  useEffect(() => {
+    if (!product?.id || loading) return;
+    if (viewContentTrackedForIdRef.current === product.id) return;
+
+    const price =
+      typeof product.min_transfer_price === "number" && product.min_transfer_price > 0
+        ? product.min_transfer_price
+        : typeof product.min_card_price === "number" && product.min_card_price > 0
+          ? product.min_card_price
+          : parseArsPrice(product.currentPrice);
+
+    viewContentTrackedForIdRef.current = product.id;
+
+    const payload = {
+      content_id: product.id,
+      content_name: product.name,
+      content_category: product.category_name,
+      value: price,
+      currency: META_CURRENCY,
+    };
+
+    setMetaProductContext({
+      content_id: payload.content_id,
+      content_name: payload.content_name,
+      content_category: payload.content_category,
+      value: payload.value,
+      currency: payload.currency,
+    });
+    trackViewContent(payload);
+  }, [product, loading]);
 
   useEffect(() => {
     let cancelled = false;

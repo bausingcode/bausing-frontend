@@ -32,6 +32,7 @@ export interface PdpProduct {
   id: string;
   name: string;
   description?: string;
+  category_name?: string;
   currentPrice: string;
   originalPrice?: string;
   discount?: string;
@@ -136,6 +137,7 @@ export function mapApiProductToPdp(apiProduct: ApiProduct): PdpMapResult {
     id: apiProduct.id,
     name: apiProduct.name,
     description: apiProduct.description || "",
+    category_name: apiProduct.category_name || undefined,
     currentPrice: priceInfo.currentPrice,
     originalPrice: priceInfo.originalPrice,
     discount: priceInfo.discount,

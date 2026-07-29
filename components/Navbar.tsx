@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import { trackSearch, trackContact } from "@/lib/meta/track";
 import { 
   Truck, 
   CreditCard, 
@@ -865,6 +866,7 @@ export default function Navbar({ event }: NavbarProps = {}) {
     const query = searchQuery.trim();
     
     if (query) {
+      trackSearch(query);
       // Navegar a la página de catálogo con el parámetro de búsqueda
       router.push(`/catalogo?search=${encodeURIComponent(query)}`);
     } else {
@@ -2523,6 +2525,7 @@ export default function Navbar({ event }: NavbarProps = {}) {
               href={`https://wa.me/${ARREPENTIMIENTO_WA}?text=Hola%2C%20quiero%20ejercer%20el%20bot%C3%B3n%20de%20arrepentimiento%20por%20una%20compra.`}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => trackContact()}
               className="flex items-center justify-center w-full bg-[#00C1A7] hover:bg-[#00A892] text-white text-sm font-medium py-2.5 rounded-lg transition-colors mb-3"
             >
               Contactar por WhatsApp
