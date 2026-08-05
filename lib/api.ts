@@ -6261,6 +6261,53 @@ export async function updateAdminCoupon(
   return json.data as AdminCoupon;
 }
 
+export interface AdminCouponUsage {
+  order_id: string;
+  crm_order_id: number | null;
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  order_total: number;
+  discount_amount: number | null;
+  status: string;
+  created_at: string | null;
+}
+
+export interface AdminCouponUsagesResponse {
+  usages: AdminCouponUsage[];
+}
+
+function _isAdminCouponUsagesList(x: unknown): x is AdminCouponUsagesResponse {
+  if (!x || typeof x !== "object") return false;
+  const o = x as Record<string, unknown>;
+  return Array.isArray(o.usages);
+}
+
+export async function fetchAdminCouponUsages(
+  couponId: string,
+): Promise<AdminCouponUsage[]> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/coupons/${couponId}/usages`
+      : `/api/admin/coupons/${couponId}/usages`;
+
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+
+  const response = await fetch(url, { headers, cache: "no-store" });
+  const json = await response.json().catch(() => null);
+  if (!response.ok || !json?.success) {
+    const msg = json?.error || response.statusText;
+    throw new Error(msg || "Error al cargar los usos del cupón");
+  }
+  const data = json.data as unknown;
+  if (!_isAdminCouponUsagesList(data)) {
+    return [];
+  }
+  return data.usages;
+}
+
 export async function deleteAdminCoupon(couponId: string): Promise<void> {
   const url =
     typeof window === "undefined"

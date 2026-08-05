@@ -2,16 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/PageHeader";
-import { TicketPercent, Plus, Pencil, Trash2, X, Loader2, Search, Package, Tag } from "lucide-react";
+import { TicketPercent, Plus, Pencil, Trash2, X, Loader2, Search, Package, Tag, Users } from "lucide-react";
 import {
   createAdminCoupon,
   deleteAdminCoupon,
   fetchAdminCoupons,
+  fetchAdminCouponUsages,
   fetchCategories,
   fetchProducts,
   updateAdminCoupon,
   type AdminCoupon,
   type AdminCouponsScope,
+  type AdminCouponUsage,
   type Category,
   type Product,
 } from "@/lib/api";
@@ -597,6 +599,11 @@ export default function CuponesClient() {
   const [deleteTarget, setDeleteTarget] = useState<AdminCoupon | null>(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
 
+  const [usagesTarget, setUsagesTarget] = useState<AdminCoupon | null>(null);
+  const [usages, setUsages] = useState<AdminCouponUsage[]>([]);
+  const [usagesLoading, setUsagesLoading] = useState(false);
+  const [usagesError, setUsagesError] = useState<string | null>(null);
+
   // Cargar productos y categorías al montar
   useEffect(() => {
     setProductsLoading(true);
@@ -653,6 +660,23 @@ export default function CuponesClient() {
       setEditSaving(false);
     }
   };
+
+  const openUsages = async (c: AdminCoupon) => {
+    setUsagesTarget(c);
+    setUsages([]);
+    setUsagesError(null);
+    try {
+      setUsagesLoading(true);
+      const rows = await fetchAdminCouponUsages(c.id);
+      setUsages(rows);
+    } catch (e) {
+      setUsagesError(e instanceof Error ? e.message : "Error al cargar los usos");
+    } finally {
+      setUsagesLoading(false);
+    }
+  };
+
+  const closeUsages = () => setUsagesTarget(null);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -802,6 +826,16 @@ export default function CuponesClient() {
                         <div className="inline-flex items-center gap-0.5">
                           <button
                             type="button"
+                            onClick={() => void openUsages(c)}
+                            disabled={c.uses_count === 0}
+                            className="inline-flex rounded-[6px] p-2 text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                            aria-label="Ver clientes que usaron este cupón"
+                            title="Ver clientes que usaron este cupón"
+                          >
+                            <Users className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => openEdit(c)}
                             className="inline-flex rounded-[6px] p-2 text-gray-600 transition-colors hover:bg-gray-100"
                             aria-label="Editar"
@@ -871,6 +905,90 @@ export default function CuponesClient() {
               >
                 {editSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Modal usos */}
+      {usagesTarget ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div
+            className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[14px] border border-gray-200 bg-white p-6 shadow-xl"
+            role="dialog"
+            aria-modal
+            aria-labelledby="usages-coupon-title"
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 id="usages-coupon-title" className="text-lg font-semibold text-gray-900">
+                  Clientes que usaron el cupón
+                </h2>
+                <p className="mt-0.5 font-mono text-sm text-gray-600">{usagesTarget.code}</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeUsages}
+                className="rounded-lg p-1 text-gray-500 transition-colors hover:bg-gray-100"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {usagesLoading ? (
+              <div className="flex items-center gap-2 py-8 text-sm text-gray-600">
+                <Loader2 className="h-4 w-4 animate-spin" /> Cargando usos…
+              </div>
+            ) : usagesError ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                {usagesError}
+              </div>
+            ) : usages.length === 0 ? (
+              <p className="py-8 text-center text-sm text-gray-600">
+                Este cupón todavía no fue usado por ningún cliente.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 text-gray-800">
+                      <th className="pb-2 pr-3 font-medium">Cliente</th>
+                      <th className="pb-2 pr-3 font-medium">Email</th>
+                      <th className="pb-2 pr-3 font-medium">Descuento</th>
+                      <th className="pb-2 pr-3 font-medium">Estado</th>
+                      <th className="pb-2 font-medium">Fecha</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usages.map((u) => (
+                      <tr key={u.order_id} className="border-b border-gray-100">
+                        <td className="py-2 pr-3 text-gray-900">
+                          {[u.first_name, u.last_name].filter(Boolean).join(" ") || "—"}
+                        </td>
+                        <td className="py-2 pr-3 text-gray-700">{u.email ?? "—"}</td>
+                        <td className="py-2 pr-3 text-gray-700">
+                          {u.discount_amount != null
+                            ? `$${u.discount_amount.toLocaleString("es-AR")}`
+                            : "—"}
+                        </td>
+                        <td className="py-2 pr-3 text-gray-700">{u.status}</td>
+                        <td className="py-2 text-gray-700">
+                          {u.created_at
+                            ? new Date(u.created_at).toLocaleDateString("es-AR")
+                            : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end">
+              <button type="button" onClick={closeUsages} className={`${btnSecondary} px-4 py-2`}>
+                Cerrar
               </button>
             </div>
           </div>
