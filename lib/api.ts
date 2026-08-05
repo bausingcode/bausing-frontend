@@ -6274,8 +6274,16 @@ export interface AdminCouponUsage {
   created_at: string | null;
 }
 
+export interface AdminCouponUsagesPagination {
+  page: number;
+  per_page: number;
+  total: number;
+  total_pages: number;
+}
+
 export interface AdminCouponUsagesResponse {
   usages: AdminCouponUsage[];
+  pagination: AdminCouponUsagesPagination;
 }
 
 function _isAdminCouponUsagesList(x: unknown): x is AdminCouponUsagesResponse {
@@ -6286,11 +6294,16 @@ function _isAdminCouponUsagesList(x: unknown): x is AdminCouponUsagesResponse {
 
 export async function fetchAdminCouponUsages(
   couponId: string,
-): Promise<AdminCouponUsage[]> {
+  params?: { page?: number; per_page?: number },
+): Promise<AdminCouponUsagesResponse> {
+  const page = params?.page ?? 1;
+  const perPage = params?.per_page ?? 20;
+  const qs = `?page=${page}&per_page=${perPage}`;
+
   const url =
     typeof window === "undefined"
-      ? `${BACKEND_URL}/admin/coupons/${couponId}/usages`
-      : `/api/admin/coupons/${couponId}/usages`;
+      ? `${BACKEND_URL}/admin/coupons/${couponId}/usages${qs}`
+      : `/api/admin/coupons/${couponId}/usages${qs}`;
 
   const headers =
     typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
@@ -6303,9 +6316,9 @@ export async function fetchAdminCouponUsages(
   }
   const data = json.data as unknown;
   if (!_isAdminCouponUsagesList(data)) {
-    return [];
+    return { usages: [], pagination: { page: 1, per_page: perPage, total: 0, total_pages: 0 } };
   }
-  return data.usages;
+  return data;
 }
 
 export async function deleteAdminCoupon(couponId: string): Promise<void> {

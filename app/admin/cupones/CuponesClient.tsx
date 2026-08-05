@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/PageHeader";
-import { TicketPercent, Plus, Pencil, Trash2, X, Loader2, Search, Package, Tag, Users } from "lucide-react";
+import { TicketPercent, Plus, Pencil, Trash2, X, Loader2, Search, Package, Tag, Users, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   createAdminCoupon,
   deleteAdminCoupon,
@@ -576,6 +576,8 @@ function submitFormPayload(form: CouponFormState) {
   };
 }
 
+const USAGES_PER_PAGE = 10;
+
 // ─── Componente principal ──────────────────────────────────────────────────────
 
 export default function CuponesClient() {
@@ -603,6 +605,9 @@ export default function CuponesClient() {
   const [usages, setUsages] = useState<AdminCouponUsage[]>([]);
   const [usagesLoading, setUsagesLoading] = useState(false);
   const [usagesError, setUsagesError] = useState<string | null>(null);
+  const [usagesPage, setUsagesPage] = useState(1);
+  const [usagesTotalPages, setUsagesTotalPages] = useState(0);
+  const [usagesTotal, setUsagesTotal] = useState(0);
 
   // Cargar productos y categorías al montar
   useEffect(() => {
@@ -661,19 +666,28 @@ export default function CuponesClient() {
     }
   };
 
-  const openUsages = async (c: AdminCoupon) => {
-    setUsagesTarget(c);
-    setUsages([]);
-    setUsagesError(null);
+  const loadUsagesPage = useCallback(async (couponId: string, page: number) => {
     try {
       setUsagesLoading(true);
-      const rows = await fetchAdminCouponUsages(c.id);
-      setUsages(rows);
+      setUsagesError(null);
+      const res = await fetchAdminCouponUsages(couponId, { page, per_page: USAGES_PER_PAGE });
+      setUsages(res.usages);
+      setUsagesPage(res.pagination.page);
+      setUsagesTotalPages(res.pagination.total_pages);
+      setUsagesTotal(res.pagination.total);
     } catch (e) {
       setUsagesError(e instanceof Error ? e.message : "Error al cargar los usos");
     } finally {
       setUsagesLoading(false);
     }
+  }, []);
+
+  const openUsages = async (c: AdminCoupon) => {
+    setUsagesTarget(c);
+    setUsages([]);
+    setUsagesTotalPages(0);
+    setUsagesTotal(0);
+    await loadUsagesPage(c.id, 1);
   };
 
   const closeUsages = () => setUsagesTarget(null);
@@ -985,6 +999,36 @@ export default function CuponesClient() {
                 </table>
               </div>
             )}
+
+            {!usagesLoading && !usagesError && usagesTotalPages > 1 ? (
+              <div className="mt-4 flex items-center justify-between gap-3 text-sm text-gray-700">
+                <span>
+                  Página {usagesPage} de {usagesTotalPages} ({usagesTotal} usos)
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => usagesTarget && void loadUsagesPage(usagesTarget.id, usagesPage - 1)}
+                    disabled={usagesPage <= 1}
+                    className="inline-flex items-center gap-1 rounded-[8px] border border-gray-300 px-2.5 py-1.5 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Página anterior"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Anterior
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => usagesTarget && void loadUsagesPage(usagesTarget.id, usagesPage + 1)}
+                    disabled={usagesPage >= usagesTotalPages}
+                    className="inline-flex items-center gap-1 rounded-[8px] border border-gray-300 px-2.5 py-1.5 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Página siguiente"
+                  >
+                    Siguiente
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ) : null}
 
             <div className="mt-6 flex justify-end">
               <button type="button" onClick={closeUsages} className={`${btnSecondary} px-4 py-2`}>
