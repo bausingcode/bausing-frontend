@@ -1410,7 +1410,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 	            return undefined;
 	          })(),
 	          is_active: isActive,
-	          has_stock: hasStock,
+	          has_crm_stock: hasStock,
 	          images: images,
 	          variants: variants.map(variantToApiPayload),
 	          display_reference_price: parseDisplayReferencePriceForPayload(displayReferencePrice),

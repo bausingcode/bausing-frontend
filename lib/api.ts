@@ -1054,8 +1054,8 @@ export async function completeCrmProduct(
     subcategory_ids?: string[];
     subcategory_options?: Record<string, string[]>;
     is_active?: boolean;
-    /** Marca manual de stock del producto (reusa crm_products.stock, mismo flag que has_crm_stock). */
-    has_stock?: boolean;
+    /** Marca manual de stock del producto (reusa crm_products.stock). */
+    has_crm_stock?: boolean;
     images?: Array<{
       image_url: string;
       alt_text?: string;
