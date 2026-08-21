@@ -864,6 +864,8 @@ export interface CrmProduct {
   is_completed: boolean;
   /** Solo listado admin no completados: oculto de la vista normal */
   hidden_from_not_completed_list?: boolean;
+  /** crm_products.stock: false = CRM (o el admin) lo marcó sin stock */
+  stock?: boolean;
   raw?: any;
 }
 
@@ -1052,6 +1054,8 @@ export async function completeCrmProduct(
     subcategory_ids?: string[];
     subcategory_options?: Record<string, string[]>;
     is_active?: boolean;
+    /** Marca manual de stock del producto (reusa crm_products.stock, mismo flag que has_crm_stock). */
+    has_stock?: boolean;
     images?: Array<{
       image_url: string;
       alt_text?: string;

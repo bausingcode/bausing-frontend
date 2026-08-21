@@ -187,6 +187,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string[]>>({}); // Opciones seleccionadas por subcategoría (múltiples)
   const [pendingSubcategories, setPendingSubcategories] = useState<{ ids: string[], options: Record<string, string[]> } | null>(null);
   const [isActive, setIsActive] = useState(true);
+  const [hasStock, setHasStock] = useState(true);
   
   // Technical fields
   const [technicalDescription, setTechnicalDescription] = useState("");
@@ -498,6 +499,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setName("");
         setDescription("");
         setIsActive(crmProduct.is_active ?? true);
+        setHasStock(crmProduct.stock ?? true);
         setImages([]);
         setViacargoAlto("");
         setViacargoAncho("");
@@ -524,6 +526,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setSubcategoryIds([]);
         setSelectedOptions({});
         setIsActive(true);
+        setHasStock(true);
         setTechnicalDescription("");
         setWarrantyMonths(undefined);
         setWarrantyDescription("");
@@ -593,6 +596,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setDescription(fullProduct.description || "");
         setCategoryId(fullProduct.category_id || "");
         setIsActive(fullProduct.is_active ?? true);
+        setHasStock(fullProduct.has_crm_stock ?? true);
         setTechnicalDescription(fullProduct.technical_description || "");
         setWarrantyMonths(fullProduct.warranty_months);
         setWarrantyDescription(fullProduct.warranty_description || "");
@@ -1406,6 +1410,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 	            return undefined;
 	          })(),
 	          is_active: isActive,
+	          has_stock: hasStock,
 	          images: images,
 	          variants: variants.map(variantToApiPayload),
 	          display_reference_price: parseDisplayReferencePriceForPayload(displayReferencePrice),
@@ -2511,6 +2516,19 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                 />
                 <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
                   Activo
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="hasStock"
+                  checked={hasStock}
+                  onChange={(e) => setHasStock(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="hasStock" className="text-sm font-medium text-gray-700">
+                  Tiene stock
                 </label>
               </div>
             </div>
