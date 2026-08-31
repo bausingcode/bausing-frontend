@@ -60,8 +60,8 @@ export default function FirstVisitModal() {
               </span>
             </div>
             <p className="text-gray-600 text-sm md:text-base mb-6 leading-relaxed">
-              Registrate y accedé a <strong>envío gratis</strong> en tu primera compra,
-              ofertas exclusivas y la mejor financiación para colchones y sommiers.
+              Registrate y accedé a ofertas exclusivas y la mejor financiación
+              para colchones y sommiers.
             </p>
 
             <div className="flex flex-col gap-3 w-full">
