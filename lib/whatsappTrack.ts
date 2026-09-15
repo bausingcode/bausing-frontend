@@ -13,11 +13,11 @@ export function trackWhatsAppClick(type: WhatsAppClickType): void {
 
     if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
       const blob = new Blob([body], { type: "text/plain;charset=UTF-8" });
-      const ok = navigator.sendBeacon("/api/track/whatsapp-click", blob);
+      const ok = navigator.sendBeacon("/api/wa/click", blob);
       if (ok) return;
     }
 
-    void fetch("/api/track/whatsapp-click", {
+    void fetch("/api/wa/click", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body,
