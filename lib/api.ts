@@ -2543,6 +2543,60 @@ export async function getGeneralMetrics(
   return data.data;
 }
 
+// WhatsApp Clicks Metrics API
+export interface WhatsappClickMetrics {
+  contact_clicks: number;
+  checkout_clicks: number;
+  total_clicks: number;
+}
+
+export async function getWhatsappClickMetrics(
+  params?: {
+    start_date?: string;
+    end_date?: string;
+  },
+  cookieHeader?: string | null
+): Promise<WhatsappClickMetrics> {
+  const queryParams = new URLSearchParams();
+  if (params?.start_date) queryParams.append('start_date', params.start_date);
+  if (params?.end_date) queryParams.append('end_date', params.end_date);
+
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/metrics/whatsapp-clicks${queryParams.toString() ? '?' + queryParams.toString() : ''}`
+    : `/api/admin/metrics/whatsapp-clicks${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+
+  if (typeof window === "undefined") {
+    const token = cookieHeader ? getAdminTokenServer(cookieHeader) : null;
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  } else {
+    const authHeaders = getAuthHeaders();
+    Object.assign(headers, authHeaders);
+  }
+
+  const response = await fetch(url, {
+    headers,
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to fetch WhatsApp click metrics: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to fetch WhatsApp click metrics: Invalid response");
+  }
+
+  return data.data;
+}
+
 // Hero Images API
 export interface HeroImage {
   id: string;

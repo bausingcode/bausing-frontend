@@ -69,6 +69,7 @@ import {
   trackInitiateCheckout,
 } from "@/lib/meta/track";
 import { META_CURRENCY, parseArsPrice } from "@/lib/meta/parsePrice";
+import { trackWhatsAppClick } from "@/lib/whatsappTrack";
 
 type PaymentMethodType = "card" | "cash" | "transfer" | "wallet";
 
@@ -1323,6 +1324,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
               
               // Redirigir a WhatsApp - NO crear orden en CRM
               trackContact();
+              trackWhatsAppClick("checkout");
               window.location.href = whatsappUrl;
               setSubmitting(false);
               return; // Este return evita que se ejecute el código de creación de orden
@@ -1431,6 +1433,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ""}`;
 
               const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
               trackContact();
+              trackWhatsAppClick("checkout");
               window.location.href = whatsappUrl;
               setSubmitting(false);
               return;
@@ -1547,6 +1550,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
               
               // Redirigir a WhatsApp - NO crear orden en CRM
               trackContact();
+              trackWhatsAppClick("checkout");
               window.location.href = whatsappUrl;
               setSubmitting(false);
               return; // Este return evita que se ejecute el código de creación de orden

@@ -3,32 +3,45 @@
 import { useState, useEffect } from "react";
 import PageHeader from "@/components/PageHeader";
 import MetricCard from "@/components/MetricCard";
-import { TrendingUp, ShoppingCart, DollarSign, Package, Users, BarChart3, Calendar, XCircle, CheckCircle, CreditCard, Banknote, ArrowLeftRight } from "lucide-react";
-import { getGeneralMetrics, GeneralMetrics } from "@/lib/api";
+import { TrendingUp, ShoppingCart, DollarSign, Package, Users, BarChart3, Calendar, XCircle, CheckCircle, CreditCard, Banknote, ArrowLeftRight, MessageCircle } from "lucide-react";
+import { getGeneralMetrics, GeneralMetrics, getWhatsappClickMetrics, WhatsappClickMetrics } from "@/lib/api";
 
 export default function Metricas() {
   const [generalMetrics, setGeneralMetrics] = useState<GeneralMetrics | null>(null);
   const [isLoadingGeneral, setIsLoadingGeneral] = useState(true);
+  const [whatsappMetrics, setWhatsappMetrics] = useState<WhatsappClickMetrics | null>(null);
+  const [isLoadingWhatsapp, setIsLoadingWhatsapp] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
 
   // Cargar métricas generales
   const loadMetrics = async () => {
+    const params: { start_date?: string; end_date?: string } = {};
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
+    const finalParams = Object.keys(params).length > 0 ? params : undefined;
+
     try {
       setIsLoadingGeneral(true);
       setError(null);
-      const params: { start_date?: string; end_date?: string } = {};
-      if (startDate) params.start_date = startDate;
-      if (endDate) params.end_date = endDate;
-      
-      const metrics = await getGeneralMetrics(Object.keys(params).length > 0 ? params : undefined);
+      const metrics = await getGeneralMetrics(finalParams);
       setGeneralMetrics(metrics);
     } catch (err: any) {
       console.error("Error fetching general metrics:", err);
       setError(err.message || "Error al cargar métricas generales");
     } finally {
       setIsLoadingGeneral(false);
+    }
+
+    try {
+      setIsLoadingWhatsapp(true);
+      const metrics = await getWhatsappClickMetrics(finalParams);
+      setWhatsappMetrics(metrics);
+    } catch (err) {
+      console.error("Error fetching WhatsApp click metrics:", err);
+    } finally {
+      setIsLoadingWhatsapp(false);
     }
   };
 
@@ -68,6 +81,16 @@ export default function Metricas() {
       setError(err.message || "Error al cargar métricas generales");
     } finally {
       setIsLoadingGeneral(false);
+    }
+
+    try {
+      setIsLoadingWhatsapp(true);
+      const metrics = await getWhatsappClickMetrics();
+      setWhatsappMetrics(metrics);
+    } catch (err) {
+      console.error("Error fetching WhatsApp click metrics:", err);
+    } finally {
+      setIsLoadingWhatsapp(false);
     }
   };
 
@@ -310,6 +333,46 @@ export default function Metricas() {
           </div>
         </>
       ) : null}
+
+      {/* Clicks a WhatsApp */}
+      <div className="bg-white rounded-[14px] border border-gray-200 p-6 mt-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
+          <MessageCircle className="w-5 h-5" />
+          Clicks a WhatsApp
+        </h2>
+        {isLoadingWhatsapp ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[1, 2].map((i) => (
+              <div key={i} className="h-20 bg-gray-100 rounded-lg animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-emerald-100 rounded-lg">
+                <MessageCircle className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div>
+                <div className="text-sm text-gray-500 mb-1">Botón de contacto por WhatsApp</div>
+                <div className="text-2xl font-semibold text-gray-900">
+                  {whatsappMetrics?.contact_clicks ?? 0}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-teal-100 rounded-lg">
+                <MessageCircle className="w-5 h-5 text-teal-600" />
+              </div>
+              <div>
+                <div className="text-sm text-gray-500 mb-1">Finalizar venta por WhatsApp</div>
+                <div className="text-2xl font-semibold text-gray-900">
+                  {whatsappMetrics?.checkout_clicks ?? 0}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

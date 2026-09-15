@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { trackContact } from "@/lib/meta/track";
+import { trackWhatsAppClick } from "@/lib/whatsappTrack";
 
 export default function WhatsAppButton() {
   const [phoneNumber, setPhoneNumber] = useState<string>("");
@@ -53,7 +54,10 @@ export default function WhatsAppButton() {
       href={whatsappUrl}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={() => trackContact()}
+      onClick={() => {
+        trackContact();
+        trackWhatsAppClick("contact");
+      }}
       className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-[#25D366] hover:bg-[#20BA5A] rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"
       aria-label="Contactar por WhatsApp"
     >

@@ -30,6 +30,7 @@ import {
   type ReferralHistoryItem,
 } from "@/lib/api";
 import { postalCodeDigitsOnly } from "@/utils/postalCodeInput";
+import { trackWhatsAppClick } from "@/lib/whatsappTrack";
 import {
   Calendar,
   FileText,
@@ -1705,6 +1706,7 @@ export default function UsuarioPage() {
                               href="https://wa.me/5491112345678"
                               target="_blank"
                               rel="noopener noreferrer"
+                              onClick={() => trackWhatsAppClick("contact")}
                               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-500 text-white px-5 py-2.5 md:px-6 md:py-3 rounded-[10px] text-sm font-semibold hover:bg-emerald-600 transition-colors"
                             >
                               <Phone className="w-5 h-5 shrink-0" />
