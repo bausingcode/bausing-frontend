@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import NavLink from "./NavLink";
 import { LogOut, Home, ShoppingCart, Users, CreditCard, Package, Truck, BarChart3, UserCog, Settings, Tag, User, ChevronDown, Image, FileText, Calendar, Mail, Star, PackageX, AlertTriangle, UserPlus, HelpCircle, Gift, TicketPercent, ShoppingBag, Clock, Box } from "lucide-react";
@@ -9,13 +9,27 @@ import { getCurrentAdminUser, AdminUser } from "@/lib/api";
 const SECTIONS = ["comercio", "catalogo", "contenido", "operaciones", "configuracion"] as const;
 type Section = typeof SECTIONS[number];
 
+// Rol con acceso restringido a solo un subconjunto de herramientas del admin.
+// Debe coincidir con ROLE_ALLOWED_BLUEPRINTS en bausing-backend/utils/admin_permissions.py
+const RESTRICTED_ROLE_NAME = "Editor de Contenido";
+const RESTRICTED_ROLE_ALLOWED_PATHS = [
+  "/admin/productos",
+  "/admin/imagenes",
+  "/admin/blog",
+  "/admin/preguntas-frecuentes",
+];
+const RESTRICTED_ROLE_DEFAULT_PATH = "/admin/productos";
+
 export default function Sidebar() {
   const router = useRouter();
+  const pathname = usePathname();
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Set<Section>>(new Set());
   const navRef = useRef<HTMLElement>(null);
+
+  const isRestricted = adminUser?.role?.name === RESTRICTED_ROLE_NAME;
 
   const toggleSection = (section: Section) => {
     setCollapsedSections(prev => {
@@ -40,6 +54,18 @@ export default function Sidebar() {
 
     fetchCurrentUser();
   }, []);
+
+  // Si el usuario tiene un rol restringido y navegó (o entró) a una sección
+  // que no le corresponde, lo mandamos a su página por defecto.
+  useEffect(() => {
+    if (!isRestricted || !pathname) return;
+    const isAllowed = RESTRICTED_ROLE_ALLOWED_PATHS.some(
+      (allowedPath) => pathname === allowedPath || pathname.startsWith(`${allowedPath}/`)
+    );
+    if (!isAllowed) {
+      router.replace(RESTRICTED_ROLE_DEFAULT_PATH);
+    }
+  }, [isRestricted, pathname, router]);
 
   useEffect(() => {
     const checkScrollable = () => {
@@ -155,6 +181,14 @@ export default function Sidebar() {
             className="h-full overflow-y-auto pr-2 scrollbar-hide"
             style={{ maxHeight: '100%' }}
           >
+            {isRestricted ? (
+              <ul className="pb-2 space-y-0.5">
+                <li key="productos"><NavLink href="/admin/productos" icon={<Package className="w-5 h-5" />}>Productos</NavLink></li>
+                <li key="imagenes"><NavLink href="/admin/imagenes" icon={<Image className="w-5 h-5" />}>Imágenes</NavLink></li>
+                <li key="blog"><NavLink href="/admin/blog" icon={<FileText className="w-5 h-5" />}>Blog</NavLink></li>
+                <li key="preguntas-frecuentes"><NavLink href="/admin/preguntas-frecuentes" icon={<HelpCircle className="w-5 h-5" />}>Preguntas Frecuentes</NavLink></li>
+              </ul>
+            ) : (
             <ul className="pb-2 space-y-0.5">
               {/* Inicio */}
               <li key="inicio">
@@ -293,6 +327,7 @@ export default function Sidebar() {
                 </div>
               </li>
             </ul>
+            )}
           </nav>
           {/* Flecha indicadora de scroll */}
           {showScrollIndicator && (
