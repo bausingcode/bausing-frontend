@@ -17,6 +17,7 @@ const RESTRICTED_ROLE_ALLOWED_PATHS = [
   "/admin/imagenes",
   "/admin/blog",
   "/admin/preguntas-frecuentes",
+  "/admin/distribucion-inicio",
 ];
 const RESTRICTED_ROLE_DEFAULT_PATH = "/admin/productos";
 
@@ -187,6 +188,7 @@ export default function Sidebar() {
                 <li key="imagenes"><NavLink href="/admin/imagenes" icon={<Image className="w-5 h-5" />}>Imágenes</NavLink></li>
                 <li key="blog"><NavLink href="/admin/blog" icon={<FileText className="w-5 h-5" />}>Blog</NavLink></li>
                 <li key="preguntas-frecuentes"><NavLink href="/admin/preguntas-frecuentes" icon={<HelpCircle className="w-5 h-5" />}>Preguntas Frecuentes</NavLink></li>
+                <li key="distribucion-inicio"><NavLink href="/admin/distribucion-inicio" icon={<Package className="w-5 h-5" />}>Distribución Inicio</NavLink></li>
               </ul>
             ) : (
             <ul className="pb-2 space-y-0.5">
