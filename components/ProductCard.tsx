@@ -10,6 +10,8 @@ import { PRICE_UI_CARD_CAPTION, PRICE_UI_TRANSFER_CAPTION } from "@/utils/priceU
 
 interface ProductCardProps {
   id?: string;
+  /** Slug legible para la URL (ej: colchon-queen-inducol); si no viene, la URL usa el id */
+  slug?: string | null;
   image: string;
   alt: string;
   name: string;
@@ -32,6 +34,7 @@ interface ProductCardProps {
 
 export default function ProductCard({
   id,
+  slug,
   image,
   alt,
   name,
@@ -49,7 +52,9 @@ export default function ProductCard({
 }: ProductCardProps) {
   // Generar ID único si no se proporciona
   const productId = id || `product-${name.toLowerCase().replace(/\s+/g, "-")}`;
-  
+  // Para la URL preferimos el slug (más lindo); el id sigue funcionando como fallback
+  const productUrlPath = slug?.trim() || productId;
+
   const { addToCart, addToFavorites, removeFromFavorites, isInCart, isInFavorites } = useCart();
   const [isFavorite, setIsFavorite] = useState(false);
   const [isAddedToCart, setIsAddedToCart] = useState(false);
@@ -117,6 +122,7 @@ export default function ProductCard({
       // Guardar la URL original, no la optimizada, para mayor flexibilidad
       addToFavorites({
         id: productId,
+        slug: slug?.trim() || undefined,
         name,
         image: image,
         price: currentPrice,
@@ -136,7 +142,7 @@ export default function ProductCard({
 
   return (
     <Link
-      href={`/productos/${productId}`}
+      href={`/productos/${productUrlPath}`}
       className="relative group block w-full min-w-0 cursor-pointer"
       style={{ fontFamily: "DM Sans, sans-serif" }}
     >

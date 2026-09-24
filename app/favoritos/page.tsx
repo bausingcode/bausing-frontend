@@ -79,6 +79,7 @@ export default function FavoritosPage() {
               <ProductCard
                 key={favorite.id}
                 id={favorite.id}
+                slug={favorite.slug}
                 image={favorite.image}
                 alt={favorite.name}
                 name={favorite.name}

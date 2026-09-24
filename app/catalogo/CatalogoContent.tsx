@@ -130,6 +130,7 @@ export default function CatalogoContent({
 
     return {
       id: product.id,
+      slug: product.slug,
       image,
       alt: product.name,
       name: product.name,

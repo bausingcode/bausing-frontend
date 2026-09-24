@@ -1587,6 +1587,7 @@ export default function CatalogoContent({
 
     return {
       id: product.id,
+      slug: product.slug,
       image,
       alt: product.name,
       name: product.name,
@@ -1601,7 +1602,7 @@ export default function CatalogoContent({
       subtitle: catalogProductColorsLine(product),
     };
   };
-  
+
   return (
     <div className="min-h-screen bg-white">
       <style jsx global>{`

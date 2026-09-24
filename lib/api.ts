@@ -425,6 +425,8 @@ export async function detectLocality(params?: {
 // Products API
 export interface Product {
   id: string;
+  /** Slug legible para la URL pública (ej: colchon-queen-inducol); si no viene, se usa el id */
+  slug?: string | null;
   name: string;
   description?: string;
   sku?: string;
@@ -5537,6 +5539,113 @@ export async function reorderAdminFaqItems(orderedIds: string[]): Promise<FaqIte
     throw new Error(data.error || "Respuesta inválida");
   }
   return data.data || [];
+}
+
+/** Redirects SEO (301/302) — tool de redireccionamientos del admin */
+export interface RedirectRule {
+  id: string;
+  source_path: string;
+  target_path: string;
+  redirect_type: 301 | 302;
+  is_active: boolean;
+  hit_count: number;
+  notes: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export async function fetchAdminRedirects(): Promise<RedirectRule[]> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/redirects`
+      : `/api/admin/redirects`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, { headers, cache: "no-store" });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Error al cargar redirects: ${response.statusText}`);
+  }
+  const data = await response.json();
+  if (!data.success) {
+    throw new Error(data.error || "Respuesta inválida");
+  }
+  return data.data || [];
+}
+
+export async function createAdminRedirect(payload: {
+  source_path: string;
+  target_path: string;
+  redirect_type: 301 | 302;
+  is_active?: boolean;
+  notes?: string;
+}): Promise<RedirectRule> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/redirects`
+      : `/api/admin/redirects`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudo crear el redirect");
+  }
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error(data.error || "Respuesta inválida");
+  }
+  return data.data;
+}
+
+export async function updateAdminRedirect(
+  id: string,
+  payload: Partial<{
+    source_path: string;
+    target_path: string;
+    redirect_type: 301 | 302;
+    is_active: boolean;
+    notes: string;
+  }>
+): Promise<RedirectRule> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/redirects/${id}`
+      : `/api/admin/redirects/${id}`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudo actualizar el redirect");
+  }
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error(data.error || "Respuesta inválida");
+  }
+  return data.data;
+}
+
+export async function deleteAdminRedirect(id: string): Promise<void> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/redirects/${id}`
+      : `/api/admin/redirects/${id}`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, { method: "DELETE", headers });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudo eliminar el redirect");
+  }
 }
 
 /**

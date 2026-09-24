@@ -164,6 +164,7 @@ export default function ProductCombosPage() {
                   <ProductCard
                     key={combo.id}
                     id={combo.product_id}
+                    slug={combo.product.slug}
                     image={comboImage}
                     alt={comboName}
                     name={comboName}
@@ -212,7 +213,7 @@ export default function ProductCombosPage() {
                       </div>
                     )}
                     <Link
-                      href={combo.product_id ? `/productos/${combo.product_id}` : "#"}
+                      href={combo.product_id ? `/productos/${combo.product?.slug?.trim() || combo.product_id}` : "#"}
                       className="block w-full text-center bg-[#00C1A7] text-white py-2 px-4 rounded-[6px] hover:bg-[#00a892] transition-colors font-medium"
                     >
                       Ver combo

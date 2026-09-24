@@ -69,6 +69,7 @@ export default function ProductsWithLocality({
 
     return {
       id: product.id,
+      slug: product.slug,
       image,
       alt: product.name,
       name: product.name,
@@ -121,6 +122,7 @@ export default function ProductsWithLocality({
           <ProductCard
             key={`${product.id}-${index}`}
             id={props.id}
+            slug={props.slug}
             image={props.image}
             alt={props.alt}
             name={props.name}

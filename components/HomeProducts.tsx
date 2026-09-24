@@ -41,6 +41,7 @@ function productToCardProps(product: Product, isPriceLoading: boolean = false) {
   if (isPriceLoading) {
     return {
       id: product.id,
+      slug: product.slug,
       image,
       alt: product.name,
       name: product.name,
@@ -59,6 +60,7 @@ function productToCardProps(product: Product, isPriceLoading: boolean = false) {
   if (!hasPrice) {
     return {
       id: product.id,
+      slug: product.slug,
       image,
       alt: product.name,
       name: product.name,
@@ -85,6 +87,7 @@ function productToCardProps(product: Product, isPriceLoading: boolean = false) {
 
   return {
     id: product.id,
+    slug: product.slug,
     image,
     alt: product.name,
     name: product.name,
@@ -203,6 +206,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
             <div className="h-full flex flex-col min-w-0 w-full">
               <ProductCard
                 id={product.id}
+                slug={product.slug}
                 image={product.image}
                 alt={product.alt}
                 name={product.name}
@@ -234,6 +238,7 @@ export default function HomeProducts({ section, count }: HomeProductsProps) {
         >
           <ProductCard
             id={product.id}
+            slug={product.slug}
             image={product.image}
             alt={product.alt}
             name={product.name}

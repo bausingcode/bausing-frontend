@@ -1,11 +1,63 @@
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import type { NextFetchEvent, NextRequest } from "next/server";
 import {
   CONSTRUCTION_COOKIE_NAME,
   getConstructionPasskey,
   isConstructionModeEnabled,
   isCookieValueValid,
 } from "@/lib/constructionUnlock";
+import { backendOriginFromEnv } from "@/lib/backendOrigin";
+
+type ActiveRedirectRule = {
+  source_path: string;
+  target_path: string;
+  redirect_type: 301 | 302;
+};
+
+// Cache en memoria del proceso: evita pegarle al backend en cada request.
+// Vive por instancia/isolate del runtime de Next, se refresca sola por TTL.
+const REDIRECTS_CACHE_TTL_MS = 60_000;
+let redirectsCache: { rules: ActiveRedirectRule[]; fetchedAt: number } = {
+  rules: [],
+  fetchedAt: 0,
+};
+
+async function getActiveRedirects(): Promise<ActiveRedirectRule[]> {
+  const isFresh = Date.now() - redirectsCache.fetchedAt < REDIRECTS_CACHE_TTL_MS;
+  if (isFresh) return redirectsCache.rules;
+
+  try {
+    const res = await fetch(`${backendOriginFromEnv()}/public/redirects`, {
+      // El middleware corre en cada request: sin cache de fetch, la cache la manejamos nosotros.
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    const data = await res.json();
+    const rules: ActiveRedirectRule[] = Array.isArray(data?.data) ? data.data : [];
+    redirectsCache = { rules, fetchedAt: Date.now() };
+    return rules;
+  } catch {
+    // Fail-open: si el backend no responde, no bloqueamos la navegación.
+    // Mantenemos lo último conocido (aunque esté vencido) en vez de tirarlo.
+    redirectsCache = { ...redirectsCache, fetchedAt: Date.now() };
+    return redirectsCache.rules;
+  }
+}
+
+function normalizePathname(pathname: string): string {
+  if (pathname.length > 1 && pathname.endsWith("/")) {
+    return pathname.slice(0, -1);
+  }
+  return pathname || "/";
+}
+
+function isPathExemptFromRedirectLookup(pathname: string): boolean {
+  return (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    pathname.startsWith("/api/")
+  );
+}
 
 function isPathExemptFromConstruction(pathname: string): boolean {
   if (pathname.startsWith("/admin") || pathname.startsWith("/login-admin")) {
@@ -27,7 +79,31 @@ function isPathExemptFromConstruction(pathname: string): boolean {
   return false;
 }
 
-export async function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest, event: NextFetchEvent) {
+  const pathname = normalizePathname(request.nextUrl.pathname);
+
+  // Redirects SEO (301/302): URLs viejas/rotas gestionadas desde /admin/redirects.
+  // Se resuelven primero para que apliquen incluso en modo "en construcción".
+  if (!isPathExemptFromRedirectLookup(pathname)) {
+    const rules = await getActiveRedirects();
+    const match = rules.find((r) => r.source_path === pathname);
+    if (match) {
+      const destination = match.target_path.startsWith("http://") || match.target_path.startsWith("https://")
+        ? match.target_path
+        : new URL(match.target_path, request.url).toString();
+
+      event.waitUntil(
+        fetch(`${backendOriginFromEnv()}/public/redirects/hit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source_path: pathname }),
+        }).catch(() => {})
+      );
+
+      return NextResponse.redirect(destination, match.redirect_type);
+    }
+  }
+
   // Modo "en construcción": bloquea el sitio salvo admin y clave
   if (isConstructionModeEnabled()) {
     const passkey = getConstructionPasskey();

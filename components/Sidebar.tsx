@@ -3,7 +3,7 @@
 import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import NavLink from "./NavLink";
-import { LogOut, Home, ShoppingCart, Users, CreditCard, Package, Truck, BarChart3, UserCog, Settings, Tag, User, ChevronDown, Image, FileText, Calendar, Mail, Star, PackageX, AlertTriangle, UserPlus, HelpCircle, Gift, TicketPercent, ShoppingBag, Clock, Box } from "lucide-react";
+import { LogOut, Home, ShoppingCart, Users, CreditCard, Package, Truck, BarChart3, UserCog, Settings, Tag, User, ChevronDown, Image, FileText, Calendar, Mail, Star, PackageX, AlertTriangle, UserPlus, HelpCircle, Gift, TicketPercent, ShoppingBag, Clock, Box, Route } from "lucide-react";
 import { getCurrentAdminUser, AdminUser } from "@/lib/api";
 
 const SECTIONS = ["comercio", "catalogo", "contenido", "operaciones", "configuracion"] as const;
@@ -324,6 +324,7 @@ export default function Sidebar() {
                   <ul className="overflow-hidden space-y-0.5">
                     <li key="bancos-tarjetas"><NavLink href="/admin/bancos-tarjetas" icon={<CreditCard className="w-5 h-5" />}>Bancos y Tarjetas</NavLink></li>
                     <li key="usuarios"><NavLink href="/admin/usuarios" icon={<UserCog className="w-5 h-5" />}>Usuarios</NavLink></li>
+                    <li key="redirects"><NavLink href="/admin/redirects" icon={<Route className="w-5 h-5" />}>Redirects SEO</NavLink></li>
                     <li key="configuracion"><NavLink href="/admin/configuracion" icon={<Settings className="w-5 h-5" />}>Configuración</NavLink></li>
                   </ul>
                 </div>

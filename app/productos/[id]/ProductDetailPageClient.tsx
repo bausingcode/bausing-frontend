@@ -40,6 +40,7 @@ type Product = PdpProduct;
 
 interface SimilarProduct {
   id: string;
+  slug?: string | null;
   name: string;
   currentPrice: string;
   originalPrice?: string;
@@ -237,9 +238,14 @@ function bootstrapClientState(
   initialSelectedOptions: Record<string, string>;
   initialVariant: string;
 } {
+  // productId puede ser el UUID o el slug del producto (ambos deben funcionar en la URL)
+  const initialMatchesRoute =
+    !!initialApiProduct &&
+    (initialApiProduct.id === productId || initialApiProduct.slug === productId);
+
   if (
+    !initialMatchesRoute ||
     !initialApiProduct ||
-    initialApiProduct.id !== productId ||
     initialApiProduct.is_active === false
   ) {
     return {
@@ -279,7 +285,8 @@ export default function ProductDetailPageClient({
   const [pdpCrossSellKind, setPdpCrossSellKind] = useState<"admin" | "legacy" | null>(null);
   /** Solo sábanas: texto “color sujeto a disponibilidad” */
   const [sabanasColorAvailabilityNotice, setSabanasColorAvailabilityNotice] = useState(() =>
-    initialApiProduct && initialApiProduct.id === productId
+    initialApiProduct &&
+    (initialApiProduct.id === productId || initialApiProduct.slug === productId)
       ? productIsSabanasForColorNotice(
           initialApiProduct.category_id,
           initialApiProduct.subcategories,
@@ -313,10 +320,11 @@ export default function ProductDetailPageClient({
   const viewContentTrackedForIdRef = useRef<string | null>(null);
 
   // Sincronizar estado de favorito cuando cambia en el contexto (solo cuando cambia favorites)
+  // Favoritos se guardan con el UUID real del producto (product.id), no con productId de la URL (puede ser el slug)
   useEffect(() => {
-    setIsFavorite(isInFavorites(productId));
+    if (product) setIsFavorite(isInFavorites(product.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId, favorites]);
+  }, [product?.id, favorites]);
 
   useEffect(() => {
     colorsAutoExpandedForIdRef.current = null;
@@ -432,7 +440,7 @@ export default function ProductDetailPageClient({
 
         if (similarProductsResult.products?.length) {
           const list = similarProductsResult.products;
-          const filteredProducts = list.filter((p) => p.id !== productId);
+          const filteredProducts = list.filter((p) => p.id !== apiProduct.id);
           const shuffled = filteredProducts.sort(() => 0.5 - Math.random());
           const selected = shuffled.slice(0, 4);
 
@@ -441,6 +449,7 @@ export default function ProductDetailPageClient({
             const cardFields = productCardPriceDisplayFromPriceInfo(priceInfo);
             return {
               id: p.id,
+              slug: p.slug,
               name: p.name,
               currentPrice: cardFields.currentPrice,
               originalPrice: priceInfo.originalPrice,
@@ -461,7 +470,7 @@ export default function ProductDetailPageClient({
 
         const mainForLegacy = resolvedMainCategoryId || currentCategoryId;
         const configuredCrossSellIds = crossSellRawIds
-          .filter((id) => id && id !== productId)
+          .filter((id) => id && id !== apiProduct.id)
           .slice(0, 2);
 
         if (configuredCrossSellIds.length > 0) {
@@ -483,7 +492,7 @@ export default function ProductDetailPageClient({
           const byId = new Map(crossSellResult.products.map((p) => [p.id, p]));
           const ordered = configuredCrossSellIds
             .map((id) => byId.get(id))
-            .filter((p): p is ApiProduct => Boolean(p && p.id !== productId));
+            .filter((p): p is ApiProduct => Boolean(p && p.id !== apiProduct.id));
           setCategoryProducts(ordered);
         } else if (
           apiProduct &&
@@ -507,7 +516,7 @@ export default function ProductDetailPageClient({
             const result = await fetchProducts(catParams);
             if (cancelled) return;
 
-            let filtered = result.products.filter((p) => p.id !== productId);
+            let filtered = result.products.filter((p) => p.id !== apiProduct.id);
 
             if (currentCategoryId === CATEGORY_SOMMIERS_ID) {
               filtered = filtered.filter((p) => {
@@ -576,7 +585,7 @@ export default function ProductDetailPageClient({
           setSelectedVariant("");
         }
 
-        setIsFavorite(isInFavorites(productId));
+        setIsFavorite(isInFavorites(apiProduct.id));
         setLoading(false);
 
         void applyCrossSellAfterProduct(apiProduct);
@@ -1908,8 +1917,8 @@ export default function ProductDetailPageClient({
                           </div>
                         )}
                       </div>
-                      <Link 
-                        href={`/productos/${catProduct.id}`}
+                      <Link
+                        href={`/productos/${catProduct.slug?.trim() || catProduct.id}`}
                         className="w-7 h-7 md:w-8 md:h-8 rounded-full border border-[#484848] text-[#484848] flex items-center justify-center hover:bg-[#484848] hover:text-white transition-colors cursor-pointer flex-shrink-0"
                       >
                         <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
@@ -1987,8 +1996,8 @@ export default function ProductDetailPageClient({
                           </div>
                         )}
                       </div>
-                      <Link 
-                        href={combo.product_id ? `/productos/${combo.product_id}` : "#"}
+                      <Link
+                        href={combo.product_id ? `/productos/${combo.product?.slug?.trim() || combo.product_id}` : "#"}
                         className="w-7 h-7 md:w-8 md:h-8 rounded-full border border-[#484848] text-[#484848] flex items-center justify-center hover:bg-[#484848] hover:text-white transition-colors cursor-pointer flex-shrink-0"
                       >
                         <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
@@ -2016,6 +2025,7 @@ export default function ProductDetailPageClient({
                 <div key={similarProduct.id} className={`min-w-0 ${index >= 2 ? "hidden md:block" : ""}`}>
                   <ProductCard
                     id={similarProduct.id}
+                    slug={similarProduct.slug}
                     image={similarProduct.image}
                     alt={similarProduct.name}
                     name={similarProduct.name}

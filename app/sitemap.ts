@@ -111,7 +111,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         require_crm_product_id: true,
       });
       for (const p of res.products) {
-        productUrls.add(`${base}/productos/${p.id}`);
+        productUrls.add(`${base}/productos/${p.slug?.trim() || p.id}`);
       }
       totalPages = res.total_pages || 1;
       page += 1;

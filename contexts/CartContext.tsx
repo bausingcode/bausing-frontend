@@ -17,6 +17,8 @@ interface CartItem {
 
 interface FavoritesItem {
   id: string;
+  /** Slug legible para armar la URL del producto (ej: colchon-queen-inducol); si no viene, se usa el id */
+  slug?: string;
   name: string;
   image: string;
   price: string;

@@ -447,6 +447,7 @@ function productToCardProps(product: Product, isPriceLoading: boolean) {
   if (isPriceLoading || !hasPrice) {
     return {
       id: product.id,
+      slug: product.slug,
       image,
       alt: product.name,
       name: product.name,
@@ -465,7 +466,7 @@ function productToCardProps(product: Product, isPriceLoading: boolean) {
   const listPrice = priceInfo.hasCardPrice ? priceInfo.cardPrice! : priceInfo.currentPrice;
 
   return {
-    id: product.id, image, alt: product.name, name: product.name,
+    id: product.id, slug: product.slug, image, alt: product.name, name: product.name,
     currentPrice: listPrice || "",
     originalPrice: undefined,
     discount: undefined,
