@@ -237,8 +237,8 @@ export default async function Home() {
             <HomeProducts section="featured" count={4} />
           </ProductCarousel>
 
-          {/* Grid desde 1291px; 4 columnas solo en pantallas más anchas */}
-          <div className="hidden min-[1291px]:grid min-[1291px]:grid-cols-3 min-[1440px]:grid-cols-4 gap-5 min-[1440px]:gap-6">
+          {/* Grid desde 1291px; entre 1291px y 1440px se oculta el 4º producto para mostrar una sola fila de 3 */}
+          <div className="hidden min-[1291px]:grid min-[1291px]:grid-cols-3 min-[1440px]:grid-cols-4 gap-5 min-[1440px]:gap-6 min-[1291px]:[&>*:nth-child(4)]:hidden min-[1440px]:[&>*:nth-child(4)]:block">
             <HomeProducts section="featured" count={4} />
           </div>
         </div>
@@ -261,36 +261,10 @@ export default async function Home() {
             </a>
           </div>
           
-          {/* Mobile: carrusel horizontal (mismo patrón que “Encontrá el colchón ideal”) */}
-          <div className="md:hidden">
-            <ProductCarousel alwaysShow>
-              <HomeProducts section="discounts" count={3} />
-            </ProductCarousel>
-          </div>
-
-          {/* Tablet y “desktop angosto” hasta 1290px: banner arriba + grilla */}
-          <div className="hidden md:max-[1290px]:flex md:flex-col md:gap-6">
-            <div className="w-full flex justify-center">
-              <div className="w-full max-w-[360px] aspect-[300/400] shrink-0 overflow-hidden rounded-xl bg-neutral-100">
-                {descuentazosBanner ? (
-                  <img
-                    src={wsrvLoader({ src: descuentazosBanner.image_url, width: 600 })}
-                    alt={descuentazosBanner.title || descuentazosBanner.subtitle || "Foto"}
-                    className="h-full w-full object-cover"
-                    loading="eager"
-                  />
-                ) : (
-                  <div className="bg-black w-full h-full flex items-center justify-center min-h-[200px]">
-                    <div className="text-white font-bold text-3xl md:text-4xl leading-tight text-center" style={{ fontFamily: 'DM Sans, sans-serif' }}>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3 md:gap-4">
-              <HomeProducts section="discounts" count={3} />
-            </div>
-          </div>
+          {/* Mobile a “desktop angosto” hasta 1290px: carrusel (mismo patrón que “Encontrá el colchón ideal”) */}
+          <ProductCarousel>
+            <HomeProducts section="discounts" count={3} />
+          </ProductCarousel>
 
           {/* Desktop ancho (1291px+): columna 300px + tres productos */}
           <div className="hidden min-[1291px]:grid min-[1291px]:grid-cols-[300px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-4 xl:gap-6 items-start">
