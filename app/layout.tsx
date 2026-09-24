@@ -17,6 +17,8 @@ import {
   GoogleTagManagerBody,
   GoogleTagManagerHead,
 } from "@/components/analytics/GoogleTagManager";
+import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
+import MicrosoftClarity from "@/components/analytics/MicrosoftClarity";
 import MetaPixel from "@/components/analytics/MetaPixel";
 import AnalyticsClient from "@/components/analytics/AnalyticsClient";
 
@@ -40,6 +42,8 @@ export default function RootLayout({
     <html lang="es-AR" className={`${dmSans.variable} bg-white`}>
       <head>
         <GoogleTagManagerHead />
+        <GoogleAnalytics />
+        <MicrosoftClarity />
         <MetaPixel />
       </head>
       <body className={`${dmSans.className} bg-white [overflow-x:clip]`}>
