@@ -18,6 +18,7 @@ const RESTRICTED_ROLE_ALLOWED_PATHS = [
   "/admin/blog",
   "/admin/preguntas-frecuentes",
   "/admin/distribucion-inicio",
+  "/admin/redirects",
 ];
 const RESTRICTED_ROLE_DEFAULT_PATH = "/admin/productos";
 
@@ -189,6 +190,7 @@ export default function Sidebar() {
                 <li key="blog"><NavLink href="/admin/blog" icon={<FileText className="w-5 h-5" />}>Blog</NavLink></li>
                 <li key="preguntas-frecuentes"><NavLink href="/admin/preguntas-frecuentes" icon={<HelpCircle className="w-5 h-5" />}>Preguntas Frecuentes</NavLink></li>
                 <li key="distribucion-inicio"><NavLink href="/admin/distribucion-inicio" icon={<Package className="w-5 h-5" />}>Distribución Inicio</NavLink></li>
+                <li key="redirects"><NavLink href="/admin/redirects" icon={<Route className="w-5 h-5" />}>SEO</NavLink></li>
               </ul>
             ) : (
             <ul className="pb-2 space-y-0.5">
@@ -324,7 +326,7 @@ export default function Sidebar() {
                   <ul className="overflow-hidden space-y-0.5">
                     <li key="bancos-tarjetas"><NavLink href="/admin/bancos-tarjetas" icon={<CreditCard className="w-5 h-5" />}>Bancos y Tarjetas</NavLink></li>
                     <li key="usuarios"><NavLink href="/admin/usuarios" icon={<UserCog className="w-5 h-5" />}>Usuarios</NavLink></li>
-                    <li key="redirects"><NavLink href="/admin/redirects" icon={<Route className="w-5 h-5" />}>Redirects SEO</NavLink></li>
+                    <li key="redirects"><NavLink href="/admin/redirects" icon={<Route className="w-5 h-5" />}>SEO</NavLink></li>
                     <li key="configuracion"><NavLink href="/admin/configuracion" icon={<Settings className="w-5 h-5" />}>Configuración</NavLink></li>
                   </ul>
                 </div>

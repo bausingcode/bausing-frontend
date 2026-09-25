@@ -3,10 +3,11 @@ import {
   fetchBlogPosts,
   fetchCategories,
   fetchProducts,
+  fetchPublicSeoConfig,
   type Category,
 } from "@/lib/api";
 import { collectCatalogPaths } from "@/lib/seo/catalogPaths";
-import { getSiteUrl } from "@/lib/seo/site";
+import { absoluteUrl, getSiteUrl } from "@/lib/seo/site";
 
 /** API client uses no-store; sitemap is always generated on demand. */
 export const dynamic = "force-dynamic";
@@ -127,10 +128,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.85,
   }));
 
+  let extraEntries: MetadataRoute.Sitemap = [];
+  try {
+    const seo = await fetchPublicSeoConfig();
+    const extraPaths = (seo.sitemapExtraUrls ?? "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    extraEntries = extraPaths.map((path) => ({
+      url: absoluteUrl(path),
+      lastModified: now,
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
+    }));
+  } catch {
+    extraEntries = [];
+  }
+
   return [
     ...staticEntries,
     ...catalogSlugEntries,
     ...blogEntries,
     ...productEntries,
+    ...extraEntries,
   ];
 }

@@ -8,6 +8,9 @@ import {
   createAdminRedirect,
   updateAdminRedirect,
   deleteAdminRedirect,
+  getAppSettings,
+  updateSeoSettings,
+  SeoSettings,
 } from "@/lib/api";
 import {
   Plus,
@@ -19,7 +22,26 @@ import {
   Save,
   Loader2,
   ArrowRight,
+  FileText,
+  RotateCcw,
+  ExternalLink,
+  Sparkles,
+  PenLine,
 } from "lucide-react";
+
+const EMPTY_SEO: SeoSettings = {
+  robotsTxt: "",
+  llmsTxt: "",
+  sitemapExtraUrls: "",
+};
+
+type SeoFileTab = "robots" | "sitemap" | "llms";
+
+const SEO_TABS: { id: SeoFileTab; label: string; file: string }[] = [
+  { id: "robots", label: "robots.txt", file: "/robots.txt" },
+  { id: "sitemap", label: "sitemap.xml", file: "/sitemap.xml" },
+  { id: "llms", label: "llms.txt", file: "/llms.txt" },
+];
 
 export default function AdminRedirectsPage() {
   const [items, setItems] = useState<RedirectRule[]>([]);
@@ -35,6 +57,18 @@ export default function AdminRedirectsPage() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<RedirectRule | null>(null);
 
+  // SEO técnico: robots.txt, sitemap.xml, llms.txt — editor de archivo completo
+  const [seoTab, setSeoTab] = useState<SeoFileTab>("robots");
+  const [seo, setSeo] = useState<SeoSettings>(EMPTY_SEO);
+  const [originalSeo, setOriginalSeo] = useState<SeoSettings>(EMPTY_SEO);
+  // Si hay override guardado en la base (texto "Personalizado") vs. se está sirviendo el generado automáticamente
+  const [seoOverrideActive, setSeoOverrideActive] = useState({ robots: false, llms: false });
+  const [sitemapPreview, setSitemapPreview] = useState("");
+  const [seoLoading, setSeoLoading] = useState(true);
+  const [seoSaving, setSeoSaving] = useState(false);
+  const [resettingTab, setResettingTab] = useState<SeoFileTab | null>(null);
+  const [seoMessage, setSeoMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   const load = async () => {
     setError("");
     setLoading(true);
@@ -48,8 +82,95 @@ export default function AdminRedirectsPage() {
     }
   };
 
+  /** Trae el texto real que hoy sirve una ruta pública (el archivo tal cual lo ve Google). */
+  const fetchLiveFile = async (path: string): Promise<string> => {
+    try {
+      const res = await fetch(path, { cache: "no-store" });
+      return res.ok ? await res.text() : "";
+    } catch {
+      return "";
+    }
+  };
+
+  const loadSeo = async () => {
+    setSeoLoading(true);
+    try {
+      const settings = await getAppSettings();
+      const storedRobots = settings.seo?.robotsTxt || "";
+      const storedLlms = settings.seo?.llmsTxt || "";
+      setSeoOverrideActive({
+        robots: Boolean(storedRobots.trim()),
+        llms: Boolean(storedLlms.trim()),
+      });
+
+      // Si no hay override guardado, precargar el editor con el archivo real que se está
+      // sirviendo ahora mismo (el generado automáticamente), para que se vea "el archivo entero".
+      const [liveRobots, liveLlms, liveSitemap] = await Promise.all([
+        storedRobots ? Promise.resolve(storedRobots) : fetchLiveFile("/robots.txt"),
+        storedLlms ? Promise.resolve(storedLlms) : fetchLiveFile("/llms.txt"),
+        fetchLiveFile("/sitemap.xml"),
+      ]);
+
+      const loaded: SeoSettings = {
+        robotsTxt: liveRobots,
+        llmsTxt: liveLlms,
+        sitemapExtraUrls: settings.seo?.sitemapExtraUrls || "",
+      };
+      setSeo(loaded);
+      setOriginalSeo(loaded);
+      setSitemapPreview(liveSitemap);
+    } catch (e: unknown) {
+      setSeoMessage({ type: "error", text: e instanceof Error ? e.message : "Error al cargar la configuración de SEO" });
+    } finally {
+      setSeoLoading(false);
+    }
+  };
+
+  const hasUnsavedSeoChanges = () => JSON.stringify(seo) !== JSON.stringify(originalSeo);
+
+  const handleSaveSeo = async () => {
+    setSeoSaving(true);
+    setSeoMessage(null);
+    try {
+      await updateSeoSettings(seo);
+      setOriginalSeo(seo);
+      setSeoOverrideActive({
+        robots: Boolean(seo.robotsTxt?.trim()),
+        llms: Boolean(seo.llmsTxt?.trim()),
+      });
+      setSeoMessage({ type: "success", text: "Configuración de SEO guardada correctamente" });
+      setTimeout(() => setSeoMessage(null), 3000);
+    } catch (e: unknown) {
+      setSeoMessage({ type: "error", text: e instanceof Error ? e.message : "No se pudo guardar la configuración de SEO" });
+    } finally {
+      setSeoSaving(false);
+    }
+  };
+
+  /** Borra el override guardado y vuelve a mostrar el contenido generado automáticamente. */
+  const handleResetSeoTab = async (tab: "robots" | "llms") => {
+    setResettingTab(tab);
+    setSeoMessage(null);
+    const field: "robotsTxt" | "llmsTxt" = tab === "robots" ? "robotsTxt" : "llmsTxt";
+    const path = tab === "robots" ? "/robots.txt" : "/llms.txt";
+    try {
+      await updateSeoSettings({ [field]: "" });
+      const liveDefault = await fetchLiveFile(path);
+      setSeo((prev) => ({ ...prev, [field]: liveDefault }));
+      setOriginalSeo((prev) => ({ ...prev, [field]: liveDefault }));
+      setSeoOverrideActive((prev) => ({ ...prev, [tab]: false }));
+      setSeoMessage({ type: "success", text: `Se restableció ${tab === "robots" ? "robots.txt" : "llms.txt"} al contenido automático` });
+      setTimeout(() => setSeoMessage(null), 3000);
+    } catch (e: unknown) {
+      setSeoMessage({ type: "error", text: e instanceof Error ? e.message : "No se pudo restablecer" });
+    } finally {
+      setResettingTab(null);
+    }
+  };
+
   useEffect(() => {
     load();
+    loadSeo();
   }, []);
 
   const openCreate = () => {
@@ -144,13 +265,13 @@ export default function AdminRedirectsPage() {
   return (
     <div className="px-8 pt-6 pb-8 min-h-screen">
       <PageHeader
-        title="Redirects SEO"
-        description="Redirigí URLs viejas o rotas (301/302) para evitar errores 404 y conservar el posicionamiento."
+        title="SEO"
+        description="Redirects, robots.txt, sitemap.xml y llms.txt en un solo lugar."
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h2 className="text-lg font-normal" style={{ color: "#484848" }}>
-          Listado
+          Redirects
         </h2>
         <button
           type="button"
@@ -276,6 +397,199 @@ export default function AdminRedirectsPage() {
           </div>
         </div>
       )}
+
+      {/* SEO técnico: editor de robots.txt, sitemap.xml y llms.txt */}
+      <div className={`${cardClass} overflow-hidden mt-8`} style={cardRadius}>
+        <div className="flex items-center gap-3 p-6 pb-0">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100">
+            <FileText className="w-5 h-5 text-gray-700" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Archivos técnicos</h2>
+            <p className="text-sm text-gray-500">
+              Editá el contenido tal cual se sirve en cada URL pública.
+            </p>
+          </div>
+        </div>
+
+        <div className="px-6 pt-5">
+          {seoMessage ? (
+            <div
+              className={`mb-4 p-4 rounded-lg text-sm ${
+                seoMessage.type === "success"
+                  ? "bg-green-50 text-green-800 border border-green-200"
+                  : "bg-red-50 text-red-800 border border-red-200"
+              }`}
+            >
+              {seoMessage.text}
+            </div>
+          ) : null}
+        </div>
+
+        {seoLoading ? (
+          <div className="flex items-center gap-2 text-gray-500 text-sm py-8 px-6">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Cargando archivos…
+          </div>
+        ) : (
+          <>
+            {/* Pestañas tipo editor */}
+            <div className="flex items-center gap-1 px-6 border-b border-gray-200">
+              {SEO_TABS.map((t) => {
+                const isActive = seoTab === t.id;
+                const overrideActive =
+                  t.id === "robots" ? seoOverrideActive.robots : t.id === "llms" ? seoOverrideActive.llms : false;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setSeoTab(t.id)}
+                    className={`relative flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-t-lg -mb-px border transition-colors cursor-pointer ${
+                      isActive
+                        ? "bg-gray-900 text-white border-gray-900"
+                        : "bg-gray-50 text-gray-600 border-transparent hover:bg-gray-100"
+                    }`}
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    {t.label}
+                    {t.id !== "sitemap" ? (
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          overrideActive ? "bg-amber-400" : isActive ? "bg-emerald-400" : "bg-emerald-500"
+                        }`}
+                        title={overrideActive ? "Personalizado" : "Automático"}
+                      />
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="p-6 pt-5">
+              {/* Barra de estado del archivo activo */}
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2">
+                  {seoTab === "sitemap" ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2.5 py-1">
+                      <Sparkles className="h-3 w-3" />
+                      Siempre automático — solo lectura
+                    </span>
+                  ) : (seoTab === "robots" ? seoOverrideActive.robots : seoOverrideActive.llms) ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
+                      <PenLine className="h-3 w-3" />
+                      Personalizado
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1">
+                      <Sparkles className="h-3 w-3" />
+                      Automático
+                    </span>
+                  )}
+                  <a
+                    href={SEO_TABS.find((t) => t.id === seoTab)?.file}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600 transition-colors"
+                  >
+                    Ver archivo en vivo
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+
+                {seoTab !== "sitemap" ? (
+                  <button
+                    type="button"
+                    onClick={() => handleResetSeoTab(seoTab)}
+                    disabled={resettingTab !== null}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  >
+                    {resettingTab === seoTab ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RotateCcw className="h-3.5 w-3.5" />
+                    )}
+                    Restablecer al automático
+                  </button>
+                ) : null}
+              </div>
+
+              {/* robots.txt */}
+              {seoTab === "robots" ? (
+                <textarea
+                  value={seo.robotsTxt}
+                  onChange={(e) => setSeo({ ...seo, robotsTxt: e.target.value })}
+                  spellCheck={false}
+                  className="w-full min-h-[420px] px-4 py-3 bg-gray-900 text-gray-100 rounded-lg border border-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm leading-relaxed resize-y"
+                  placeholder={"User-Agent: *\nAllow: /\nDisallow: /admin\n\nSitemap: https://tusitio.com/sitemap.xml"}
+                />
+              ) : null}
+
+              {/* llms.txt */}
+              {seoTab === "llms" ? (
+                <textarea
+                  value={seo.llmsTxt}
+                  onChange={(e) => setSeo({ ...seo, llmsTxt: e.target.value })}
+                  spellCheck={false}
+                  className="w-full min-h-[420px] px-4 py-3 bg-gray-900 text-gray-100 rounded-lg border border-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm leading-relaxed resize-y"
+                  placeholder={"# Bausing\n\n> Descripción del sitio para asistentes de IA...\n\n- [Catálogo](https://bausing.com/catalogo)"}
+                />
+              ) : null}
+
+              {/* sitemap.xml */}
+              {seoTab === "sitemap" ? (
+                <div className="space-y-6">
+                  <div>
+                    <p className="text-sm text-gray-500 mb-3">
+                      Se arma solo con los productos, categorías y notas de blog activos. Para no
+                      romper el SEO real no se edita a mano, pero podés ver el archivo completo acá
+                      y sumar URLs manuales abajo.
+                    </p>
+                    <textarea
+                      value={sitemapPreview}
+                      readOnly
+                      spellCheck={false}
+                      className="w-full min-h-[320px] px-4 py-3 bg-gray-900 text-gray-400 rounded-lg border border-gray-800 focus:outline-none font-mono text-xs leading-relaxed resize-y cursor-default"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      URLs adicionales
+                    </label>
+                    <textarea
+                      value={seo.sitemapExtraUrls}
+                      onChange={(e) => setSeo({ ...seo, sitemapExtraUrls: e.target.value })}
+                      rows={3}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-gray-800 font-mono text-sm"
+                      placeholder={"/programa-de-creadores\n/club-beneficios"}
+                    />
+                    <p className="text-sm text-gray-500 mt-1">
+                      Una URL o ruta por línea. Se suman a las páginas que ya se listan
+                      automáticamente la próxima vez que se genere el sitemap.
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex justify-end mt-6">
+                <button
+                  type="button"
+                  onClick={handleSaveSeo}
+                  disabled={seoSaving || !hasUnsavedSeoChanges()}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                >
+                  {seoSaving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  {seoSaving ? "Guardando…" : "Guardar cambios"}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
 
       {modalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">

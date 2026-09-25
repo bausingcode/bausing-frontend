@@ -38,7 +38,8 @@ export function getSiteUrl(): string {
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL.replace(/\/$/, "")}`;
   }
-  return "http://localhost:3000";
+  // Último recurso: nunca exponer localhost en robots.txt/sitemap.xml/llms.txt/OG tags.
+  return "https://bausing.com.ar";
 }
 
 export function absoluteUrl(pathOrUrl: string): string {

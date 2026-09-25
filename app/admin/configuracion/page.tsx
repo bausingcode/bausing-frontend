@@ -4,10 +4,10 @@ import PageHeader from "@/components/PageHeader";
 import Loader from "@/components/Loader";
 import { Wallet, Bell, Mail, Shield, Save, Phone } from "lucide-react";
 import { useState, useEffect } from "react";
-import { 
-  getAppSettings, 
-  updateWalletSettings, 
-  updateMessageTemplates, 
+import {
+  getAppSettings,
+  updateWalletSettings,
+  updateMessageTemplates,
   updateNotificationSettings,
   updateGeneralSettings
 } from "@/lib/api";
@@ -105,14 +105,13 @@ export default function Configuracion() {
         tiktokUrl: settings.general?.tiktokUrl || "",
         cantidadResenas: settings.general?.cantidadResenas !== undefined ? String(settings.general.cantidadResenas) : "",
       };
-
       // Establecer valores actuales y originales (son iguales al cargar)
       setWalletConfig(newWalletConfig);
       setNotificaciones(newNotificaciones);
       setMensajes(newMensajes);
       setSeguridad(newSeguridad);
       setGeneral(newGeneral);
-      
+
       setOriginalWalletConfig(newWalletConfig);
       setOriginalNotificaciones(newNotificaciones);
       setOriginalMensajes(newMensajes);

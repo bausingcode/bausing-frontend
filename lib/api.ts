@@ -1015,6 +1015,8 @@ export async function completeCrmProduct(
     product_id?: string;
     show_transfer_price_highlight?: boolean;
     name: string;
+    /** Slug legible para la URL (opcional); si no se envía, se genera a partir del nombre */
+    slug?: string;
     description?: string;
     technical_description?: string;
     warranty_months?: number;
@@ -1195,7 +1197,7 @@ export async function fetchCrmComboById(comboId: string): Promise<CrmCombo | nul
 /**
  * Upload a product image file directly to Supabase and save to database
  */
-export async function uploadProductImageFile(file: File, productId: string): Promise<{
+export async function uploadProductImageFile(file: File, productId: string, altText?: string): Promise<{
   id: string;
   image_url: string;
   alt_text?: string;
@@ -1260,7 +1262,7 @@ export async function uploadProductImageFile(file: File, productId: string): Pro
     headers: getAuthHeaders(),
     body: JSON.stringify({
       image_url: publicUrl,
-      alt_text: file.name,
+      alt_text: altText?.trim() || file.name,
     }),
   });
   
@@ -1281,6 +1283,8 @@ export async function uploadProductImageFile(file: File, productId: string): Pro
  */
 export async function createCompleteProduct(productData: {
   name: string;
+  /** Slug legible para la URL (opcional); si no se envía, se genera a partir del nombre */
+  slug?: string;
   description?: string;
   sku?: string;
   category_id?: string;
@@ -1757,12 +1761,22 @@ export interface GeneralSettings {
   cantidadResenas?: number;
 }
 
+export interface SeoSettings {
+  /** Contenido completo y literal de robots.txt. Vacío = se genera automáticamente. */
+  robotsTxt?: string;
+  /** Contenido completo y literal de llms.txt. Vacío = se genera automáticamente. */
+  llmsTxt?: string;
+  /** URLs adicionales (una por línea) que se suman al sitemap.xml autogenerado. */
+  sitemapExtraUrls?: string;
+}
+
 export interface AppSettings {
   wallet: WalletConfig;
   messages: MessageTemplates;
   notifications: NotificationSettings;
   security: SecuritySettings;
   general: GeneralSettings;
+  seo: SeoSettings;
 }
 
 /**
@@ -1821,6 +1835,11 @@ export async function getAppSettings(): Promise<AppSettings> {
       tiktokUrl: settings.general?.tiktok_url || "",
       precioPorKm: settings.general?.price_per_km || 105,
       cantidadResenas: settings.general?.review_count !== undefined ? settings.general.review_count : 1550,
+    },
+    seo: {
+      robotsTxt: settings.seo?.robots_txt || "",
+      llmsTxt: settings.seo?.llms_txt || "",
+      sitemapExtraUrls: settings.seo?.sitemap_extra_urls || "",
     },
   };
 }
@@ -1890,6 +1909,45 @@ export async function updateGeneralSettings(general: GeneralSettings): Promise<v
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || `Failed to update general settings: ${response.statusText}`);
+  }
+}
+
+/**
+ * Update SEO settings (robots.txt, sitemap.xml, llms.txt)
+ */
+export async function updateSeoSettings(seo: SeoSettings): Promise<void> {
+  const url = `/api/admin/settings/seo`;
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(seo),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to update SEO settings: ${response.statusText}`);
+  }
+}
+
+/**
+ * Get SEO settings (public - no auth required). Used server-side by
+ * robots.ts, sitemap.ts and the llms.txt route handler.
+ *
+ * `no-store`: these routes are marked `force-dynamic` and must always
+ * reflect the latest value saved from the admin, not a cached one.
+ */
+export async function fetchPublicSeoConfig(): Promise<SeoSettings> {
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:5050';
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/settings/public/seo`
+    : `/api/settings/public/seo`;
+  try {
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) return {};
+    const data = await response.json();
+    return data.success && data.data ? data.data : {};
+  } catch {
+    return {};
   }
 }
 

@@ -25,6 +25,17 @@ import {
   type ProductBasicColorSlug,
 } from "@/lib/productBasicColor";
 
+/** Mismo criterio que generate_product_slug en el backend (models/product.py) */
+function slugifyProductName(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug;
+}
+
 interface Category {
   id: string;
   name: string;
@@ -130,11 +141,13 @@ function SortableImageThumb({
   id,
   imageUrl,
   altText,
+  onAltTextChange,
   onRemove,
 }: {
   id: string;
   imageUrl: string;
   altText?: string;
+  onAltTextChange: (value: string) => void;
   onRemove: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
@@ -151,27 +164,37 @@ function SortableImageThumb({
       style={style}
       className={`relative group ${isDragging ? "opacity-60" : ""}`}
     >
-      <img
-        src={imageUrl}
-        alt={altText || "Imagen del producto"}
-        className="w-full h-28 object-cover rounded-lg border border-gray-200 shadow-sm"
+      <div className="relative">
+        <img
+          src={imageUrl}
+          alt={altText || "Imagen del producto"}
+          className="w-full h-28 object-cover rounded-lg border border-gray-200 shadow-sm"
+        />
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="absolute top-1.5 left-1.5 p-1.5 bg-white/90 text-gray-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white shadow-sm cursor-grab active:cursor-grabbing touch-none"
+          aria-label="Reordenar imagen"
+        >
+          <GripVertical className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="absolute top-1.5 right-1.5 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-sm"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+      <input
+        type="text"
+        value={altText || ""}
+        onChange={(e) => onAltTextChange(e.target.value)}
+        placeholder="Texto alternativo (alt)"
+        title="Texto alternativo (alt) de la imagen"
+        className="mt-1.5 w-full px-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700"
       />
-      <button
-        type="button"
-        {...attributes}
-        {...listeners}
-        className="absolute top-1.5 left-1.5 p-1.5 bg-white/90 text-gray-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white shadow-sm cursor-grab active:cursor-grabbing touch-none"
-        aria-label="Reordenar imagen"
-      >
-        <GripVertical className="w-3.5 h-3.5" />
-      </button>
-      <button
-        type="button"
-        onClick={onRemove}
-        className="absolute top-1.5 right-1.5 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-sm"
-      >
-        <X className="w-3.5 h-3.5" />
-      </button>
     </div>
   );
 }
@@ -181,6 +204,9 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   
   // Step 1: Datos básicos
   const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+  // true una vez que el usuario tocó el campo de slug a mano (o se cargó uno existente): deja de autogenerarse desde el nombre
+  const slugManuallyEditedRef = useRef(false);
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [subcategoryIds, setSubcategoryIds] = useState<string[]>([]); // Múltiples subcategorías
@@ -228,8 +254,10 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   const [freezerCapacityL, setFreezerCapacityL] = useState("");
 
   // Images
-  const [images, setImages] = useState<Array<{ image_url: string; alt_text?: string; position: number }>>([]);
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  // altTouched: true si el usuario editó el alt a mano (o ya venía con uno guardado); si no, se autogenera desde el nombre
+  const [images, setImages] = useState<Array<{ image_url: string; alt_text?: string; position: number; altTouched?: boolean }>>([]);
+  // altTouched: true si el usuario editó el alt a mano; si no, se autogenera desde el nombre
+  const [imageFiles, setImageFiles] = useState<Array<{ file: File; altText: string; altTouched: boolean }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   /** Evita doble envío (clics rápidos) que duplicaba filas en /products/complete. */
   const submitInProgressRef = useRef(false);
@@ -474,6 +502,23 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
     return [];
   };
 
+  // Autogenerar el slug a partir del nombre mientras el usuario no haya tocado el campo a mano
+  useEffect(() => {
+    if (!slugManuallyEditedRef.current) {
+      setSlug(slugifyProductName(name));
+    }
+  }, [name]);
+
+  // Autogenerar el alt de las imágenes a partir del nombre mientras no se haya editado a mano
+  useEffect(() => {
+    setImages((prev) =>
+      prev.map((img) => (img.altTouched ? img : { ...img, alt_text: name })),
+    );
+    setImageFiles((prev) =>
+      prev.map((item) => (item.altTouched ? item : { ...item, altText: name })),
+    );
+  }, [name]);
+
   // Fetch catalogs when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -497,6 +542,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       } else if (crmProduct) {
         // Completing CRM product - NO inicializar campos desde CRM, solo mostrar info
         setName("");
+        setSlug("");
+        slugManuallyEditedRef.current = false;
         setDescription("");
         setIsActive(crmProduct.is_active ?? true);
         setHasStock(crmProduct.stock ?? true);
@@ -521,6 +568,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       } else {
         // New product
         setName("");
+        setSlug("");
+        slugManuallyEditedRef.current = false;
         setDescription("");
         setCategoryId("");
         setSubcategoryIds([]);
@@ -593,6 +642,9 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 
         // Actualizar TODOS los campos del formulario con los datos del producto completo
         setName(fullProduct.name || "");
+        setSlug(fullProduct.slug || "");
+        // Ya tiene un slug guardado: no autogenerar más aunque el nombre cambie (evita romper el link ya compartido)
+        slugManuallyEditedRef.current = true;
         setDescription(fullProduct.description || "");
         setCategoryId(fullProduct.category_id || "");
         setIsActive(fullProduct.is_active ?? true);
@@ -701,10 +753,14 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 	        
 	        // Imágenes
         if (fullProduct.images && fullProduct.images.length > 0) {
+          const productName = fullProduct.name || "";
           setImages(fullProduct.images.map((img: any) => ({
             image_url: img.image_url,
             alt_text: img.alt_text,
             position: img.position || 0,
+            // Si el alt guardado ya es distinto al nombre del producto, es porque lo editaron a mano:
+            // no autogenerar más. Si coincide (o está vacío), sigue autogenerándose si cambia el nombre.
+            altTouched: !!(img.alt_text && img.alt_text.trim() && img.alt_text.trim() !== productName.trim()),
           })));
         }
 
@@ -1368,6 +1424,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 	        const productData = {
 	          product_id: crmProduct.product_id || undefined, // Permitir que el backend lo busque automáticamente
 	          name,
+	          slug: slug.trim() || undefined,
 	          description: description || undefined,
           technical_description: technicalDescription || undefined,
           warranty_months: warrantyMonths || undefined,
@@ -1450,8 +1507,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         
         // Upload new images if any
         if (imageFiles.length > 0 && completedProduct.id) {
-          for (const file of imageFiles) {
-            await uploadProductImageFile(file, completedProduct.id);
+          for (const item of imageFiles) {
+            await uploadProductImageFile(item.file, completedProduct.id, item.altText);
           }
         }
       } else {
@@ -1478,6 +1535,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 
 	        const productData = {
           name,
+          slug: slug.trim() || undefined,
           description: description || undefined,
           category_id: subcategoryIds.length > 0 ? undefined : categoryId,
           subcategory_id: subcategoryIds.length > 0 ? subcategoryIds[0] : undefined,
@@ -1513,8 +1571,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           
           // Upload new images if any
           if (imageFiles.length > 0 && createdProduct.id) {
-            for (const file of imageFiles) {
-              await uploadProductImageFile(file, createdProduct.id);
+            for (const item of imageFiles) {
+              await uploadProductImageFile(item.file, createdProduct.id, item.altText);
             }
           }
         } catch (createError: any) {
@@ -1525,6 +1583,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 
       // Limpiar formulario
       setName("");
+      setSlug("");
+      slugManuallyEditedRef.current = false;
       setDescription("");
       setCategoryId("");
       setSubcategoryIds([]);
@@ -1722,7 +1782,14 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                               key={img.image_url}
                               id={img.image_url}
                               imageUrl={img.image_url}
-                              altText={img.alt_text || `Imagen ${idx + 1}`}
+                              altText={img.alt_text}
+                              onAltTextChange={(value) => {
+                                setImages((prevImages) =>
+                                  prevImages.map((it, i) =>
+                                    i === idx ? { ...it, alt_text: value, altTouched: true } : it,
+                                  ),
+                                );
+                              }}
                               onRemove={() => {
                                 setImages((prevImages) => prevImages.filter((_, i) => i !== idx));
                               }}
@@ -1742,7 +1809,10 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                   multiple
                   onChange={(e) => {
                     const files = Array.from(e.target.files || []);
-                    setImageFiles((prev) => [...prev, ...files]);
+                    setImageFiles((prev) => [
+                      ...prev,
+                      ...files.map((file) => ({ file, altText: name, altTouched: false })),
+                    ]);
                     e.target.value = "";
                   }}
                   className="hidden"
@@ -1767,11 +1837,11 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                   <div className="mt-4">
                     <p className="text-xs font-medium text-gray-500 mb-2">{imageFiles.length} archivo(s) nuevo(s)</p>
                     <div className="grid grid-cols-4 gap-2">
-                      {imageFiles.map((file, idx) => (
+                      {imageFiles.map((item, idx) => (
                         <div key={idx} className="relative group">
                           <img
-                            src={URL.createObjectURL(file)}
-                            alt={`Preview ${idx + 1}`}
+                            src={URL.createObjectURL(item.file)}
+                            alt={item.altText || `Preview ${idx + 1}`}
                             className="w-full h-20 object-cover rounded-lg border border-gray-200"
                           />
                           <button
@@ -1784,6 +1854,22 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                           >
                             <X className="w-3 h-3" />
                           </button>
+                          <input
+                            type="text"
+                            value={item.altText}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setImageFiles((prev) =>
+                                prev.map((it, i) =>
+                                  i === idx ? { ...it, altText: value, altTouched: true } : it,
+                                ),
+                              );
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            placeholder="Texto alternativo (alt)"
+                            title="Texto alternativo (alt) de la imagen"
+                            className="mt-1.5 w-full px-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700"
+                          />
                         </div>
                       ))}
                     </div>
@@ -1803,6 +1889,25 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
                   placeholder="Ej: Colchón Fénix"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  URL del producto (slug)
+                </label>
+                <input
+                  type="text"
+                  value={slug}
+                  onChange={(e) => {
+                    slugManuallyEditedRef.current = true;
+                    setSlug(slugifyProductName(e.target.value));
+                  }}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                  placeholder="Se genera automáticamente a partir del nombre"
+                />
+                <p className="mt-1 text-xs text-gray-500 truncate">
+                  /productos/{slug || "..."}
+                </p>
               </div>
 
               <div>
