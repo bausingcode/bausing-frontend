@@ -5706,6 +5706,131 @@ export async function deleteAdminRedirect(id: string): Promise<void> {
   }
 }
 
+/** Canonical tags — tool de etiquetas <link rel="canonical"> del admin */
+export interface CanonicalOverride {
+  id: string;
+  path: string;
+  canonical_url: string;
+  is_active: boolean;
+  notes: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export async function fetchAdminCanonicals(): Promise<CanonicalOverride[]> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/canonicals`
+      : `/api/admin/canonicals`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, { headers, cache: "no-store" });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Error al cargar canonicals: ${response.statusText}`);
+  }
+  const data = await response.json();
+  if (!data.success) {
+    throw new Error(data.error || "Respuesta inválida");
+  }
+  return data.data || [];
+}
+
+export async function createAdminCanonical(payload: {
+  path: string;
+  canonical_url: string;
+  is_active?: boolean;
+  notes?: string;
+}): Promise<CanonicalOverride> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/canonicals`
+      : `/api/admin/canonicals`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudo crear el canonical");
+  }
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error(data.error || "Respuesta inválida");
+  }
+  return data.data;
+}
+
+export async function updateAdminCanonical(
+  id: string,
+  payload: Partial<{
+    path: string;
+    canonical_url: string;
+    is_active: boolean;
+    notes: string;
+  }>
+): Promise<CanonicalOverride> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/canonicals/${id}`
+      : `/api/admin/canonicals/${id}`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudo actualizar el canonical");
+  }
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error(data.error || "Respuesta inválida");
+  }
+  return data.data;
+}
+
+export async function deleteAdminCanonical(id: string): Promise<void> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/canonicals/${id}`
+      : `/api/admin/canonicals/${id}`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, { method: "DELETE", headers });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudo eliminar el canonical");
+  }
+}
+
+/**
+ * Overrides de canonical activos (público, sin auth). Los consume `resolveCanonical`
+ * server-side en cada `generateMetadata` para reemplazar la URL autogenerada cuando
+ * el admin definió una URL canonical distinta para esa página.
+ */
+export async function fetchPublicCanonicalOverrides(): Promise<
+  { path: string; canonical_url: string }[]
+> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/public/canonicals`
+      : `/api/public/canonicals`;
+  try {
+    const response = await fetch(url, { next: { revalidate: 60 } });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.success && Array.isArray(data.data) ? data.data : [];
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Fetch all events (admin)
  */

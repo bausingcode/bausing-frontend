@@ -8,6 +8,11 @@ import {
   createAdminRedirect,
   updateAdminRedirect,
   deleteAdminRedirect,
+  CanonicalOverride,
+  fetchAdminCanonicals,
+  createAdminCanonical,
+  updateAdminCanonical,
+  deleteAdminCanonical,
   getAppSettings,
   updateSeoSettings,
   SeoSettings,
@@ -27,6 +32,8 @@ import {
   ExternalLink,
   Sparkles,
   PenLine,
+  Link2,
+  Route,
 } from "lucide-react";
 
 const EMPTY_SEO: SeoSettings = {
@@ -43,7 +50,17 @@ const SEO_TABS: { id: SeoFileTab; label: string; file: string }[] = [
   { id: "llms", label: "llms.txt", file: "/llms.txt" },
 ];
 
+type MainTab = "redirects" | "canonical" | "files";
+
+const MAIN_TABS: { id: MainTab; label: string; icon: typeof Route }[] = [
+  { id: "redirects", label: "Redirects", icon: Route },
+  { id: "canonical", label: "Canonical", icon: Link2 },
+  { id: "files", label: "Archivos técnicos", icon: FileText },
+];
+
 export default function AdminRedirectsPage() {
+  const [mainTab, setMainTab] = useState<MainTab>("redirects");
+
   const [items, setItems] = useState<RedirectRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -56,6 +73,19 @@ export default function AdminRedirectsPage() {
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<RedirectRule | null>(null);
+
+  // Canonical tags: listado + editor de <link rel="canonical"> por URL
+  const [canonicalItems, setCanonicalItems] = useState<CanonicalOverride[]>([]);
+  const [canonicalLoading, setCanonicalLoading] = useState(true);
+  const [canonicalError, setCanonicalError] = useState("");
+  const [canonicalModalOpen, setCanonicalModalOpen] = useState(false);
+  const [editingCanonical, setEditingCanonical] = useState<CanonicalOverride | null>(null);
+  const [canonicalPath, setCanonicalPath] = useState("");
+  const [canonicalUrl, setCanonicalUrl] = useState("");
+  const [canonicalActive, setCanonicalActive] = useState(true);
+  const [canonicalNotes, setCanonicalNotes] = useState("");
+  const [canonicalSaving, setCanonicalSaving] = useState(false);
+  const [deleteCanonicalTarget, setDeleteCanonicalTarget] = useState<CanonicalOverride | null>(null);
 
   // SEO técnico: robots.txt, sitemap.xml, llms.txt — editor de archivo completo
   const [seoTab, setSeoTab] = useState<SeoFileTab>("robots");
@@ -168,9 +198,23 @@ export default function AdminRedirectsPage() {
     }
   };
 
+  const loadCanonicals = async () => {
+    setCanonicalError("");
+    setCanonicalLoading(true);
+    try {
+      const data = await fetchAdminCanonicals();
+      setCanonicalItems(data);
+    } catch (e: unknown) {
+      setCanonicalError(e instanceof Error ? e.message : "Error al cargar");
+    } finally {
+      setCanonicalLoading(false);
+    }
+  };
+
   useEffect(() => {
     load();
     loadSeo();
+    loadCanonicals();
   }, []);
 
   const openCreate = () => {
@@ -259,6 +303,88 @@ export default function AdminRedirectsPage() {
     }
   };
 
+  const openCreateCanonical = () => {
+    setEditingCanonical(null);
+    setCanonicalPath("");
+    setCanonicalUrl("");
+    setCanonicalActive(true);
+    setCanonicalNotes("");
+    setCanonicalModalOpen(true);
+  };
+
+  const openEditCanonical = (row: CanonicalOverride) => {
+    setEditingCanonical(row);
+    setCanonicalPath(row.path);
+    setCanonicalUrl(row.canonical_url);
+    setCanonicalActive(row.is_active);
+    setCanonicalNotes(row.notes || "");
+    setCanonicalModalOpen(true);
+  };
+
+  const closeCanonicalModal = () => {
+    setCanonicalModalOpen(false);
+    setEditingCanonical(null);
+  };
+
+  const handleSaveCanonical = async () => {
+    const path = canonicalPath.trim();
+    const target = canonicalUrl.trim();
+    if (!path || !target) {
+      setCanonicalError("Completá la URL de la página y la URL canonical");
+      return;
+    }
+    setCanonicalSaving(true);
+    setCanonicalError("");
+    try {
+      if (editingCanonical) {
+        await updateAdminCanonical(editingCanonical.id, {
+          path,
+          canonical_url: target,
+          is_active: canonicalActive,
+          notes: canonicalNotes,
+        });
+      } else {
+        await createAdminCanonical({
+          path,
+          canonical_url: target,
+          is_active: canonicalActive,
+          notes: canonicalNotes,
+        });
+      }
+      closeCanonicalModal();
+      await loadCanonicals();
+    } catch (e: unknown) {
+      setCanonicalError(e instanceof Error ? e.message : "No se pudo guardar");
+    } finally {
+      setCanonicalSaving(false);
+    }
+  };
+
+  const toggleCanonicalActive = async (row: CanonicalOverride) => {
+    setCanonicalError("");
+    try {
+      await updateAdminCanonical(row.id, { is_active: !row.is_active });
+      await loadCanonicals();
+    } catch (e: unknown) {
+      setCanonicalError(e instanceof Error ? e.message : "Error al actualizar");
+    }
+  };
+
+  const handleDeleteCanonical = async () => {
+    if (!deleteCanonicalTarget) return;
+    setCanonicalSaving(true);
+    setCanonicalError("");
+    try {
+      await deleteAdminCanonical(deleteCanonicalTarget.id);
+      setDeleteCanonicalTarget(null);
+      await loadCanonicals();
+    } catch (e: unknown) {
+      setCanonicalError(e instanceof Error ? e.message : "No se pudo eliminar");
+    } finally {
+      setCanonicalSaving(false);
+    }
+  };
+
   const cardClass = "bg-white rounded-[10px] border border-gray-200";
   const cardRadius = { borderRadius: "14px" } as const;
 
@@ -266,9 +392,33 @@ export default function AdminRedirectsPage() {
     <div className="px-8 pt-6 pb-8 min-h-screen">
       <PageHeader
         title="SEO"
-        description="Redirects, robots.txt, sitemap.xml y llms.txt en un solo lugar."
+        description="Redirects, canonical, robots.txt, sitemap.xml y llms.txt en un solo lugar."
       />
 
+      <div className="flex items-center gap-1 mb-6 border-b border-gray-200">
+        {MAIN_TABS.map((t) => {
+          const isActive = mainTab === t.id;
+          const Icon = t.icon;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setMainTab(t.id)}
+              className={`relative flex items-center gap-2 px-4 py-3 text-sm font-medium -mb-px border-b-2 transition-colors cursor-pointer ${
+                isActive
+                  ? "border-blue-600 text-blue-700"
+                  : "border-transparent text-gray-500 hover:text-gray-800"
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {mainTab === "redirects" ? (
+        <>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h2 className="text-lg font-normal" style={{ color: "#484848" }}>
           Redirects
@@ -397,7 +547,130 @@ export default function AdminRedirectsPage() {
           </div>
         </div>
       )}
+        </>
+      ) : null}
 
+      {mainTab === "canonical" ? (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+            <div>
+              <h2 className="text-lg font-normal" style={{ color: "#484848" }}>
+                Canonical
+              </h2>
+              <p className="text-sm text-gray-500">
+                Definí la URL canonical (<code>&lt;link rel=&quot;canonical&quot;&gt;</code>) que debe
+                usar cada URL del sitio, para casos de contenido duplicado o variantes con filtros.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={openCreateCanonical}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 cursor-pointer shrink-0"
+            >
+              <Plus className="h-4 w-4" />
+              Nuevo canonical
+            </button>
+          </div>
+
+          {canonicalError ? (
+            <div className={`mb-6 ${cardClass} p-4 border-red-200 bg-red-50`} style={cardRadius}>
+              <p className="text-sm text-red-800">{canonicalError}</p>
+            </div>
+          ) : null}
+
+          {canonicalLoading ? (
+            <div className={`${cardClass} p-8 text-center`} style={cardRadius}>
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
+              <p className="text-gray-500 text-sm">Cargando canonicals…</p>
+            </div>
+          ) : canonicalItems.length === 0 ? (
+            <div className={`${cardClass} p-8 text-center`} style={cardRadius}>
+              <p className="text-gray-500 text-sm">
+                Todavía no hay canonicals definidos. Creá el primero con el botón de arriba.
+              </p>
+            </div>
+          ) : (
+            <div className={`${cardClass} overflow-hidden`} style={cardRadius}>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
+                        Página → Canonical
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 w-36">
+                        Estado
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 w-32">
+                        Acciones
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {canonicalItems.map((row) => (
+                      <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="px-6 py-4 align-top">
+                          <div className="flex items-center gap-2 text-sm">
+                            <code className="text-gray-900 font-medium break-all">
+                              {row.path}
+                            </code>
+                            <ArrowRight className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                            <code className="text-gray-500 break-all">{row.canonical_url}</code>
+                          </div>
+                          {row.notes ? (
+                            <p className="text-xs text-gray-400 mt-1">{row.notes}</p>
+                          ) : null}
+                        </td>
+                        <td className="px-6 py-4 align-top">
+                          <button
+                            type="button"
+                            onClick={() => toggleCanonicalActive(row)}
+                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
+                              row.is_active
+                                ? "bg-green-100 text-green-800"
+                                : "bg-gray-100 text-gray-800"
+                            }`}
+                          >
+                            {row.is_active ? (
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            ) : (
+                              <XCircle className="h-3.5 w-3.5" />
+                            )}
+                            {row.is_active ? "Activo" : "Inactivo"}
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 align-top">
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => openEditCanonical(row)}
+                              className="inline-flex p-2 rounded-[6px] text-gray-600 hover:bg-gray-100 transition-colors"
+                              aria-label="Editar"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteCanonicalTarget(row)}
+                              className="inline-flex p-2 rounded-[6px] text-red-600 hover:bg-red-50 transition-colors"
+                              aria-label="Eliminar"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
+      ) : null}
+
+      {mainTab === "files" ? (
+      <>
       {/* SEO técnico: editor de robots.txt, sitemap.xml y llms.txt */}
       <div className={`${cardClass} overflow-hidden mt-8`} style={cardRadius}>
         <div className="flex items-center gap-3 p-6 pb-0">
@@ -590,6 +863,8 @@ export default function AdminRedirectsPage() {
           </>
         )}
       </div>
+      </>
+      ) : null}
 
       {modalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
@@ -728,6 +1003,124 @@ export default function AdminRedirectsPage() {
                 type="button"
                 onClick={handleDelete}
                 disabled={saving}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-60 transition-colors cursor-pointer"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {canonicalModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div
+            className={`${cardClass} shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6`}
+            style={cardRadius}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {editingCanonical ? "Editar canonical" : "Nuevo canonical"}
+              </h2>
+              <button
+                type="button"
+                onClick={closeCanonicalModal}
+                className="p-1 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              URL de la página
+            </label>
+            <input
+              type="text"
+              value={canonicalPath}
+              onChange={(e) => setCanonicalPath(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+              placeholder="/catalogo/colchones?orden=precio"
+            />
+
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              URL canonical
+            </label>
+            <input
+              type="text"
+              value={canonicalUrl}
+              onChange={(e) => setCanonicalUrl(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+              placeholder="/catalogo/colchones"
+            />
+
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              Notas (opcional)
+            </label>
+            <input
+              type="text"
+              value={canonicalNotes}
+              onChange={(e) => setCanonicalNotes(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+              placeholder="Ej.: variante con filtros, mismo contenido que la base"
+            />
+
+            <label className="flex items-center gap-2 text-sm text-gray-800 mb-6 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={canonicalActive}
+                onChange={(e) => setCanonicalActive(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              Activo
+            </label>
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeCanonicalModal}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveCanonical}
+                disabled={canonicalSaving}
+                className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors cursor-pointer text-sm font-medium"
+              >
+                {canonicalSaving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {deleteCanonicalTarget ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
+          <div className={`${cardClass} shadow-xl max-w-md w-full p-6`} style={cardRadius}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              ¿Eliminar este canonical?
+            </h3>
+            <p className="text-sm text-gray-600 mb-6 break-all">
+              {deleteCanonicalTarget.path} → {deleteCanonicalTarget.canonical_url}
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteCanonicalTarget(null)}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteCanonical}
+                disabled={canonicalSaving}
                 className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-60 transition-colors cursor-pointer"
               >
                 Eliminar
