@@ -6,6 +6,7 @@ import ProductCard from "@/components/ProductCard";
 import { firstProductImageUrl } from "@/lib/productImagePlaceholder";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import CategoryFaqSection from "@/components/CategoryFaqSection";
 import { fetchProducts, fetchProductsAllPages, fetchCategories, Product, Category, fetchBasicColorFacets } from "@/lib/api";
 import {
   CATALOGO_BASIC_COLOR_FILTER_ID,
@@ -2189,7 +2190,9 @@ export default function CatalogoContent({
           </div>
         </div>
       </div>
-      
+
+      <CategoryFaqSection categoryId={catalogCategoryIdForFetch} />
+
       <Footer />
     </div>
   );

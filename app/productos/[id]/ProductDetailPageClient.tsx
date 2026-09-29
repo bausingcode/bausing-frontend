@@ -8,6 +8,7 @@ import { Heart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight, Layers, Bed,
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
+import CategoryFaqSection from "@/components/CategoryFaqSection";
 import { useCart } from "@/contexts/CartContext";
 import { useLocality } from "@/contexts/LocalityContext";
 import { fetchProductById, Product as ApiProduct, fetchProducts, fetchProductCombos, ProductCombo, fetchHeroImages, HeroImage, fetchPdpCrossSellForProductPage } from "@/lib/api";
@@ -278,6 +279,9 @@ export default function ProductDetailPageClient({
   const { locality } = useLocality();
 
   const [product, setProduct] = useState<Product | null>(() => bootstrap.product);
+  const [faqCategoryId, setFaqCategoryId] = useState<string | null>(
+    () => initialApiProduct?.category_id ?? null,
+  );
   const [similarProducts, setSimilarProducts] = useState<SimilarProduct[]>([]);
   const [productCombos, setProductCombos] = useState<ProductCombo[]>([]);
   const [categoryProducts, setCategoryProducts] = useState<ApiProduct[]>([]);
@@ -560,6 +564,7 @@ export default function ProductDetailPageClient({
 
         if (!apiProduct) {
           setProduct(null);
+          setFaqCategoryId(null);
           setSabanasColorAvailabilityNotice(false);
           setProductCombos([]);
           setCategoryProducts([]);
@@ -577,6 +582,7 @@ export default function ProductDetailPageClient({
 
         const mapped = mapApiProductToPdp(apiProduct);
         setProduct(mapped.product);
+        setFaqCategoryId(apiProduct.category_id ?? null);
         if (mapped.variantsNormalized.length > 0) {
           setSelectedVariantOptions(mapped.initialSelectedOptions);
           setSelectedVariant(mapped.selectedVariant);
@@ -2044,6 +2050,8 @@ export default function ProductDetailPageClient({
           </div>
         )}
       </div>
+
+      <CategoryFaqSection categoryId={faqCategoryId} />
 
         <Footer />
       </div>

@@ -5599,6 +5599,157 @@ export async function reorderAdminFaqItems(orderedIds: string[]): Promise<FaqIte
   return data.data || [];
 }
 
+/** FAQ por categoría — mismo tool que arriba, pestaña "Por categoría" */
+export interface CategoryFaqItem extends FaqItemPublic {
+  category_id: string;
+  category_name?: string | null;
+  sort_order: number;
+  is_published: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export async function fetchPublicCategoryFaqItems(categoryId: string): Promise<FaqItemPublic[]> {
+  if (!categoryId) return [];
+  try {
+    const url =
+      typeof window === "undefined"
+        ? `${BACKEND_URL}/public/category-faq-items?category_id=${encodeURIComponent(categoryId)}`
+        : `/api/public/category-faq-items?category_id=${encodeURIComponent(categoryId)}`;
+    const fetchOptions: RequestInit =
+      typeof window === "undefined"
+        ? { next: { revalidate: 120 } }
+        : { cache: "no-store" };
+    const response = await fetch(url, fetchOptions);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.success && Array.isArray(data.data) ? data.data : [];
+  } catch (e) {
+    console.error("fetchPublicCategoryFaqItems:", e);
+    return [];
+  }
+}
+
+export async function fetchAdminCategoryFaqItems(categoryId?: string): Promise<CategoryFaqItem[]> {
+  const query = categoryId ? `?category_id=${encodeURIComponent(categoryId)}` : "";
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/category-faq-items${query}`
+      : `/api/admin/category-faq-items${query}`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, { headers, cache: "no-store" });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Error al cargar FAQ: ${response.statusText}`);
+  }
+  const data = await response.json();
+  if (!data.success) {
+    throw new Error(data.error || "Respuesta inválida");
+  }
+  return data.data || [];
+}
+
+export async function createAdminCategoryFaqItem(payload: {
+  category_id: string;
+  question: string;
+  answer: string;
+  sort_order?: number;
+  is_published?: boolean;
+}): Promise<CategoryFaqItem> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/category-faq-items`
+      : `/api/admin/category-faq-items`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudo crear la pregunta");
+  }
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error(data.error || "Respuesta inválida");
+  }
+  return data.data;
+}
+
+export async function updateAdminCategoryFaqItem(
+  id: string,
+  payload: Partial<{
+    question: string;
+    answer: string;
+    sort_order: number;
+    is_published: boolean;
+  }>
+): Promise<CategoryFaqItem> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/category-faq-items/${id}`
+      : `/api/admin/category-faq-items/${id}`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudo actualizar");
+  }
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error(data.error || "Respuesta inválida");
+  }
+  return data.data;
+}
+
+export async function deleteAdminCategoryFaqItem(id: string): Promise<void> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/category-faq-items/${id}`
+      : `/api/admin/category-faq-items/${id}`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, { method: "DELETE", headers });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudo eliminar");
+  }
+}
+
+export async function reorderAdminCategoryFaqItems(
+  categoryId: string,
+  orderedIds: string[]
+): Promise<CategoryFaqItem[]> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/category-faq-items/reorder`
+      : `/api/admin/category-faq-items/reorder`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ category_id: categoryId, ordered_ids: orderedIds }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudo reordenar");
+  }
+  const data = await response.json();
+  if (!data.success) {
+    throw new Error(data.error || "Respuesta inválida");
+  }
+  return data.data || [];
+}
+
 /** Redirects SEO (301/302) — tool de redireccionamientos del admin */
 export interface RedirectRule {
   id: string;

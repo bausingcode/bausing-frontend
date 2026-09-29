@@ -82,7 +82,7 @@ function isPathExemptFromConstruction(pathname: string): boolean {
 export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const pathname = normalizePathname(request.nextUrl.pathname);
 
-  // Redirects SEO (301/302): URLs viejas/rotas gestionadas desde /admin/redirects.
+  // Redirects SEO (301/302): URLs viejas/rotas gestionadas desde /admin/seo.
   // Se resuelven primero para que apliquen incluso en modo "en construcción".
   if (!isPathExemptFromRedirectLookup(pathname)) {
     const rules = await getActiveRedirects();
