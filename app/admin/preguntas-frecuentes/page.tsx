@@ -534,8 +534,10 @@ export default function AdminPreguntasFrecuentesPage() {
             </select>
             <p className="text-sm text-gray-500 mt-1.5">
               Estas preguntas aparecen al pie de la página de cada producto de la categoría y
-              de su vista en el catálogo. Si una categoría no tiene preguntas cargadas, esa
-              sección no se muestra en el sitio.
+              de su vista en el catálogo. Una sub-categoría con preguntas propias usa esas en
+              vez de las de su categoría padre; si no tiene ninguna cargada, hereda las de la
+              categoría padre. Si no hay preguntas en ningún nivel, esa sección no se muestra
+              en el sitio.
             </p>
           </div>
 
