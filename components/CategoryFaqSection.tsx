@@ -31,8 +31,8 @@ export default function CategoryFaqSection({
   if (items.length === 0) return null;
 
   return (
-    <div className="container mx-auto px-4 max-w-3xl py-10 md:py-14">
-      <h2 className="text-xl md:text-2xl font-bold text-[#101828] mb-6">
+    <div className="w-full py-8 md:py-12">
+      <h2 className="text-lg md:text-2xl font-semibold text-gray-900 mb-4 md:mb-6">
         Preguntas frecuentes
       </h2>
       <ul

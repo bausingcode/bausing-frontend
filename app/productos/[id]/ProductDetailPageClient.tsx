@@ -2016,6 +2016,8 @@ export default function ProductDetailPageClient({
           )}
         </div>
 
+        <CategoryFaqSection categoryId={faqCategoryId} />
+
         {/* Similar Products */}
         {similarProducts.length > 0 && (
           <div>
@@ -2050,8 +2052,6 @@ export default function ProductDetailPageClient({
           </div>
         )}
       </div>
-
-      <CategoryFaqSection categoryId={faqCategoryId} />
 
         <Footer />
       </div>

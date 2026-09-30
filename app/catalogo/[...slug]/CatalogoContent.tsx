@@ -2189,9 +2189,9 @@ export default function CatalogoContent({
             )}
           </div>
         </div>
-      </div>
 
-      <CategoryFaqSection categoryId={catalogCategoryIdForFetch} />
+        <CategoryFaqSection categoryId={catalogCategoryIdForFetch} />
+      </div>
 
       <Footer />
     </div>
