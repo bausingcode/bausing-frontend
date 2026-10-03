@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import {
   RedirectRule,
@@ -16,7 +16,18 @@ import {
   getAppSettings,
   updateSeoSettings,
   SeoSettings,
+  fetchCategories,
+  fetchAdminPageMetadata,
+  bulkUpsertAdminPageMetadata,
 } from "@/lib/api";
+import {
+  buildCandidateRows,
+  type PageMetadataRow,
+} from "@/lib/seo/pageMetadataRows";
+import {
+  buildPageMetadataWorkbook,
+  parsePageMetadataWorkbook,
+} from "@/lib/seo/pageMetadataExcel";
 import {
   Plus,
   Pencil,
@@ -34,6 +45,9 @@ import {
   PenLine,
   Link2,
   Route,
+  Tags,
+  Download,
+  Upload,
 } from "lucide-react";
 
 const EMPTY_SEO: SeoSettings = {
@@ -50,11 +64,12 @@ const SEO_TABS: { id: SeoFileTab; label: string; file: string }[] = [
   { id: "llms", label: "llms.txt", file: "/llms.txt" },
 ];
 
-type MainTab = "redirects" | "canonical" | "files";
+type MainTab = "redirects" | "canonical" | "metadata" | "files";
 
 const MAIN_TABS: { id: MainTab; label: string; icon: typeof Route }[] = [
   { id: "redirects", label: "Redirects", icon: Route },
   { id: "canonical", label: "Canonical", icon: Link2 },
+  { id: "metadata", label: "Metadatos", icon: Tags },
   { id: "files", label: "Archivos técnicos", icon: FileText },
 ];
 
@@ -211,10 +226,86 @@ export default function AdminRedirectsPage() {
     }
   };
 
+  // Metadatos: título/descripción de páginas de catálogo e institucionales
+  const [metadataRows, setMetadataRows] = useState<PageMetadataRow[]>([]);
+  const [metadataLoading, setMetadataLoading] = useState(true);
+  const [metadataError, setMetadataError] = useState("");
+  const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
+  const [metadataUploading, setMetadataUploading] = useState(false);
+  const [metadataMessage, setMetadataMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const metadataFileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadMetadataRows = async () => {
+    setMetadataError("");
+    setMetadataLoading(true);
+    try {
+      const [categories, overrides] = await Promise.all([
+        fetchCategories(true),
+        fetchAdminPageMetadata(),
+      ]);
+      setMetadataRows(buildCandidateRows(categories, overrides));
+    } catch (e: unknown) {
+      setMetadataError(e instanceof Error ? e.message : "Error al cargar");
+    } finally {
+      setMetadataLoading(false);
+    }
+  };
+
+  const toggleSelectedPath = (path: string) => {
+    setSelectedPaths((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedPaths((prev) =>
+      prev.size === metadataRows.length ? new Set() : new Set(metadataRows.map((r) => r.path))
+    );
+  };
+
+  const handleDownloadMetadataExcel = async () => {
+    const rows =
+      selectedPaths.size > 0
+        ? metadataRows.filter((r) => selectedPaths.has(r.path))
+        : metadataRows;
+    if (rows.length === 0) return;
+    await buildPageMetadataWorkbook(rows);
+  };
+
+  const handleUploadMetadataExcel = async (file: File) => {
+    setMetadataUploading(true);
+    setMetadataMessage(null);
+    try {
+      const parsed = await parsePageMetadataWorkbook(file);
+      const rowByPath = new Map(metadataRows.map((r) => [r.path, r]));
+      const items = parsed.map((p) => ({
+        path: p.path,
+        page_type: rowByPath.get(p.path)?.page_type || "institutional",
+        meta_title: p.meta_title,
+        meta_description: p.meta_description,
+      }));
+      const result = await bulkUpsertAdminPageMetadata(items);
+      setMetadataMessage({
+        type: "success",
+        text: `Actualizadas: ${result.updated} · Restablecidas a automático: ${result.cleared}`,
+      });
+      setTimeout(() => setMetadataMessage(null), 5000);
+      await loadMetadataRows();
+    } catch (e: unknown) {
+      setMetadataMessage({ type: "error", text: e instanceof Error ? e.message : "No se pudo subir el archivo" });
+    } finally {
+      setMetadataUploading(false);
+    }
+  };
+
   useEffect(() => {
     load();
     loadSeo();
     loadCanonicals();
+    loadMetadataRows();
   }, []);
 
   const openCreate = () => {
@@ -658,6 +749,149 @@ export default function AdminRedirectsPage() {
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
+      ) : null}
+
+      {mainTab === "metadata" ? (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+            <div>
+              <h2 className="text-lg font-normal" style={{ color: "#484848" }}>
+                Metadatos de categorías e institucionales
+              </h2>
+              <p className="text-sm text-gray-500">
+                Título y descripción de las páginas de catálogo (categorías/subcategorías)
+                y de las páginas institucionales. No incluye productos.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleDownloadMetadataExcel}
+                disabled={metadataLoading || metadataRows.length === 0}
+                className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Download className="h-4 w-4" />
+                Descargar Excel{selectedPaths.size > 0 ? ` (${selectedPaths.size})` : ""}
+              </button>
+              <button
+                type="button"
+                onClick={() => metadataFileInputRef.current?.click()}
+                disabled={metadataUploading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {metadataUploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                Subir Excel
+              </button>
+              <input
+                ref={metadataFileInputRef}
+                type="file"
+                accept=".xlsx"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleUploadMetadataExcel(file);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+          </div>
+
+          {metadataMessage ? (
+            <div
+              className={`mb-4 p-4 rounded-lg text-sm ${
+                metadataMessage.type === "success"
+                  ? "bg-green-50 text-green-800 border border-green-200"
+                  : "bg-red-50 text-red-800 border border-red-200"
+              }`}
+            >
+              {metadataMessage.text}
+            </div>
+          ) : null}
+
+          {metadataError ? (
+            <div className={`mb-6 ${cardClass} p-4 border-red-200 bg-red-50`} style={cardRadius}>
+              <p className="text-sm text-red-800">{metadataError}</p>
+            </div>
+          ) : null}
+
+          {metadataLoading ? (
+            <div className={`${cardClass} p-8 text-center`} style={cardRadius}>
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
+              <p className="text-gray-500 text-sm">Cargando páginas…</p>
+            </div>
+          ) : metadataRows.length === 0 ? (
+            <div className={`${cardClass} p-8 text-center`} style={cardRadius}>
+              <p className="text-gray-500 text-sm">No hay páginas para mostrar.</p>
+            </div>
+          ) : (
+            <div className={`${cardClass} overflow-hidden`} style={cardRadius}>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="px-4 py-4 text-left w-10">
+                        <input
+                          type="checkbox"
+                          checked={selectedPaths.size === metadataRows.length}
+                          onChange={toggleSelectAll}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
+                        Página
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
+                        Título / Descripción
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 w-28">
+                        Estado
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {metadataRows.map((row) => (
+                      <tr key={row.path} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="px-4 py-4 align-top">
+                          <input
+                            type="checkbox"
+                            checked={selectedPaths.has(row.path)}
+                            onChange={() => toggleSelectedPath(row.path)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                        </td>
+                        <td className="px-6 py-4 align-top">
+                          <p className="text-sm font-medium text-gray-900">{row.label}</p>
+                          <code className="text-xs text-gray-500 break-all">{row.path}</code>
+                        </td>
+                        <td className="px-6 py-4 align-top max-w-md">
+                          <p className="text-sm text-gray-900 truncate">{row.effectiveTitle}</p>
+                          <p className="text-xs text-gray-500 line-clamp-2">
+                            {row.effectiveDescription}
+                          </p>
+                        </td>
+                        <td className="px-6 py-4 align-top">
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+                              row.hasOverride
+                                ? "bg-amber-100 text-amber-800"
+                                : "bg-emerald-100 text-emerald-800"
+                            }`}
+                          >
+                            {row.hasOverride ? "Personalizado" : "Automático"}
+                          </span>
                         </td>
                       </tr>
                     ))}

@@ -5982,6 +5982,88 @@ export async function fetchPublicCanonicalOverrides(): Promise<
   }
 }
 
+export interface PageMetadataOverride {
+  id: string;
+  path: string;
+  page_type: string;
+  meta_title: string | null;
+  meta_description: string | null;
+  updated_by?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export async function fetchAdminPageMetadata(): Promise<PageMetadataOverride[]> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/page-metadata`
+      : `/api/admin/page-metadata`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, { headers, cache: "no-store" });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Error al cargar metadatos: ${response.statusText}`);
+  }
+  const data = await response.json();
+  if (!data.success) {
+    throw new Error(data.error || "Respuesta inválida");
+  }
+  return data.data || [];
+}
+
+export async function bulkUpsertAdminPageMetadata(
+  items: {
+    path: string;
+    page_type: string;
+    meta_title: string;
+    meta_description: string;
+  }[]
+): Promise<{ updated: number; cleared: number }> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/page-metadata/bulk-upsert`
+      : `/api/admin/page-metadata/bulk-upsert`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudieron actualizar los metadatos");
+  }
+  const data = await response.json();
+  if (!data.success) {
+    throw new Error(data.error || "Respuesta inválida");
+  }
+  return data.data || { updated: 0, cleared: 0 };
+}
+
+/**
+ * Overrides de metadatos activos (público, sin auth). Los consume `resolvePageMetadata`
+ * server-side en cada `generateMetadata` para reemplazar el título/descripción
+ * autogenerados cuando el admin definió un valor distinto para esa página.
+ */
+export async function fetchPublicPageMetadata(): Promise<
+  { path: string; meta_title: string | null; meta_description: string | null }[]
+> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/public/page-metadata`
+      : `/api/public/page-metadata`;
+  try {
+    const response = await fetch(url, { next: { revalidate: 60 } });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.success && Array.isArray(data.data) ? data.data : [];
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Fetch all events (admin)
  */

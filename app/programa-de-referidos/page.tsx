@@ -4,25 +4,25 @@ import Footer from "@/components/Footer";
 import { fetchActiveEvent } from "@/lib/api";
 import { buildPageOpenGraph, buildPageTwitter } from "@/lib/seo/openGraph";
 import { getSiteUrl, titleWithBrand } from "@/lib/seo/site";
+import { resolvePageMetadata } from "@/lib/seo/pageMetadataOverrides";
 
 const url = `${getSiteUrl()}/programa-de-referidos`;
-const title = titleWithBrand("Programa de Referidos");
-const description =
-  "Recomendá Bausing y ganá Pesos Bausing. Compartí tu código único con amigos y familiares y acumulá créditos para usar en tus próximas compras.";
-const ogDescription =
-  "Recomendá Bausing y ganá Pesos Bausing. Compartí tu código único y acumulá créditos para tus compras.";
 
-export const metadata: Metadata = {
-  title: "Programa de Referidos",
-  description,
-  alternates: { canonical: url },
-  openGraph: buildPageOpenGraph({
-    title,
-    description: ogDescription,
-    url,
-  }),
-  twitter: buildPageTwitter({ title, description: ogDescription }),
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { title, description, titleIsOverride } = await resolvePageMetadata("/programa-de-referidos", {
+    title: "Programa de Referidos",
+    description:
+      "Recomendá Bausing y ganá Pesos Bausing. Compartí tu código único con amigos y familiares y acumulá créditos para usar en tus próximas compras.",
+  });
+  const ogTitle = titleIsOverride ? title : titleWithBrand(title);
+  return {
+    title: titleIsOverride ? { absolute: title } : title,
+    description,
+    alternates: { canonical: url },
+    openGraph: buildPageOpenGraph({ title: ogTitle, description, url }),
+    twitter: buildPageTwitter({ title: ogTitle, description }),
+  };
+}
 
 export default async function ProgramaReferidosPage() {
   const activeEvent = await fetchActiveEvent().catch(() => null);

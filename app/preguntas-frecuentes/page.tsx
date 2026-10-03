@@ -8,25 +8,25 @@ import {
   getSiteUrl,
   titleWithBrand,
 } from "@/lib/seo/site";
+import { resolvePageMetadata } from "@/lib/seo/pageMetadataOverrides";
 
 const url = `${getSiteUrl()}/preguntas-frecuentes`;
-const title = titleWithBrand("Preguntas frecuentes");
-const description =
-  "Respondemos las dudas más comunes sobre envíos, pagos, garantía y productos Bausing.";
-const ogDescription =
-  "Respondemos las dudas más comunes sobre envíos, pagos, garantía y productos.";
 
-export const metadata: Metadata = {
-  title: "Preguntas frecuentes",
-  description,
-  alternates: { canonical: url },
-  openGraph: buildPageOpenGraph({
-    title,
-    description: ogDescription,
-    url,
-  }),
-  twitter: buildPageTwitter({ title, description: ogDescription }),
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { title, description, titleIsOverride } = await resolvePageMetadata("/preguntas-frecuentes", {
+    title: "Preguntas frecuentes",
+    description:
+      "Respondemos las dudas más comunes sobre envíos, pagos, garantía y productos Bausing.",
+  });
+  const ogTitle = titleIsOverride ? title : titleWithBrand(title);
+  return {
+    title: titleIsOverride ? { absolute: title } : title,
+    description,
+    alternates: { canonical: url },
+    openGraph: buildPageOpenGraph({ title: ogTitle, description, url }),
+    twitter: buildPageTwitter({ title: ogTitle, description }),
+  };
+}
 
 export default async function PreguntasFrecuentesPage() {
   const [items, activeEvent] = await Promise.all([

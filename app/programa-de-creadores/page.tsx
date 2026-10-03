@@ -5,25 +5,25 @@ import TrackedWhatsAppAnchor from "@/components/TrackedWhatsAppAnchor";
 import { fetchActiveEvent } from "@/lib/api";
 import { buildPageOpenGraph, buildPageTwitter } from "@/lib/seo/openGraph";
 import { getSiteUrl, titleWithBrand } from "@/lib/seo/site";
+import { resolvePageMetadata } from "@/lib/seo/pageMetadataOverrides";
 
 const url = `${getSiteUrl()}/programa-de-creadores`;
-const title = titleWithBrand("Programa de Creadores");
-const description =
-  "Creá contenido mostrando productos Bausing y generá ingresos. No hace falta ser influencer, solo ganas de crear y compartir.";
-const ogDescription =
-  "Creá contenido mostrando productos Bausing y generá ingresos. No hace falta ser influencer.";
 
-export const metadata: Metadata = {
-  title: "Programa de Creadores",
-  description,
-  alternates: { canonical: url },
-  openGraph: buildPageOpenGraph({
-    title,
-    description: ogDescription,
-    url,
-  }),
-  twitter: buildPageTwitter({ title, description: ogDescription }),
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { title, description, titleIsOverride } = await resolvePageMetadata("/programa-de-creadores", {
+    title: "Programa de Creadores",
+    description:
+      "Creá contenido mostrando productos Bausing y generá ingresos. No hace falta ser influencer, solo ganas de crear y compartir.",
+  });
+  const ogTitle = titleIsOverride ? title : titleWithBrand(title);
+  return {
+    title: titleIsOverride ? { absolute: title } : title,
+    description,
+    alternates: { canonical: url },
+    openGraph: buildPageOpenGraph({ title: ogTitle, description, url }),
+    twitter: buildPageTwitter({ title: ogTitle, description }),
+  };
+}
 
 const WHATSAPP_NUMBER = "5493518737683";
 const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=Hola%2C%20quiero%20sumarme%20al%20Programa%20de%20Creadores%20de%20Bausing`;
