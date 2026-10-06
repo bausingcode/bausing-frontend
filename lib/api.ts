@@ -7644,16 +7644,113 @@ export async function getFailedRetries(): Promise<FailedRetriesResponse> {
   const url = typeof window === "undefined"
     ? `${API_BASE_URL}/api/failed-retries`
     : `/api/api/failed-retries`;
-  
+
   const response = await fetch(url, {
     headers: getAuthHeaders(),
   });
-  
+
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || `Failed to fetch failed retries: ${response.statusText}`);
   }
-  
+
   const data = await response.json();
   return data.success ? data.data : { normal_pending: [], manual_required: [] };
+}
+
+/**
+ * Programa de Creadores (contenido editable de /programa-de-creadores)
+ */
+export interface CreatorProgramContent {
+  hero_title: string;
+  hero_subtitle: string;
+  hero_description: string;
+  steps_title: string;
+  steps: string[];
+  requirements_title: string;
+  requirements: string[];
+  requirements_note: string;
+  join_title: string;
+  join_description: string;
+  whatsapp_number: string;
+  whatsapp_message: string;
+  join_followup: string;
+  benefits_title: string;
+  benefits: string[];
+  cta_title: string;
+  cta_button_text: string;
+}
+
+export async function fetchCreatorProgramContent(): Promise<CreatorProgramContent | null> {
+  try {
+    const url = typeof window === "undefined"
+      ? `${BACKEND_URL}/public/creator-program`
+      : `/api/public/creator-program`;
+
+    const fetchOptions: RequestInit = typeof window === "undefined"
+      ? { next: { revalidate: 60 } }
+      : {};
+
+    const response = await fetch(url, fetchOptions);
+    const data = await response.json().catch(() => null);
+    if (!response.ok || !data?.success) {
+      throw new Error(data?.error || response.statusText);
+    }
+    return data.data;
+  } catch (error) {
+    console.error("Error fetching creator program content:", error);
+    return null;
+  }
+}
+
+export async function fetchCreatorProgramContentAdmin(
+  cookieHeader?: string | null,
+): Promise<CreatorProgramContent> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/admin/creator-program`
+      : `/api/admin/creator-program`;
+
+  const headers =
+    typeof window === "undefined"
+      ? getAuthHeadersServer(cookieHeader ?? undefined)
+      : getAuthHeaders();
+
+  const response = await fetch(url, {
+    headers,
+    cache: "no-store",
+    credentials: "same-origin",
+  });
+
+  const json = await response.json().catch(() => null);
+  if (!response.ok || !json?.success) {
+    throw new Error(json?.error || "Error al cargar el contenido del Programa de Creadores");
+  }
+
+  return json.data;
+}
+
+export async function saveCreatorProgramContent(
+  content: CreatorProgramContent,
+): Promise<CreatorProgramContent> {
+  const url = typeof window === "undefined"
+    ? `${BACKEND_URL}/admin/creator-program`
+    : `/api/admin/creator-program`;
+
+  const headers = typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(content),
+    cache: "no-store",
+    credentials: "same-origin",
+  });
+
+  const json = await response.json().catch(() => null);
+  if (!response.ok || !json?.success) {
+    throw new Error(json?.error || "No se pudo guardar el contenido");
+  }
+
+  return json.data;
 }
