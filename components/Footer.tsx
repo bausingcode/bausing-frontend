@@ -129,10 +129,10 @@ export default function Footer() {
               <li>
                 <button
                   onClick={() => setShowArrepentimiento(true)}
-                  className="inline-flex items-center gap-1.5 text-[#00C1A7] hover:text-[#00A892] font-medium transition-colors relative group cursor-pointer"
+                  className="inline-flex items-center gap-1.5 hover:text-gray-900 font-normal transition-colors relative group cursor-pointer"
                 >
                   Botón de arrepentimiento
-                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#00C1A7] group-hover:w-full transition-all duration-300 ease-in-out"></span>
+                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gray-700 group-hover:w-full transition-all duration-300 ease-in-out"></span>
                 </button>
               </li>
             </ul>
