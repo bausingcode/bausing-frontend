@@ -1145,7 +1145,7 @@ export default function AdminRedirectsPage() {
                   {selectingAllMatches ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : null}
-                  Seleccionar los {productTotal} resultados de esta búsqueda
+                  Seleccionar los {productTotal} productos guardados
                 </button>
                 {selectedProductRows.size > 0 ? (
                   <>
