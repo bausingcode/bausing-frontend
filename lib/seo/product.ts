@@ -1,12 +1,14 @@
 import type { Product } from "@/lib/api";
 import { SITE_NAME, stripHtml } from "@/lib/seo/site";
 
-/** Igual al `<h1>` de la ficha: nombre tal cual viene del API. */
+/** Título SEO (meta_title) si el admin lo definió; si no, el nombre tal cual viene del API. */
 export function productPageTitle(product: Product): string {
-  return product.name.trim() || "Producto";
+  return product.meta_title?.trim() || product.name.trim() || "Producto";
 }
 
 export function buildProductMetaDescription(product: Product): string {
+  if (product.meta_description?.trim()) return product.meta_description.trim();
+
   const fromHtml = stripHtml(product.description, 155);
   if (fromHtml.length >= 70) return fromHtml;
 

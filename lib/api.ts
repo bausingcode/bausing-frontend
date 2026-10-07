@@ -429,6 +429,9 @@ export interface Product {
   slug?: string | null;
   name: string;
   description?: string;
+  /** SEO: título/descripción para <title>/<meta description>. null/vacío = se calculan desde name/description. */
+  meta_title?: string | null;
+  meta_description?: string | null;
   sku?: string;
   category_id?: string;
   category_name?: string;
@@ -1018,6 +1021,8 @@ export async function completeCrmProduct(
     /** Slug legible para la URL (opcional); si no se envía, se genera a partir del nombre */
     slug?: string;
     description?: string;
+    meta_title?: string | null;
+    meta_description?: string | null;
     technical_description?: string;
     warranty_months?: number;
     warranty_description?: string;
@@ -1286,6 +1291,8 @@ export async function createCompleteProduct(productData: {
   /** Slug legible para la URL (opcional); si no se envía, se genera a partir del nombre */
   slug?: string;
   description?: string;
+  meta_title?: string | null;
+  meta_description?: string | null;
   sku?: string;
   category_id?: string;
   subcategory_id?: string;
@@ -6062,6 +6069,32 @@ export async function fetchPublicPageMetadata(): Promise<
   } catch {
     return [];
   }
+}
+
+/** Edición masiva de meta_title/meta_description de productos (herramienta SEO). */
+export async function bulkUpdateProductMeta(
+  items: { id: string; meta_title: string; meta_description: string }[]
+): Promise<{ updated: number; not_found: string[] }> {
+  const url =
+    typeof window === "undefined"
+      ? `${BACKEND_URL}/products/meta-bulk`
+      : `/api/products/meta-bulk`;
+  const headers =
+    typeof window === "undefined" ? getAuthHeadersServer() : getAuthHeaders();
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "No se pudieron actualizar los metadatos de productos");
+  }
+  const data = await response.json();
+  if (!data.success) {
+    throw new Error(data.error || "Respuesta inválida");
+  }
+  return data.data || { updated: 0, not_found: [] };
 }
 
 /**

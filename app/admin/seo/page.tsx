@@ -19,6 +19,8 @@ import {
   fetchCategories,
   fetchAdminPageMetadata,
   bulkUpsertAdminPageMetadata,
+  fetchProducts,
+  bulkUpdateProductMeta,
 } from "@/lib/api";
 import {
   buildCandidateRows,
@@ -28,6 +30,14 @@ import {
   buildPageMetadataWorkbook,
   parsePageMetadataWorkbook,
 } from "@/lib/seo/pageMetadataExcel";
+import {
+  buildProductMetadataRow,
+  type ProductMetadataRow,
+} from "@/lib/seo/productMetadataRows";
+import {
+  buildProductMetadataWorkbook,
+  parseProductMetadataWorkbook,
+} from "@/lib/seo/productMetadataExcel";
 import {
   Plus,
   Pencil,
@@ -48,6 +58,9 @@ import {
   Tags,
   Download,
   Upload,
+  Search,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 const EMPTY_SEO: SeoSettings = {
@@ -298,6 +311,117 @@ export default function AdminRedirectsPage() {
       setMetadataMessage({ type: "error", text: e instanceof Error ? e.message : "No se pudo subir el archivo" });
     } finally {
       setMetadataUploading(false);
+    }
+  };
+
+  // Metadatos: sub-tab para elegir el origen de las filas (categorías/institucionales vs productos)
+  const [metadataSubTab, setMetadataSubTab] = useState<"pages" | "products">("pages");
+
+  // Metadatos > Productos: búsqueda + paginado (puede haber cientos de productos, a
+  // diferencia de las ~30 filas de categorías/institucionales que se listan todas juntas)
+  const [productSearch, setProductSearch] = useState("");
+  const [debouncedProductSearch, setDebouncedProductSearch] = useState("");
+  const [productPage, setProductPage] = useState(1);
+  const [productTotalPages, setProductTotalPages] = useState(1);
+  const [productIncludeInactive, setProductIncludeInactive] = useState(false);
+  const [productRows, setProductRows] = useState<ProductMetadataRow[]>([]);
+  const [productLoading, setProductLoading] = useState(false);
+  const [productError, setProductError] = useState("");
+  // Mapa (no solo ids) para poder exportar filas seleccionadas en búsquedas/páginas anteriores
+  const [selectedProductRows, setSelectedProductRows] = useState<Map<string, ProductMetadataRow>>(new Map());
+  const [productUploading, setProductUploading] = useState(false);
+  const [productMessage, setProductMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const productFileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedProductSearch(productSearch.trim()), 350);
+    return () => clearTimeout(t);
+  }, [productSearch]);
+
+  useEffect(() => {
+    setProductPage(1);
+  }, [debouncedProductSearch, productIncludeInactive]);
+
+  const loadProductRows = async () => {
+    setProductError("");
+    setProductLoading(true);
+    try {
+      const res = await fetchProducts({
+        search: debouncedProductSearch || undefined,
+        page: productPage,
+        per_page: 20,
+        is_active: productIncludeInactive ? undefined : true,
+        include_variants: false,
+        include_images: false,
+        include_promos: false,
+      });
+      setProductRows(res.products.map(buildProductMetadataRow));
+      setProductTotalPages(res.total_pages || 1);
+    } catch (e: unknown) {
+      setProductError(e instanceof Error ? e.message : "Error al cargar");
+    } finally {
+      setProductLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (metadataSubTab === "products") {
+      loadProductRows();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metadataSubTab, debouncedProductSearch, productPage, productIncludeInactive]);
+
+  const toggleSelectedProduct = (row: ProductMetadataRow) => {
+    setSelectedProductRows((prev) => {
+      const next = new Map(prev);
+      if (next.has(row.id)) next.delete(row.id);
+      else next.set(row.id, row);
+      return next;
+    });
+  };
+
+  const toggleSelectAllProductsOnPage = () => {
+    setSelectedProductRows((prev) => {
+      const next = new Map(prev);
+      const allSelected = productRows.length > 0 && productRows.every((r) => next.has(r.id));
+      if (allSelected) {
+        productRows.forEach((r) => next.delete(r.id));
+      } else {
+        productRows.forEach((r) => next.set(r.id, r));
+      }
+      return next;
+    });
+  };
+
+  const handleDownloadProductMetadataExcel = async () => {
+    const rows = Array.from(selectedProductRows.values());
+    if (rows.length === 0) return;
+    await buildProductMetadataWorkbook(rows);
+  };
+
+  const handleUploadProductMetadataExcel = async (file: File) => {
+    setProductUploading(true);
+    setProductMessage(null);
+    try {
+      const parsed = await parseProductMetadataWorkbook(file);
+      const items = parsed.map((p) => ({
+        id: p.id,
+        meta_title: p.meta_title,
+        meta_description: p.meta_description,
+      }));
+      const result = await bulkUpdateProductMeta(items);
+      const notFoundText = result.not_found.length > 0 ? ` · No encontrados: ${result.not_found.length}` : "";
+      setProductMessage({
+        type: "success",
+        text: `Actualizados: ${result.updated}${notFoundText}`,
+      });
+      setTimeout(() => setProductMessage(null), 5000);
+      setSelectedProductRows(new Map());
+      await loadProductRows();
+    } catch (e: unknown) {
+      setProductMessage({ type: "error", text: e instanceof Error ? e.message : "No se pudo subir el archivo" });
+    } finally {
+      setProductUploading(false);
     }
   };
 
@@ -762,33 +886,43 @@ export default function AdminRedirectsPage() {
 
       {mainTab === "metadata" ? (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div>
               <h2 className="text-lg font-normal" style={{ color: "#484848" }}>
-                Metadatos de categorías e institucionales
+                Metadatos
               </h2>
               <p className="text-sm text-gray-500">
-                Título y descripción de las páginas de catálogo (categorías/subcategorías)
-                y de las páginas institucionales. No incluye productos.
+                Título y descripción de las páginas de catálogo, institucionales y productos.
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
-                onClick={handleDownloadMetadataExcel}
-                disabled={metadataLoading || metadataRows.length === 0}
+                onClick={metadataSubTab === "pages" ? handleDownloadMetadataExcel : handleDownloadProductMetadataExcel}
+                disabled={
+                  metadataSubTab === "pages"
+                    ? metadataLoading || metadataRows.length === 0
+                    : selectedProductRows.size === 0
+                }
                 className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Download className="h-4 w-4" />
-                Descargar Excel{selectedPaths.size > 0 ? ` (${selectedPaths.size})` : ""}
+                Descargar Excel
+                {metadataSubTab === "pages"
+                  ? selectedPaths.size > 0 ? ` (${selectedPaths.size})` : ""
+                  : selectedProductRows.size > 0 ? ` (${selectedProductRows.size})` : ""}
               </button>
               <button
                 type="button"
-                onClick={() => metadataFileInputRef.current?.click()}
-                disabled={metadataUploading}
+                onClick={() =>
+                  metadataSubTab === "pages"
+                    ? metadataFileInputRef.current?.click()
+                    : productFileInputRef.current?.click()
+                }
+                disabled={metadataSubTab === "pages" ? metadataUploading : productUploading}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {metadataUploading ? (
+                {(metadataSubTab === "pages" ? metadataUploading : productUploading) ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Upload className="h-4 w-4" />
@@ -806,99 +940,288 @@ export default function AdminRedirectsPage() {
                   e.target.value = "";
                 }}
               />
+              <input
+                ref={productFileInputRef}
+                type="file"
+                accept=".xlsx"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleUploadProductMetadataExcel(file);
+                  e.target.value = "";
+                }}
+              />
             </div>
           </div>
 
-          {metadataMessage ? (
-            <div
-              className={`mb-4 p-4 rounded-lg text-sm ${
-                metadataMessage.type === "success"
-                  ? "bg-green-50 text-green-800 border border-green-200"
-                  : "bg-red-50 text-red-800 border border-red-200"
+          <div className="flex items-center gap-1 mb-6">
+            <button
+              type="button"
+              onClick={() => setMetadataSubTab("pages")}
+              className={`px-3 py-1.5 text-sm font-medium rounded-full transition-colors cursor-pointer ${
+                metadataSubTab === "pages"
+                  ? "bg-gray-900 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              {metadataMessage.text}
-            </div>
-          ) : null}
+              Categorías e institucionales
+            </button>
+            <button
+              type="button"
+              onClick={() => setMetadataSubTab("products")}
+              className={`px-3 py-1.5 text-sm font-medium rounded-full transition-colors cursor-pointer ${
+                metadataSubTab === "products"
+                  ? "bg-gray-900 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              Productos
+            </button>
+          </div>
 
-          {metadataError ? (
-            <div className={`mb-6 ${cardClass} p-4 border-red-200 bg-red-50`} style={cardRadius}>
-              <p className="text-sm text-red-800">{metadataError}</p>
-            </div>
-          ) : null}
+          {metadataSubTab === "pages" ? (
+            <>
+              {metadataMessage ? (
+                <div
+                  className={`mb-4 p-4 rounded-lg text-sm ${
+                    metadataMessage.type === "success"
+                      ? "bg-green-50 text-green-800 border border-green-200"
+                      : "bg-red-50 text-red-800 border border-red-200"
+                  }`}
+                >
+                  {metadataMessage.text}
+                </div>
+              ) : null}
 
-          {metadataLoading ? (
-            <div className={`${cardClass} p-8 text-center`} style={cardRadius}>
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
-              <p className="text-gray-500 text-sm">Cargando páginas…</p>
-            </div>
-          ) : metadataRows.length === 0 ? (
-            <div className={`${cardClass} p-8 text-center`} style={cardRadius}>
-              <p className="text-gray-500 text-sm">No hay páginas para mostrar.</p>
-            </div>
+              {metadataError ? (
+                <div className={`mb-6 ${cardClass} p-4 border-red-200 bg-red-50`} style={cardRadius}>
+                  <p className="text-sm text-red-800">{metadataError}</p>
+                </div>
+              ) : null}
+
+              {metadataLoading ? (
+                <div className={`${cardClass} p-8 text-center`} style={cardRadius}>
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
+                  <p className="text-gray-500 text-sm">Cargando páginas…</p>
+                </div>
+              ) : metadataRows.length === 0 ? (
+                <div className={`${cardClass} p-8 text-center`} style={cardRadius}>
+                  <p className="text-gray-500 text-sm">No hay páginas para mostrar.</p>
+                </div>
+              ) : (
+                <div className={`${cardClass} overflow-hidden`} style={cardRadius}>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="px-4 py-4 text-left w-10">
+                            <input
+                              type="checkbox"
+                              checked={selectedPaths.size === metadataRows.length}
+                              onChange={toggleSelectAll}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            />
+                          </th>
+                          <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
+                            Página
+                          </th>
+                          <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
+                            Título / Descripción
+                          </th>
+                          <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 w-28">
+                            Estado
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {metadataRows.map((row) => (
+                          <tr key={row.path} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="px-4 py-4 align-top">
+                              <input
+                                type="checkbox"
+                                checked={selectedPaths.has(row.path)}
+                                onChange={() => toggleSelectedPath(row.path)}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                            </td>
+                            <td className="px-6 py-4 align-top">
+                              <p className="text-sm font-medium text-gray-900">{row.label}</p>
+                              <code className="text-xs text-gray-500 break-all">{row.path}</code>
+                            </td>
+                            <td className="px-6 py-4 align-top max-w-md">
+                              <p className="text-sm text-gray-900 truncate">{row.effectiveTitle}</p>
+                              <p className="text-xs text-gray-500 line-clamp-2">
+                                {row.effectiveDescription}
+                              </p>
+                            </td>
+                            <td className="px-6 py-4 align-top">
+                              <span
+                                className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+                                  row.hasOverride
+                                    ? "bg-amber-100 text-amber-800"
+                                    : "bg-emerald-100 text-emerald-800"
+                                }`}
+                              >
+                                {row.hasOverride ? "Personalizado" : "Automático"}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
-            <div className={`${cardClass} overflow-hidden`} style={cardRadius}>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="px-4 py-4 text-left w-10">
-                        <input
-                          type="checkbox"
-                          checked={selectedPaths.size === metadataRows.length}
-                          onChange={toggleSelectAll}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                        />
-                      </th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
-                        Página
-                      </th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
-                        Título / Descripción
-                      </th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 w-28">
-                        Estado
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {metadataRows.map((row) => (
-                      <tr key={row.path} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="px-4 py-4 align-top">
-                          <input
-                            type="checkbox"
-                            checked={selectedPaths.has(row.path)}
-                            onChange={() => toggleSelectedPath(row.path)}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                          />
-                        </td>
-                        <td className="px-6 py-4 align-top">
-                          <p className="text-sm font-medium text-gray-900">{row.label}</p>
-                          <code className="text-xs text-gray-500 break-all">{row.path}</code>
-                        </td>
-                        <td className="px-6 py-4 align-top max-w-md">
-                          <p className="text-sm text-gray-900 truncate">{row.effectiveTitle}</p>
-                          <p className="text-xs text-gray-500 line-clamp-2">
-                            {row.effectiveDescription}
-                          </p>
-                        </td>
-                        <td className="px-6 py-4 align-top">
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-                              row.hasOverride
-                                ? "bg-amber-100 text-amber-800"
-                                : "bg-emerald-100 text-emerald-800"
-                            }`}
-                          >
-                            {row.hasOverride ? "Personalizado" : "Automático"}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <>
+              <div className="flex flex-wrap items-center gap-3 mb-4">
+                <div className="relative flex-1 min-w-[240px] max-w-sm">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    placeholder="Buscar producto por nombre, SKU…"
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  />
+                </div>
+                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={productIncludeInactive}
+                    onChange={(e) => setProductIncludeInactive(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  Incluir inactivos
+                </label>
+                {selectedProductRows.size > 0 ? (
+                  <span className="text-sm text-gray-500">
+                    {selectedProductRows.size} seleccionado{selectedProductRows.size === 1 ? "" : "s"}
+                  </span>
+                ) : null}
               </div>
-            </div>
+
+              {productMessage ? (
+                <div
+                  className={`mb-4 p-4 rounded-lg text-sm ${
+                    productMessage.type === "success"
+                      ? "bg-green-50 text-green-800 border border-green-200"
+                      : "bg-red-50 text-red-800 border border-red-200"
+                  }`}
+                >
+                  {productMessage.text}
+                </div>
+              ) : null}
+
+              {productError ? (
+                <div className={`mb-6 ${cardClass} p-4 border-red-200 bg-red-50`} style={cardRadius}>
+                  <p className="text-sm text-red-800">{productError}</p>
+                </div>
+              ) : null}
+
+              {productLoading ? (
+                <div className={`${cardClass} p-8 text-center`} style={cardRadius}>
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
+                  <p className="text-gray-500 text-sm">Cargando productos…</p>
+                </div>
+              ) : productRows.length === 0 ? (
+                <div className={`${cardClass} p-8 text-center`} style={cardRadius}>
+                  <p className="text-gray-500 text-sm">No se encontraron productos.</p>
+                </div>
+              ) : (
+                <div className={`${cardClass} overflow-hidden`} style={cardRadius}>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="px-4 py-4 text-left w-10">
+                            <input
+                              type="checkbox"
+                              checked={productRows.length > 0 && productRows.every((r) => selectedProductRows.has(r.id))}
+                              onChange={toggleSelectAllProductsOnPage}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            />
+                          </th>
+                          <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
+                            Producto
+                          </th>
+                          <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
+                            Título / Descripción
+                          </th>
+                          <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 w-28">
+                            Estado
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {productRows.map((row) => (
+                          <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="px-4 py-4 align-top">
+                              <input
+                                type="checkbox"
+                                checked={selectedProductRows.has(row.id)}
+                                onChange={() => toggleSelectedProduct(row)}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                            </td>
+                            <td className="px-6 py-4 align-top">
+                              <p className="text-sm font-medium text-gray-900">{row.name}</p>
+                              {row.sku ? (
+                                <code className="text-xs text-gray-500">{row.sku}</code>
+                              ) : null}
+                            </td>
+                            <td className="px-6 py-4 align-top max-w-md">
+                              <p className="text-sm text-gray-900 truncate">{row.effectiveTitle}</p>
+                              <p className="text-xs text-gray-500 line-clamp-2">
+                                {row.effectiveDescription}
+                              </p>
+                            </td>
+                            <td className="px-6 py-4 align-top">
+                              <span
+                                className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+                                  row.hasOverride
+                                    ? "bg-amber-100 text-amber-800"
+                                    : "bg-emerald-100 text-emerald-800"
+                                }`}
+                              >
+                                {row.hasOverride ? "Personalizado" : "Automático"}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {productTotalPages > 1 ? (
+                    <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => setProductPage((p) => Math.max(1, p - 1))}
+                        disabled={productPage <= 1}
+                        className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Anterior
+                      </button>
+                      <span className="text-sm text-gray-500">
+                        Página {productPage} de {productTotalPages}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setProductPage((p) => Math.min(productTotalPages, p + 1))}
+                        disabled={productPage >= productTotalPages}
+                        className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        Siguiente
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </>
           )}
         </>
       ) : null}

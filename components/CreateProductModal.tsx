@@ -208,6 +208,9 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   // true una vez que el usuario tocó el campo de slug a mano (o se cargó uno existente): deja de autogenerarse desde el nombre
   const slugManuallyEditedRef = useRef(false);
   const [description, setDescription] = useState("");
+  // SEO (opcional): si quedan vacíos, se usa name/description para <title>/<meta description>
+  const [metaTitle, setMetaTitle] = useState("");
+  const [metaDescription, setMetaDescription] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [subcategoryIds, setSubcategoryIds] = useState<string[]>([]); // Múltiples subcategorías
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string[]>>({}); // Opciones seleccionadas por subcategoría (múltiples)
@@ -545,6 +548,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setSlug("");
         slugManuallyEditedRef.current = false;
         setDescription("");
+        setMetaTitle("");
+        setMetaDescription("");
         setIsActive(crmProduct.is_active ?? true);
         setHasStock(crmProduct.stock ?? true);
         setImages([]);
@@ -571,6 +576,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         setSlug("");
         slugManuallyEditedRef.current = false;
         setDescription("");
+        setMetaTitle("");
+        setMetaDescription("");
         setCategoryId("");
         setSubcategoryIds([]);
         setSelectedOptions({});
@@ -646,6 +653,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         // Ya tiene un slug guardado: no autogenerar más aunque el nombre cambie (evita romper el link ya compartido)
         slugManuallyEditedRef.current = true;
         setDescription(fullProduct.description || "");
+        setMetaTitle(fullProduct.meta_title || "");
+        setMetaDescription(fullProduct.meta_description || "");
         setCategoryId(fullProduct.category_id || "");
         setIsActive(fullProduct.is_active ?? true);
         setHasStock(fullProduct.has_crm_stock ?? true);
@@ -1426,6 +1435,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
 	          name,
 	          slug: slug.trim() || undefined,
 	          description: description || undefined,
+          meta_title: metaTitle || undefined,
+          meta_description: metaDescription || undefined,
           technical_description: technicalDescription || undefined,
           warranty_months: warrantyMonths || undefined,
           warranty_description: warrantyDescription || undefined,
@@ -1537,6 +1548,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           name,
           slug: slug.trim() || undefined,
           description: description || undefined,
+          meta_title: metaTitle || undefined,
+          meta_description: metaDescription || undefined,
           category_id: subcategoryIds.length > 0 ? undefined : categoryId,
           subcategory_id: subcategoryIds.length > 0 ? subcategoryIds[0] : undefined,
           is_active: isActive,
@@ -1586,6 +1599,8 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       setSlug("");
       slugManuallyEditedRef.current = false;
       setDescription("");
+      setMetaTitle("");
+      setMetaDescription("");
       setCategoryId("");
       setSubcategoryIds([]);
       setSelectedOptions({});
@@ -1921,6 +1936,39 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors resize-none"
                   placeholder="Descripción del producto"
                 />
+              </div>
+
+              <div className="border-t border-gray-200 pt-4">
+                <p className="text-sm font-medium text-gray-700 mb-1">SEO (opcional)</p>
+                <p className="text-xs text-gray-500 mb-3">
+                  No cambia lo que ve el cliente en la página del producto — solo lo que
+                  muestran Google y las vistas previas al compartir (WhatsApp, redes). Si
+                  se deja vacío, se usa el nombre/descripción de arriba automáticamente.
+                </p>
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Título SEO
+                  </label>
+                  <input
+                    type="text"
+                    value={metaTitle}
+                    onChange={(e) => setMetaTitle(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors"
+                    placeholder="Se usa el nombre del producto si se deja vacío"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Descripción SEO
+                  </label>
+                  <AutoResizeTextarea
+                    value={metaDescription}
+                    onChange={(e) => setMetaDescription(e.target.value)}
+                    minRows={2}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors resize-none"
+                    placeholder="Se genera automáticamente a partir de la descripción si se deja vacío"
+                  />
+                </div>
               </div>
 
               <div>
