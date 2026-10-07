@@ -20,6 +20,7 @@ import {
   fetchAdminPageMetadata,
   bulkUpsertAdminPageMetadata,
   fetchProducts,
+  fetchProductsAllPages,
   bulkUpdateProductMeta,
 } from "@/lib/api";
 import {
@@ -325,10 +326,12 @@ export default function AdminRedirectsPage() {
   const [productTotalPages, setProductTotalPages] = useState(1);
   const [productIncludeInactive, setProductIncludeInactive] = useState(false);
   const [productRows, setProductRows] = useState<ProductMetadataRow[]>([]);
+  const [productTotal, setProductTotal] = useState(0);
   const [productLoading, setProductLoading] = useState(false);
   const [productError, setProductError] = useState("");
   // Mapa (no solo ids) para poder exportar filas seleccionadas en búsquedas/páginas anteriores
   const [selectedProductRows, setSelectedProductRows] = useState<Map<string, ProductMetadataRow>>(new Map());
+  const [selectingAllMatches, setSelectingAllMatches] = useState(false);
   const [productUploading, setProductUploading] = useState(false);
   const [productMessage, setProductMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const productFileInputRef = useRef<HTMLInputElement>(null);
@@ -349,7 +352,7 @@ export default function AdminRedirectsPage() {
       const res = await fetchProducts({
         search: debouncedProductSearch || undefined,
         page: productPage,
-        per_page: 20,
+        per_page: 50,
         is_active: productIncludeInactive ? undefined : true,
         include_variants: false,
         include_images: false,
@@ -357,6 +360,7 @@ export default function AdminRedirectsPage() {
       });
       setProductRows(res.products.map(buildProductMetadataRow));
       setProductTotalPages(res.total_pages || 1);
+      setProductTotal(res.total || 0);
     } catch (e: unknown) {
       setProductError(e instanceof Error ? e.message : "Error al cargar");
     } finally {
@@ -398,6 +402,34 @@ export default function AdminRedirectsPage() {
     if (rows.length === 0) return;
     await buildProductMetadataWorkbook(rows);
   };
+
+  /** Trae TODAS las páginas que matchean la búsqueda/filtro actual (no solo la visible) y las selecciona. */
+  const handleSelectAllMatches = async () => {
+    setSelectingAllMatches(true);
+    setProductError("");
+    try {
+      const res = await fetchProductsAllPages({
+        search: debouncedProductSearch || undefined,
+        is_active: productIncludeInactive ? undefined : true,
+        include_variants: false,
+        include_images: false,
+        include_promos: false,
+      });
+      setSelectedProductRows((prev) => {
+        const next = new Map(prev);
+        for (const product of res.products) {
+          next.set(product.id, buildProductMetadataRow(product));
+        }
+        return next;
+      });
+    } catch (e: unknown) {
+      setProductError(e instanceof Error ? e.message : "No se pudieron traer todos los resultados");
+    } finally {
+      setSelectingAllMatches(false);
+    }
+  };
+
+  const handleClearProductSelection = () => setSelectedProductRows(new Map());
 
   const handleUploadProductMetadataExcel = async (file: File) => {
     setProductUploading(true);
@@ -1075,7 +1107,7 @@ export default function AdminRedirectsPage() {
             </>
           ) : (
             <>
-              <div className="flex flex-wrap items-center gap-3 mb-4">
+              <div className="flex flex-wrap items-center gap-3 mb-3">
                 <div className="relative flex-1 min-w-[240px] max-w-sm">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
@@ -1095,10 +1127,39 @@ export default function AdminRedirectsPage() {
                   />
                   Incluir inactivos
                 </label>
-                {selectedProductRows.size > 0 ? (
+                {!productLoading && productRows.length > 0 ? (
                   <span className="text-sm text-gray-500">
-                    {selectedProductRows.size} seleccionado{selectedProductRows.size === 1 ? "" : "s"}
+                    {productTotal} resultado{productTotal === 1 ? "" : "s"}
+                    {productTotalPages > 1 ? ` · página ${productPage} de ${productTotalPages}` : ""}
                   </span>
+                ) : null}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 mb-4">
+                <button
+                  type="button"
+                  onClick={handleSelectAllMatches}
+                  disabled={selectingAllMatches || productTotal === 0}
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {selectingAllMatches ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : null}
+                  Seleccionar los {productTotal} resultados de esta búsqueda
+                </button>
+                {selectedProductRows.size > 0 ? (
+                  <>
+                    <span className="text-sm text-gray-500">
+                      {selectedProductRows.size} seleccionado{selectedProductRows.size === 1 ? "" : "s"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleClearProductSelection}
+                      className="text-sm font-medium text-gray-500 hover:text-gray-700 cursor-pointer"
+                    >
+                      Limpiar selección
+                    </button>
+                  </>
                 ) : null}
               </div>
 
