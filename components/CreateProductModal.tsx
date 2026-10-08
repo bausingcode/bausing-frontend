@@ -18,7 +18,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import AutoResizeTextarea from "@/components/AutoResizeTextarea";
-import { CrmProduct, CrmCombo, completeCrmProduct, uploadProductImageFile, fetchCatalogs, Catalog, createCompleteProduct, fetchProductById } from "@/lib/api";
+import { CrmProduct, CrmCombo, completeCrmProduct, uploadProductImageFile, uploadProductBotImageFile, clearProductBotImage, fetchCatalogs, Catalog, createCompleteProduct, fetchProductById } from "@/lib/api";
 import {
   PRODUCT_BASIC_COLOR_LABEL,
   PRODUCT_BASIC_COLOR_SLUGS,
@@ -262,6 +262,13 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   // altTouched: true si el usuario editó el alt a mano; si no, se autogenera desde el nombre
   const [imageFiles, setImageFiles] = useState<Array<{ file: File; altText: string; altTouched: boolean }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Imagen "para bot" (uso interno, no se muestra en ningún lado de la tienda): por defecto es
+  // la primera imagen del producto; si se carga una propia queda fija en su formato original.
+  const [botImageFile, setBotImageFile] = useState<File | null>(null);
+  const [botImageIsCustom, setBotImageIsCustom] = useState(false);
+  const [botImageRemoveRequested, setBotImageRemoveRequested] = useState(false);
+  const botFileInputRef = useRef<HTMLInputElement>(null);
   /** Evita doble envío (clics rápidos) que duplicaba filas en /products/complete. */
   const submitInProgressRef = useRef(false);
 
@@ -536,7 +543,10 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
     if (isOpen) {
       // Reset form
       setCurrentStep(1);
-      
+      setBotImageFile(null);
+      setBotImageRemoveRequested(false);
+      setBotImageIsCustom(false);
+
       // Los datos completos se cargarán en el siguiente useEffect usando fetchProductById
       // Solo inicializar campos básicos aquí si es necesario
       if (crmProduct && crmProduct.product_id) {
@@ -642,6 +652,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       try {
         const fullProduct = (await fetchProductById(crmProduct.product_id, undefined, {
           includeAllVariantPrices: true,
+          includeBotImage: true,
         })) as any;
         if (!fullProduct) {
           return;
@@ -772,6 +783,9 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
             altTouched: !!(img.alt_text && img.alt_text.trim() && img.alt_text.trim() !== productName.trim()),
           })));
         }
+        setBotImageIsCustom(!!fullProduct.bot_image_is_custom);
+        setBotImageFile(null);
+        setBotImageRemoveRequested(false);
 
         // Cargar categoría y subcategorías
         let loadedCategoryId = "";
@@ -1522,6 +1536,15 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
             await uploadProductImageFile(item.file, completedProduct.id, item.altText);
           }
         }
+
+        // Imagen "para bot": subir la nueva (sin comprimir) o quitar la personalizada si se pidió
+        if (completedProduct.id) {
+          if (botImageFile) {
+            await uploadProductBotImageFile(botImageFile, completedProduct.id);
+          } else if (botImageRemoveRequested) {
+            await clearProductBotImage(completedProduct.id);
+          }
+        }
       } else {
         // Crear producto nuevo
         const applianceCreate: Record<string, string | number | boolean> = {};
@@ -1588,6 +1611,11 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
               await uploadProductImageFile(item.file, createdProduct.id, item.altText);
             }
           }
+
+          // Imagen "para bot": solo aplica si se eligió un archivo (producto recién creado no tiene override que quitar)
+          if (botImageFile && createdProduct.id) {
+            await uploadProductBotImageFile(botImageFile, createdProduct.id);
+          }
         } catch (createError: any) {
           console.error("Error al crear producto:", createError);
           throw createError;
@@ -1643,6 +1671,9 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       setDisplayReferencePrice("");
       setImages([]);
       setImageFiles([]);
+      setBotImageFile(null);
+      setBotImageIsCustom(false);
+      setBotImageRemoveRequested(false);
       setCurrentStep(1);
       onSuccess();
       onClose();
@@ -2683,6 +2714,67 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                 <label htmlFor="hasStock" className="text-sm font-medium text-gray-700">
                   Tiene stock
                 </label>
+              </div>
+
+              {/* Imagen "para bot": uso interno, no se muestra en la tienda ni en ningún otro lado */}
+              <div className="border border-gray-200 rounded-xl p-5 bg-gray-50/50">
+                <h3 className="text-sm font-semibold text-gray-900 mb-1">Imagen para bot</h3>
+                <p className="text-xs text-gray-500 mb-3">
+                  Uso interno: no se muestra en la tienda ni en ningún otro lado. Se guarda en su formato
+                  original (sin compresión ni conversión a WebP). Por defecto se usa la primera imagen del
+                  producto; si subís un archivo acá, se usa ese en su lugar.
+                </p>
+
+                <input
+                  ref={botFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setBotImageFile(file);
+                    if (file) setBotImageRemoveRequested(false);
+                    e.target.value = "";
+                  }}
+                  className="hidden"
+                />
+
+                {botImageFile ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                    <span className="truncate">Archivo seleccionado: {botImageFile.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setBotImageFile(null)}
+                      className="text-red-500 hover:text-red-600 text-xs font-medium"
+                    >
+                      Quitar
+                    </button>
+                  </div>
+                ) : botImageIsCustom && !botImageRemoveRequested ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                    <span>Hay una imagen personalizada cargada.</span>
+                    <button
+                      type="button"
+                      onClick={() => setBotImageRemoveRequested(true)}
+                      className="text-red-500 hover:text-red-600 text-xs font-medium"
+                    >
+                      Usar la primera imagen por defecto
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">
+                    {botImageRemoveRequested
+                      ? "Se va a usar la primera imagen del producto por defecto."
+                      : "Usando la primera imagen del producto como imagen para bot."}
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => botFileInputRef.current?.click()}
+                  className="mt-3 px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  {botImageIsCustom || botImageFile ? "Reemplazar imagen" : "Subir imagen personalizada"}
+                </button>
               </div>
             </div>
           )}

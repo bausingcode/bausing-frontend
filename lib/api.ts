@@ -497,6 +497,9 @@ export interface Product {
   show_transfer_price_highlight?: boolean;
   price_range?: string;
   main_image?: string;
+  /** Imagen "para bot" (uso interno, no se muestra en la vitrina). Solo viene si se pidió include_bot_image. */
+  bot_image_url?: string | null;
+  bot_image_is_custom?: boolean;
   images?: Array<{
     id: string;
     image_url: string;
@@ -756,7 +759,7 @@ export async function fetchBasicColorFacets(categoryId: string): Promise<string[
 export async function fetchProductById(
   productId: string,
   localityId?: string,
-  options?: { includeAllVariantPrices?: boolean }
+  options?: { includeAllVariantPrices?: boolean; includeBotImage?: boolean }
 ): Promise<Product | null> {
   try {
     const queryParams = new URLSearchParams({
@@ -764,12 +767,15 @@ export async function fetchProductById(
       include_images: 'true',
       include_promos: 'true',
     });
-    
+
     if (localityId) {
       queryParams.append('locality_id', localityId);
     }
     if (options?.includeAllVariantPrices) {
       queryParams.append('include_all_variant_prices', 'true');
+    }
+    if (options?.includeBotImage) {
+      queryParams.append('include_bot_image', 'true');
     }
 
     // En el servidor, llamar al backend directamente (los rewrites /api solo aplican al request HTTP entrante).
@@ -1281,6 +1287,88 @@ export async function uploadProductImageFile(file: File, productId: string, altT
     throw new Error("Failed to save product image: Invalid response");
   }
   return data.data;
+}
+
+/**
+ * Sube la imagen "para bot" de un producto (uso interno: nunca se muestra en la tienda).
+ * A diferencia de uploadProductImageFile, NO comprime ni convierte a webp: se sube el archivo
+ * tal cual fue seleccionado, en su formato original.
+ */
+export async function uploadProductBotImageFile(file: File, productId: string): Promise<{
+  bot_image_url: string;
+  bot_image_is_custom: boolean;
+}> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error("Supabase configuration is missing. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  }
+
+  const fileExt = file.name.split('.').pop() || 'jpg';
+  const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+  const filePath = `products/${productId}/bot/${fileName}`;
+
+  const uploadResponse = await fetch(
+    `${supabaseUrl}/storage/v1/object/product-images/${filePath}`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${supabaseKey}`,
+        "Content-Type": file.type || "application/octet-stream",
+        "x-upsert": "true",
+      },
+      body: file,
+    }
+  );
+
+  if (!uploadResponse.ok) {
+    const errorText = await uploadResponse.text();
+    let errorMessage = `Failed to upload to Supabase: ${uploadResponse.statusText}`;
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.message || errorJson.error || errorMessage;
+    } catch {
+      errorMessage = errorText || errorMessage;
+    }
+    throw new Error(errorMessage);
+  }
+
+  const publicUrl = `${supabaseUrl}/storage/v1/object/public/product-images/${filePath}`;
+
+  const url = `/api/products/${productId}/bot-image`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ image_url: publicUrl }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to save bot image: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  if (!data.success || !data.data) {
+    throw new Error("Failed to save bot image: Invalid response");
+  }
+  return data.data;
+}
+
+/**
+ * Quita la imagen "para bot" personalizada: vuelve a usar la primera imagen del producto por defecto.
+ */
+export async function clearProductBotImage(productId: string): Promise<void> {
+  const url = `/api/products/${productId}/bot-image`;
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `Failed to clear bot image: ${response.statusText}`);
+  }
 }
 
 /**
