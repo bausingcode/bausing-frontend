@@ -668,8 +668,18 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           includeBotImage: true,
         })) as any;
         if (!fullProduct) {
+          console.warn("[BOT_IMAGE_DEBUG] fetchProductById devolvió null/undefined para product_id:", crmProduct.product_id);
           return;
         }
+
+        // TEMPORAL: log de diagnóstico para rastrear el bug de la imagen de bot en producción.
+        // Buscar "[BOT_IMAGE_DEBUG]" en la consola del navegador al editar un producto.
+        console.log("[BOT_IMAGE_DEBUG]", {
+          product_id: crmProduct.product_id,
+          bot_image_is_custom: fullProduct.bot_image_is_custom,
+          bot_image_url: fullProduct.bot_image_url,
+          fetched_keys: Object.keys(fullProduct),
+        });
 
         // Imagen "para bot": se setea primero, antes de cualquier otro campo, para que no
         // quede sin aplicar si algo más abajo en este bloque tira una excepción (el catch
@@ -1055,7 +1065,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           }
         }
       } catch (error) {
-        console.error("Error loading complete product data:", error);
+        console.error("[BOT_IMAGE_DEBUG] Error loading complete product data:", error);
         // No mostrar error al usuario, simplemente no cargar datos adicionales
       }
     };
