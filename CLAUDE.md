@@ -15,6 +15,7 @@ No test runner is configured.
 
 ## Environment Variables
 
+
 ```
 NEXT_PUBLIC_BACKEND_URL   # Backend URL used client-side (rewrite target) and server-side fallback
 BACKEND_URL               # Server-only override (preferred over NEXT_PUBLIC_BACKEND_URL server-side)
