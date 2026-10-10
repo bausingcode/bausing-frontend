@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { X, Plus, ChevronRight, ChevronLeft, Trash2, ChevronDown, ChevronUp, ImagePlus, GripVertical } from "lucide-react";
 import {
   DndContext,
@@ -267,7 +267,17 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   // la primera imagen del producto; si se carga una propia queda fija en su formato original.
   const [botImageFile, setBotImageFile] = useState<File | null>(null);
   const [botImageIsCustom, setBotImageIsCustom] = useState(false);
+  const [botImageUrl, setBotImageUrl] = useState<string | null>(null);
   const [botImageRemoveRequested, setBotImageRemoveRequested] = useState(false);
+  const botImageFilePreviewUrl = useMemo(
+    () => (botImageFile ? URL.createObjectURL(botImageFile) : null),
+    [botImageFile]
+  );
+  useEffect(() => {
+    return () => {
+      if (botImageFilePreviewUrl) URL.revokeObjectURL(botImageFilePreviewUrl);
+    };
+  }, [botImageFilePreviewUrl]);
   const botFileInputRef = useRef<HTMLInputElement>(null);
   /** Evita doble envío (clics rápidos) que duplicaba filas en /products/complete. */
   const submitInProgressRef = useRef(false);
@@ -546,6 +556,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       setBotImageFile(null);
       setBotImageRemoveRequested(false);
       setBotImageIsCustom(false);
+      setBotImageUrl(null);
 
       // Los datos completos se cargarán en el siguiente useEffect usando fetchProductById
       // Solo inicializar campos básicos aquí si es necesario
@@ -784,6 +795,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
           })));
         }
         setBotImageIsCustom(!!fullProduct.bot_image_is_custom);
+        setBotImageUrl(fullProduct.bot_image_url || null);
         setBotImageFile(null);
         setBotImageRemoveRequested(false);
 
@@ -1673,6 +1685,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       setImageFiles([]);
       setBotImageFile(null);
       setBotImageIsCustom(false);
+      setBotImageUrl(null);
       setBotImageRemoveRequested(false);
       setCurrentStep(1);
       onSuccess();
@@ -2739,7 +2752,13 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                 />
 
                 {botImageFile ? (
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <div className="flex items-center gap-3 text-sm text-gray-700">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={botImageFilePreviewUrl || undefined}
+                      alt="Vista previa imagen para bot"
+                      className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                    />
                     <span className="truncate">Archivo seleccionado: {botImageFile.name}</span>
                     <button
                       type="button"
@@ -2750,7 +2769,15 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                     </button>
                   </div>
                 ) : botImageIsCustom && !botImageRemoveRequested ? (
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <div className="flex items-center gap-3 text-sm text-gray-700">
+                    {botImageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={botImageUrl}
+                        alt="Imagen para bot actual"
+                        className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                      />
+                    )}
                     <span>Hay una imagen personalizada cargada.</span>
                     <button
                       type="button"
