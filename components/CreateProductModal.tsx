@@ -269,6 +269,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
   const [botImageIsCustom, setBotImageIsCustom] = useState(false);
   const [botImageUrl, setBotImageUrl] = useState<string | null>(null);
   const [botImageRemoveRequested, setBotImageRemoveRequested] = useState(false);
+  const [botImageLoadFailed, setBotImageLoadFailed] = useState(false);
   const botImageFilePreviewUrl = useMemo(
     () => (botImageFile ? URL.createObjectURL(botImageFile) : null),
     [botImageFile]
@@ -557,6 +558,7 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
       setBotImageRemoveRequested(false);
       setBotImageIsCustom(false);
       setBotImageUrl(null);
+      setBotImageLoadFailed(false);
 
       // Los datos completos se cargarán en el siguiente useEffect usando fetchProductById
       // Solo inicializar campos básicos aquí si es necesario
@@ -668,6 +670,15 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
         if (!fullProduct) {
           return;
         }
+
+        // Imagen "para bot": se setea primero, antes de cualquier otro campo, para que no
+        // quede sin aplicar si algo más abajo en este bloque tira una excepción (el catch
+        // de más abajo la absorbe en silencio y el resto de los setState no llega a correr).
+        setBotImageIsCustom(!!fullProduct.bot_image_is_custom);
+        setBotImageUrl(fullProduct.bot_image_url || null);
+        setBotImageLoadFailed(false);
+        setBotImageFile(null);
+        setBotImageRemoveRequested(false);
 
         // Actualizar TODOS los campos del formulario con los datos del producto completo
         setName(fullProduct.name || "");
@@ -794,10 +805,6 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
             altTouched: !!(img.alt_text && img.alt_text.trim() && img.alt_text.trim() !== productName.trim()),
           })));
         }
-        setBotImageIsCustom(!!fullProduct.bot_image_is_custom);
-        setBotImageUrl(fullProduct.bot_image_url || null);
-        setBotImageFile(null);
-        setBotImageRemoveRequested(false);
 
         // Cargar categoría y subcategorías
         let loadedCategoryId = "";
@@ -2752,40 +2759,54 @@ export default function CreateProductModal({ isOpen, onClose, onSuccess, categor
                 />
 
                 {botImageFile ? (
-                  <div className="flex items-center gap-3 text-sm text-gray-700">
+                  <div className="flex items-center gap-4 text-sm text-gray-700">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={botImageFilePreviewUrl || undefined}
                       alt="Vista previa imagen para bot"
-                      className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                      className="w-32 h-32 object-cover rounded-lg border border-gray-300 bg-white"
                     />
-                    <span className="truncate">Archivo seleccionado: {botImageFile.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => setBotImageFile(null)}
-                      className="text-red-500 hover:text-red-600 text-xs font-medium"
-                    >
-                      Quitar
-                    </button>
+                    <div className="flex flex-col gap-2">
+                      <span className="truncate">Archivo seleccionado: {botImageFile.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setBotImageFile(null)}
+                        className="text-red-500 hover:text-red-600 text-xs font-medium text-left"
+                      >
+                        Quitar
+                      </button>
+                    </div>
                   </div>
                 ) : botImageIsCustom && !botImageRemoveRequested ? (
-                  <div className="flex items-center gap-3 text-sm text-gray-700">
-                    {botImageUrl && (
+                  <div className="flex items-center gap-4 text-sm text-gray-700">
+                    {botImageUrl && !botImageLoadFailed ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
+                        key={botImageUrl}
                         src={botImageUrl}
                         alt="Imagen para bot actual"
-                        className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                        className="w-32 h-32 object-cover rounded-lg border border-gray-300 bg-white"
+                        onError={() => setBotImageLoadFailed(true)}
                       />
+                    ) : botImageUrl && botImageLoadFailed ? (
+                      <div className="w-32 h-32 flex items-center justify-center rounded-lg border border-red-300 bg-red-50 text-red-500 text-xs text-center p-2">
+                        No se pudo cargar la imagen desde la URL guardada
+                      </div>
+                    ) : (
+                      <div className="w-32 h-32 flex items-center justify-center rounded-lg border border-gray-300 bg-gray-100 text-gray-400 text-xs text-center p-2">
+                        Cargando vista previa...
+                      </div>
                     )}
-                    <span>Hay una imagen personalizada cargada.</span>
-                    <button
-                      type="button"
-                      onClick={() => setBotImageRemoveRequested(true)}
-                      className="text-red-500 hover:text-red-600 text-xs font-medium"
-                    >
-                      Usar la primera imagen por defecto
-                    </button>
+                    <div className="flex flex-col gap-2">
+                      <span>Hay una imagen personalizada cargada.</span>
+                      <button
+                        type="button"
+                        onClick={() => setBotImageRemoveRequested(true)}
+                        className="text-red-500 hover:text-red-600 text-xs font-medium text-left"
+                      >
+                        Usar la primera imagen por defecto
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <p className="text-sm text-gray-500">
