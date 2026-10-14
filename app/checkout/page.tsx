@@ -2,8 +2,12 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import wsrvLoader from "@/lib/wsrvLoader";
+import CheckoutSelect from "@/components/CheckoutSelect";
+import CheckoutChoice from "@/components/CheckoutChoice";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useLocality } from "@/contexts/LocalityContext";
@@ -17,6 +21,7 @@ import {
   getProvinces,
   createOrder,
   previewCouponCheckout,
+  validateReferralCode,
   fetchCardTypes,
   fetchCardBankData,
   formatEstimatedDelivery,
@@ -40,12 +45,16 @@ import {
   Trash2,
   Minus,
   AlertCircle,
+  ChevronDown,
+  MessageCircle,
 } from "lucide-react";
 import {
   formatPrice,
   calculateProductPrice,
   checkoutPaymentPriceKind,
   productFromCheckoutPricesApi,
+  PRICE_UI_CARD_CAPTION,
+  PRICE_UI_TRANSFER_CAPTION,
 } from "@/utils/priceUtils";
 import {
   buildCardPaymentDetailsPayload,
@@ -92,6 +101,120 @@ function normalizeArPostalCode(raw: string | undefined | null): string | null {
   if (d.length > 4) return d.slice(0, 4);
   return d;
 }
+
+type CheckoutStep = 1 | 2 | 3;
+
+const CHECKOUT_STEPS: { id: CheckoutStep; label: string }[] = [
+  { id: 1, label: "Contacto y entrega" },
+  { id: 2, label: "Pago" },
+  { id: 3, label: "Revisión" },
+];
+
+// Claves de error que pertenecen al paso de pago; el resto pertenece al paso 1.
+const PAYMENT_STEP_ERROR_KEYS = ["payment_method", "card_installment", "referral_code"];
+
+const CHECKOUT_DRAFT_KEY = "bausing_checkout_draft";
+
+// Etiquetas legibles para el aviso "Falta completar" del botón Continuar
+const FIELD_ERROR_LABELS: Record<string, string> = {
+  first_name: "Nombre",
+  last_name: "Apellido",
+  document_type: "Tipo de documento",
+  dni: "Documento",
+  phone: "Celular",
+  email: "Email",
+  address: "Dirección",
+  address_full_name: "Nombre del destinatario",
+  address_phone: "Teléfono del destinatario",
+  address_street: "Calle",
+  address_number: "Número",
+  address_postal_code: "Código postal",
+  address_city: "Ciudad",
+  address_province: "Provincia",
+  payment_method: "Método de pago",
+  card_installment: "Tarjeta y cuotas",
+  referral_code: "Código de referido",
+};
+
+const roundMoney = (n: number): number => Math.round(n * 100) / 100;
+
+/** Redondea a centavos y vuelca la diferencia residual en un método para que la suma cierre */
+const normalizeAmounts = (
+  amounts: Record<string, number>,
+  methods: string[],
+  total: number,
+  keepMethod?: string,
+): Record<string, number> => {
+  const out = { ...amounts };
+  methods.forEach((m) => {
+    if (out[m] !== undefined) out[m] = roundMoney(out[m]);
+  });
+  if (methods.length < 2) return out;
+  const sum = methods.reduce((acc, m) => acc + (out[m] || 0), 0);
+  const diff = roundMoney(total - sum);
+  if (Math.abs(diff) >= 0.01 && Math.abs(diff) < 0.1) {
+    const target = [...methods].reverse().find((m) => m !== keepMethod) ?? methods[methods.length - 1];
+    out[target] = Math.max(1, roundMoney((out[target] || 0) + diff));
+  }
+  return out;
+};
+
+/** Input de monto: se confirma al salir del campo o con Enter (no redistribuye en cada tecla) */
+function MethodAmountInput({
+  id,
+  label,
+  value,
+  onCommit,
+}: {
+  id: string;
+  label: string;
+  value: number;
+  onCommit: (raw: string) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const display = draft ?? (value ? String(roundMoney(value)) : "");
+
+  const commit = () => {
+    if (draft === null) return;
+    // "1.500,50" -> "1500.50"
+    const normalized = draft.includes(",") ? draft.replace(/\./g, "").replace(",", ".") : draft;
+    onCommit(normalized);
+    setDraft(null);
+  };
+
+  return (
+    <div className="px-3 md:px-4 pb-3 md:pb-4">
+      <label htmlFor={id} className="text-xs text-gray-500 mb-1 block">
+        {label}
+      </label>
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+        <input
+          id={id}
+          type="text"
+          inputMode="decimal"
+          autoComplete="off"
+          value={display}
+          onChange={(e) => setDraft(e.target.value.replace(/[^0-9.,]/g, ""))}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commit();
+            }
+          }}
+          className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00C1A7] placeholder:text-gray-400"
+          placeholder="0,00"
+        />
+      </div>
+    </div>
+  );
+}
+
+const isValidPhone = (value: string): boolean => {
+  const digits = value.replace(/\D/g, "");
+  return digits.length >= 8 && digits.length <= 15;
+};
 
 export default function CheckoutPage() {
   const { user, isAuthenticated } = useAuth();
@@ -153,13 +276,6 @@ export default function CheckoutPage() {
   const [methodAmounts, setMethodAmounts] = useState<Record<string, number>>({});
   // Siempre se abona al recibir
   const [payOnDelivery] = useState(true);
-  const [cardData, setCardData] = useState({
-    number: "",
-    cvv: "",
-    expiry: "",
-    holder_name: "",
-    holder_dni: "",
-  });
   // Estados para selección de tarjeta y banco
   const [selectedCardType, setSelectedCardType] = useState<string>("");
   const [selectedBank, setSelectedBank] = useState<string>("");
@@ -171,12 +287,27 @@ export default function CheckoutPage() {
   /** Saldo como descuento (switch); no es un “método de pago” combinable */
   const [useWalletCredit, setUseWalletCredit] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [step, setStep] = useState<CheckoutStep>(1);
+  /** Se llegó a editar un paso desde la revisión: al terminar se vuelve directo al paso 3 */
+  const [returnToReview, setReturnToReview] = useState(false);
+  /** El invitado ya tiene cuenta creada (se registra al guardar la dirección) */
+  const [accountCreated, setAccountCreated] = useState(false);
+  /** Acción sugerida para corregir un error devuelto por el servidor al confirmar */
+  const [submitFix, setSubmitFix] = useState<{ step: CheckoutStep; label: string } | null>(null);
+  /** El destinatario es quien compra: copia nombre/teléfono del contacto a la dirección nueva */
+  const [recipientIsSelf, setRecipientIsSelf] = useState(true);
+  const stepperRef = useRef<HTMLElement | null>(null);
+  const selfRecipientActive = showAddressForm && recipientIsSelf && !editingAddressId;
+  const draftRestoredRef = useRef(false);
   const [isPaisCatalog, setIsPaisCatalog] = useState<boolean>(false);
   const PAIS_CATALOG_ID = "8335e521-f25a-4f92-8f59-c4439671ef26";
   const [estimatedDeliveryDaysMin, setEstimatedDeliveryDaysMin] = useState<number | null>(null);
   const [estimatedDeliveryDaysMax, setEstimatedDeliveryDaysMax] = useState<number | null>(null);
   const [referralCode, setReferralCode] = useState<string>("");
   const [referralCodeValidating, setReferralCodeValidating] = useState<boolean>(false);
+  const [referralStatus, setReferralStatus] = useState<"idle" | "valid" | "invalid">("idle");
+  const [referralMessage, setReferralMessage] = useState("");
+  const [showCodes, setShowCodes] = useState(false);
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<{
     code: string;
@@ -205,11 +336,6 @@ export default function CheckoutPage() {
   const addressSyncInProgressRef = useRef(false);
   /** Ref síncrono para bloquear doble submit antes del re-render */
   const isSubmittingRef = useRef(false);
-
-  useEffect(() => {
-    setAppliedCoupon(null);
-    setCouponError("");
-  }, [cart]);
 
   // Meta InitiateCheckout: al comenzar el proceso de compra
   useEffect(() => {
@@ -250,6 +376,14 @@ export default function CheckoutPage() {
   useEffect(() => {
     setSelectedInstallmentKey("");
   }, [selectedCardType, selectedBank]);
+
+  // Al elegir tipo y banco, dejar preseleccionado el pago en 1 cuota (si existe)
+  useEffect(() => {
+    if (!selectedCardType || !selectedBank) return;
+    const options = cardBankData[selectedCardType]?.[selectedBank] ?? [];
+    const oneShot = sortInstallmentOptions(options).find((o) => o.cuotas === 1);
+    if (oneShot) setSelectedInstallmentKey(installmentOptionKey(oneShot));
+  }, [selectedCardType, selectedBank, cardBankData]);
 
   // Check cart and initialize
   useEffect(() => {
@@ -293,6 +427,108 @@ export default function CheckoutPage() {
     setLoading(false);
   }, [cart.length, router]);
 
+  // Restaurar borrador del invitado (sobrevive a recargas de la pestaña)
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("user_token")) return;
+      const raw = sessionStorage.getItem(CHECKOUT_DRAFT_KEY);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (draft?.formData) {
+          setFormData((prev) => ({ ...prev, ...draft.formData }));
+        }
+        if (draft?.addressForm) {
+          setAddressForm((prev) => ({ ...prev, ...draft.addressForm }));
+        }
+        if (typeof draft?.recipientIsSelf === "boolean") {
+          setRecipientIsSelf(draft.recipientIsSelf);
+        }
+      }
+    } catch {
+      /* sessionStorage no disponible o borrador inválido */
+    } finally {
+      draftRestoredRef.current = true;
+    }
+  }, []);
+
+  // Guardar borrador solo para invitados
+  useEffect(() => {
+    if (!draftRestoredRef.current || isAuthenticated || orderCompleted) return;
+    try {
+      sessionStorage.setItem(
+        CHECKOUT_DRAFT_KEY,
+        JSON.stringify({ formData, addressForm, recipientIsSelf }),
+      );
+    } catch {
+      /* sessionStorage no disponible */
+    }
+  }, [formData, addressForm, recipientIsSelf, isAuthenticated, orderCompleted]);
+
+  useEffect(() => {
+    if (!orderCompleted) return;
+    try {
+      sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
+    } catch {
+      /* sessionStorage no disponible */
+    }
+  }, [orderCompleted]);
+
+  // Tipo de documento por defecto: DNI
+  useEffect(() => {
+    if (docTypes.length === 0) return;
+    setFormData((prev) => {
+      if (prev.document_type) return prev;
+      const dniType = docTypes.find((d) => {
+        const name = d.name.trim().toLowerCase();
+        return name === "dni" || name.includes("documento nacional");
+      });
+      return dniType ? { ...prev, document_type: dniType.id } : prev;
+    });
+  }, [docTypes]);
+
+  // Destinatario = comprador: mantener nombre y teléfono de la dirección sincronizados con el contacto
+  useEffect(() => {
+    if (!selfRecipientActive) return;
+    const fullName = `${formData.first_name} ${formData.last_name}`.trim();
+    setAddressForm((prev) =>
+      prev.full_name === fullName && prev.phone === formData.phone
+        ? prev
+        : { ...prev, full_name: fullName, phone: formData.phone },
+    );
+  }, [selfRecipientActive, formData.first_name, formData.last_name, formData.phone]);
+
+  // Historial: el botón "atrás" del navegador vuelve al paso anterior en vez de salir del checkout
+  useEffect(() => {
+    try {
+      window.history.replaceState({ ...(window.history.state ?? {}), checkoutStep: 1 }, "");
+    } catch {
+      /* history no disponible */
+    }
+    const onPopState = (event: PopStateEvent) => {
+      const target = event.state?.checkoutStep;
+      setStep(target === 2 || target === 3 ? target : 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  // Al fallar la confirmación, llevar la vista al mensaje
+  useEffect(() => {
+    if (step === 3 && errors.submit) scrollToFirstError();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [errors.submit, step]);
+
+  // Foco accesible al cambiar de paso
+  const firstStepRenderRef = useRef(true);
+  useEffect(() => {
+    if (firstStepRenderRef.current) {
+      firstStepRenderRef.current = false;
+      return;
+    }
+    stepperRef.current?.focus({ preventScroll: true });
+  }, [step]);
+
   // Load doc types and provinces on mount
   useEffect(() => {
     const loadDocTypes = async () => {
@@ -326,15 +562,21 @@ export default function CheckoutPage() {
   // Load user data and addresses
   useEffect(() => {
     if (isAuthenticated && user) {
-      setFormData({
-        first_name: user.first_name || "",
-        last_name: user.last_name || "",
-        document_type: "",
-        dni: user.dni || "",
-        phone: user.phone || "",
-        alternate_phone: "",
-        email: user.email || "",
-      });
+      // Completa solo lo vacío: no pisar lo que el usuario ya tipeó (p. ej. invitado recién registrado)
+      setFormData((prev) => ({
+        first_name: prev.first_name || user.first_name || "",
+        last_name: prev.last_name || user.last_name || "",
+        document_type: prev.document_type,
+        dni: prev.dni || user.dni || "",
+        phone: prev.phone || user.phone || "",
+        alternate_phone: prev.alternate_phone,
+        email: user.email || prev.email,
+      }));
+      try {
+        sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
+      } catch {
+        /* sessionStorage no disponible */
+      }
       loadAddresses();
       loadWalletBalance();
     }
@@ -779,16 +1021,22 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleCardInputChange = (field: string, value: string) => {
-    setCardData((prev) => ({ ...prev, [field]: value }));
-    if (errors[`card_${field}`]) {
-      setErrors((prev) => ({ ...prev, [`card_${field}`]: "" }));
-    }
-  };
-
   const handleAddressInputChange = (field: string, value: string) => {
     const v = field === "postal_code" ? postalCodeDigitsOnly(value) : value;
     setAddressForm((prev) => ({ ...prev, [field]: v }));
+    const errorKey = field === "province_id" ? "address_province" : `address_${field}`;
+    if (errors[errorKey]) {
+      setErrors((prev) => ({ ...prev, [errorKey]: "" }));
+    }
+  };
+
+  // Validación al salir de un campo (solo ese campo, sin tocar el resto de errores)
+  const handleFieldBlur = (key: string) => {
+    const all = {
+      ...computeFormErrors(1),
+    };
+    const message = all[key] ?? "";
+    setErrors((prev) => (prev[key] === message ? prev : { ...prev, [key]: message }));
   };
 
   const emptyAddressForm = () => ({
@@ -806,6 +1054,7 @@ export default function CheckoutPage() {
     setShowAddressForm(false);
     setEditingAddressId(null);
     setAddressForm(emptyAddressForm());
+    setRecipientIsSelf(true);
   };
 
   const openNewAddressForm = () => {
@@ -827,12 +1076,8 @@ export default function CheckoutPage() {
   };
 
   const openEditAddressForm = (address: Address) => {
+    // No se cambia la dirección seleccionada al abrir la edición: se selecciona y sincroniza al guardar
     setEditingAddressId(address.id);
-    if (selectedAddressId !== address.id) {
-      handleCheckoutAddressSelect(address.id);
-    } else {
-      setSelectedAddressId(address.id);
-    }
     setAddressForm({
       street: address.street,
       number: address.number,
@@ -865,6 +1110,8 @@ export default function CheckoutPage() {
     }
     if (!addressForm.phone.trim()) {
       addressErrors.address_phone = "El teléfono del destinatario es obligatorio";
+    } else if (!isValidPhone(addressForm.phone)) {
+      addressErrors.address_phone = "Ingresá un teléfono válido (entre 8 y 15 dígitos)";
     }
     if (!addressForm.street.trim()) {
       addressErrors.address_street = "La calle es obligatoria";
@@ -886,7 +1133,7 @@ export default function CheckoutPage() {
     return addressErrors;
   };
 
-  const validateForm = (): boolean => {
+  const computeFormErrors = (scope: "all" | 1 | 2 = "all"): Record<string, string> => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.first_name.trim()) {
@@ -910,6 +1157,8 @@ export default function CheckoutPage() {
     }
     if (!formData.phone.trim()) {
       newErrors.phone = "El celular es obligatorio";
+    } else if (!isValidPhone(formData.phone)) {
+      newErrors.phone = "Ingresá un celular válido (entre 8 y 15 dígitos)";
     }
     if (!formData.email.trim()) {
       newErrors.email = "El email es obligatorio";
@@ -917,10 +1166,16 @@ export default function CheckoutPage() {
       newErrors.email = "El email no es válido";
     }
     if (!selectedAddressId && !showAddressForm) {
-      newErrors.address = "Debes seleccionar o agregar una dirección";
+      newErrors.address = "Seleccioná o agregá una dirección de entrega";
     }
     if (showAddressForm) {
-      Object.assign(newErrors, collectAddressFormErrors());
+      const addressFormErrors = collectAddressFormErrors();
+      if (selfRecipientActive) {
+        // Nombre y teléfono del destinatario se toman del contacto, que ya se valida arriba
+        delete addressFormErrors.address_full_name;
+        delete addressFormErrors.address_phone;
+      }
+      Object.assign(newErrors, addressFormErrors);
     }
     const subtotalValRaw = calculateTotal();
     const subtotalVal = Math.max(
@@ -950,13 +1205,17 @@ export default function CheckoutPage() {
       },
     );
 
+    if (referralCode.trim() && referralStatus === "invalid") {
+      newErrors.referral_code = referralMessage || "El código de referido no es válido";
+    }
+
     if (payableSubtotalVal > 0.01) {
       if (selectedMethods.length === 0) {
-        newErrors.payment_method = "Debes seleccionar al menos un método de pago para el monto a abonar";
+        newErrors.payment_method = "Seleccioná al menos un método de pago para el monto a abonar";
       }
       if (!enableMultiPayment && selectedMethods.length > 1) {
         newErrors.payment_method =
-          "Solo puedes seleccionar un método de pago. Activa 'Combinar métodos' para usar múltiples métodos.";
+          "Solo podés seleccionar un método de pago. Tocá «Pagar con más de un método» para usar varios.";
       }
       if (enableMultiPayment && selectedMethods.length > 1) {
         const totalPago = selectedMethods.reduce((sum, m) => {
@@ -1010,8 +1269,134 @@ export default function CheckoutPage() {
       }
     }
 
+    if (scope !== "all") {
+      for (const key of Object.keys(newErrors)) {
+        const belongsToPayment = PAYMENT_STEP_ERROR_KEYS.includes(key);
+        if (belongsToPayment !== (scope === 2)) {
+          delete newErrors[key];
+        }
+      }
+    }
+
+    return newErrors;
+  };
+
+  const validateForm = (scope: "all" | 1 | 2 = "all"): boolean => {
+    const newErrors = computeFormErrors(scope);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const goToStep = (target: CheckoutStep) => {
+    if (target === step) return;
+    if (target === 3) setReturnToReview(false);
+    setSubmitFix(null);
+    setErrors((prev) => (prev.submit ? { ...prev, submit: "" } : prev));
+    if (typeof window !== "undefined") {
+      const historyStep = window.history.state?.checkoutStep;
+      if (target > step) {
+        window.history.pushState({ ...(window.history.state ?? {}), checkoutStep: target }, "");
+        setStep(target);
+      } else if (historyStep === step) {
+        // popstate actualiza el paso y mantiene el historial consistente
+        window.history.go(target - step);
+        return;
+      } else {
+        setStep(target);
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      setStep(target);
+    }
+  };
+
+  /** Editar desde la revisión: al terminar el paso se vuelve directo a la revisión */
+  const editFromReview = (target: CheckoutStep) => {
+    setReturnToReview(true);
+    goToStep(target);
+  };
+
+  /** Lleva la vista al primer campo con error (tras renderizar los mensajes) */
+  const scrollToFirstError = () => {
+    if (typeof window === "undefined") return;
+    window.setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(".border-red-500, [data-form-error]");
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement) {
+        el.focus({ preventScroll: true });
+      }
+    }, 60);
+  };
+
+  const validateReferral = async (): Promise<boolean> => {
+    const code = referralCode.trim().toUpperCase();
+    if (!code) {
+      setReferralStatus("idle");
+      setReferralMessage("");
+      return true;
+    }
+    if (referralStatus === "valid") return true;
+    setReferralCodeValidating(true);
+    try {
+      const result = await validateReferralCode(code);
+      if (result.valid) {
+        setReferralStatus("valid");
+        setReferralMessage(result.message || "Código de referido válido");
+        setErrors((prev) => ({ ...prev, referral_code: "" }));
+        return true;
+      }
+      const message = result.message || "El código de referido no es válido";
+      setReferralStatus("invalid");
+      setReferralMessage(message);
+      setErrors((prev) => ({ ...prev, referral_code: message }));
+      return false;
+    } catch {
+      // No bloquear la compra por un fallo de red/servidor: el backend vuelve a validar al crear la orden
+      setReferralStatus("idle");
+      setReferralMessage("No pudimos validar el código ahora; lo verificaremos al confirmar.");
+      return true;
+    } finally {
+      setReferralCodeValidating(false);
+    }
+  };
+
+  const handleNextStep = async () => {
+    if (isSubmittingRef.current || saveAddressInFlightRef.current) return;
+    if (loadingPrices || shippingQuoteLoading) return;
+    setErrors({});
+
+    if (step === 1) {
+      if (!validateForm(1)) {
+        scrollToFirstError();
+        return;
+      }
+      // Dirección nueva sin guardar: se guarda (y se registra al invitado) antes de cotizar el envío
+      if (showAddressForm) {
+        const saved = await handleSaveAddress();
+        if (!saved) {
+          scrollToFirstError();
+          return;
+        }
+      }
+      // Si se editó desde la revisión y el pago sigue siendo válido, se vuelve directo al paso 3
+      const paymentStillValid = Object.keys(computeFormErrors(2)).length === 0;
+      goToStep(returnToReview && paymentStillValid ? 3 : 2);
+      return;
+    }
+
+    if (step === 2) {
+      if (!(await validateReferral())) {
+        setShowCodes(true);
+        scrollToFirstError();
+        return;
+      }
+      if (!validateForm(2)) {
+        scrollToFirstError();
+        return;
+      }
+      goToStep(3);
+    }
   };
 
   const handleSaveAddress = async (): Promise<boolean> => {
@@ -1050,13 +1435,14 @@ export default function CheckoutPage() {
         const autoRegResult = await autoRegResponse.json();
         if (!autoRegResponse.ok || !autoRegResult.success) {
           if (autoRegResult.email_exists) {
-            setErrors({ email: "Ya tenés una cuenta con este email. Por favor, iniciá sesión desde el menú antes de continuar." });
+            setErrors({ email: "Ya tenés una cuenta con este email. Iniciá sesión para continuar." });
           } else {
             setErrors({ address: autoRegResult.error || "Error al crear la cuenta" });
           }
           return false;
         }
         const { user: newUser, token: newToken } = autoRegResult.data;
+        setAccountCreated(true);
         localStorage.setItem("user_token", newToken);
         localStorage.setItem("user_data", JSON.stringify(newUser));
         window.dispatchEvent(new CustomEvent("authStateChanged", { detail: { user: newUser, token: newToken } }));
@@ -1107,12 +1493,25 @@ export default function CheckoutPage() {
 
     if (isSubmittingRef.current) return;
 
+    // Enter dentro de un input en los pasos 1-2 avanza el wizard en vez de enviar la orden
+    if (step < 3) {
+      void handleNextStep();
+      return;
+    }
+
     // Limpiar errores previos
     setErrors({});
-    
-    // Validar formulario antes de continuar
-    if (!validateForm()) {
-      // validateForm ya establece los errores, solo retornar
+    setSubmitFix(null);
+
+    // Validar por paso; si algo falla, volver al paso correspondiente
+    if (!validateForm(1)) {
+      goToStep(1);
+      scrollToFirstError();
+      return;
+    }
+    if (!validateForm(2)) {
+      goToStep(2);
+      scrollToFirstError();
       return;
     }
 
@@ -1158,7 +1557,7 @@ export default function CheckoutPage() {
 
       const selectedAddress = addresses.find((addr) => addr.id === selectedAddressId);
       if (!selectedAddress && !showAddressForm) {
-        setErrors({ address: "Debes seleccionar una dirección" });
+        setErrors({ address: "Seleccioná una dirección de entrega" });
         setSubmitting(false);
         return;
       }
@@ -1691,24 +2090,30 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
       
       // Detectar error específico de tipo de documento incompatible con tipo de venta
       let errorMessage = error?.message || "Error al procesar el pedido";
+      let fix: { step: CheckoutStep; label: string } | null = null;
+      let fieldErrors: Record<string, string> = {};
       
       if (errorMessage.includes("Tipo de documento DNI no es compatible con tipo de venta mayor a 1") ||
           errorMessage.includes("Tipo de documento DNI no es compatible")) {
-        errorMessage = "Para este tipo de venta debes usar CUIT o CUIL en lugar de DNI. Por favor, cambia el tipo de documento en el formulario.";
+        errorMessage = "Para este tipo de venta tenés que usar CUIT o CUIL en lugar de DNI.";
+        fix = { step: 1, label: "Cambiar el tipo de documento" };
+        fieldErrors = { document_type: "Para este tipo de venta usá CUIT o CUIL" };
       }
       
       // Detectar error de precio de compra / stock
       if (errorMessage.includes("No se pudo obtener el precio de compra") ||
           errorMessage.includes("compras previas registradas") ||
           errorMessage.includes("este artículo no tiene stock")) {
-        errorMessage = "Lo sentimos, pero este artículo no tiene stock.";
+        errorMessage = "Lo sentimos, pero uno de los artículos no tiene stock.";
+        fix = { step: 1, label: "Revisar los productos del pedido" };
       }
       
       // Detectar error de localidad no encontrada
       if (errorMessage.includes("No se pudo obtener crm_zone_id para la localidad") ||
           (errorMessage.includes("no se encontró") && errorMessage.includes("localidad")) ||
           errorMessage.includes("zona de entrega para")) {
-        errorMessage = "La localidad ingresada no se encontró. Por favor, verifica que la localidad sea correcta.";
+        errorMessage = "No encontramos la localidad ingresada. Revisá que la dirección sea correcta.";
+        fix = { step: 1, label: "Revisar la dirección" };
       }
       
       // Detectar error de teléfono inválido para WhatsApp (validación CRM)
@@ -1716,14 +2121,18 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
           errorMessage.toLowerCase().includes("cliente_telefono") ||
           errorMessage.toLowerCase().includes("formato inv") && errorMessage.toLowerCase().includes("tel")) {
         errorMessage = "Ingresá un teléfono válido";
+        fix = { step: 1, label: "Corregir el teléfono" };
+        fieldErrors = { phone: "Ingresá un teléfono válido" };
       }
 
       // Detectar errores de pago rechazado (pero no tratar in_process como error)
       if (errorMessage.includes("rejected") || (errorMessage.includes("El pago fue") && !errorMessage.includes("in_process") && !errorMessage.includes("pending_contingency"))) {
-        errorMessage = "El pago fue rechazado. Por favor, verifica los datos de tu tarjeta o intenta con otra tarjeta.";
+        errorMessage = "No pudimos procesar el pago. Probá con otro método de pago.";
+        fix = { step: 2, label: "Cambiar el método de pago" };
       }
       
-      setErrors({ submit: errorMessage });
+      setErrors({ submit: errorMessage, ...fieldErrors });
+      setSubmitFix(fix);
       // NO redirigir cuando hay un error - mantener al usuario en la página de checkout
       // NO limpiar el carrito cuando hay un error
     } finally {
@@ -1814,12 +2223,20 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
         code: code.toUpperCase(),
         items: buildCouponPreviewItems(),
       });
+      if (!(data.discount_amount > 0.01)) {
+        setAppliedCoupon(null);
+        setCouponError(
+          "El cupón es válido, pero no aplica a los productos ni al método de pago elegidos.",
+        );
+        return;
+      }
       setAppliedCoupon({
         code: data.code,
         discountAmount: data.discount_amount,
         clubBeneficiosOnly: data.club_beneficios_only,
       });
       setCouponInput(data.code);
+      setShowCodes(true);
     } catch (e: unknown) {
       setAppliedCoupon(null);
       setCouponError(e instanceof Error ? e.message : "Cupón inválido");
@@ -1841,6 +2258,11 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
           items: buildCouponPreviewItems(),
         });
         if (!cancelled) {
+          if (!(data.discount_amount > 0.01)) {
+            setAppliedCoupon(null);
+            setCouponError("El cupón dejó de aplicar con los productos o el método de pago actuales.");
+            return;
+          }
           setAppliedCoupon((prev) =>
             prev
               ? {
@@ -1852,10 +2274,12 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
           );
           setCouponError("");
         }
-      } catch {
+      } catch (e) {
+        // Fallo de red: conservar el cupón y el último descuento conocido
+        if (e instanceof TypeError) return;
         if (!cancelled) {
           setAppliedCoupon(null);
-          setCouponError("El cupón ya no aplica con este método de pago");
+          setCouponError("El cupón ya no aplica con este método de pago o estos productos");
         }
       }
     })();
@@ -1873,9 +2297,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
   const subtotal = calculateTotal();
   const couponDiscount = appliedCoupon?.discountAmount ?? 0;
   const subtotalAfterCoupon = Math.max(0, subtotal - couponDiscount);
-  const totalAmount = subtotalAfterCoupon;
-  const canPayWithWallet =
-    walletBalance >= subtotalAfterCoupon && !walletIsBlocked;
   const walletCreditApplied =
     useWalletCredit &&
     !isThirdPartyTransport &&
@@ -2116,7 +2537,6 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
   const hasWalletPayment = walletCreditApplied > 0.01;
   const getMethodAmount = (method: PaymentMethodType): number => methodAmounts[method] || 0;
   const cardPaymentAmount = getMethodAmount("card");
-  const walletPaymentAmount = walletCreditApplied;
   const getEffectiveMethodAmount = (method: PaymentMethodType): number =>
     paymentMethodAmountWithInstallment(
       method,
@@ -2137,6 +2557,30 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
   const walletDiscount = walletCreditApplied;
   const remainingAfterWallet = payableTotal;
   const finalTotal = Math.max(0, payableTotal + shippingCost);
+
+  // La venta se completa por WhatsApp (no se crea orden en el sitio)
+  const willCompleteViaWhatsApp =
+    isPaisCatalog ||
+    (isThirdPartyTransport && (selectedMethods.includes("card") || selectedMethods.includes("transfer")));
+  const finalizeLabel = willCompleteViaWhatsApp ? "Continuar por WhatsApp" : "Confirmar pedido";
+  const finalizeBusyLabel = willCompleteViaWhatsApp ? "Redirigiendo a WhatsApp…" : "Confirmando tu pedido…";
+  const nextButtonLabel = returnToReview ? "Guardar y volver a la revisión" : "Continuar";
+  const shippingPending =
+    loadingPrices ||
+    shippingQuoteLoading ||
+    (isPaisCatalog && !isThirdPartyTransport && viacargoCotizarLoading) ||
+    (!isPaisCatalog && !isThirdPartyTransport && accessoriesShippingLoading);
+  const shippingSummaryLabel = shippingPending
+    ? "Calculando…"
+    : shippingCost > 0
+      ? formatPrice(shippingCost)
+      : "Gratis";
+  const estimatedDeliveryText = shippingQuoteLoading
+    ? null
+    : formatEstimatedDelivery({
+        estimated_delivery_days_min: estimatedDeliveryDaysMin,
+        estimated_delivery_days_max: estimatedDeliveryDaysMax,
+      });
 
   const cardFinancingBaseAmount = isMultiPayment
     ? cardPaymentAmount
@@ -2164,7 +2608,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
           selectedMethods.forEach((m) => {
             setMethodAmounts((prev) => ({
               ...prev,
-              [m]: payableSubtotal / selectedMethods.length,
+              [m]: roundMoney(payableSubtotal / selectedMethods.length),
             }));
           });
         } else {
@@ -2190,7 +2634,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
             }
           }
 
-          setMethodAmounts(distribution);
+          setMethodAmounts(normalizeAmounts(distribution, selectedMethods, payableSubtotal));
         }
       }
     }
@@ -2203,6 +2647,30 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
     isThirdPartyTransport,
     walletIsBlocked,
   ]);
+
+  const handleToggleMultiPayment = (enabled: boolean) => {
+    setEnableMultiPayment(enabled);
+    if (!enabled && selectedMethods.length > 1) {
+      const firstMethod = selectedMethods[0];
+      setSelectedMethods([firstMethod]);
+      if (payableSubtotal > 0.01) {
+        setMethodAmounts({ [firstMethod]: payableSubtotal });
+      } else {
+        setMethodAmounts({});
+      }
+    }
+  };
+
+  // Subtotal de productos según el tipo de precio de cada método (tarjeta = lista, resto = transferencia)
+  const subtotalForKind = (kind: "card" | "transfer"): number =>
+    cart.reduce((sum, item) => {
+      const product = productsWithPrices[item.id];
+      if (!product) return sum + getItemPrice(item);
+      return (
+        sum +
+        calculateProductPrice(product, item.quantity, { paymentPriceKind: kind }).currentPriceValue
+      );
+    }, 0);
 
   // Helper: toggle tarjeta / efectivo / transferencia (billetera es otro control)
   const togglePaymentMethod = (method: PaymentMethodType) => {
@@ -2258,7 +2726,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
               updated[m] = minPerMethod;
             }
           });
-          return updated;
+          return normalizeAmounts(updated, next, payableSubtotal, method);
         });
       }
       return next;
@@ -2361,6 +2829,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
             updated[m] = minPerMethod;
           }
         });
+        return normalizeAmounts(updated, selectedMethods, payableSubtotal, method);
       }
       
       return updated;
@@ -2377,6 +2846,48 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
   }
 
   const selectedAddress = addresses.find((addr) => addr.id === selectedAddressId);
+  // Sin efectos secundarios: habilita/deshabilita el botón Continuar
+  const isCurrentStepComplete =
+    step === 1
+      ? Object.keys(computeFormErrors(1)).length === 0 &&
+        !savingCheckoutAddress &&
+        !loadingPrices &&
+        !shippingQuoteLoading
+      : step === 2
+        ? Object.keys(computeFormErrors(2)).length === 0
+        : true;
+
+  const continueButtonClass = `w-full py-3 px-6 rounded-lg font-semibold text-sm md:text-base transition-colors items-center justify-center gap-2 ${
+    isCurrentStepComplete
+      ? "bg-[#00C1A7] text-white hover:bg-[#00A892]"
+      : "bg-gray-200 text-gray-500 cursor-pointer hover:bg-gray-300"
+  }`;
+
+  // Qué falta para habilitar Continuar (sin repetir etiquetas)
+  const missingFieldsHint = (() => {
+    if (step === 3 || isCurrentStepComplete) return "";
+    const labels = Object.keys(computeFormErrors(step === 1 ? 1 : 2))
+      .map((key) => FIELD_ERROR_LABELS[key])
+      .filter(Boolean);
+    const unique = Array.from(new Set(labels));
+    return unique.length > 0 ? `Falta completar: ${unique.join(", ")}` : "";
+  })();
+
+  const finalizeDisabled =
+    submitting || paisViacargoBloqueaFinalizar || loadingPrices || shippingQuoteLoading;
+  const finalizeBlockedReason = submitting
+    ? ""
+    : loadingPrices
+      ? "Actualizando precios…"
+      : shippingQuoteLoading || viacargoCotizarLoading
+        ? "Calculando el costo de envío…"
+        : paisViacargoBloqueaFinalizar
+          ? viacargoQuoteError ||
+            (localityShippingProblem
+              ? "Revisá el código postal de la dirección de envío"
+              : "No pudimos calcular el envío; revisá la dirección")
+          : "";
+
   const couponFields = (
     <>
       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -2389,6 +2900,12 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
           onChange={(e) => {
             setCouponInput(e.target.value.toUpperCase());
             setCouponError("");
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void handleApplyCoupon();
+            }
           }}
           placeholder="Ej: VERANO2026"
           disabled={couponLoading || !isAuthenticated}
@@ -2446,83 +2963,139 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
 
       <main className="flex-1 container mx-auto px-4 py-6 md:py-8 lg:py-12">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 md:mb-8">Checkout</h1>
+          <div className="flex items-center justify-between gap-4 mb-6 md:mb-8">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Tu compra</h1>
+            {step > 1 && (
+              <button
+                type="button"
+                onClick={() => goToStep((step - 1) as CheckoutStep)}
+                disabled={submitting}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium text-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Paso anterior
+              </button>
+            )}
+          </div>
+
+          {/* Stepper */}
+          <nav
+            ref={stepperRef}
+            tabIndex={-1}
+            aria-label="Pasos del checkout"
+            className="mb-6 md:mb-8 outline-none"
+          >
+            {/* Mobile: 3 columnas iguales, conector entre centros de círculos */}
+            <ol className="grid grid-cols-3 md:hidden">
+              {CHECKOUT_STEPS.map((s, idx) => {
+                const isCurrent = step === s.id;
+                const isDone = step > s.id;
+                return (
+                  <li key={s.id} className="relative flex justify-center">
+                    {idx > 0 && (
+                      <div
+                        aria-hidden
+                        className={`absolute top-4 right-1/2 w-full h-0.5 -translate-y-1/2 ${
+                          step >= s.id ? "bg-[#00C1A7]" : "bg-gray-200"
+                        }`}
+                      />
+                    )}
+                    <button
+                      type="button"
+                      disabled={!isDone}
+                      onClick={() => isDone && goToStep(s.id)}
+                      aria-current={isCurrent ? "step" : undefined}
+                      className="relative z-10 flex flex-col items-center gap-1.5 px-1 disabled:cursor-default"
+                    >
+                      <span
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
+                          isDone
+                            ? "bg-[#00C1A7] text-white"
+                            : isCurrent
+                              ? "bg-white border-2 border-[#00C1A7] text-[#00C1A7]"
+                              : "bg-white border-2 border-gray-300 text-gray-400"
+                        }`}
+                      >
+                        {isDone ? <Check className="w-4 h-4" /> : s.id}
+                      </span>
+                      <span
+                        className={`text-[11px] leading-tight font-medium text-center max-w-[5.5rem] ${
+                          isCurrent ? "text-gray-900" : isDone ? "text-[#00A892]" : "text-gray-400"
+                        }`}
+                      >
+                        {s.label}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+
+            {/* Desktop */}
+            <ol className="hidden md:flex items-start">
+              {CHECKOUT_STEPS.map((s, idx) => {
+                const isCurrent = step === s.id;
+                const isDone = step > s.id;
+                return (
+                  <li key={s.id} className="flex-1 flex items-start last:flex-none">
+                    <button
+                      type="button"
+                      disabled={!isDone}
+                      onClick={() => isDone && goToStep(s.id)}
+                      aria-current={isCurrent ? "step" : undefined}
+                      className="flex flex-col items-center gap-1.5 md:flex-row md:gap-3 disabled:cursor-default"
+                    >
+                      <span
+                        className={`w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 transition-colors ${
+                          isDone
+                            ? "bg-[#00C1A7] text-white"
+                            : isCurrent
+                              ? "bg-white border-2 border-[#00C1A7] text-[#00C1A7]"
+                              : "bg-white border-2 border-gray-300 text-gray-400"
+                        }`}
+                      >
+                        {isDone ? <Check className="w-4 h-4" /> : s.id}
+                      </span>
+                      <span
+                        className={`text-xs md:text-sm font-medium text-center md:text-left ${
+                          isCurrent ? "text-gray-900" : isDone ? "text-[#00A892]" : "text-gray-400"
+                        }`}
+                      >
+                        {s.label}
+                      </span>
+                    </button>
+                    {idx < CHECKOUT_STEPS.length - 1 && (
+                      <div
+                        className={`flex-1 h-0.5 mt-4 md:mt-[18px] mx-2 md:mx-4 rounded ${
+                          isDone ? "bg-[#00C1A7]" : "bg-gray-200"
+                        }`}
+                      />
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
 
           <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
             {/* Left Column - Form */}
             <div className="lg:col-span-2 space-y-4 md:space-y-6 order-2 lg:order-1">
-              {/* Products */}
-              <div className="bg-white border border-gray-200 rounded-[14px] p-4 md:p-6">
-                <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4 md:mb-6">
-                  Productos
-                </h2>
-                <div className="space-y-3 md:space-y-4">
-                  {cart.map((item) => {
-                    const unitPrice = getItemUnitPrice(item);
-                    return (
-                      <div key={item.id} className="flex gap-3 md:gap-4 pb-3 md:pb-4 border-b border-gray-100 last:border-0 last:pb-0">
-                        <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
-                          {item.image && (
-                            <img
-                              src={item.image}
-                              alt={item.name}
-                              className="w-full h-full object-cover"
-                            />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0 flex flex-col gap-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-sm md:text-base font-medium text-gray-900 truncate pt-0.5">
-                              {item.name}
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => removeFromCart(item.id)}
-                              className="flex-shrink-0 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors -mt-1"
-                              title="Eliminar producto"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                          <div className="flex items-center gap-4 flex-wrap">
-                            <span className="text-xs md:text-sm text-gray-500">
-                              Precio unitario: <span className="font-medium text-gray-700">{formatPrice(unitPrice)}</span>
-                            </span>
-                            <div className="flex items-center gap-2 ml-auto">
-                              <span className="text-xs md:text-sm text-gray-500">Cantidad:</span>
-                              <button
-                                type="button"
-                                onClick={() => updateCartQuantity(item.id, item.quantity - 1)}
-                                className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors"
-                                title="Disminuir cantidad"
-                              >
-                                <Minus className="w-3.5 h-3.5" />
-                              </button>
-                              <span className="text-sm font-medium text-gray-900 min-w-[1.5rem] text-center">
-                                {item.quantity}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
-                                className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors"
-                                title="Aumentar cantidad"
-                              >
-                                <Plus className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
+              {step === 1 && (
+              <>
               {/* Personal Information */}
               <div className="bg-white border border-gray-200 rounded-[14px] p-4 md:p-6">
-                <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4 md:mb-6">
-                  Información personal
-                </h2>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 mb-4 md:mb-6">
+                  <h2 className="text-lg md:text-xl font-semibold text-gray-900">
+                    Información personal
+                  </h2>
+                  {!isAuthenticated && (
+                    <p className="text-sm text-gray-600">
+                      ¿Ya tenés cuenta?{" "}
+                      <Link href="/login" className="font-medium text-[#00C1A7] hover:text-[#00A892] underline">
+                        Iniciá sesión
+                      </Link>
+                    </p>
+                  )}
+                </div>
                 <div className="space-y-4">
                   {/* Name Row */}
                   <div className="grid md:grid-cols-2 gap-4">
@@ -2533,7 +3106,9 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                       <input
                         type="text"
                         value={formData.first_name}
+                        autoComplete="given-name"
                         onChange={(e) => handleInputChange("first_name", e.target.value)}
+                        onBlur={() => handleFieldBlur("first_name")}
                         className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 ${
                           errors.first_name ? "border-red-500" : "border-gray-300"
                         }`}
@@ -2549,7 +3124,9 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                       <input
                         type="text"
                         value={formData.last_name}
+                        autoComplete="family-name"
                         onChange={(e) => handleInputChange("last_name", e.target.value)}
+                        onBlur={() => handleFieldBlur("last_name")}
                         className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 ${
                           errors.last_name ? "border-red-500" : "border-gray-300"
                         }`}
@@ -2565,28 +3142,29 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Documento <span className="text-red-500">*</span>
                     </label>
-                    <div className={`flex border rounded-lg overflow-hidden ${
+                    <div className={`flex border rounded-lg ${
                       errors.document_type || errors.dni ? "border-red-500" : "border-gray-300"
                     } focus-within:ring-2 focus-within:ring-[#00C1A7] focus-within:border-transparent`}>
-                      <select
+                      <CheckoutSelect
                         value={formData.document_type}
-                        onChange={(e) => handleInputChange("document_type", e.target.value)}
-                        className="px-4 py-2.5 border-r border-gray-300 bg-white focus:outline-none text-gray-900 text-sm min-w-[140px]"
+                        options={docTypes.map((docType) => ({ value: docType.id, label: docType.name }))}
+                        onChange={(value) => handleInputChange("document_type", value)}
+                        onBlur={() => handleFieldBlur("document_type")}
+                        placeholder="Tipo"
+                        ariaLabel="Tipo de documento"
                         disabled={loadingDocTypes}
-                      >
-                        <option value="">Tipo</option>
-                        {docTypes.map((docType) => (
-                          <option key={docType.id} value={docType.id}>
-                            {docType.name}
-                          </option>
-                        ))}
-                      </select>
+                        className="min-w-[140px] shrink-0"
+                        triggerClassName="px-4 py-2.5 border-r border-gray-300 rounded-l-lg"
+                      />
                       <input
                         type="text"
                         value={formData.dni}
+                        inputMode={isCuitOrCuil(formData.document_type) ? "text" : "numeric"}
+                        autoComplete="off"
                         onChange={(e) => handleInputChange("dni", e.target.value)}
+                        onBlur={() => handleFieldBlur("dni")}
                         placeholder="Número de documento"
-                        className="flex-1 px-4 py-2.5 border-0 focus:outline-none text-gray-900 placeholder:text-gray-400"
+                        className="flex-1 min-w-0 px-4 py-2.5 border-0 rounded-r-lg focus:outline-none text-gray-900 placeholder:text-gray-400"
                       />
                     </div>
                     {errors.document_type && (
@@ -2605,7 +3183,10 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                     <input
                       type="email"
                       value={formData.email}
+                      autoComplete="email"
+                      inputMode="email"
                       onChange={(e) => !isAuthenticated && handleInputChange("email", e.target.value)}
+                      onBlur={() => handleFieldBlur("email")}
                       readOnly={isAuthenticated}
                       className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 ${
                         errors.email ? "border-red-500" : "border-gray-300"
@@ -2630,7 +3211,9 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                       <input
                         type="tel"
                         value={formData.phone}
+                        autoComplete="tel"
                         onChange={(e) => handleInputChange("phone", e.target.value)}
+                        onBlur={() => handleFieldBlur("phone")}
                         className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 ${
                           errors.phone ? "border-red-500" : "border-gray-300"
                         }`}
@@ -2646,6 +3229,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                       <input
                         type="tel"
                         value={formData.alternate_phone}
+                        autoComplete="off"
                         onChange={(e) => handleInputChange("alternate_phone", e.target.value)}
                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900"
                       />
@@ -2672,8 +3256,13 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                   )}
                 </div>
 
+                {!showAddressForm && addresses.length > 0 && (
+                  <p className="text-sm text-gray-600 mb-4">
+                    Confirmá a qué dirección enviamos tu pedido.
+                  </p>
+                )}
                 {errors.address && (
-                  <p className="text-red-500 text-sm mb-4">{errors.address}</p>
+                  <p data-form-error className="text-red-500 text-sm mb-4">{errors.address}</p>
                 )}
                 {(localityLoading || loadingPrices) && !showAddressForm && (
                   <p className="text-sm text-gray-500 mb-4 flex items-center gap-2">
@@ -2688,9 +3277,20 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                       <h3 className="text-sm font-semibold text-gray-900 mb-1">
                         {editingAddressId ? "Editar dirección" : "Nueva dirección"}
                       </h3>
-                      <p className="text-sm text-gray-600 mb-4">
+                      <p className="text-sm text-gray-600 mb-3">
                         Información del destinatario
                       </p>
+                      {!editingAddressId && (
+                        <label className="flex items-center gap-2 mb-4 text-sm text-gray-700 cursor-pointer">
+                          <CheckoutChoice
+                            type="checkbox"
+                            checked={recipientIsSelf}
+                            onChange={(e) => setRecipientIsSelf(e.target.checked)}
+                          />
+                          El pedido lo recibo yo
+                        </label>
+                      )}
+                      {!selfRecipientActive && (
                       <div className="grid md:grid-cols-2 gap-4 mb-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -2699,7 +3299,9 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                           <input
                             type="text"
                             value={addressForm.full_name}
+                            autoComplete="name"
                             onChange={(e) => handleAddressInputChange("full_name", e.target.value)}
+                            onBlur={() => handleFieldBlur("address_full_name")}
                             placeholder="Ej: Juan Pérez"
                             className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 placeholder:text-gray-400 ${
                               errors.address_full_name ? "border-red-500" : "border-gray-300"
@@ -2716,7 +3318,9 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                           <input
                             type="tel"
                             value={addressForm.phone}
+                            autoComplete="tel"
                             onChange={(e) => handleAddressInputChange("phone", e.target.value)}
+                            onBlur={() => handleFieldBlur("address_phone")}
                             placeholder="Ej: +54 9 11 1234-5678"
                             className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 placeholder:text-gray-400 ${
                               errors.address_phone ? "border-red-500" : "border-gray-300"
@@ -2727,6 +3331,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                           )}
                         </div>
                       </div>
+                      )}
                     </div>
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
@@ -2736,7 +3341,9 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                         <input
                           type="text"
                           value={addressForm.street}
+                          autoComplete="address-line1"
                           onChange={(e) => handleAddressInputChange("street", e.target.value)}
+                          onBlur={() => handleFieldBlur("address_street")}
                           placeholder="Ej: Av. Corrientes"
                           className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 placeholder:text-gray-400 ${
                             errors.address_street ? "border-red-500" : "border-gray-300"
@@ -2753,7 +3360,9 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                         <input
                           type="text"
                           value={addressForm.number}
+                          autoComplete="off"
                           onChange={(e) => handleAddressInputChange("number", e.target.value)}
+                          onBlur={() => handleFieldBlur("address_number")}
                           placeholder="Ej: 1234"
                           className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 placeholder:text-gray-400 ${
                             errors.address_number ? "border-red-500" : "border-gray-300"
@@ -2774,6 +3383,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                           maxLength={8}
                           value={addressForm.postal_code}
                           onChange={(e) => handleAddressInputChange("postal_code", e.target.value)}
+                          onBlur={() => handleFieldBlur("address_postal_code")}
                           placeholder="Ej: 5000 (solo números)"
                           className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 placeholder:text-gray-400 ${
                             errors.address_postal_code ? "border-red-500" : "border-gray-300"
@@ -2790,6 +3400,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                         <input
                           type="text"
                           value={addressForm.additional_info}
+                          autoComplete="address-line2"
                           onChange={(e) => handleAddressInputChange("additional_info", e.target.value)}
                           placeholder="Depto, piso, entrecalles, etc."
                           className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 placeholder:text-gray-400"
@@ -2802,7 +3413,9 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                         <input
                           type="text"
                           value={addressForm.city}
+                          autoComplete="address-level2"
                           onChange={(e) => handleAddressInputChange("city", e.target.value)}
+                          onBlur={() => handleFieldBlur("address_city")}
                           placeholder="Ej: Buenos Aires"
                           className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 placeholder:text-gray-400 ${
                             errors.address_city ? "border-red-500" : "border-gray-300"
@@ -2819,7 +3432,8 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                         <select
                           value={addressForm.province_id || ""}
                           onChange={(e) => handleAddressInputChange("province_id", e.target.value)}
-                          autoComplete="off"
+                          onBlur={() => handleFieldBlur("address_province")}
+                          autoComplete="address-level1"
                           className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 ${
                             errors.address_province ? "border-red-500" : "border-gray-300"
                           }`}
@@ -2838,14 +3452,16 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                       </div>
                     </div>
                     <div className="flex gap-3 pt-4">
-                      <button
-                        type="button"
-                        onClick={closeAddressForm}
-                        disabled={savingCheckoutAddress}
-                        className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Cancelar
-                      </button>
+                      {addresses.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={closeAddressForm}
+                          disabled={savingCheckoutAddress}
+                          className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Cancelar
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => {
@@ -2872,7 +3488,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                     ) : addresses.length === 0 ? (
                       <div className="text-center py-8 border border-dashed border-gray-300 rounded-lg">
                         <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                        <p className="text-gray-500 mb-4">No tienes direcciones guardadas</p>
+                        <p className="text-gray-500 mb-4">No tenés direcciones guardadas</p>
                         <button
                           type="button"
                           onClick={openNewAddressForm}
@@ -2942,21 +3558,43 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                   </div>
                 )}
               </div>
+              </>
+              )}
 
-              {/* Cupón de descuento */}
-              <div className="bg-white border border-gray-200 rounded-[14px] p-4 md:p-6">
-                <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4">
-                  Cupón de descuento
-                </h2>
-                {couponFields}
-              </div>
-
-              {/* Payment Method - Multi-payment support */}
+              {step === 2 && (
+              <>
+              {/* Medios de pago */}
               <div className="bg-white border border-gray-200 rounded-[14px] p-4 md:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg md:text-xl font-semibold text-gray-900">
                     Medios de pago
                   </h2>
+                </div>
+
+                {/* Aviso único sobre cómo se abona */}
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-blue-800">
+                      {isPaisCatalog ? (
+                        <>
+                          <span className="font-semibold">Completarás la venta por WhatsApp.</span>{" "}
+                          No se cobra nada online.
+                        </>
+                      ) : isThirdPartyTransport ? (
+                        <>
+                          <span className="font-semibold">Efectivo:</span> abonás al recibir y la orden se genera
+                          normalmente. <span className="font-semibold">Tarjeta:</span> completarás la venta por
+                          WhatsApp.
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-semibold">Abonás al recibir tu pedido</span>, no se cobra nada
+                          online. Si elegís tarjeta, definís banco y cuotas acá.
+                        </>
+                      )}
+                    </p>
+                  </div>
                 </div>
 
                 {!isThirdPartyTransport && walletBalance > 0.01 && !walletIsBlocked && (
@@ -2998,282 +3636,139 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                     </div>
                   </div>
                 )}
-                
-                {/* Switch para combinar métodos */}
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 md:p-4 mb-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-medium text-gray-900">Combinar métodos de pago</span>
-                        {enableMultiPayment && (
-                          <span className="text-xs bg-[#00C1A7]/10 text-[#00C1A7] px-2 py-0.5 rounded-full font-medium">
-                            Activo
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-600">
-                        {enableMultiPayment 
-                          ? "Podés seleccionar múltiples métodos y distribuir el monto entre ellos"
-                          : "Activa esta opción para usar más de un método de pago en tu compra"}
-                      </p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={enableMultiPayment}
-                        onChange={(e) => {
-                          setEnableMultiPayment(e.target.checked);
-                          if (!e.target.checked && selectedMethods.length > 1) {
-                            const firstMethod = selectedMethods[0];
-                            setSelectedMethods([firstMethod]);
-                            if (payableSubtotal > 0.01) {
-                              setMethodAmounts({ [firstMethod]: payableSubtotal });
-                            } else {
-                              setMethodAmounts({});
-                            }
-                          }
-                        }}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#00C1A7] peer-focus:ring-offset-2 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#00C1A7]"></div>
-                    </label>
-                  </div>
-                </div>
-                
+                {isThirdPartyTransport && walletBalance > 0.01 && !walletIsBlocked && (
+                  <p className="mb-4 text-xs text-gray-500">
+                    El saldo de tu billetera no se puede usar con este tipo de envío.
+                  </p>
+                )}
+
                 <p className="text-xs text-gray-500 mb-4 md:mb-6">
                   {payableSubtotal <= 0.01 && walletCreditApplied > 0.01 ? (
                     <>El saldo de billetera cubre el subtotal de productos. Solo pagás el envío al finalizar.</>
                   ) : enableMultiPayment ? (
                     "Seleccioná los métodos para el monto a abonar y distribuí los importes"
                   ) : (
-                    "Seleccioná cómo vas a abonar el monto pendiente (después del descuento de billetera, si lo usás)"
+                    "Elegí cómo vas a abonar el monto pendiente (después del descuento de billetera, si lo usás)"
                   )}
                 </p>
                 {errors.payment_method && (
-                  <p className="text-red-500 text-sm mb-4">{errors.payment_method}</p>
+                  <p data-form-error className="text-red-500 text-sm mb-4">{errors.payment_method}</p>
                 )}
-                <div className="space-y-2 md:space-y-3">
-                  {/* Tarjeta */}
-                  <div
-                    className={`border rounded-lg transition-colors ${
-                      selectedMethods.includes("card")
-                        ? "border-[#00C1A7] bg-[#00C1A7]/5"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <label
-                      className={`flex items-center gap-3 md:gap-4 p-3 md:p-4 ${payableSubtotal <= 0.01 ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                    >
-                      <input
-                        type="checkbox"
-                        disabled={payableSubtotal <= 0.01}
-                        checked={selectedMethods.includes("card")}
-                        onChange={() => togglePaymentMethod("card")}
-                        className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7] disabled:opacity-50"
-                      />
-                      <CreditCard className="w-5 h-5 text-gray-600" />
-                      <div className="flex-1">
-                        <span className="font-medium text-gray-900 text-sm md:text-base">Tarjeta</span>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {isThirdPartyTransport 
-                            ? "Completarás la venta por WhatsApp" 
-                            : isPaisCatalog 
-                            ? "Completarás la venta por WhatsApp" 
-                            : "Abonás al recibir"}
-                        </p>
-                      </div>
-                      {selectedMethods.includes("card") && (
-                        <Check className="w-5 h-5 text-[#00C1A7] flex-shrink-0" />
-                      )}
-                    </label>
-                    {selectedMethods.includes("card") && isMultiPayment && (
-                      <div className="px-3 md:px-4 pb-3 md:pb-4">
-                        <label className="text-xs text-gray-500 mb-1 block">Monto con tarjeta</label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                          <input
-                            type="number"
-                            min={isMultiPayment ? 1 : 0}
-                            step="0.01"
-                            max={payableSubtotal}
-                            value={methodAmounts["card"] || ""}
-                            onChange={(e) => updateMethodAmount("card", e.target.value)}
-                            className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-[#00C1A7] focus:border-[#00C1A7] placeholder:text-gray-400"
-                            placeholder="0.00"
-                          />
-                        </div>
-                      </div>
-                    )}
-                    {/* Mensaje de abonar al recibir cuando se selecciona tarjeta */}
-                    {selectedMethods.includes("card") && (
-                      <div className="px-3 md:px-4 pb-3 md:pb-4">
-                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                          <div className="flex items-start gap-2">
-                            <Check className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                            <p className="text-xs md:text-sm text-blue-800">
-                              {isThirdPartyTransport ? (
-                                <span className="font-semibold">Completarás la venta por WhatsApp</span>
-                              ) : isPaisCatalog ? (
-                                <span className="font-semibold">Completarás la venta por WhatsApp</span>
-                              ) : (
-                                <>
-                                  <span className="font-semibold">Abonarás al recibir</span> - Pagarás con tarjeta cuando recibas tu pedido
-                                </>
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
 
-                  {/* Efectivo - Siempre visible, pero con mensaje diferente si es transporte tercerizado */}
-                  <div
-                    className={`border rounded-lg transition-colors ${
-                      selectedMethods.includes("cash")
-                        ? "border-[#00C1A7] bg-[#00C1A7]/5"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <label
-                      className={`flex items-center gap-3 md:gap-4 p-3 md:p-4 ${payableSubtotal <= 0.01 ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                    >
-                      <input
-                        type="checkbox"
-                        disabled={payableSubtotal <= 0.01}
-                        checked={selectedMethods.includes("cash")}
-                        onChange={() => togglePaymentMethod("cash")}
-                        className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7] disabled:opacity-50"
-                      />
-                      <Wallet className="w-5 h-5 text-gray-600" />
-                      <div className="flex-1">
-                        <span className="font-medium text-gray-900 text-sm md:text-base">Efectivo</span>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {isThirdPartyTransport 
-                            ? "Abonás al recibir" 
-                            : isPaisCatalog 
-                            ? "Completarás la venta por WhatsApp" 
-                            : "Abonás al recibir"}
-                        </p>
-                      </div>
-                      {selectedMethods.includes("cash") && (
-                        <Check className="w-5 h-5 text-[#00C1A7] flex-shrink-0" />
-                      )}
-                    </label>
-                    {selectedMethods.includes("cash") && isMultiPayment && (
-                      <div className="px-3 md:px-4 pb-3 md:pb-4">
-                        <label className="text-xs text-gray-500 mb-1 block">Monto en efectivo</label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                          <input
-                            type="number"
-                            min={isMultiPayment ? 1 : 0}
-                            step="0.01"
-                            max={payableSubtotal}
-                            value={methodAmounts["cash"] || ""}
-                            onChange={(e) => updateMethodAmount("cash", e.target.value)}
-                            className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-[#00C1A7] focus:border-[#00C1A7] placeholder:text-gray-400"
-                            placeholder="0.00"
-                          />
-                        </div>
-                      </div>
-                    )}
-                    {/* Mensaje de abonar al recibir cuando se selecciona efectivo */}
-                    {selectedMethods.includes("cash") && (
-                      <div className="px-3 md:px-4 pb-3 md:pb-4">
-                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                          <div className="flex items-start gap-2">
-                            <Check className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                            <p className="text-xs md:text-sm text-blue-800">
-                              {isThirdPartyTransport ? (
-                                <>
-                                  <span className="font-semibold">Abonarás al recibir</span> - La orden se generará normalmente
-                                </>
-                              ) : isPaisCatalog ? (
-                                <span className="font-semibold">Completarás la venta por WhatsApp</span>
-                              ) : (
-                                <>
-                                  <span className="font-semibold">Abonarás al recibir</span> - Pagarás con efectivo cuando recibas tu pedido
-                                </>
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Transferencia — con transporte tercerizado se completa la venta por WhatsApp */}
-                  <div
-                    className={`border rounded-lg transition-colors ${
-                      selectedMethods.includes("transfer")
-                        ? "border-[#00C1A7] bg-[#00C1A7]/5"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <label
-                      className={`flex items-center gap-3 md:gap-4 p-3 md:p-4 ${payableSubtotal <= 0.01 ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                    >
-                      <input
-                        type="checkbox"
-                        disabled={payableSubtotal <= 0.01}
-                        checked={selectedMethods.includes("transfer")}
-                        onChange={() => togglePaymentMethod("transfer")}
-                        className="w-4 h-4 rounded border-gray-300 text-[#00C1A7] focus:ring-[#00C1A7] disabled:opacity-50"
-                      />
-                      <ArrowRightLeft className="w-5 h-5 text-gray-600" />
-                      <div className="flex-1">
-                        <span className="font-medium text-gray-900 text-sm md:text-base">Transferencia</span>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {isThirdPartyTransport || isPaisCatalog
+                <div
+                  className="space-y-2 md:space-y-3"
+                  role={enableMultiPayment ? "group" : "radiogroup"}
+                  aria-label="Método de pago"
+                >
+                  {(() => {
+                    const cardPrice = subtotalForKind("card");
+                    const transferPrice = subtotalForKind("transfer");
+                    const showPrices =
+                      !loadingPrices &&
+                      Object.keys(productsWithPrices).length > 0 &&
+                      Math.abs(cardPrice - transferPrice) > 0.01;
+                    const methods: {
+                      id: "card" | "cash" | "transfer";
+                      label: string;
+                      Icon: typeof CreditCard;
+                      amountLabel: string;
+                      description: string;
+                    }[] = [
+                      {
+                        id: "card",
+                        label: "Tarjeta",
+                        Icon: CreditCard,
+                        amountLabel: "Monto con tarjeta",
+                        description:
+                          isThirdPartyTransport || isPaisCatalog
                             ? "Completarás la venta por WhatsApp"
-                            : "Abonás al recibir"}
-                        </p>
-                      </div>
-                      {selectedMethods.includes("transfer") && (
-                        <Check className="w-5 h-5 text-[#00C1A7] flex-shrink-0" />
-                      )}
-                    </label>
-                    {selectedMethods.includes("transfer") && isMultiPayment && (
-                      <div className="px-3 md:px-4 pb-3 md:pb-4">
-                        <label className="text-xs text-gray-500 mb-1 block">Monto con transferencia</label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                          <input
-                            type="number"
-                            min={isMultiPayment ? 1 : 0}
-                            step="0.01"
-                            max={payableSubtotal}
-                            value={methodAmounts["transfer"] || ""}
-                            onChange={(e) => updateMethodAmount("transfer", e.target.value)}
-                            className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-[#00C1A7] focus:border-[#00C1A7] placeholder:text-gray-400"
-                            placeholder="0.00"
-                          />
-                        </div>
-                      </div>
-                    )}
-                    {/* Mensaje de abonar al recibir cuando se selecciona transferencia */}
-                    {selectedMethods.includes("transfer") && (
-                      <div className="px-3 md:px-4 pb-3 md:pb-4">
-                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                          <div className="flex items-start gap-2">
-                            <Check className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                            <p className="text-xs md:text-sm text-blue-800">
-                              {isThirdPartyTransport || isPaisCatalog ? (
-                                <span className="font-semibold">Completarás la venta por WhatsApp</span>
-                              ) : (
-                                <>
-                                  <span className="font-semibold">Abonarás al recibir</span> - Pagarás con
-                                  transferencia cuando recibas tu pedido
-                                </>
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                            : "Abonás al recibir",
+                      },
+                      {
+                        id: "cash",
+                        label: "Efectivo",
+                        Icon: Wallet,
+                        amountLabel: "Monto en efectivo",
+                        description: isThirdPartyTransport
+                          ? "Abonás al recibir"
+                          : isPaisCatalog
+                            ? "Completarás la venta por WhatsApp"
+                            : "Abonás al recibir",
+                      },
+                      {
+                        id: "transfer",
+                        label: "Transferencia",
+                        Icon: ArrowRightLeft,
+                        amountLabel: "Monto con transferencia",
+                        description:
+                          isThirdPartyTransport || isPaisCatalog
+                            ? "Completarás la venta por WhatsApp"
+                            : "Abonás al recibir",
+                      },
+                    ];
 
+                    return methods.map(({ id, label, Icon, amountLabel, description }) => {
+                      const isSelected = selectedMethods.includes(id);
+                      const unavailable = id === "transfer" && isThirdPartyTransport;
+                      const isDisabled = payableSubtotal <= 0.01 || unavailable;
+                      const price = id === "card" ? cardPrice : transferPrice;
+                      const saving = id !== "card" ? cardPrice - transferPrice : 0;
+                      return (
+                        <div
+                          key={id}
+                          className={`border rounded-lg transition-colors ${
+                            isSelected
+                              ? "border-[#00C1A7] bg-[#00C1A7]/5"
+                              : "border-gray-200 hover:border-gray-300"
+                          } ${isDisabled ? "opacity-50" : ""}`}
+                        >
+                          <label
+                            className={`flex items-center gap-3 md:gap-4 p-3 md:p-4 ${
+                              isDisabled ? "cursor-not-allowed" : "cursor-pointer"
+                            }`}
+                          >
+                            <CheckoutChoice
+                              type={enableMultiPayment ? "checkbox" : "radio"}
+                              name="payment_method"
+                              disabled={isDisabled}
+                              checked={isSelected}
+                              onChange={() => togglePaymentMethod(id)}
+                            />
+                            <Icon className="w-5 h-5 text-gray-600 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <span className="font-medium text-gray-900 text-sm md:text-base">{label}</span>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                {unavailable ? "No disponible con este tipo de envío" : description}
+                              </p>
+                            </div>
+                            {showPrices && !unavailable && (
+                              <div className="text-right shrink-0">
+                                <p className="text-sm font-semibold text-gray-900 tabular-nums">
+                                  {formatPrice(price)}
+                                </p>
+                                <p className="text-[11px] text-gray-500">
+                                  {id === "card" ? PRICE_UI_CARD_CAPTION : PRICE_UI_TRANSFER_CAPTION}
+                                </p>
+                                {saving > 0.01 && (
+                                  <p className="text-[11px] font-medium text-[#00A892]">
+                                    Ahorrás {formatPrice(saving)}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </label>
+                          {isSelected && isMultiPayment && (
+                            <MethodAmountInput
+                              id={`amount-${id}`}
+                              label={amountLabel}
+                              value={methodAmounts[id] || 0}
+                              onCommit={(raw) => updateMethodAmount(id, raw)}
+                            />
+                          )}
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
 
                 {/* Multi-payment summary */}
@@ -3303,13 +3798,22 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                   </div>
                 )}
 
+                <button
+                  type="button"
+                  onClick={() => handleToggleMultiPayment(!enableMultiPayment)}
+                  disabled={payableSubtotal <= 0.01}
+                  className="mt-4 text-sm font-medium text-[#00C1A7] hover:text-[#00A892] hover:underline disabled:opacity-50 disabled:no-underline"
+                >
+                  {enableMultiPayment ? "Usar un solo método de pago" : "Pagar con más de un método"}
+                </button>
+
                 {/* Cuotas y Bancos - Solo cuando se selecciona tarjeta */}
                 {hasCardPayment && (
                   <div className="mt-6 pt-5 border-t border-gray-200 space-y-4">
                     <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 space-y-4">
                     <h3 className="text-sm font-semibold text-gray-800">Tarjeta, banco y cuotas</h3>
                     {errors.card_installment && (
-                      <p className="text-red-500 text-sm">{errors.card_installment}</p>
+                      <p data-form-error className="text-red-500 text-sm">{errors.card_installment}</p>
                     )}
                     {(() => {
                       const cardData = cardBankData;
@@ -3374,23 +3878,19 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                                 ))}
                               </div>
                             ) : (
-                              <select
+                              <CheckoutSelect
                                 value={selectedCardType}
-                                onChange={(e) => {
-                                  setSelectedCardType(e.target.value);
+                                options={cardTypesOptions}
+                                onChange={(value) => {
+                                  setSelectedCardType(value);
                                   setSelectedBank("");
                                   setSelectedInstallmentKey("");
                                   clearCardError();
                                 }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-[#00C1A7] focus:border-[#00C1A7] bg-white"
-                              >
-                                <option value="">Seleccioná un tipo de tarjeta</option>
-                                {cardTypesOptions.map((type) => (
-                                  <option key={type.value} value={type.value}>
-                                    {type.label}
-                                  </option>
-                                ))}
-                              </select>
+                                placeholder="Seleccioná un tipo de tarjeta"
+                                ariaLabel="Tipo de tarjeta"
+                                triggerClassName="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00C1A7]"
+                              />
                             )}
                           </div>
 
@@ -3400,22 +3900,18 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                               <label className="block text-sm text-gray-600 mb-2">
                                 Banco <span className="text-red-400">*</span>
                               </label>
-                              <select
+                              <CheckoutSelect
                                 value={selectedBank}
-                                onChange={(e) => {
-                                  setSelectedBank(e.target.value);
+                                options={banks.map((bank) => ({ value: bank, label: bank }))}
+                                onChange={(value) => {
+                                  setSelectedBank(value);
                                   setSelectedInstallmentKey("");
                                   clearCardError();
                                 }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-[#00C1A7] focus:border-[#00C1A7] bg-white"
-                              >
-                                <option value="">Seleccioná tu banco</option>
-                                {banks.map((bank) => (
-                                  <option key={bank} value={bank}>
-                                    {bank}
-                                  </option>
-                                ))}
-                              </select>
+                                placeholder="Seleccioná tu banco"
+                                ariaLabel="Banco"
+                                triggerClassName="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00C1A7]"
+                              />
                             </div>
                           )}
 
@@ -3451,8 +3947,17 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                                           ? `1 cuota de ${formatPrice(cuotaAmount)}`
                                           : `${inst.cuotas} x ${formatPrice(cuotaAmount)}`}
                                       </p>
-                                      <p className="text-xs text-gray-400 mt-0.5 tabular-nums">
+                                      <p className="text-xs text-gray-500 mt-0.5 tabular-nums">
                                         Total {formatPrice(totalAmount)}
+                                      </p>
+                                      <p
+                                        className={`text-[11px] mt-0.5 ${
+                                          totalAmount - baseAmount < 0.01 ? "text-[#00A892] font-medium" : "text-amber-700"
+                                        }`}
+                                      >
+                                        {totalAmount - baseAmount < 0.01
+                                          ? "Sin recargo"
+                                          : `Recargo ${formatPrice(totalAmount - baseAmount)}`}
                                       </p>
                                     </button>
                                   );
@@ -3466,77 +3971,412 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                     </div>
                   </div>
                 )}
+              </div>
 
-                {/* Pay on delivery info for cash and transfer */}
-                {(selectedMethods.includes("cash") || selectedMethods.includes("transfer")) && !hasCardPayment && (
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <div className="flex items-center gap-3">
-                      <Check className="w-4 h-4 text-[#00C1A7]" />
-                      <div>
-                        <span className="font-medium text-gray-900">
-                          {isPaisCatalog ? "Completar por WhatsApp" : "Pagar al recibir"}
-                        </span>
-                        <p className="text-sm text-gray-500">
-                          {isPaisCatalog ? "Completarás la venta por WhatsApp" : "Pagas cuando recibas tu pedido"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Código de Referido */}
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Código de referido (opcional)
-                  </label>
-                  <input
-                    type="text"
-                    value={referralCode}
-                    onChange={(e) => {
-                      const value = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
-                      setReferralCode(value);
-                      if (errors.referral_code) {
-                        setErrors((prev) => ({ ...prev, referral_code: "" }));
-                      }
-                    }}
-                    placeholder="BAUSING-XXXXXX"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 placeholder:text-gray-400"
+              {/* Cupón y código de referido (plegable) */}
+              <div className="bg-white border border-gray-200 rounded-[14px] p-4 md:p-6">
+                <button
+                  type="button"
+                  onClick={() => setShowCodes((v) => !v)}
+                  aria-expanded={showCodes}
+                  className="w-full flex items-center justify-between gap-3 text-left"
+                >
+                  <span className="text-lg md:text-xl font-semibold text-gray-900">
+                    ¿Tenés un cupón o código de referido?
+                  </span>
+                  <ChevronDown
+                    className={`w-5 h-5 shrink-0 text-gray-500 transition-transform ${showCodes ? "rotate-180" : ""}`}
+                    aria-hidden
                   />
-                  {errors.referral_code && (
-                    <p className="text-xs text-red-500 mt-1">{errors.referral_code}</p>
-                  )}
-                  <p className="text-xs text-gray-500 mt-1">
-                    Si alguien te refirió, ingresa su código aquí
+                </button>
+                {!showCodes && (appliedCoupon || referralStatus === "valid") && (
+                  <p className="mt-2 text-sm text-[#00A896]">
+                    {appliedCoupon ? `Cupón ${appliedCoupon.code} aplicado` : ""}
+                    {appliedCoupon && referralStatus === "valid" ? " · " : ""}
+                    {referralStatus === "valid" ? "Código de referido válido" : ""}
                   </p>
-                </div>
-
-                {/* Botón Finalizar compra: solo en responsive (móvil/tablet), al final del formulario */}
-                <div className="lg:hidden mt-6 pt-6 border-t border-gray-200">
-                  {/* Aviso de que se abonará al recibir */}
-                  <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm text-blue-800">
-                        <span className="font-semibold">Importante:</span>{" "}
-                        {isPaisCatalog ? "Completarás la venta por WhatsApp." : "Abonarás cuando recibas tu pedido."}
+                )}
+                {showCodes && (
+                  <div className="mt-4 space-y-5">
+                    <div>{couponFields}</div>
+                    <div className="pt-5 border-t border-gray-200">
+                      <label htmlFor="referral-code" className="block text-sm font-medium text-gray-700 mb-2">
+                        Código de referido (opcional)
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="referral-code"
+                          type="text"
+                          autoComplete="off"
+                          value={referralCode}
+                          onChange={(e) => {
+                            const value = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "");
+                            setReferralCode(value);
+                            setReferralStatus("idle");
+                            setReferralMessage("");
+                            if (errors.referral_code) {
+                              setErrors((prev) => ({ ...prev, referral_code: "" }));
+                            }
+                          }}
+                          onBlur={() => void validateReferral()}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              void validateReferral();
+                            }
+                          }}
+                          placeholder="BAUSING-XXXXXX"
+                          className={`w-full px-4 py-2.5 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00C1A7] text-gray-900 placeholder:text-gray-400 ${
+                            errors.referral_code
+                              ? "border-red-500"
+                              : referralStatus === "valid"
+                                ? "border-[#00C1A7]"
+                                : "border-gray-300"
+                          }`}
+                        />
+                        {referralCodeValidating && (
+                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                        )}
+                        {!referralCodeValidating && referralStatus === "valid" && (
+                          <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#00C1A7]" />
+                        )}
+                      </div>
+                      {errors.referral_code && (
+                        <p className="text-xs text-red-500 mt-1">{errors.referral_code}</p>
+                      )}
+                      {!errors.referral_code && referralStatus === "valid" && (
+                        <p className="text-xs text-[#00A896] mt-1">{referralMessage}</p>
+                      )}
+                      {!errors.referral_code && referralStatus === "idle" && referralMessage && (
+                        <p className="text-xs text-amber-700 mt-1">{referralMessage}</p>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1">
+                        Si alguien te refirió, ingresá su código acá.
                       </p>
                     </div>
                   </div>
+                )}
+              </div>
+              </>
+              )}
+
+              {step === 3 && (() => {
+                const reviewAddress = addresses.find((a) => a.id === selectedAddressId);
+                const reviewDocType = docTypes.find((d) => String(d.id) === String(formData.document_type));
+                const cardTypeLabel = cardTypes.find((ct) => ct.code === selectedCardType)?.name ?? "";
+                const methodLabel = (method: PaymentMethodType) =>
+                  method === "card" ? "Tarjeta" : method === "cash" ? "Efectivo" : "Transferencia";
+                const surcharge = Math.max(0, payableTotal - payableSubtotal);
+                const cardClass = "bg-white border border-gray-200 rounded-[14px] p-4 md:p-6";
+                const editButton = (target: CheckoutStep, what: string) => (
                   <button
-                    type="submit"
-                    disabled={submitting || paisViacargoBloqueaFinalizar || loadingPrices || shippingQuoteLoading}
-                    className="w-full bg-[#00C1A7] text-white py-3 px-6 rounded-lg font-semibold text-base hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    type="button"
+                    onClick={() => editFromReview(target)}
+                    aria-label={`Editar ${what}`}
+                    className="-my-2 -mr-2 px-3 py-2 rounded-lg text-sm font-medium text-[#00C1A7] hover:text-[#00A892] hover:bg-[#00C1A7]/10 transition-colors"
                   >
-                    {submitting ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Procesando...
-                      </>
-                    ) : (
-                      "Finalizar compra"
-                    )}
+                    Editar
                   </button>
+                );
+                return (
+                  <>
+                    {/* Pedido */}
+                    <div className={cardClass}>
+                      <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-lg md:text-xl font-semibold text-gray-900">Tu pedido</h2>
+                        {editButton(1, "productos")}
+                      </div>
+                      <ul className="divide-y divide-gray-100">
+                        {cart.map((item) => (
+                          <li key={item.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                            <div className="w-12 h-12 bg-gray-100 rounded-lg shrink-0 overflow-hidden">
+                              {item.image && (
+                                <img
+                                  loading="lazy"
+                                  src={wsrvLoader({ src: item.image, width: 112 })}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
+                              <p className="text-xs text-gray-500">
+                                {item.quantity} × {formatPrice(getItemUnitPrice(item))}
+                              </p>
+                            </div>
+                            <p className="text-sm font-semibold text-gray-900 tabular-nums shrink-0">
+                              {formatPrice(getItemPrice(item))}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Contacto */}
+                    <div className={cardClass}>
+                      <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-lg md:text-xl font-semibold text-gray-900">Contacto</h2>
+                        {editButton(1, "contacto")}
+                      </div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {formData.first_name} {formData.last_name}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {reviewDocType?.name ? `${reviewDocType.name} ` : ""}
+                        {formData.dni}
+                      </p>
+                      <p className="text-sm text-gray-600">{formData.email}</p>
+                      <p className="text-sm text-gray-600">
+                        Cel: {formData.phone}
+                        {formData.alternate_phone ? ` · Alt: ${formData.alternate_phone}` : ""}
+                      </p>
+                      {accountCreated && (
+                        <p className="mt-3 text-xs text-gray-500">
+                          Creamos tu cuenta con este email. Revisá tu correo para ver tu contraseña.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Entrega */}
+                    <div className={cardClass}>
+                      <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-lg md:text-xl font-semibold text-gray-900">Entrega</h2>
+                        {editButton(1, "dirección de entrega")}
+                      </div>
+                      {reviewAddress ? (
+                        <>
+                          <p className="text-sm font-medium text-gray-900">{reviewAddress.full_name}</p>
+                          <p className="text-sm text-gray-600">
+                            {reviewAddress.street} {reviewAddress.number}
+                            {reviewAddress.additional_info && `, ${reviewAddress.additional_info}`}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {reviewAddress.city}, {reviewAddress.province} {reviewAddress.postal_code}
+                          </p>
+                          <p className="text-sm text-gray-500">Tel: {reviewAddress.phone}</p>
+                        </>
+                      ) : (
+                        <p className="text-sm text-red-600">No hay una dirección seleccionada.</p>
+                      )}
+                      {isPaisCatalog && !isThirdPartyTransport && (
+                        <p className="mt-3 text-xs text-gray-500">
+                          Modalidad de entrega: retiro en sucursal Viacargo. El costo de envío es un precio estimado.
+                        </p>
+                      )}
+                      {estimatedDeliveryText && (
+                        <p className="mt-2 text-sm text-gray-700">
+                          <span className="text-gray-500">Entrega estimada:</span> {estimatedDeliveryText}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Pago */}
+                    <div className={cardClass}>
+                      <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-lg md:text-xl font-semibold text-gray-900">Pago</h2>
+                        {editButton(2, "forma de pago")}
+                      </div>
+                      <div className="space-y-3">
+                        {selectedMethods.length === 0 ? (
+                          <p className="text-sm text-gray-600">
+                            {hasWalletPayment && remainingAfterWallet === 0
+                              ? "Cubierto con tu billetera"
+                              : "Sin método seleccionado"}
+                          </p>
+                        ) : (
+                          selectedMethods.map((method) => (
+                            <div key={method}>
+                              <div className="flex justify-between gap-3 text-sm text-gray-900">
+                                <span className="font-medium">{methodLabel(method)}</span>
+                                <span className="font-medium tabular-nums">
+                                  {formatPrice(getEffectiveMethodAmount(method))}
+                                </span>
+                              </div>
+                              {method === "card" && (cardTypeLabel || selectedBank) && (
+                                <p className="text-xs text-gray-500">
+                                  {[cardTypeLabel, selectedBank].filter(Boolean).join(" · ")}
+                                </p>
+                              )}
+                              {method === "card" && selectedInstallment && selectedInstallmentAmounts && (
+                                <p className="text-xs text-gray-500">
+                                  {selectedInstallment.cuotas === 1
+                                    ? "1 cuota de"
+                                    : `${selectedInstallment.cuotas} cuotas de`}{" "}
+                                  {formatPrice(selectedInstallmentAmounts.cuotaAmount)} · Total{" "}
+                                  {formatPrice(selectedInstallmentAmounts.totalAmount)}{" "}
+                                  {selectedInstallmentAmounts.totalAmount - cardFinancingBaseAmount < 0.01
+                                    ? "(sin recargo)"
+                                    : "(con recargo)"}
+                                </p>
+                              )}
+                            </div>
+                          ))
+                        )}
+                        {hasWalletPayment && walletDiscount > 0 && (
+                          <div className="flex justify-between text-sm text-green-700">
+                            <span>Billetera Bausing</span>
+                            <span className="font-medium tabular-nums">−{formatPrice(walletDiscount)}</span>
+                          </div>
+                        )}
+                        {referralCode && (
+                          <p className="text-sm text-gray-600">Código de referido: {referralCode}</p>
+                        )}
+                      </div>
+                      <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                          <p className="text-sm text-blue-800">
+                            <span className="font-semibold">Importante:</span>{" "}
+                            {willCompleteViaWhatsApp
+                              ? "Al continuar te llevamos a WhatsApp con el detalle de tu pedido. La compra se confirma allá."
+                              : "Abonarás cuando recibas tu pedido."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Total */}
+                    <div className={cardClass}>
+                      <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-3">Total a pagar</h2>
+                      <dl className="space-y-2 text-sm">
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-gray-600">Productos</dt>
+                          <dd className="font-medium text-gray-900 tabular-nums">{formatPrice(subtotal)}</dd>
+                        </div>
+                        {appliedCoupon && couponDiscount > 0.01 && (
+                          <div className="flex justify-between gap-3 text-[#00A896]">
+                            <dt>Cupón {appliedCoupon.code}</dt>
+                            <dd className="font-medium tabular-nums">−{formatPrice(couponDiscount)}</dd>
+                          </div>
+                        )}
+                        {hasWalletPayment && walletDiscount > 0 && (
+                          <div className="flex justify-between gap-3 text-green-700">
+                            <dt>Billetera Bausing</dt>
+                            <dd className="font-medium tabular-nums">−{formatPrice(walletDiscount)}</dd>
+                          </div>
+                        )}
+                        {surcharge > 0.01 && (
+                          <div className="flex justify-between gap-3">
+                            <dt className="text-gray-600">Recargo por cuotas</dt>
+                            <dd className="font-medium text-gray-900 tabular-nums">+{formatPrice(surcharge)}</dd>
+                          </div>
+                        )}
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-gray-600">Envío</dt>
+                          <dd className="font-medium text-gray-900 tabular-nums">{shippingSummaryLabel}</dd>
+                        </div>
+                      </dl>
+                      <div className="mt-4 pt-4 border-t border-gray-200 flex items-baseline justify-between gap-3">
+                        <span className="text-base md:text-lg font-semibold text-gray-900">Total</span>
+                        <span className="text-xl md:text-2xl font-bold text-gray-900 tabular-nums">
+                          {loadingPrices ? "…" : formatPrice(finalTotal)}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {willCompleteViaWhatsApp
+                          ? "El pago se coordina por WhatsApp."
+                          : "Pagás al recibir tu pedido."}
+                      </p>
+                    </div>
+                  </>
+                );
+              })()}
+
+              {step === 3 && errors.submit && (
+                <div
+                  data-form-error
+                  role="alert"
+                  className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"
+                >
+                  <p>{errors.submit}</p>
+                  {submitFix && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        editFromReview(submitFix.step);
+                        scrollToFirstError();
+                      }}
+                      className="mt-2 font-semibold underline underline-offset-2 hover:text-red-900"
+                    >
+                      {submitFix.label}
+                    </button>
+                  )}
                 </div>
+              )}
+
+              {step === 3 && (
+                <p className="text-xs text-gray-500">
+                  Al continuar aceptás los{" "}
+                  <Link href="/terminos-y-condiciones" target="_blank" className="underline hover:text-gray-700">
+                    Términos y Condiciones
+                  </Link>{" "}
+                  y la{" "}
+                  <Link href="/politica-de-privacidad" target="_blank" className="underline hover:text-gray-700">
+                    Política de Privacidad
+                  </Link>
+                  .
+                </p>
+              )}
+
+              {/* Navegación del wizard */}
+              <div className="flex items-center gap-3">
+                {step > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => goToStep((step - 1) as CheckoutStep)}
+                    disabled={submitting}
+                    className="px-5 py-3 rounded-lg border border-gray-300 text-gray-700 font-semibold text-sm md:text-base hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  >
+                    Volver
+                  </button>
+                )}
+                {step < 3 ? (
+                  <div className="flex-1">
+                    <button
+                      type="button"
+                      onClick={() => void handleNextStep()}
+                      aria-disabled={!isCurrentStepComplete}
+                      disabled={savingCheckoutAddress || loadingPrices || shippingQuoteLoading}
+                      className={`flex ${continueButtonClass}`}
+                    >
+                      {savingCheckoutAddress ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Guardando dirección…
+                        </>
+                      ) : (
+                        nextButtonLabel
+                      )}
+                    </button>
+                    {missingFieldsHint && (
+                      <p className="mt-2 text-xs text-gray-500 text-center">{missingFieldsHint}</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex-1">
+                    <button
+                      type="submit"
+                      disabled={finalizeDisabled}
+                      className="w-full bg-[#00C1A7] text-white py-3 px-6 rounded-lg font-semibold text-base hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {submitting ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          {finalizeBusyLabel}
+                        </>
+                      ) : (
+                        <>
+                          {willCompleteViaWhatsApp && <MessageCircle className="w-5 h-5" />}
+                          {finalizeLabel}
+                        </>
+                      )}
+                    </button>
+                    {finalizeBlockedReason && (
+                      <p className="mt-2 text-xs text-gray-500 text-center">{finalizeBlockedReason}</p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -3554,7 +4394,8 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                         <div className="w-12 h-12 md:w-14 md:h-14 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
                           {item.image && (
                             <img
-                              src={item.image}
+                              loading="lazy"
+                              src={wsrvLoader({ src: item.image, width: 112 })}
                               alt={item.name}
                               className="w-full h-full object-cover"
                             />
@@ -3566,7 +4407,46 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                           </p>
                           <div className="flex items-center justify-between gap-2 mb-1">
                             <span className="text-xs text-gray-500">Cantidad:</span>
-                            <span className="text-xs font-medium text-gray-700">{item.quantity}</span>
+                            {step === 3 ? (
+                              <span className="text-xs font-medium text-gray-700">{item.quantity}</span>
+                            ) : (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => updateCartQuantity(item.id, item.quantity - 1)}
+                                disabled={item.quantity <= 1 || submitting}
+                                className="w-6 h-6 flex items-center justify-center border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                                aria-label="Disminuir cantidad"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </button>
+                              <span className="text-xs font-medium text-gray-700 min-w-[1.25rem] text-center">
+                                {item.quantity}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
+                                disabled={submitting}
+                                className="w-6 h-6 flex items-center justify-center border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+                                aria-label="Aumentar cantidad"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (window.confirm(`¿Quitar "${item.name}" del pedido?`)) {
+                                    removeFromCart(item.id);
+                                  }
+                                }}
+                                disabled={submitting}
+                                className="ml-1 w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md disabled:opacity-40"
+                                aria-label="Quitar producto"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            )}
                           </div>
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-xs text-gray-500">Precio unitario:</span>
@@ -3772,15 +4652,10 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                     errors.address_city,
                     errors.address_province,
                     errors.payment_method,
-                    errors.card_number,
-                    errors.card_cvv,
-                    errors.card_expiry,
-                    errors.card_holder_name,
-                    errors.card_holder_dni,
                     errors.submit,
                   ].filter(Boolean);
                   
-                  return visibleErrors.length > 0 ? (
+                  return visibleErrors.length > 0 && step !== 1 ? (
                     <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
                       <h3 className="text-sm font-semibold text-red-800 mb-2">Por favor, corrige los siguientes errores:</h3>
                       <ul className="space-y-1 text-sm text-red-700">
@@ -3799,47 +4674,74 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                         {errors.address_city && <li>• {errors.address_city}</li>}
                         {errors.address_province && <li>• {errors.address_province}</li>}
                         {errors.payment_method && <li>• {errors.payment_method}</li>}
-                        {errors.card_number && <li>• {errors.card_number}</li>}
-                        {errors.card_cvv && <li>• {errors.card_cvv}</li>}
-                        {errors.card_expiry && <li>• {errors.card_expiry}</li>}
-                        {errors.card_holder_name && <li>• {errors.card_holder_name}</li>}
-                        {errors.card_holder_dni && <li>• {errors.card_holder_dni}</li>}
                         {errors.submit && <li>• {errors.submit}</li>}
                       </ul>
                     </div>
                   ) : null;
                 })()}
                 
-                {/* Aviso de que se abonará al recibir - Desktop */}
-                <div className="hidden lg:block mt-4 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-blue-800">
-                      <span className="font-semibold">Importante:</span>{" "}
-                      {isPaisCatalog ? "Completarás la venta por WhatsApp." : "Abonarás cuando recibas tu pedido."}
-                    </p>
-                  </div>
-                </div>
-                {/* Botón Finalizar compra: solo en desktop (lg+) */}
+                {step < 3 && (
+                  <button
+                    type="button"
+                    onClick={() => void handleNextStep()}
+                    aria-disabled={!isCurrentStepComplete}
+                      disabled={savingCheckoutAddress || loadingPrices || shippingQuoteLoading}
+                    className={`hidden lg:flex mt-4 md:mt-6 ${continueButtonClass}`}
+                  >
+                    {savingCheckoutAddress ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Guardando dirección…
+                      </>
+                    ) : (
+                      nextButtonLabel
+                    )}
+                  </button>
+                )}
+                {step < 3 && missingFieldsHint && (
+                  <p className="hidden lg:block mt-2 text-xs text-gray-500 text-center">{missingFieldsHint}</p>
+                )}
+                {step === 3 && (
+                <>
+                {/* Botón de confirmación: solo desktop (lg+) */}
                 <button
                   type="submit"
-                  disabled={submitting || paisViacargoBloqueaFinalizar || loadingPrices || shippingQuoteLoading}
+                  disabled={finalizeDisabled}
                   className="hidden lg:flex w-full mt-4 md:mt-6 bg-[#00C1A7] text-white py-2.5 md:py-3 px-4 md:px-6 rounded-lg font-semibold text-sm md:text-base hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed items-center justify-center gap-2"
                 >
                   {submitting ? (
                     <>
                       <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
-                      Procesando...
+                      {finalizeBusyLabel}
                     </>
                   ) : (
-                    "Finalizar compra"
+                    <>
+                      {willCompleteViaWhatsApp && <MessageCircle className="w-4 h-4 md:w-5 md:h-5" />}
+                      {finalizeLabel}
+                    </>
                   )}
                 </button>
+                {finalizeBlockedReason && (
+                  <p className="hidden lg:block mt-2 text-xs text-gray-500 text-center">{finalizeBlockedReason}</p>
+                )}
+                </>
+                )}
               </div>
             </div>
           </form>
         </div>
       </main>
+
+      {submitting && step === 3 && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-white/80 backdrop-blur-sm"
+        >
+          <Loader2 className="w-8 h-8 animate-spin text-[#00C1A7]" />
+          <p className="text-sm font-medium text-gray-800">{finalizeBusyLabel}</p>
+        </div>
+      )}
 
       <Footer />
     </div>

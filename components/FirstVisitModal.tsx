@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { X, UserPlus, Gift } from "lucide-react";
 
@@ -22,67 +22,86 @@ export default function FirstVisitModal() {
     }
   }, [mounted]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_KEY, "1");
     }
     setIsOpen(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, handleClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 z-[300] max-w-md w-[calc(100vw-2rem)]">
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300 border border-gray-200">
-        {/* Decorative top bar */}
-        <div className="h-1.5 w-full bg-[#00C1A7]" />
+    <div className="fixed bottom-4 left-4 z-[300] w-[calc(100vw-2rem)] max-w-[380px]">
+      <section
+        role="dialog"
+        aria-labelledby="first-visit-title"
+        aria-describedby="first-visit-desc"
+        className="animate-first-visit relative overflow-hidden rounded-3xl border border-gray-100 bg-white p-6 shadow-[0_20px_50px_-12px_rgba(16,24,40,0.28)]"
+      >
+        {/* Resplandor sutil de marca en la esquina */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#00C1A7]/15 blur-2xl"
+        />
 
-        <div className="p-6 md:p-8">
-          <button
-            onClick={handleClose}
-            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
-            aria-label="Cerrar"
+        <button
+          type="button"
+          onClick={handleClose}
+          aria-label="Cerrar"
+          className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00C1A7]"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
+        <div className="relative">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E5F9F6] py-1.5 pl-2.5 pr-3 text-xs font-semibold text-[#007A6B]">
+            <Gift className="h-3.5 w-3.5" strokeWidth={2} />
+            Oferta de bienvenida
+          </span>
+
+          <h2
+            id="first-visit-title"
+            className="mt-4 text-2xl font-bold leading-tight tracking-tight text-[#101828]"
           >
-            <X className="w-5 h-5" />
-          </button>
+            ¡Creá tu cuenta!
+          </h2>
+          <p
+            id="first-visit-desc"
+            className="mt-2 text-[15px] leading-relaxed text-gray-600"
+          >
+            Registrate y accedé a ofertas exclusivas y a la mejor financiación
+            para colchones y sommiers.
+          </p>
 
-          <div className="flex flex-col items-center text-center">
-            <div className="w-16 h-16 rounded-full bg-[#E5F9F6] flex items-center justify-center mb-4">
-              <UserPlus className="w-8 h-8 text-[#00C1A7]" strokeWidth={1.5} />
-            </div>
-            <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">
-              ¡Crea tu cuenta!
-            </h2>
-            <div className="flex items-center gap-2 text-[#00C1A7] mb-3">
-              <Gift className="w-5 h-5" strokeWidth={1.5} />
-              <span className="font-semibold text-sm uppercase tracking-wide">
-                Oferta de bienvenida
-              </span>
-            </div>
-            <p className="text-gray-600 text-sm md:text-base mb-6 leading-relaxed">
-              Registrate y accedé a ofertas exclusivas y la mejor financiación
-              para colchones y sommiers.
-            </p>
-
-            <div className="flex flex-col gap-3 w-full">
-              <Link
-                href="/register"
-                onClick={handleClose}
-                className="inline-flex items-center justify-center gap-2 w-full py-3.5 px-5 rounded-xl bg-[#00C1A7] text-white font-semibold hover:bg-[#00A892] transition-colors shadow-md hover:shadow-lg"
-              >
-                Crear cuenta
-                <UserPlus className="w-4 h-4" strokeWidth={2} />
-              </Link>
-              <button
-                onClick={handleClose}
-                className="text-gray-500 text-sm font-medium hover:text-gray-700 transition-colors py-2"
-              >
-                Ahora no, seguir navegando
-              </button>
-            </div>
+          <div className="mt-6 flex flex-col gap-1">
+            <Link
+              href="/register"
+              onClick={handleClose}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#00C1A7] px-5 py-3.5 text-[15px] font-semibold text-white shadow-md transition-colors hover:bg-[#00A892] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#101828] focus-visible:ring-offset-2"
+            >
+              <UserPlus className="h-4 w-4" strokeWidth={2.25} />
+              Crear cuenta
+            </Link>
+            <button
+              type="button"
+              onClick={handleClose}
+              className="rounded-xl py-3 text-sm font-medium text-gray-500 transition-colors hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00C1A7]"
+            >
+              Ahora no, seguir navegando
+            </button>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
