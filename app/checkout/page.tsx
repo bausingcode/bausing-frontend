@@ -2964,7 +2964,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
       <main className="flex-1 container mx-auto px-4 py-6 md:py-8 lg:py-12">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between gap-4 mb-6 md:mb-8">
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Tu compra</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Estás a un paso de disfrutar tu compra</h1>
             {step > 1 && (
               <button
                 type="button"
