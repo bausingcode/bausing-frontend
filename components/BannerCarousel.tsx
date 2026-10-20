@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import wsrvLoader from "@/lib/wsrvLoader";
 import { isHeroVideoUrl } from "@/lib/heroMedia";
@@ -77,6 +77,17 @@ export default function BannerCarousel({
   >({});
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const fallbackVideoRefs = useRef<(HTMLVideoElement | null)[]>([]);
+
+  const mobileImgRefs = useRef<Record<string, HTMLImageElement | null>>({});
+
+  const recordMobileDims = useCallback((heroId: string, img: HTMLImageElement) => {
+    const { naturalWidth: w, naturalHeight: h } = img;
+    if (!w || !h) return;
+    try { localStorage.setItem(`bsh-${heroId}`, JSON.stringify({ w, h })); } catch { /* ignore */ }
+    setMobileImgDimsByHeroId((prev) =>
+      prev[heroId]?.w === w && prev[heroId]?.h === h ? prev : { ...prev, [heroId]: { w, h } }
+    );
+  }, []);
 
   useEffect(() => {
     setDesktopIndex((i) => Math.min(i, Math.max(0, slides.length - 1)));
@@ -201,6 +212,15 @@ export default function BannerCarousel({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Las imágenes SSR/cacheadas pueden terminar de cargar antes de hidratar y su onLoad se pierde:
+  // al montar re-medimos las que ya están completas (esto también pisa dims viejas de localStorage).
+  useEffect(() => {
+    for (const slide of mobileSlides) {
+      const el = mobileImgRefs.current[slide.heroId];
+      if (el?.complete) recordMobileDims(slide.heroId, el);
+    }
+  }, [mobileSlides, recordMobileDims]);
+
   if (slides.length === 0) return null;
 
   const showDesktopOverlay =
@@ -253,16 +273,10 @@ export default function BannerCarousel({
                     alt={slide.alt}
                     className="h-full w-full min-h-0 object-cover object-center"
                     loading={index === 0 ? "eager" : "lazy"}
-                    onLoad={(e) => {
-                      const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
-                      if (!w || !h) return;
-                      try { localStorage.setItem(`bsh-${slide.heroId}`, JSON.stringify({ w, h })); } catch { /* ignore */ }
-                      setMobileImgDimsByHeroId((prev) =>
-                        prev[slide.heroId]?.w === w && prev[slide.heroId]?.h === h
-                          ? prev
-                          : { ...prev, [slide.heroId]: { w, h } }
-                      );
+                    ref={(el) => {
+                      mobileImgRefs.current[slide.heroId] = el;
                     }}
+                    onLoad={(e) => recordMobileDims(slide.heroId, e.currentTarget)}
                   />
                 </div>
               );
