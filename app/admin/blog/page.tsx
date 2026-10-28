@@ -19,6 +19,16 @@ import BlogRichTextEditor from "@/components/BlogRichTextEditor";
 function stripHtml(html: string): string {
   return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
+
+/** Mismo criterio que generate_slug del backend. `trim: false` conserva guiones al borde mientras se tipea. */
+function slugify(value: string, trim = true): string {
+  const slug = value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-");
+  return trim ? slug.replace(/^-+|-+$/g, "") : slug.replace(/^-+/, "");
+}
 import { 
   FileText, 
   X, 
@@ -194,6 +204,7 @@ export default function BlogPage() {
       if (!postId) {
         savedPost = await createBlogPost({
           title: formData.title,
+          slug: slugify(formData.slug) || undefined,
           excerpt: formData.excerpt || undefined,
           content: formData.content || undefined,
           cta_label: formData.cta_label || undefined,
@@ -209,6 +220,8 @@ export default function BlogPage() {
       } else {
         savedPost = await updateBlogPost(postId, {
           title: formData.title,
+          // Siempre se envía: sin slug el backend lo regenera a partir del título
+          slug: slugify(formData.slug) || slugify(formData.title) || undefined,
           excerpt: formData.excerpt || undefined,
           content: formData.content || undefined,
           cta_label: formData.cta_label || null,
@@ -551,6 +564,29 @@ export default function BlogPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                   placeholder="Título del post"
                 />
+              </div>
+
+              {/* Slug */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  URL (slug)
+                </label>
+                <div className="flex items-center border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 overflow-hidden">
+                  <span className="pl-3 pr-1 text-sm text-gray-500 whitespace-nowrap">/blog/</span>
+                  <input
+                    type="text"
+                    value={formData.slug}
+                    onChange={(e) => setFormData({ ...formData, slug: slugify(e.target.value, false) })}
+                    onBlur={() => setFormData((f) => ({ ...f, slug: slugify(f.slug) }))}
+                    className="flex-1 min-w-0 py-2 pr-3 focus:outline-none text-gray-900"
+                    placeholder={slugify(formData.title) || "se-genera-del-titulo"}
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  {editingPost?.id
+                    ? "Si cambiás la URL de un post publicado, la anterior deja de funcionar: creá un redirect en SEO."
+                    : "Si lo dejás vacío se genera a partir del título."}
+                </p>
               </div>
 
 
