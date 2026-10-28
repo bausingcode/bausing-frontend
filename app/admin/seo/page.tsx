@@ -457,6 +457,61 @@ export default function AdminRedirectsPage() {
     }
   };
 
+  // Metadatos: edición puntual de una página o producto (sin Excel)
+  type MetaEditTarget =
+    | { kind: "page"; row: PageMetadataRow }
+    | { kind: "product"; row: ProductMetadataRow };
+  const [metaEdit, setMetaEdit] = useState<MetaEditTarget | null>(null);
+  const [metaEditTitle, setMetaEditTitle] = useState("");
+  const [metaEditDescription, setMetaEditDescription] = useState("");
+  const [metaEditSaving, setMetaEditSaving] = useState(false);
+  const [metaEditError, setMetaEditError] = useState("");
+
+  const openMetaEdit = (target: MetaEditTarget) => {
+    setMetaEdit(target);
+    setMetaEditTitle(target.row.effectiveTitle);
+    setMetaEditDescription(target.row.effectiveDescription);
+    setMetaEditError("");
+  };
+
+  const closeMetaEdit = () => {
+    if (metaEditSaving) return;
+    setMetaEdit(null);
+  };
+
+  /** Guarda título/descripción; ambos vacíos = vuelve al valor automático. */
+  const saveMetaEdit = async (title: string, description: string) => {
+    if (!metaEdit) return;
+    setMetaEditSaving(true);
+    setMetaEditError("");
+    try {
+      // Si no cambió respecto del valor automático, no guardamos un override idéntico
+      const t = title.trim() === metaEdit.row.defaultTitle ? "" : title.trim();
+      const d = description.trim() === metaEdit.row.defaultDescription ? "" : description.trim();
+      if (metaEdit.kind === "page") {
+        await bulkUpsertAdminPageMetadata([
+          {
+            path: metaEdit.row.path,
+            page_type: metaEdit.row.page_type,
+            meta_title: t,
+            meta_description: d,
+          },
+        ]);
+        await loadMetadataRows();
+      } else {
+        await bulkUpdateProductMeta([
+          { id: metaEdit.row.id, meta_title: t, meta_description: d },
+        ]);
+        await loadProductRows();
+      }
+      setMetaEdit(null);
+    } catch (e: unknown) {
+      setMetaEditError(e instanceof Error ? e.message : "No se pudo guardar");
+    } finally {
+      setMetaEditSaving(false);
+    }
+  };
+
   useEffect(() => {
     load();
     loadSeo();
@@ -1063,6 +1118,7 @@ export default function AdminRedirectsPage() {
                           <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 w-28">
                             Estado
                           </th>
+                          <th className="px-4 py-4 w-12" />
                         </tr>
                       </thead>
                       <tbody>
@@ -1096,6 +1152,16 @@ export default function AdminRedirectsPage() {
                               >
                                 {row.hasOverride ? "Personalizado" : "Automático"}
                               </span>
+                            </td>
+                            <td className="px-4 py-4 align-top text-right">
+                              <button
+                                type="button"
+                                onClick={() => openMetaEdit({ kind: "page", row })}
+                                title="Editar metadatos"
+                                className="p-1.5 rounded-lg text-gray-500 hover:text-blue-700 hover:bg-blue-50 transition-colors cursor-pointer"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -1213,6 +1279,7 @@ export default function AdminRedirectsPage() {
                           <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 w-28">
                             Estado
                           </th>
+                          <th className="px-4 py-4 w-12" />
                         </tr>
                       </thead>
                       <tbody>
@@ -1248,6 +1315,16 @@ export default function AdminRedirectsPage() {
                               >
                                 {row.hasOverride ? "Personalizado" : "Automático"}
                               </span>
+                            </td>
+                            <td className="px-4 py-4 align-top text-right">
+                              <button
+                                type="button"
+                                onClick={() => openMetaEdit({ kind: "product", row })}
+                                title="Editar metadatos"
+                                className="p-1.5 rounded-lg text-gray-500 hover:text-blue-700 hover:bg-blue-50 transition-colors cursor-pointer"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -1595,6 +1672,105 @@ export default function AdminRedirectsPage() {
                 )}
                 Guardar
               </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {metaEdit ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div
+            className={`${cardClass} shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6`}
+            style={cardRadius}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold text-gray-900">Editar metadatos</h2>
+                <p className="text-sm text-gray-500 truncate">
+                  {metaEdit.kind === "page" ? metaEdit.row.label : metaEdit.row.name}
+                </p>
+                {metaEdit.kind === "page" ? (
+                  <code className="text-xs text-gray-500 break-all">{metaEdit.row.path}</code>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={closeMetaEdit}
+                className="p-1 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {metaEditError ? (
+              <div className="mb-4 p-3 rounded-lg text-sm bg-red-50 text-red-800 border border-red-200">
+                {metaEditError}
+              </div>
+            ) : null}
+
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-medium text-gray-600">Título</label>
+              <span
+                className={`text-xs ${metaEditTitle.length > 60 ? "text-amber-600" : "text-gray-400"}`}
+              >
+                {metaEditTitle.length}/60
+              </span>
+            </div>
+            <input
+              type="text"
+              value={metaEditTitle}
+              onChange={(e) => setMetaEditTitle(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+            />
+
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-medium text-gray-600">Descripción</label>
+              <span
+                className={`text-xs ${metaEditDescription.length > 160 ? "text-amber-600" : "text-gray-400"}`}
+              >
+                {metaEditDescription.length}/160
+              </span>
+            </div>
+            <textarea
+              value={metaEditDescription}
+              onChange={(e) => setMetaEditDescription(e.target.value)}
+              rows={4}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+            />
+
+            <p className="text-xs text-gray-500 mb-6">
+              Si dejás ambos campos vacíos (o iguales al valor automático), se restablece al valor automático.
+            </p>
+
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => saveMetaEdit("", "")}
+                disabled={metaEditSaving || !metaEdit.row.hasOverride}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Restablecer a automático
+              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={closeMetaEdit}
+                  disabled={metaEditSaving}
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => saveMetaEdit(metaEditTitle, metaEditDescription)}
+                  disabled={metaEditSaving}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors cursor-pointer"
+                >
+                  {metaEditSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Guardar
+                </button>
+              </div>
             </div>
           </div>
         </div>
