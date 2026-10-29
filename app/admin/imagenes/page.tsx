@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import PageHeader from "@/components/PageHeader";
+import { SortableImageList, SortableImageCard } from "@/components/SortableImageList";
 import Loader from "@/components/Loader";
 import Spinner from "@/components/Spinner";
 import ConfirmModal from "@/components/ConfirmModal";
@@ -12,6 +13,7 @@ import {
   uploadVideoFile,
   deleteHeroImage,
   updateHeroImage,
+  reorderHeroImages,
   HeroImage,
   getAuthHeaders,
   fetchCategories,
@@ -117,7 +119,54 @@ export default function ImagenesPage() {
     );
   };
 
+  /** Guardando un reordenamiento (bloquea nuevos arrastres hasta terminar) */
+  const [reordering, setReordering] = useState(false);
+  /** Un reordenamiento no debe pisar los textos del hero que todavía no se guardaron */
+  const skipCopyResetRef = useRef(false);
+
+  const visibleInfoImages = useMemo(
+    () => infoImages.filter((img) => !imagesToDelete.has(img.id)),
+    [infoImages, imagesToDelete]
+  );
+
+  /** Reordena un carrusel (1 = hero, 2 = informativo): actualiza la UI y guarda; si falla, revierte. */
+  const handleReorder = async (
+    position: number,
+    previous: HeroImage[],
+    next: HeroImage[],
+    setList: (items: HeroImage[]) => void
+  ) => {
+    setError("");
+    setSuccess("");
+    setReordering(true);
+    // Solo el hero (1) tiene textos editables que se resetean al cambiar heroImages
+    if (position === 1) skipCopyResetRef.current = true;
+    setList(next);
+    try {
+      await reorderHeroImages(position, next.map((img) => img.id));
+      setSuccess("Orden guardado.");
+    } catch (err) {
+      if (position === 1) skipCopyResetRef.current = true;
+      setList(previous);
+      setError(err instanceof Error ? err.message : "No se pudo guardar el orden");
+    } finally {
+      setReordering(false);
+    }
+  };
+
+  /** El orden del hero en celular es el mismo del hero: se reubican solo las fotos con versión móvil. */
+  const handleMobileReorder = (nextMobile: HeroImage[]) => {
+    const mobileIds = new Set(nextMobile.map((img) => img.id));
+    let k = 0;
+    const merged = heroImages.map((img) => (mobileIds.has(img.id) ? nextMobile[k++] : img));
+    handleReorder(1, heroImages, merged, setHeroImages);
+  };
+
   useEffect(() => {
+    if (skipCopyResetRef.current) {
+      skipCopyResetRef.current = false;
+      return;
+    }
     const m: Record<string, { title: string; subtitle: string; cta_text: string; cta_link: string }> =
       {};
     heroImages.forEach((img) => {
@@ -771,12 +820,21 @@ export default function ImagenesPage() {
               <p className="text-sm text-gray-400 mt-1">Agregá imágenes o videos</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {heroImages.map((image) => {
+            <SortableImageList
+              items={heroImages}
+              layout="grid"
+              disabled={reordering}
+              onReorder={(next) => handleReorder(1, heroImages, next, setHeroImages)}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+            >
+              {heroImages.map((image, index) => {
                 const isMarkedForDelete = imagesToDelete.has(image.id);
                 return (
-                  <div
+                  <SortableImageCard
                     key={image.id}
+                    id={image.id}
+                    index={index}
+                    disabled={reordering}
                     className={`border rounded-lg overflow-hidden group relative ${
                       isMarkedForDelete ? "border-red-300 opacity-50" : "border-gray-200"
                     }`}
@@ -963,15 +1021,15 @@ export default function ImagenesPage() {
                         </button>
                       </div>
                     </div>
-                  </div>
+                  </SortableImageCard>
                 );
               })}
-            </div>
+            </SortableImageList>
           )}
 
           {heroImages.length > 0 && (
             <div className="mt-4 text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded-lg inline-block">
-              {heroSlotsUsed()} de {MAX_HERO_IMAGES} · orden por fecha
+              {heroSlotsUsed()} de {MAX_HERO_IMAGES} · arrastrá las fotos para cambiar el orden
             </div>
           )}
           </div>
@@ -988,7 +1046,7 @@ export default function ImagenesPage() {
                 </h2>
                 <p className="text-sm text-gray-600">
                   Medida sugerida: <strong>390×360 px</strong> (o el doble para más nitidez). Máx. 5 MB por
-                  archivo.
+                  archivo. Arrastrá para cambiar el orden (es el mismo orden que el hero de escritorio).
                 </p>
               </div>
             </div>
@@ -1003,11 +1061,20 @@ export default function ImagenesPage() {
             ) : (
               <div className="space-y-6">
                 {heroMobileWith.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <SortableImageList
+                    items={heroMobileWith}
+                    layout="grid"
+                    disabled={reordering}
+                    onReorder={handleMobileReorder}
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                  >
                     {heroMobileWith.map((image) => (
-                      <div
+                      <SortableImageCard
                         key={image.id}
-                        className="border border-teal-100 rounded-lg overflow-hidden bg-white p-3 flex flex-col"
+                        id={image.id}
+                        index={heroImages.findIndex((h) => h.id === image.id)}
+                        disabled={reordering}
+                        className="border border-teal-100 rounded-lg overflow-hidden bg-white p-3 flex flex-col relative"
                       >
                         <div className="rounded-md overflow-hidden bg-gray-100 border border-gray-200 aspect-[390/360] max-h-52">
                           <img
@@ -1083,9 +1150,9 @@ export default function ImagenesPage() {
                             Quitar
                           </button>
                         </div>
-                      </div>
+                      </SortableImageCard>
                     ))}
-                  </div>
+                  </SortableImageList>
                 ) : heroMobileWithout.length > 0 ? (
                   <div className="text-center py-12 px-4 border-2 border-dashed border-teal-100 rounded-lg bg-teal-50/30">
                     <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-teal-100 text-teal-700 mb-3">
@@ -1174,7 +1241,7 @@ export default function ImagenesPage() {
                   Imagen Informativa (Carousel)
                 </h2>
                 <p className="text-sm text-gray-600">
-                  Múltiples imágenes para carousel. Recomendado: 1650x350px, formato JPG/PNG
+                  Múltiples imágenes para carousel. Recomendado: 1650x350px, formato JPG/PNG. Arrastrá las imágenes para cambiar el orden.
                 </p>
               </div>
             <div>
@@ -1239,13 +1306,27 @@ export default function ImagenesPage() {
           )}
 
           {/* Lista de imágenes existentes */}
-          {infoImages.filter(img => !imagesToDelete.has(img.id)).length > 0 || pendingInfoFiles.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4">
-              {infoImages.filter(img => !imagesToDelete.has(img.id)).map((image) => {
+          {visibleInfoImages.length > 0 || pendingInfoFiles.length > 0 ? (
+            <SortableImageList
+              items={visibleInfoImages}
+              layout="list"
+              disabled={reordering}
+              onReorder={(next) =>
+                handleReorder(2, infoImages, [
+                  ...next,
+                  ...infoImages.filter((img) => imagesToDelete.has(img.id)),
+                ], setInfoImages)
+              }
+              className="grid grid-cols-1 gap-4"
+            >
+              {visibleInfoImages.map((image, index) => {
                 const isMarkedForDelete = imagesToDelete.has(image.id);
                 return (
-                  <div
+                  <SortableImageCard
                     key={image.id}
+                    id={image.id}
+                    index={index}
+                    disabled={reordering}
                     className={`border rounded-lg overflow-hidden group relative ${
                       isMarkedForDelete ? "border-red-300 opacity-50" : "border-gray-200"
                     }`}
@@ -1298,10 +1379,10 @@ export default function ImagenesPage() {
                         <p className="text-xs text-gray-500 truncate">{image.subtitle}</p>
                       )}
                     </div>
-                  </div>
+                  </SortableImageCard>
                 );
               })}
-            </div>
+            </SortableImageList>
           ) : (
             <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
               <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />

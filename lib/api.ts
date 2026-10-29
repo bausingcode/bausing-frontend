@@ -2763,6 +2763,8 @@ export interface HeroImage {
   cta_text?: string;
   cta_link?: string;
   position: number;
+  /** Orden manual dentro del carrusel (position). */
+  display_order?: number;
   is_active: boolean;
   created_at?: string;
 }
@@ -3008,6 +3010,22 @@ export async function uploadHeroImageMobileFile(
   const publicUrl = `${supabaseUrl}/storage/v1/object/public/hero-images/${filePath}`;
 
   return updateHeroImage(heroId, { image_url_mobile: publicUrl });
+}
+
+/**
+ * Guarda el orden manual de un carrusel (ids en el orden final deseado)
+ */
+export async function reorderHeroImages(position: number, ids: string[]): Promise<void> {
+  const response = await fetch(`/api/hero-images/reorder`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ position, ids }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error || `Failed to reorder hero images: ${response.statusText}`);
+  }
 }
 
 /**
