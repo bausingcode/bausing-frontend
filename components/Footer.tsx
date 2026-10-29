@@ -36,7 +36,7 @@ export default function Footer() {
   }>({
     phone: "+54 9 11 4049-0344",
     email: "hola@bausing.com",
-    address: "Av. Corrientes 1234, Córdoba, Argentina",
+    address: "Cnel. Juan P. Pringles 839 B, X5004AOQ Córdoba",
     instagram_url: "#",
     facebook_url: "#",
     tiktok_url: "#",
@@ -53,7 +53,7 @@ export default function Footer() {
         setFooterData({
           phone: data.phone || "+54 9 11 4049-0344",
           email: data.email || "hola@bausing.com",
-          address: data.address || "Av. Corrientes 1234, Córdoba, Argentina",
+          address: data.address || "Cnel. Juan P. Pringles 839 B, X5004AOQ Córdoba",
           instagram_url: data.instagram_url || "#",
           facebook_url: data.facebook_url || "#",
           tiktok_url: data.tiktok_url || "#",
@@ -68,7 +68,7 @@ export default function Footer() {
 
   const phone = footerData.phone || "+54 9 11 4049-0344";
   const email = footerData.email || "hola@bausing.com";
-  const address = footerData.address || "Av. Corrientes 1234, Córdoba, Argentina";
+  const address = footerData.address || "Cnel. Juan P. Pringles 839 B, X5004AOQ Córdoba";
   const instagramUrl = footerData.instagram_url || "#";
   const facebookUrl = footerData.facebook_url || "#";
   const tiktokUrl = footerData.tiktok_url || "#";

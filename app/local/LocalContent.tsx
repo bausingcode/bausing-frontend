@@ -50,7 +50,7 @@ export default function LocalContent({
     loadFooterData();
   }, []);
 
-  const address = "Cnel. Juan P. Pringles 839, X5004 Córdoba";
+  const address = "Cnel. Juan P. Pringles 839 B, X5004AOQ Córdoba";
   // Usando el formato de embed estándar de Google Maps con la dirección
   // Este formato funciona sin API key
   const mapsEmbedUrl = `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;

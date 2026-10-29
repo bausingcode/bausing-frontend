@@ -196,7 +196,7 @@ export default function PoliticaPrivacidadPage() {
                 <li><strong>Email:</strong> privacidad@bausing.com</li>
                 <li><strong>Email general:</strong> hola@bausing.com</li>
                 <li><strong>Teléfono:</strong> +54 9 11 4049-0344</li>
-                <li><strong>Dirección:</strong> Av. Corrientes 1234, Córdoba, Argentina</li>
+                <li><strong>Dirección:</strong> Cnel. Juan P. Pringles 839 B, X5004AOQ Córdoba</li>
               </ul>
               <p className="text-gray-700 leading-relaxed mt-4">
                 Nos comprometemos a responder a sus consultas y solicitudes en el menor tiempo posible.

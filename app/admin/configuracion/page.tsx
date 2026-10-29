@@ -409,7 +409,7 @@ export default function Configuracion() {
                 value={general.direccion}
                 onChange={(e) => setGeneral({ ...general, direccion: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
-                placeholder="Ej: Av. Corrientes 1234, Córdoba, Argentina"
+                placeholder="Ej: Cnel. Juan P. Pringles 839 B, X5004AOQ Córdoba"
               />
               <p className="text-sm text-gray-500 mt-1">
                 Dirección que se mostrará en el footer del sitio

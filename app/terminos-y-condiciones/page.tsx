@@ -172,7 +172,7 @@ export default function TerminosCondicionesPage() {
               <ul className="list-none text-gray-700 space-y-2 mt-3">
                 <li><strong>Email:</strong> hola@bausing.com</li>
                 <li><strong>Teléfono:</strong> +54 9 11 4049-0344</li>
-                <li><strong>Dirección:</strong> Av. Corrientes 1234, Córdoba, Argentina</li>
+                <li><strong>Dirección:</strong> Cnel. Juan P. Pringles 839 B, X5004AOQ Córdoba</li>
               </ul>
             </section>
           </div>
