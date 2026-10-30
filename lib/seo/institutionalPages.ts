@@ -1,3 +1,5 @@
+import { HOME_TITLE, SITE_TAGLINE } from "@/lib/seo/site";
+
 export interface InstitutionalPageEntry {
   path: string;
   label: string;
@@ -11,6 +13,12 @@ export interface InstitutionalPageEntry {
  * página usa hoy cuando no hay override guardado.
  */
 export const INSTITUTIONAL_PAGES: InstitutionalPageEntry[] = [
+  {
+    path: "/",
+    label: "Home",
+    defaultTitle: HOME_TITLE,
+    defaultDescription: SITE_TAGLINE,
+  },
   {
     path: "/catalogo",
     label: "Catálogo (listado raíz)",

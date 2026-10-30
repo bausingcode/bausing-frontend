@@ -22,6 +22,8 @@ import {
   fetchProducts,
   fetchProductsAllPages,
   bulkUpdateProductMeta,
+  fetchBlogPosts,
+  updateBlogPost,
 } from "@/lib/api";
 import {
   buildCandidateRows,
@@ -39,6 +41,10 @@ import {
   buildProductMetadataWorkbook,
   parseProductMetadataWorkbook,
 } from "@/lib/seo/productMetadataExcel";
+import {
+  buildBlogMetadataRow,
+  type BlogMetadataRow,
+} from "@/lib/seo/blogMetadataRows";
 import {
   Plus,
   Pencil,
@@ -316,7 +322,37 @@ export default function AdminRedirectsPage() {
   };
 
   // Metadatos: sub-tab para elegir el origen de las filas (categorías/institucionales vs productos)
-  const [metadataSubTab, setMetadataSubTab] = useState<"pages" | "products">("pages");
+  const [metadataSubTab, setMetadataSubTab] = useState<"pages" | "products" | "blog">("pages");
+
+  // Metadatos > Blog: pocos artículos, se listan todos con filtro local por título/slug
+  const [blogSearch, setBlogSearch] = useState("");
+  const [blogRows, setBlogRows] = useState<BlogMetadataRow[]>([]);
+  const [blogLoading, setBlogLoading] = useState(false);
+  const [blogError, setBlogError] = useState("");
+
+  const loadBlogRows = async () => {
+    setBlogError("");
+    setBlogLoading(true);
+    try {
+      const posts = await fetchBlogPosts({ include_keywords: false, include_images: false });
+      setBlogRows(posts.map(buildBlogMetadataRow));
+    } catch (e: unknown) {
+      setBlogError(e instanceof Error ? e.message : "Error al cargar");
+    } finally {
+      setBlogLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (metadataSubTab === "blog") {
+      loadBlogRows();
+    }
+  }, [metadataSubTab]);
+
+  const filteredBlogRows = blogRows.filter((r) => {
+    const q = blogSearch.trim().toLowerCase();
+    return !q || r.title.toLowerCase().includes(q) || r.slug.toLowerCase().includes(q);
+  });
 
   // Metadatos > Productos: búsqueda + paginado (puede haber cientos de productos, a
   // diferencia de las ~30 filas de categorías/institucionales que se listan todas juntas)
@@ -460,7 +496,8 @@ export default function AdminRedirectsPage() {
   // Metadatos: edición puntual de una página o producto (sin Excel)
   type MetaEditTarget =
     | { kind: "page"; row: PageMetadataRow }
-    | { kind: "product"; row: ProductMetadataRow };
+    | { kind: "product"; row: ProductMetadataRow }
+    | { kind: "blog"; row: BlogMetadataRow };
   const [metaEdit, setMetaEdit] = useState<MetaEditTarget | null>(null);
   const [metaEditTitle, setMetaEditTitle] = useState("");
   const [metaEditDescription, setMetaEditDescription] = useState("");
@@ -498,6 +535,9 @@ export default function AdminRedirectsPage() {
           },
         ]);
         await loadMetadataRows();
+      } else if (metaEdit.kind === "blog") {
+        await updateBlogPost(metaEdit.row.id, { meta_title: t, meta_description: d });
+        await loadBlogRows();
       } else {
         await bulkUpdateProductMeta([
           { id: metaEdit.row.id, meta_title: t, meta_description: d },
@@ -979,10 +1019,10 @@ export default function AdminRedirectsPage() {
                 Metadatos
               </h2>
               <p className="text-sm text-gray-500">
-                Título y descripción de las páginas de catálogo, institucionales y productos.
+                Título y descripción de las páginas de catálogo, institucionales, productos y artículos del blog.
               </p>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className={`flex items-center gap-2 shrink-0 ${metadataSubTab === "blog" ? "hidden" : ""}`}>
               <button
                 type="button"
                 onClick={metadataSubTab === "pages" ? handleDownloadMetadataExcel : handleDownloadProductMetadataExcel}
@@ -1063,6 +1103,17 @@ export default function AdminRedirectsPage() {
               }`}
             >
               Productos
+            </button>
+            <button
+              type="button"
+              onClick={() => setMetadataSubTab("blog")}
+              className={`px-3 py-1.5 text-sm font-medium rounded-full transition-colors cursor-pointer ${
+                metadataSubTab === "blog"
+                  ? "bg-gray-900 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              Blog
             </button>
           </div>
 
@@ -1157,6 +1208,106 @@ export default function AdminRedirectsPage() {
                               <button
                                 type="button"
                                 onClick={() => openMetaEdit({ kind: "page", row })}
+                                title="Editar metadatos"
+                                className="p-1.5 rounded-lg text-gray-500 hover:text-blue-700 hover:bg-blue-50 transition-colors cursor-pointer"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : metadataSubTab === "blog" ? (
+            <>
+              <div className="flex flex-wrap items-center gap-3 mb-4">
+                <div className="relative flex-1 min-w-[240px] max-w-sm">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={blogSearch}
+                    onChange={(e) => setBlogSearch(e.target.value)}
+                    placeholder="Buscar artículo por título o slug…"
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  />
+                </div>
+                {!blogLoading && blogRows.length > 0 ? (
+                  <span className="text-sm text-gray-500">
+                    {filteredBlogRows.length} artículo{filteredBlogRows.length === 1 ? "" : "s"}
+                  </span>
+                ) : null}
+              </div>
+
+              {blogError ? (
+                <div className={`mb-6 ${cardClass} p-4 border-red-200 bg-red-50`} style={cardRadius}>
+                  <p className="text-sm text-red-800">{blogError}</p>
+                </div>
+              ) : null}
+
+              {blogLoading ? (
+                <div className={`${cardClass} p-8 text-center`} style={cardRadius}>
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
+                  <p className="text-gray-500 text-sm">Cargando artículos…</p>
+                </div>
+              ) : filteredBlogRows.length === 0 ? (
+                <div className={`${cardClass} p-8 text-center`} style={cardRadius}>
+                  <p className="text-gray-500 text-sm">No se encontraron artículos.</p>
+                </div>
+              ) : (
+                <div className={`${cardClass} overflow-hidden`} style={cardRadius}>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
+                            Artículo
+                          </th>
+                          <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
+                            Título / Descripción
+                          </th>
+                          <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 w-28">
+                            Estado
+                          </th>
+                          <th className="px-4 py-4 w-12" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredBlogRows.map((row) => (
+                          <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="px-6 py-4 align-top">
+                              <p className="text-sm font-medium text-gray-900">{row.title}</p>
+                              <code className="text-xs text-gray-500 break-all">/blog/{row.slug}</code>
+                              {row.status === "draft" ? (
+                                <span className="ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600">
+                                  Borrador
+                                </span>
+                              ) : null}
+                            </td>
+                            <td className="px-6 py-4 align-top max-w-md">
+                              <p className="text-sm text-gray-900 truncate">{row.effectiveTitle}</p>
+                              <p className="text-xs text-gray-500 line-clamp-2">
+                                {row.effectiveDescription}
+                              </p>
+                            </td>
+                            <td className="px-6 py-4 align-top">
+                              <span
+                                className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+                                  row.hasOverride
+                                    ? "bg-amber-100 text-amber-800"
+                                    : "bg-emerald-100 text-emerald-800"
+                                }`}
+                              >
+                                {row.hasOverride ? "Personalizado" : "Automático"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-4 align-top text-right">
+                              <button
+                                type="button"
+                                onClick={() => openMetaEdit({ kind: "blog", row })}
                                 title="Editar metadatos"
                                 className="p-1.5 rounded-lg text-gray-500 hover:text-blue-700 hover:bg-blue-50 transition-colors cursor-pointer"
                               >
@@ -1687,10 +1838,16 @@ export default function AdminRedirectsPage() {
               <div className="min-w-0">
                 <h2 className="text-lg font-semibold text-gray-900">Editar metadatos</h2>
                 <p className="text-sm text-gray-500 truncate">
-                  {metaEdit.kind === "page" ? metaEdit.row.label : metaEdit.row.name}
+                  {metaEdit.kind === "page"
+                    ? metaEdit.row.label
+                    : metaEdit.kind === "blog"
+                      ? metaEdit.row.title
+                      : metaEdit.row.name}
                 </p>
                 {metaEdit.kind === "page" ? (
                   <code className="text-xs text-gray-500 break-all">{metaEdit.row.path}</code>
+                ) : metaEdit.kind === "blog" ? (
+                  <code className="text-xs text-gray-500 break-all">/blog/{metaEdit.row.slug}</code>
                 ) : null}
               </div>
               <button

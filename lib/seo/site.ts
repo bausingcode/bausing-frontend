@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 
 export const SITE_NAME = "Bausing";
 
+export const HOME_TITLE =
+  "Colchones en Córdoba | Directo de fábrica, envíos gratis y pago al recibir | Bausing";
+
 export const SITE_TAGLINE =
   "Encontrá colchones y sommiers en Córdoba con precio directo de fábrica, calidad de hotel, envíos gratis y pago recién al recibir el producto.";
 
