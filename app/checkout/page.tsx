@@ -318,7 +318,9 @@ export default function CheckoutPage() {
   const [couponLoading, setCouponLoading] = useState(false);
   const [cardTypes, setCardTypes] = useState<CardType[]>([]);
   const [cardBankData, setCardBankData] = useState<CardBankData>({});
-  const [loadingCardData, setLoadingCardData] = useState(false);
+  // Arranca en true: el fetch se dispara al montar y no se debe poder confirmar antes de que termine
+  const [loadingCardData, setLoadingCardData] = useState(true);
+  const [cardDataError, setCardDataError] = useState(false);
   const [isThirdPartyTransport, setIsThirdPartyTransport] = useState<boolean>(false);
   const [configuredShippingPrice, setConfiguredShippingPrice] = useState<number | null>(null);
   const [shippingLocalityError, setShippingLocalityError] = useState(false);
@@ -902,11 +904,13 @@ export default function CheckoutPage() {
         ]);
         setCardTypes(cardTypesData);
         setCardBankData(cardBankDataResponse);
+        setCardDataError(false);
       } catch (error) {
         console.error("Error loading card data:", error);
-        // Si falla, usar datos vacíos (el checkout seguirá funcionando sin cuotas)
+        // Si falla no se puede pagar con tarjeta: sin tipo, banco y cuotas la orden queda sin detalle en el CRM
         setCardTypes([]);
         setCardBankData({});
+        setCardDataError(true);
       } finally {
         setLoadingCardData(false);
       }
@@ -1238,12 +1242,15 @@ export default function CheckoutPage() {
       }
     }
 
-    if (
-      payableSubtotalVal > 0.01 &&
-      selectedMethods.includes("card") &&
-      Object.keys(cardBankData).length > 0
-    ) {
-      if (!selectedCardType.trim()) {
+    if (payableSubtotalVal > 0.01 && selectedMethods.includes("card")) {
+      if (loadingCardData) {
+        newErrors.card_installment = "Esperá a que carguen las tarjetas y cuotas disponibles";
+      } else if (cardDataError) {
+        newErrors.card_installment =
+          "No pudimos cargar las tarjetas y cuotas. Recargá la página o elegí otro método de pago";
+      } else if (cardTypes.length === 0 && Object.keys(cardBankData).length === 0) {
+        // Carga OK pero sin tarjetas configuradas: no hay nada que elegir
+      } else if (!selectedCardType.trim()) {
         newErrors.card_installment = "Seleccioná el tipo de tarjeta";
       } else if (!selectedBank.trim()) {
         newErrors.card_installment = "Seleccioná el banco";
@@ -2034,7 +2041,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
           quantity: item.quantity,
           price: getItemUnitPrice(item),
         })),
-        observations: cardPaymentObservationsText,
+        // El detalle de tarjeta/cuotas lo arma el backend desde card_payment_details; no mandarlo también como nota
         ...(cardPaymentDetailsPayload && {
           card_payment_details: cardPaymentDetailsPayload,
         }),
@@ -3814,6 +3821,9 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                     <h3 className="text-sm font-semibold text-gray-800">Tarjeta, banco y cuotas</h3>
                     {errors.card_installment && (
                       <p data-form-error className="text-red-500 text-sm">{errors.card_installment}</p>
+                    )}
+                    {loadingCardData && (
+                      <p className="text-sm text-gray-500">Cargando tarjetas y cuotas disponibles…</p>
                     )}
                     {(() => {
                       const cardData = cardBankData;
