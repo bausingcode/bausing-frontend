@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Mail, Lock, ArrowRight, User, Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { safeRedirectPath } from "@/lib/authSession";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -17,12 +18,18 @@ export default function LoginPage() {
   const { login, isAuthenticated } = useAuth();
   const router = useRouter();
 
-  // Redirigir al home si ya está autenticado
+  // Redirigir si ya está autenticado (a la página de origen si venimos de una sesión vencida)
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace("/");
+      router.replace(safeRedirectPath(new URLSearchParams(window.location.search).get("redirect")));
     }
   }, [isAuthenticated, router]);
+
+  const sessionExpired = useSyncExternalStore(
+    () => () => {},
+    () => new URLSearchParams(window.location.search).get("expired") === "1",
+    () => false
+  );
 
   // No renderizar si está autenticado (evitar flash del contenido)
   if (isAuthenticated) {
@@ -56,6 +63,12 @@ export default function LoginPage() {
               className="h-9 w-auto"
             />
           </div>
+
+          {sessionExpired && (
+            <p className="mb-4 text-sm text-center text-gray-600">
+              Tu sesión expiró. Iniciá sesión de nuevo para continuar.
+            </p>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email */}

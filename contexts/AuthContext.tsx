@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { isTokenExpired, safeRedirectPath } from "@/lib/authSession";
 
 export interface User {
   id: string;
@@ -51,7 +52,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const storedToken = localStorage.getItem("user_token");
         const storedUser = localStorage.getItem("user_data");
         
-        if (storedToken && storedUser) {
+        if (storedToken && isTokenExpired(storedToken)) {
+          // Sesión vencida: limpiar para que no figure como logueado
+          localStorage.removeItem("user_token");
+          localStorage.removeItem("user_data");
+          setToken(null);
+          setUser(null);
+        } else if (storedToken && storedUser) {
           setToken(storedToken);
           setUser(JSON.parse(storedUser));
         }
@@ -88,11 +95,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('authStateChanged', handleAuthStateChanged as EventListener);
 
+    // Si el backend rechaza el token del usuario (401), la sesión venció: cerrarla
+    // y mandar al login volviendo a la página actual.
+    const originalFetch = window.fetch;
+    let handlingExpiry = false;
+    window.fetch = async (input, init) => {
+      const response = await originalFetch(input, init);
+      if (response.status !== 401 || handlingExpiry) return response;
+
+      const userToken = localStorage.getItem("user_token");
+      const authHeader = new Headers(
+        init?.headers ?? (input instanceof Request ? input.headers : undefined)
+      ).get("Authorization");
+      if (!userToken || authHeader !== `Bearer ${userToken}`) return response;
+
+      handlingExpiry = true;
+      localStorage.removeItem("user_token");
+      localStorage.removeItem("user_data");
+      setUser(null);
+      setToken(null);
+      const current = window.location.pathname + window.location.search;
+      router.replace(`/login?expired=1&redirect=${encodeURIComponent(current)}`);
+      window.setTimeout(() => { handlingExpiry = false; }, 1000);
+      return response;
+    };
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('authStateChanged', handleAuthStateChanged as EventListener);
+      window.fetch = originalFetch;
     };
-  }, []);
+  }, [router]);
 
   const login = async (email: string, password: string) => {
     try {
@@ -123,7 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(userToken);
       
       // Redirigir inmediatamente después de actualizar el estado
-      router.replace("/");
+      router.replace(safeRedirectPath(new URLSearchParams(window.location.search).get("redirect")));
     } catch (error) {
       console.error("Login error:", error);
       throw error;
