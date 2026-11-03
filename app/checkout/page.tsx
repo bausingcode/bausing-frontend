@@ -4342,7 +4342,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                   </button>
                 )}
                 {step < 3 ? (
-                  <div className="flex-1">
+                  <div className="flex-1" key="wizard-next">
                     <button
                       type="button"
                       onClick={() => void handleNextStep()}
@@ -4364,7 +4364,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                     )}
                   </div>
                 ) : (
-                  <div className="flex-1">
+                  <div className="flex-1" key="wizard-finalize">
                     <button
                       type="submit"
                       disabled={finalizeDisabled}
@@ -4692,6 +4692,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                 
                 {step < 3 && (
                   <button
+                    key="desktop-next"
                     type="button"
                     onClick={() => void handleNextStep()}
                     aria-disabled={!isCurrentStepComplete}
@@ -4715,6 +4716,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
                 <>
                 {/* Botón de confirmación: solo desktop (lg+) */}
                 <button
+                  key="desktop-finalize"
                   type="submit"
                   disabled={finalizeDisabled}
                   className="hidden lg:flex w-full mt-4 md:mt-6 bg-[#00C1A7] text-white py-2.5 md:py-3 px-4 md:px-6 rounded-lg font-semibold text-sm md:text-base hover:bg-[#00A892] transition-colors disabled:opacity-50 disabled:cursor-not-allowed items-center justify-center gap-2"
