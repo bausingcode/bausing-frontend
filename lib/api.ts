@@ -1939,6 +1939,55 @@ export async function getAppSettings(): Promise<AppSettings> {
   };
 }
 
+export interface ViacargoTarifas {
+  zonas: { key: string; label: string; provincias: string[] }[];
+  tipos: { key: string; label: string }[];
+  /** Precio por unidad, en el orden de `zonas`; null = esa zona cotiza por la API de Via Cargo */
+  precios: Record<string, (number | null)[]>;
+  /** Tarifas agregadas desde el admin, por categoría/subcategoría (y opción opcional) */
+  extras: ViacargoTarifaExtra[];
+  updated_at: string | null;
+}
+
+export interface ViacargoTarifaExtra {
+  id?: string;
+  label: string;
+  /** Categoría a la que aplica (incluye sus hijas); null si solo aplica a productos puntuales */
+  category_id: string | null;
+  category_option_id: string | null;
+  /** Productos puntuales: le ganan a cualquier otra tarifa */
+  product_ids: string[];
+  precios: (number | null)[];
+}
+
+/**
+ * Tarifa fija Vía Cargo (admin)
+ */
+export async function fetchViacargoTarifas(): Promise<ViacargoTarifas> {
+  const response = await fetch(`/api/admin/viacargo-tarifas`, { headers: getAuthHeaders() });
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data?.success) {
+    throw new Error(data?.error || `Failed to fetch Via Cargo tariffs: ${response.statusText}`);
+  }
+  return data.data;
+}
+
+export async function updateViacargoTarifas(
+  precios: Record<string, (number | null)[]>,
+  extras: ViacargoTarifaExtra[],
+): Promise<ViacargoTarifas> {
+  const response = await fetch(`/api/admin/viacargo-tarifas`, {
+    method: "PUT",
+    headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ precios, extras }),
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data?.success) {
+    throw new Error(data?.error || `Failed to update Via Cargo tariffs: ${response.statusText}`);
+  }
+  return data.data;
+}
+
 /**
  * Update wallet settings
  */
