@@ -2346,6 +2346,10 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
     const cp = showAddressForm
       ? normalizeArPostalCode(addressForm.postal_code)
       : normalizeArPostalCode(addresses.find((a) => a.id === selectedAddressId)?.postal_code);
+    // Provincia: define la zona de la tarifa fija Vía Cargo
+    const provinceId = showAddressForm
+      ? addressForm.province_id
+      : addresses.find((a) => a.id === selectedAddressId)?.province_id;
     if (!cp) {
       setViacargoQuoteTotal(null);
       setViacargoQuoteError(null);
@@ -2364,6 +2368,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
         setViacargoQuoteError(null);
         const requestBody = {
           codigo_postal_destinatario: cp,
+          province_id: provinceId || null,
           importe_valor_declarado: Math.max(0, Math.round(subtotalAfterCoupon)),
           items: cart.map((c) => ({ product_id: c.id, quantity: c.quantity })),
         };
@@ -2420,6 +2425,7 @@ ${addressText}${provinceName ? `, ${provinceName}` : ''}`;
     subtotalAfterCoupon,
     showAddressForm,
     addressForm.postal_code,
+    addressForm.province_id,
   ]);
 
   // Envío acordado para accesorios: solo zona local (no tercerizada, no Catálogo País), por catálogo

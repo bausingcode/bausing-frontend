@@ -287,21 +287,21 @@ export default function CatalogoContent({
         <div className="grid grid-cols-12 gap-6">
           <div className="col-span-12">
             {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 [&>*]:min-w-0">
                 {[...Array(8)].map((_, index) => (
                   <div
                     key={index}
                     className="relative group block animate-pulse"
                   >
-                    <div className="relative w-full h-80 rounded-[10px] overflow-hidden bg-gray-200"></div>
+                    <div className="relative w-full rounded-[10px] overflow-hidden bg-gray-200 aspect-square md:aspect-auto md:h-80"></div>
                     <div className="pt-3">
                       <div className="mb-1">
                         <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
                         <div className="h-4 bg-gray-200 rounded w-1/2"></div>
                       </div>
                       <div className="flex items-baseline gap-2 mt-2">
-                        <div className="h-6 bg-gray-200 rounded w-24"></div>
-                        <div className="h-4 bg-gray-200 rounded w-20"></div>
+                        <div className="h-5 md:h-6 bg-gray-200 rounded w-1/2 md:w-24"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/3 md:w-20"></div>
                       </div>
                     </div>
                   </div>
