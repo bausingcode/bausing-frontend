@@ -321,20 +321,6 @@ export default function ImagenesPage() {
     [heroImages, imagesToDelete]
   );
 
-  const heroMobileWith = useMemo(
-    () =>
-      heroImageSlidesForMobile.filter((img) =>
-        Boolean(img.image_url_mobile?.trim())
-      ),
-    [heroImageSlidesForMobile]
-  );
-
-  const heroMobileWithout = useMemo(
-    () =>
-      heroImageSlidesForMobile.filter((img) => !img.image_url_mobile?.trim()),
-    [heroImageSlidesForMobile]
-  );
-
   const handleHeroMobileUpload = async (
     imageId: string,
     file: File | undefined
@@ -1059,69 +1045,79 @@ export default function ImagenesPage() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-6">
-                {heroMobileWith.length > 0 ? (
-                  <SortableImageList
-                    items={heroMobileWith}
-                    layout="grid"
-                    disabled={reordering}
-                    onReorder={handleMobileReorder}
-                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-                  >
-                    {heroMobileWith.map((image) => (
-                      <SortableImageCard
-                        key={image.id}
-                        id={image.id}
-                        index={heroImages.findIndex((h) => h.id === image.id)}
-                        disabled={reordering}
-                        className="border border-teal-100 rounded-lg overflow-hidden bg-white p-3 flex flex-col relative"
-                      >
-                        <div className="rounded-md overflow-hidden bg-gray-100 border border-gray-200 aspect-[390/360] max-h-52">
+              <SortableImageList
+                items={heroImageSlidesForMobile}
+                layout="grid"
+                disabled={reordering}
+                onReorder={handleMobileReorder}
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+              >
+                {heroImageSlidesForMobile.map((image) => {
+                  const hasMobile = Boolean(image.image_url_mobile?.trim());
+                  const busy = uploadingMobileHeroId === image.id;
+                  return (
+                    <SortableImageCard
+                      key={image.id}
+                      id={image.id}
+                      index={heroImages.findIndex((h) => h.id === image.id)}
+                      disabled={reordering}
+                      className={`border rounded-lg overflow-hidden bg-white p-3 flex flex-col relative ${
+                        hasMobile ? "border-teal-100" : "border-amber-300"
+                      }`}
+                    >
+                      <div className="rounded-md overflow-hidden bg-gray-100 border border-gray-200 aspect-[390/360] max-h-52">
+                        {hasMobile ? (
                           <img
                             src={image.image_url_mobile!}
                             alt=""
                             className="w-full h-full object-contain"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
-                              if (
-                                target.src !==
-                                wsrvLoader({
-                                  src: image.image_url_mobile!,
-                                  width: 400,
-                                })
-                              ) {
-                                target.src = wsrvLoader({
-                                  src: image.image_url_mobile!,
-                                  width: 400,
-                                });
-                              }
+                              const fallback = wsrvLoader({
+                                src: image.image_url_mobile!,
+                                width: 400,
+                              });
+                              if (target.src !== fallback) target.src = fallback;
                             }}
                           />
-                        </div>
-                        <div className="flex flex-wrap gap-2 mt-3 justify-end">
-                          <label
-                            className={`inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white rounded-lg cursor-pointer shrink-0 ${
-                              uploadingMobileHeroId === image.id
-                                ? "bg-teal-400 pointer-events-none"
-                                : "bg-teal-600 hover:bg-teal-700"
-                            }`}
-                          >
-                            <Upload className="w-3.5 h-3.5" />
-                            {uploadingMobileHeroId === image.id
-                              ? "Agregando…"
-                              : "Agregar"}
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              disabled={uploadingMobileHeroId !== null}
-                              onChange={async (e) => {
-                                const file = e.target.files?.[0];
-                                e.target.value = "";
-                                await handleHeroMobileUpload(image.id, file);
-                              }}
+                        ) : (
+                          <div className="relative w-full h-full">
+                            <img
+                              src={image.image_url}
+                              alt=""
+                              className="w-full h-full object-cover opacity-30 grayscale"
                             />
-                          </label>
+                            <div className="absolute inset-0 flex items-center justify-center px-3 text-center text-xs font-medium text-amber-800">
+                              Sin foto de celular
+                              <br />
+                              (en el celu se ve la de escritorio)
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2 mt-3 justify-end">
+                        <label
+                          className={`inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white rounded-lg cursor-pointer shrink-0 ${
+                            busy
+                              ? "bg-teal-400 pointer-events-none"
+                              : "bg-teal-600 hover:bg-teal-700"
+                          }`}
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          {busy ? "Subiendo…" : hasMobile ? "Reemplazar" : "Agregar"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={uploadingMobileHeroId !== null}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              e.target.value = "";
+                              await handleHeroMobileUpload(image.id, file);
+                            }}
+                          />
+                        </label>
+                        {hasMobile && (
                           <button
                             type="button"
                             disabled={uploadingMobileHeroId !== null}
@@ -1149,85 +1145,12 @@ export default function ImagenesPage() {
                           >
                             Quitar
                           </button>
-                        </div>
-                      </SortableImageCard>
-                    ))}
-                  </SortableImageList>
-                ) : heroMobileWithout.length > 0 ? (
-                  <div className="text-center py-12 px-4 border-2 border-dashed border-teal-100 rounded-lg bg-teal-50/30">
-                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-teal-100 text-teal-700 mb-3">
-                      <Smartphone className="w-6 h-6" aria-hidden />
-                    </div>
-                    <p className="text-sm text-gray-600 mb-1">
-                      Todavía no cargaste fotos para celular.
-                    </p>
-                    <p className="text-xs text-gray-500 mb-5">
-                      Medida sugerida: 390×360 px · máx. 5 MB
-                    </p>
-                    <label
-                      className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg cursor-pointer ${
-                        uploadingMobileHeroId !== null
-                          ? "bg-teal-400 pointer-events-none"
-                          : "bg-teal-600 hover:bg-teal-700"
-                      }`}
-                    >
-                      <Upload className="w-4 h-4" />
-                      {uploadingMobileHeroId &&
-                      heroMobileWithout.some(
-                        (x) => x.id === uploadingMobileHeroId
-                      )
-                        ? "Agregando…"
-                        : "Agregar"}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        disabled={uploadingMobileHeroId !== null}
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          e.target.value = "";
-                          const id = heroMobileWithout[0]?.id;
-                          if (!id) return;
-                          await handleHeroMobileUpload(id, file);
-                        }}
-                      />
-                    </label>
-                  </div>
-                ) : null}
-
-                {heroMobileWith.length > 0 && heroMobileWithout.length > 0 ? (
-                  <div className="flex flex-wrap items-center justify-center sm:justify-start pt-2">
-                    <label
-                      className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white rounded-lg cursor-pointer shrink-0 ${
-                        uploadingMobileHeroId !== null
-                          ? "bg-teal-400 pointer-events-none"
-                          : "bg-teal-600 hover:bg-teal-700"
-                      }`}
-                    >
-                      <Upload className="w-4 h-4" />
-                      {uploadingMobileHeroId &&
-                      heroMobileWithout.some(
-                        (x) => x.id === uploadingMobileHeroId
-                      )
-                        ? "Agregando…"
-                        : "Agregar"}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        disabled={uploadingMobileHeroId !== null}
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          e.target.value = "";
-                          const id = heroMobileWithout[0]?.id;
-                          if (!id) return;
-                          await handleHeroMobileUpload(id, file);
-                        }}
-                      />
-                    </label>
-                  </div>
-                ) : null}
-              </div>
+                        )}
+                      </div>
+                    </SortableImageCard>
+                  );
+                })}
+              </SortableImageList>
             )}
           </div>
         </section>
