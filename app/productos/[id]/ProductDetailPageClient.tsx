@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, ChevronLeft, ChevronRight, Plus, Minus, ArrowRight, Layers, Bed, BedDouble, Scale, Package, Maximize, CheckCircle2, ChevronDown, ChevronUp, Ruler, Shirt, Wind, GripHorizontal, FileText, Palette, Tv, WashingMachine, Refrigerator, Snowflake } from "lucide-react";
+import { Heart, ChevronLeft, ChevronRight, Plus, ArrowRight, Layers, Bed, BedDouble, Scale, Package, Maximize, CheckCircle2, ChevronDown, ChevronUp, Ruler, Shirt, Wind, GripHorizontal, FileText, Palette, Tv, WashingMachine, Refrigerator, Snowflake } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
@@ -305,16 +305,6 @@ export default function ProductDetailPageClient({
     () => bootstrap.initialSelectedOptions,
   );
   const [expandedVariants, setExpandedVariants] = useState<Record<string, boolean>>({});
-  const colorsAutoExpandedForIdRef = useRef<string | null>(null);
-
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() => {
-    const lines = bootstrap.product ? productColorLines(bootstrap.product) : undefined;
-    return {
-      characteristics: (lines?.length ?? 0) > 1,
-      description: false,
-      warranty: false,
-    };
-  });
 
   const { addToCart, addToFavorites, removeFromFavorites, isInFavorites, favorites } = useCart();
   const [isFavorite, setIsFavorite] = useState(false);
@@ -329,21 +319,6 @@ export default function ProductDetailPageClient({
     if (product) setIsFavorite(isInFavorites(product.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id, favorites]);
-
-  useEffect(() => {
-    colorsAutoExpandedForIdRef.current = null;
-  }, [productId]);
-
-  useEffect(() => {
-    if (!product?.id) return;
-    const lc = productColorLines(product)?.length ?? 0;
-    if (lc <= 1) return;
-    if (colorsAutoExpandedForIdRef.current === product.id) return;
-    colorsAutoExpandedForIdRef.current = product.id;
-    setExpandedSections((prev) =>
-      prev.characteristics ? prev : { ...prev, characteristics: true },
-    );
-  }, [product]);
 
   useEffect(() => {
     if (!product?.images?.length) {
@@ -706,13 +681,6 @@ export default function ProductDetailPageClient({
   }, [product]);
 
   // Los combos ahora se cargan en paralelo con el producto principal
-
-  const toggleSection = (section: string) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
-  };
 
   const nextImage = () => {
     if (product && product.images.length > 1) {
@@ -1457,22 +1425,8 @@ export default function ProductDetailPageClient({
             <div className="space-y-2">
               {/* Descripción */}
               <div className="border-b border-gray-200">
-                <button
-                  onClick={() => toggleSection("description")}
-                  className="w-full flex items-center justify-between py-4 text-left cursor-pointer"
-                >
-                  <span className="text-md text-gray-500">Descripción</span>
-                  {expandedSections.description ? (
-                    <Minus className="w-5 h-5 text-gray-500" />
-                  ) : (
-                    <Plus className="w-5 h-5 text-gray-500" />
-                  )}
-                </button>
-                <div 
-                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                    expandedSections.description ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
-                  }`}
-                >
+                <h3 className="py-4 text-md text-gray-500">Descripción</h3>
+                <div>
                   <div className="pb-4">
                     {product.description?.trim() ? (
                       <div className="text-sm text-gray-600 whitespace-pre-wrap">{product.description}</div>
@@ -1488,22 +1442,8 @@ export default function ProductDetailPageClient({
 
               {/* Características principales */}
               <div className="border-b border-gray-200">
-                <button
-                  onClick={() => toggleSection("characteristics")}
-                  className="w-full flex items-center justify-between py-4 text-left cursor-pointer"
-                >
-                  <span className="text-md text-gray-500">Características principales</span>
-                  {expandedSections.characteristics ? (
-                    <Minus className="w-5 h-5 text-gray-500" />
-                  ) : (
-                    <Plus className="w-5 h-5 text-gray-500" />
-                  )}
-                </button>
-                <div 
-                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                    expandedSections.characteristics ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
-                  }`}
-                >
+                <h3 className="py-4 text-md text-gray-500">Características principales</h3>
+                <div>
                   <div className="pb-4">
                     {!productHasMainCharacteristics(product) ? (
                       <div className="flex flex-col items-center justify-center py-10 px-4 text-center rounded-lg bg-gray-50 border border-dashed border-gray-200">
@@ -1813,22 +1753,8 @@ export default function ProductDetailPageClient({
               {/* Garantía */}
               {(product.warrantyDescription || product.warrantyMonths) && (
                 <div className="border-b border-gray-200">
-                  <button
-                    onClick={() => toggleSection("warranty")}
-                    className="w-full flex items-center justify-between py-4 text-left cursor-pointer"
-                  >
-                    <span className="text-md text-gray-500">Garantía</span>
-                    {expandedSections.warranty ? (
-                      <Minus className="w-5 h-5 text-gray-500" />
-                    ) : (
-                      <Plus className="w-5 h-5 text-gray-500" />
-                    )}
-                  </button>
-                  <div 
-                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                      expandedSections.warranty ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
-                    }`}
-                  >
+                  <h3 className="py-4 text-md text-gray-500">Garantía</h3>
+                <div>
                     <div className="pb-4 text-sm text-gray-600 space-y-2">
                       {product.warrantyMonths && (
                         <div>
